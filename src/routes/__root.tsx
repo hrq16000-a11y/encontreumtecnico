@@ -1,3 +1,4 @@
+import { useMatches as useImportedMatches } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -104,13 +105,24 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
+declare module "@tanstack/react-router" {
+  interface StaticDataRouteOption {
+    importedDocument?: {
+      html?: import("react").HTMLAttributes<HTMLHtmlElement> & Record<`data-${string}`, string>;
+      body?: import("react").HTMLAttributes<HTMLBodyElement> & Record<`data-${string}`, string>;
+    };
+  }
+}
+
 function RootShell({ children }: { children: ReactNode }) {
+  const importedDocument = useImportedMatches({ select: matches => matches.at(-1)?.staticData.importedDocument });
   return (
-    <html lang="en">
+    <html lang="en" {...importedDocument?.html}>
       <head>
+        <style href="site-import-inline" precedence="imported-inline">{"@layer imported-inline;"}</style>
         <HeadContent />
       </head>
-      <body>
+      <body {...importedDocument?.body}>
         {children}
         <Scripts />
       </body>

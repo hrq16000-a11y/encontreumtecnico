@@ -153,3 +153,75 @@
     color: var(--color-foreground);
   }
 }
+
+/* site-import tokens: begin (generated; re-import replaces this block) */
+/* Imported clone roles use prefixed Tailwind utilities
+   (bg-site-import-primary, text-site-import-foreground, …); edit the
+   --site-import-* variables to restyle the clone. Unprefixed roles theme new UI. */
+:root {
+  --background: oklch(1 0 0);
+  --site-import-background: oklch(1 0 0);
+  --foreground: oklch(0.68295 0 0);
+  --site-import-foreground: oklch(0.68295 0 0);
+  --primary: oklch(0.72305 0.13905 228.52);
+  --site-import-primary: oklch(0.72305 0.13905 228.52);
+  --primary-foreground: oklch(0.985 0 0);
+  --site-import-primary-foreground: oklch(0.985 0 0);
+  --accent: oklch(0.53103 0.19848 260.25);
+  --site-import-accent: oklch(0.53103 0.19848 260.25);
+  --border: oklch(0.95514 0 0);
+  --site-import-border: oklch(0.95514 0 0);
+  --card: oklch(0.92797 0 0);
+  --site-import-card: oklch(0.92797 0 0);
+  --muted-foreground: oklch(0.41332 0.01908 269.68);
+  --site-import-muted-foreground: oklch(0.41332 0.01908 269.68);
+  --muted: oklch(0.96715 0 0);
+  --site-import-muted: oklch(0.96715 0 0);
+}
+/* Design tokens captured from the imported site, registered as Tailwind
+   utilities (bg-<name>, text-<name>, font-<name>). var() values live in
+   the imported stylesheet's :root. */
+@theme inline {
+  --font-sans: Abel-Regular;
+  --font-heading: koho-regular;
+  --color-site-import-background: var(--site-import-background);
+  --color-site-import-foreground: var(--site-import-foreground);
+  --color-site-import-primary: var(--site-import-primary);
+  --color-site-import-primary-foreground: var(--site-import-primary-foreground);
+  --color-site-import-accent: var(--site-import-accent);
+  --color-site-import-border: var(--site-import-border);
+  --color-site-import-card: var(--site-import-card);
+  --color-site-import-muted-foreground: var(--site-import-muted-foreground);
+  --color-site-import-muted: var(--site-import-muted);
+  --color-iti-arrow-color: var(--iti-arrow-color);
+  --color-iti-border-color: var(--iti-border-color);
+  --color-iti-border-gray: var(--iti-border-gray);
+  --color-iti-dialcode-color: var(--iti-dialcode-color);
+  --color-iti-dropdown-bg: var(--iti-dropdown-bg);
+  --color-iti-hover-color: var(--iti-hover-color);
+  --color-iti-text-gray: var(--iti-text-gray);
+  --color-wp--preset--color--black: var(--wp--preset--color--black);
+  --color-wp--preset--color--cyan-bluish-gray: var(--wp--preset--color--cyan-bluish-gray);
+  --color-wp--preset--color--light-green-cyan: var(--wp--preset--color--light-green-cyan);
+  --color-wp--preset--color--luminous-vivid-amber: var(--wp--preset--color--luminous-vivid-amber);
+  --color-wp--preset--color--luminous-vivid-orange: var(--wp--preset--color--luminous-vivid-orange);
+  --color-wp--preset--color--pale-cyan-blue: var(--wp--preset--color--pale-cyan-blue);
+  --color-wp--preset--color--pale-pink: var(--wp--preset--color--pale-pink);
+  --color-wp--preset--color--vivid-cyan-blue: var(--wp--preset--color--vivid-cyan-blue);
+  --color-wp--preset--color--vivid-green-cyan: var(--wp--preset--color--vivid-green-cyan);
+  --color-wp--preset--color--vivid-purple: var(--wp--preset--color--vivid-purple);
+  --color-wp--preset--color--vivid-red: var(--wp--preset--color--vivid-red);
+  --color-wp--preset--color--white: var(--wp--preset--color--white);
+  --color-wp-admin-theme-color: var(--wp-admin-theme-color);
+  --color-wp-admin-theme-color-darker-10: var(--wp-admin-theme-color-darker-10);
+  --color-wp-admin-theme-color-darker-20: var(--wp-admin-theme-color-darker-20);
+  --color-wp-block-synced-color: var(--wp-block-synced-color);
+  --color-wp-bound-block-color: var(--wp-bound-block-color);
+  --color-wp-editor-canvas-background: var(--wp-editor-canvas-background);
+}
+@theme reference {
+  --font-base: Abel-Regular;
+  --font-headings: KoHo-Bold;
+  --font-input: Kodchasan;
+}
+/* site-import tokens: end */
