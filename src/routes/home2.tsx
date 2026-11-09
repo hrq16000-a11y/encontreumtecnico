@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { Search, MapPin, Briefcase, Star, TrendingUp, ShieldCheck, Zap, Menu, ArrowRight } from "lucide-react";
+import { CATEGORIES } from "../lib/categories";
 
 /**
  * Home2 é uma LP visual independente da Home1.
@@ -19,8 +20,8 @@ export const Route = createFileRoute("/home2")({
   component: Home2Landing,
 });
 
-const CATEGORIES = ["Eletricista", "Encanador", "Assistência Técnica", "Informática", "Ar Condicionado", "Marido de Aluguel", "CFTV", "Redes", "Impressoras", "Outros"];
-const CITIES = ["São Paulo", "Rio de Janeiro", "Belo Horizonte", "Curitiba", "Porto Alegre", "Salvador", "Fortaleza", "Brasília", "Recife", "Goiânia", "São José dos Pinhais"];
+// Fonte única: categorias operacionais do portal, sem listas decorativas divergentes.
+
 
 function Home2Header() {
   return (
@@ -97,15 +98,12 @@ function Home2Landing() {
               <label className="flex flex-1 items-center rounded-xl bg-white px-4 py-3">
                 <Search className="mr-3 h-5 w-5 text-zinc-400" aria-hidden="true" />
                 <span className="sr-only">Serviço procurado</span>
-                <input value={query} onChange={e => setQuery(e.target.value)} placeholder="O que você procura? (ex: Eletricista)" className="w-full bg-transparent text-zinc-900 outline-none placeholder:text-zinc-400" />
+                <input value={query} onChange={e => setQuery(e.target.value)} placeholder="O que você procura? (ex: CFTV)" className="w-full bg-transparent text-zinc-900 outline-none placeholder:text-zinc-400" />
               </label>
               <label className="flex flex-1 items-center rounded-xl bg-white px-4 py-3">
                 <MapPin className="mr-3 h-5 w-5 text-zinc-400" aria-hidden="true" />
                 <span className="sr-only">Cidade</span>
-                <select value={city} onChange={e => setCity(e.target.value)} className="w-full cursor-pointer appearance-none bg-transparent text-zinc-900 outline-none">
-                  <option value="">Em qual cidade?</option>
-                  {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+                <input type="text" value={city} onChange={e => setCity(e.target.value)} placeholder="Em qual cidade?" className="w-full bg-transparent text-zinc-900 outline-none placeholder:text-zinc-400" />
               </label>
               <button type="submit" className="rounded-xl bg-emerald-600 px-8 py-3 font-bold text-white shadow-lg transition-colors hover:bg-emerald-500">Buscar agora</button>
             </form>
