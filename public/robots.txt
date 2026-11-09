@@ -13,4 +13,4 @@ Allow: /
 User-agent: *
 Allow: /
 
-Sitemap: https://find-your-trusted-technician.lovable.app/sitemap.xml
+Sitemap: https://encontreumtecnico.com/sitemap.xml
