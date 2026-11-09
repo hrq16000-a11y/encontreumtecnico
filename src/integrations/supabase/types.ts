@@ -47,6 +47,57 @@ export type Database = {
         }
         Relationships: []
       }
+      legacy_review_profiles: {
+        Row: {
+          demo_candidate: boolean
+          imported_at: string
+          kind: string
+          location1: string | null
+          location2: string | null
+          location3: string | null
+          review_status: string
+          slug: string
+          source_key: string
+          source_status: string
+          specialty_title: string | null
+          title: string
+          wp_post_id: number
+          wp_user_id: number
+        }
+        Insert: {
+          demo_candidate?: boolean
+          imported_at?: string
+          kind: string
+          location1?: string | null
+          location2?: string | null
+          location3?: string | null
+          review_status?: string
+          slug: string
+          source_key: string
+          source_status: string
+          specialty_title?: string | null
+          title: string
+          wp_post_id: number
+          wp_user_id: number
+        }
+        Update: {
+          demo_candidate?: boolean
+          imported_at?: string
+          kind?: string
+          location1?: string | null
+          location2?: string | null
+          location3?: string | null
+          review_status?: string
+          slug?: string
+          source_key?: string
+          source_status?: string
+          specialty_title?: string | null
+          title?: string
+          wp_post_id?: number
+          wp_user_id?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
