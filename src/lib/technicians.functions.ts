@@ -7,12 +7,15 @@ export type PublicTechnician = {
   id: string;
   display_name: string;
   specialties: string[];
+  service_slugs: string[];
+  state_uf: string | null;
+  neighborhood: string | null;
   city: string;
   region: string | null;
   bio: string | null;
 };
 
-const COLUMNS = "id, display_name, specialties, city, region, bio";
+const COLUMNS = "id, display_name, specialties, service_slugs, city, state_uf, neighborhood, region, bio";
 
 // Links e classificação por IA anteriores usavam rótulos, não identificadores.
 const LEGACY_CATEGORY_ALIASES: Record<string, string> = {
@@ -46,7 +49,7 @@ const clean = (s: string) => s.replace(/[%,()*\\]/g, " ").trim().slice(0, 80);
 
 export const listApprovedTechnicians = createServerFn({ method: "GET" })
   .inputValidator((d) =>
-    z.object({ especialidade: z.string().max(80), cidade: z.string().max(80), regiao: z.string().max(80) }).parse(d),
+    z.object({ especialidade: z.string().max(80), cidade: z.string().max(80), regiao: z.string().max(80), servico: z.string().max(80).default(""), uf: z.string().max(2).default(""), bairro: z.string().max(80).default("") }).parse(d),
   )
   .handler(async ({ data }): Promise<PublicTechnician[]> => {
     let q = publicClient()
@@ -63,6 +66,21 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
       if (!active) return [];
       q = q.contains("specialties", [slug]);
     }
+    if (data.servico) {
+      const { data: offered, error: serviceError } = await (publicClient() as unknown as SupabaseClient)
+        .from("eut_service_types").select("slug,category_slug").eq("slug", data.servico).eq("active", true).maybeSingle();
+      if (serviceError) throw new Error("Não foi possível validar o serviço escolhido.");
+      if (!offered) return [];
+      if (data.especialidade && data.especialidade !== "Todas" && (LEGACY_CATEGORY_ALIASES[data.especialidade] ?? data.especialidade) !== offered.category_slug) return [];
+      q = q.contains("service_slugs", [data.servico]);
+    }
+    const uf = data.uf.toUpperCase();
+    if (uf) {
+      if (!/^(AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)$/.test(uf)) return [];
+      q = q.eq("state_uf", uf);
+    }
+    const bairro = clean(data.bairro);
+    if (bairro) q = q.ilike("neighborhood", `%${bairro}%`);
     const city = clean(data.cidade);
     if (city) q = q.ilike("city", `%${city}%`);
     const region = clean(data.regiao);
