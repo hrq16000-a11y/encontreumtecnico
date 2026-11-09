@@ -10,10 +10,10 @@ export function useActiveServices() {
 
   useEffect(() => {
     let active = true;
-    void supabase.from("eut_service_types")
+    void Promise.resolve(supabase.from("eut_service_types")
       .select("slug,category_slug,label")
       .eq("active", true)
-      .order("display_order")
+      .order("display_order"))
       .then(({ data, error: queryError }) => {
         if (!active) return;
         setServices(queryError ? [] : (data ?? []) as ActiveService[]);
