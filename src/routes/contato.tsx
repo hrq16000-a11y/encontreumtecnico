@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { ContactForm } from "../components/contact-form";
 import { TextPage, TextSection, pageHead } from "../components/text-page";
 
 export const Route = createFileRoute("/contato")({
@@ -12,9 +13,7 @@ export const Route = createFileRoute("/contato")({
         </p>
       </TextSection>
       <TextSection title="Formulário de contato">
-        <p>
-          O formulário será ativado quando o armazenamento das mensagens estiver pronto, para que nenhum contato se perca.
-        </p>
+        <ContactForm />
       </TextSection>
     </TextPage>
   ),
