@@ -47,8 +47,8 @@ const REGIONS = [
 
 const APPROVAL = [
   { icon: UserCheck, title: "Cadastro", text: "O técnico cria a conta, informa especialidades, cidade e regiões que atende." },
-  { icon: ClipboardCheck, title: "Análise", text: "A administração confere as informações informadas no perfil." },
-  { icon: ShieldCheck, title: "Aprovação", text: "Só depois de aprovado o perfil entra na busca pública." },
+  { icon: ClipboardCheck, title: "Perfil completo", text: "O prestador informa os dados e serviços reais que deseja divulgar." },
+  { icon: ShieldCheck, title: "Regras operacionais", text: "A exibição depende de dados e controles da plataforma, não de avaliação técnica." },
   { icon: Search, title: "Busca", text: "O cliente encontra o profissional por especialidade, cidade ou região." },
 ];
 
@@ -59,7 +59,7 @@ export function CategoryGrid() {
       <SectionHeading
         eyebrow="Categorias"
         title="Categorias de atividades populares"
-        text="Escolha uma área e veja os técnicos aprovados que atendem nela."
+        text="Escolha uma área e conheça os profissionais com cadastro disponível nessa categoria."
       />
       <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {categories.map((category) => {
@@ -95,7 +95,7 @@ export function CategoryGrid() {
 export function HowItWorksRich() {
   const steps: { icon: Icon; title: string; text: string }[] = [
     { icon: Search, title: "Busque", text: "Pesquise por especialidade, cidade ou região — ou descreva o problema e deixe a sugestão de filtro com a IA." },
-    { icon: ShieldCheck, title: "Escolha", text: "Compare apenas perfis aprovados, com especialidades e local de atendimento claros." },
+    { icon: ShieldCheck, title: "Escolha", text: "Compare informações declaradas pelo prestador e confira diretamente a disponibilidade." },
     { icon: ClipboardCheck, title: "Solicite", text: "Abra uma solicitação de atendimento e acompanhe o histórico e o status." },
   ];
   return (
@@ -135,7 +135,7 @@ export function CoverageSection() {
       <SectionHeading
         eyebrow="Cobertura"
         title="Busque por região ou pela sua cidade"
-        text="A lista mostra somente técnicos aprovados. Ainda não encontrou ninguém na sua região? Cadastre-se como cliente e abra uma solicitação."
+        text="Busque prestadores por região e serviço. Caso ainda não encontre alguém, consulte as opções de ajuda e disponibilidade da plataforma."
       />
       <ul className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {REGIONS.map(({ name, states }) => (
@@ -175,9 +175,9 @@ export function ApprovalProcessSection() {
         <SectionHeading
           tone="dark"
           align="center"
-          eyebrow="Confiança"
+          eyebrow="Transparência"
           title="Como um perfil chega até você"
-          text="Nenhum perfil aparece na busca pública antes de passar pela análise da administração."
+          text="O cadastro é livre. Visibilidade não significa verificação, certificação ou garantia técnica."
         />
         <ol className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {APPROVAL.map(({ icon: I, title, text }, i) => (
@@ -255,7 +255,7 @@ export function ContactBand() {
         <ul className="space-y-3 text-sm text-muted-foreground">
           <li className="flex gap-3">
             <ShieldCheck className="h-5 w-5 shrink-0 text-primary" aria-hidden />
-            Perfis só aparecem na busca depois de aprovados.
+            Perfis públicos são cadastros declarados pelos próprios profissionais.
           </li>
           <li className="flex gap-3">
             <ClipboardCheck className="h-5 w-5 shrink-0 text-primary" aria-hidden />
