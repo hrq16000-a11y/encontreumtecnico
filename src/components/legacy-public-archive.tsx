@@ -85,7 +85,7 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
                     Brasil · município a confirmar
                   </p>
                   <ul className="mt-3 flex flex-wrap gap-1.5">
-                    {profile.sector_tags.map((tag) => (
+                    {(profile.sector_tags.filter((tag) => !/^TI\s*[-–]\s*Informática$/i.test(tag)).length ? profile.sector_tags.filter((tag) => !/^TI\s*[-–]\s*Informática$/i.test(tag)) : ["Especialidades a confirmar"]).map((tag) => (
                       <li key={tag} className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-foreground">
                         {tag}
                       </li>
