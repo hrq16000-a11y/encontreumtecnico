@@ -3,6 +3,7 @@ import { useState } from "react";
 import { PageShell } from "../components/page-placeholder";
 import { ProblemAssistant } from "../components/problem-assistant";
 import { CATEGORIES } from "../lib/categories";
+import { FindOneSection, JoinNetworkSection, CtaBand, ValuesSection, StepsSection } from "../components/home-sections";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -104,6 +105,12 @@ function HomePage() {
       <section className="mx-auto max-w-3xl px-4 pb-12">
         <ProblemAssistant />
       </section>
+
+      <FindOneSection />
+      <JoinNetworkSection />
+      <CtaBand />
+      <ValuesSection />
+      <StepsSection />
 
       <section className="border-t border-border bg-muted/40 px-4 py-12">
         <div className="mx-auto max-w-6xl">
