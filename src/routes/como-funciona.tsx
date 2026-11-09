@@ -1,13 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { PageShell } from "../components/page-placeholder";
+import { PageShell } from "@/components/page-placeholder";
 
 export const Route = createFileRoute("/como-funciona")({
   head: () => ({
     meta: [
       { title: "Como funciona — Encontre um Técnico" },
-      { name: "description", content: "Entenda como clientes encontram técnicos aprovados e abrem solicitações de atendimento." },
+      { name: "description", content: "Cadastro gratuito, busca por região e serviço, acesso controlado ao contato e contratação direta com prestadores independentes." },
       { property: "og:title", content: "Como funciona — Encontre um Técnico" },
-      { property: "og:description", content: "Entenda como clientes encontram técnicos aprovados e abrem solicitações de atendimento." },
+      { property: "og:description", content: "Cadastre-se gratuitamente ou encontre um profissional. Sem verificação técnica ou intermediação de orçamento." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -18,49 +18,63 @@ export const Route = createFileRoute("/como-funciona")({
 function HowItWorksPage() {
   return (
     <PageShell>
-      <section className="mx-auto max-w-3xl px-4 py-10">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Como funciona</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Uma maneira melhor de encontrar e contratar profissionais de tecnologia.
+      <section className="mx-auto max-w-4xl px-4 py-12">
+        <span className="text-xs font-semibold uppercase tracking-widest text-primary">Transparência em primeiro lugar</span>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground">Como funciona o Encontre um Técnico</h1>
+        <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted-foreground">
+          O cliente encontra profissionais cadastrados livremente. O técnico participa sem custo.
+          A negociação, o orçamento e o serviço são combinados diretamente entre eles.
         </p>
-
-        <div className="mt-8 space-y-8">
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">Para clientes</h2>
-            <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
-              <li>Crie sua conta gratuitamente com login Google.</li>
-              <li>Pesquise técnicos por especialidade, cidade e região.</li>
-              <li>Abra uma solicitação de atendimento descrevendo o que precisa.</li>
-              <li>Acompanhe o histórico e o andamento das suas solicitações.</li>
-              <li>Entre em contato com o técnico pelo fluxo seguro da plataforma.</li>
+        <div className="mt-9 grid gap-5 md:grid-cols-2">
+          <article className="rounded-xl border border-border bg-card p-6">
+            <h2 className="text-xl font-semibold text-card-foreground">Para quem procura um técnico</h2>
+            <ol className="mt-4 list-decimal space-y-3 pl-5 text-sm text-muted-foreground">
+              <li>Pesquise por categoria, serviço e localização: UF, cidade e bairro.</li>
+              <li>Consulte os dados públicos declarados pelo profissional; não há certificação técnica do portal.</li>
+              <li>Quando o acesso pago estiver operacional, confira o valor e as condições antes de adquirir um contato privado.</li>
+              <li>Fale com o profissional e negocie diretamente orçamento, prazo e execução.</li>
+              <li>Se não houver prestador, poderá solicitar apoio na localização de alternativas após adquirir a conveniência oferecida.</li>
             </ol>
-          </div>
-
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">Para técnicos</h2>
-            <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
-              <li>Cadastre-se com login Google e complete seu perfil profissional.</li>
-              <li>Informe suas especialidades e as regiões que atende.</li>
-              <li>Aguarde a aprovação cadastral pela administração.</li>
-              <li>Após aprovado, seu perfil aparece na galeria pública.</li>
+            <Link to="/tecnicos" className="mt-6 inline-flex min-h-11 items-center rounded-md bg-primary px-5 text-sm font-semibold text-primary-foreground">
+              Buscar técnico
+            </Link>
+          </article>
+          <article className="rounded-xl border border-border bg-card p-6">
+            <h2 className="text-xl font-semibold text-card-foreground">Para quem oferece serviços</h2>
+            <ol className="mt-4 list-decimal space-y-3 pl-5 text-sm text-muted-foreground">
+              <li>Crie uma conta gratuitamente e indique suas especialidades reais.</li>
+              <li>Preencha o nome público, a área de atendimento, UF, cidade e bairro.</li>
+              <li>Informe disponibilidade e mantenha os contatos atualizados. As condições operacionais de exibição podem ocultar cadastros incompletos.</li>
+              <li>Quando disponibilizadas, missões de atividade e convites por referência poderão influenciar a exibição, sem garantia de ranking ou contratação.</li>
+              <li>Receba o interesse do cliente e negocie diretamente. O técnico não paga taxas de cadastro ou mensalidade.</li>
             </ol>
+            <Link to="/entrar" className="mt-6 inline-flex min-h-11 items-center rounded-md border border-primary px-5 text-sm font-semibold text-primary">
+              Cadastrar-me gratuitamente
+            </Link>
+          </article>
+        </div>
+        <div className="mt-7 grid gap-4 sm:grid-cols-3">
+          <div className="rounded-lg border border-border bg-muted/30 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Durante 9h–18h</p>
+            <p className="mt-2 text-2xl font-bold text-foreground">R$ 9,99</p>
+            <p className="mt-1 text-xs text-muted-foreground">Conveniência de acesso ao contato, quando a compra estiver disponível.</p>
           </div>
-
-          <div className="rounded-lg border border-border bg-muted/40 p-5">
-            <h2 className="text-base font-semibold text-foreground">Segurança e privacidade</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Dados pessoais e contatos privados só são compartilhados mediante autorização, e toda
-              solicitação é registrada na plataforma antes de qualquer contato externo.
-            </p>
+          <div className="rounded-lg border border-border bg-muted/30 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Fora do horário</p>
+            <p className="mt-2 text-2xl font-bold text-foreground">R$ 29,99</p>
+            <p className="mt-1 text-xs text-muted-foreground">O preço final e o horário aplicado devem aparecer antes do pagamento.</p>
+          </div>
+          <div className="rounded-lg border border-border bg-muted/30 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Para prestadores</p>
+            <p className="mt-2 text-2xl font-bold text-foreground">R$ 0,00</p>
+            <p className="mt-1 text-xs text-muted-foreground">Cadastro livre e gratuito, sem leilão de menor preço.</p>
           </div>
         </div>
-
-        <Link
-          to="/entrar"
-          className="mt-10 inline-block rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-        >
-          Criar conta
-        </Link>
+        <div className="mt-7 rounded-xl border border-border bg-card p-5 text-sm leading-relaxed text-muted-foreground">
+          <h2 className="text-base font-semibold text-card-foreground">O que significa aparecer no portal?</h2>
+          <p className="mt-2">A presença no diretório não corresponde a avaliação, verificação, certificação ou garantia de serviços. Informações de disponibilidade são declaradas pelos participantes.</p>
+          <p className="mt-3">Leia as <Link to="/termos" className="font-medium text-primary underline">condições de uso</Link>, a <Link to="/privacidade" className="font-medium text-primary underline">política de privacidade</Link> e as <Link to="/pagamentos-e-reembolsos" className="font-medium text-primary underline">regras de pagamento e reembolso</Link>.</p>
+        </div>
       </section>
     </PageShell>
   );
