@@ -13,4 +13,4 @@ Allow: /
 User-agent: *
 Allow: /
 
-Sitemap: https://encontreumtecnico.com/sitemap.xml
+Sitemap: https://www.encontreumtecnico.com/sitemap.xml
