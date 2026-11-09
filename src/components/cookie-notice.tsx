@@ -16,6 +16,7 @@ export function CookieNotice() {
 
   function save(c: Consent) {
     localStorage.setItem(KEY, JSON.stringify(c));
+    window.dispatchEvent(new Event("eut-consent-changed"));
     setOpen(false);
   }
 
