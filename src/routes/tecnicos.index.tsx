@@ -3,13 +3,11 @@ import { listApprovedTechnicians } from "../lib/technicians.functions";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { PageShell, EmptyState } from "../components/page-placeholder";
-import { CATEGORIES } from "../lib/categories";
+import { useActiveCategories } from "@/hooks/use-active-categories";
 import { LegacyPublicArchive } from "../components/legacy-public-archive";
 import { canShowLegacyArchive } from "../lib/legacy-archive-filters";
 import { useEffect, useRef, useState } from "react";
 import { analyticsAllowed, recordSearch } from "@/lib/search-analytics";
-
-const SPECIALTIES = ["Todas", ...CATEGORIES];
 
 const searchSchema = z.object({
   especialidade: fallback(z.string(), "Todas").default("Todas"),
@@ -47,6 +45,7 @@ function trackFilter(filter: "especialidade" | "cidade" | "regiao", value: strin
 
 function TechniciansPage() {
   const search = Route.useSearch();
+  const { categories, loading: catalogLoading } = useActiveCategories();
   const technicians = Route.useLoaderData();
   const navigate = useNavigate({ from: "/tecnicos/" });
   const lastRecorded = useRef("");
@@ -65,7 +64,7 @@ function TechniciansPage() {
     }, 800);
     return () => clearTimeout(timer);
   }, [search.especialidade, search.cidade, search.regiao, technicians.length, consentRevision]);
-  const specialty = SPECIALTIES.includes(search.especialidade as (typeof SPECIALTIES)[number])
+  const specialty = categories.some((c) => c.slug === search.especialidade)
     ? search.especialidade
     : "Todas";
 
@@ -93,9 +92,11 @@ function TechniciansPage() {
                 trackFilter("especialidade", e.target.value);
               }}
               className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+              disabled={catalogLoading}
             >
-              {SPECIALTIES.map((s) => (
-                <option key={s} value={s}>{s}</option>
+              <option value="Todas">Todas as categorias</option>
+              {categories.map((c) => (
+                <option key={c.slug} value={c.slug}>{c.label}</option>
               ))}
             </select>
           </div>
