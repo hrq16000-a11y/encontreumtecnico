@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
+import logo from "@/assets/logo-encontreumtecnico.png.asset.json";
 
 const NAV_ITEMS = [
   { to: "/", label: "Início" },
@@ -14,8 +15,8 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-        <Link to="/" className="text-lg font-bold tracking-tight text-foreground">
-          Encontre um <span className="text-primary">Técnico</span>
+        <Link to="/" className="flex items-center" aria-label="Encontre um Técnico — página inicial">
+          <img src={logo.url} alt="Encontre um Técnico" width={324} height={60} className="h-9 w-auto" />
         </Link>
 
         <nav className="hidden items-center gap-6 md:flex" aria-label="Navegação principal">
