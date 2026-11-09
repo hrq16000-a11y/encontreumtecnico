@@ -1,0 +1,71 @@
+name: Dynamic technician catalog gate
+
+on:
+  pull_request:
+    paths:
+      - 'src/hooks/use-active-categories.ts'
+      - 'src/routes/area-tecnico.tsx'
+      - 'src/routes/tecnicos.index.tsx'
+      - 'src/routes/tecnicos.$tecnicoId.tsx'
+      - 'src/routes/home2.tsx'
+      - 'src/components/home-rich.tsx'
+      - 'src/lib/technicians.functions.ts'
+      - '.github/workflows/eut-dynamic-categories.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eut-catalog-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+      - name: Build app
+        run: bun run build
+      - name: Validate static catalog contracts
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const read=p=>readFileSync(p,'utf8');
+          const catalog=read('src/hooks/use-active-categories.ts');
+          const tech=read('src/routes/area-tecnico.tsx');
+          const results=read('src/routes/tecnicos.index.tsx');
+          const home1=read('src/components/home-rich.tsx');
+          const home2=read('src/routes/home2.tsx');
+          const server=read('src/lib/technicians.functions.ts');
+          for (const [file, body, terms] of [
+            ['catalog hook',catalog,['eut_service_categories','.eq("active", true)','display_order']],
+            ['tech profile',tech,['useActiveCategories()','c.slug','state_uf: form.state_uf','status: "pendente" as const']],
+            ['search',results,['useActiveCategories()','value={c.slug}','{c.label}']],
+            ['home1 categories',home1,['useActiveCategories()','category.slug','category.label']],
+            ['home2 categories',home2,['useActiveCategories()','categoryHref(cat.slug)','value={c.slug}']],
+            ['search server',server,['LEGACY_CATEGORY_ALIASES','slug', '.eq("active", true)']],
+          ]) {
+            for (const term of terms) if (!body.includes(term)) throw Error(file+' missing '+term);
+          }
+          if (tech.includes('CATEGORIES.map(') || home2.includes('CATEGORIES.map(')) throw Error('Static category UI remains');
+          console.log('Dynamic catalog + protected technician approval + legacy link contract: OK');
+          NODE
+      - name: Public Supabase catalog smoke (read only, no login)
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const client=readFileSync('src/integrations/supabase/client.ts','utf8');
+          const url=client.match(/const SUPABASE_URL = "([^"]+)"/)?.[1];
+          const key=client.match(/const SUPABASE_PUBLISHABLE_KEY = "([^"]+)"/)?.[1];
+          if (!url || !key) throw Error('Missing public configuration');
+          const endpoint=url+'/rest/v1/eut_service_categories?select=slug,label,description&active=eq.true&order=display_order.asc';
+          const res=await fetch(endpoint,{headers:{apikey:key},signal:AbortSignal.timeout(12000)});
+          if (!res.ok) throw Error('Public catalog REST returned HTTP '+res.status);
+          const list=await res.json();
+          if (!Array.isArray(list) || list.length === 0 || !list.every(v=>typeof v.slug==='string' && typeof v.label==='string')) throw Error('Empty/invalid public catalog');
+          console.log('Public category catalog accessible, active entries:',list.length);
+          NODE
