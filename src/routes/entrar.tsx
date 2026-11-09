@@ -9,7 +9,7 @@ export const Route = createFileRoute("/entrar")({
     meta: [
       { name: "robots", content: "noindex, nofollow" },
       { title: "Entrar — Encontre um Técnico" },
-      { name: "description", content: "Acesse sua conta de técnico ou cliente com login Google." },
+      { name: "description", content: "Acesse sua conta de técnico ou cliente com Google ou e-mail e senha." },
       { property: "og:title", content: "Entrar — Encontre um Técnico" },
       { property: "og:description", content: "Acesse sua conta de técnico ou cliente com login Google." },
       { property: "og:type", content: "website" },
@@ -20,7 +20,7 @@ export const Route = createFileRoute("/entrar")({
 });
 
 function EmailPasswordForm({ onError }: { onError: (m: string | null) => void }) {
-  const [mode, setMode] = useState<"entrar" | "cadastrar">("entrar");
+  const [mode, setMode] = useState<"entrar" | "cadastrar" | "recuperar">("entrar");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -30,21 +30,42 @@ function EmailPasswordForm({ onError }: { onError: (m: string | null) => void })
     e.preventDefault();
     onError(null);
     setInfo(null);
-    if (password.length < 6) return onError("A senha precisa ter pelo menos 6 caracteres.");
+    if (mode !== "recuperar" && password.length < 6) return onError("A senha precisa ter pelo menos 6 caracteres.");
     setBusy(true);
-    if (mode === "cadastrar") {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { emailRedirectTo: `${window.location.origin}/entrar` },
-      });
+    if (mode === "recuperar") {
+      try {
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: `${window.location.origin}/redefinir-senha`,
+        });
+        if (error) onError("Não foi possível enviar a recuperação agora. Tente novamente.");
+        else setInfo("Se houver uma conta com este e-mail, você receberá instruções para redefinir sua senha.");
+      } catch {
+        onError("Falha de conexão. Tente novamente.");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+    try {
+      if (mode === "cadastrar") {
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: { emailRedirectTo: `${window.location.origin}/entrar` },
+        });
+        if (error) {
+          onError(error.message.includes("registered") ? "Este e-mail já tem conta. Use Entrar." : "Não foi possível criar a conta.");
+          return;
+        }
+        if (!data.session) setInfo("Se o cadastro puder ser realizado, verifique seu e-mail para confirmar o acesso.");
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        if (error) onError("Não foi possível entrar. Verifique o e-mail, a senha e se a conta foi confirmada.");
+      }
+    } catch {
+      onError("Falha de conexão. Tente novamente.");
+    } finally {
       setBusy(false);
-      if (error) return onError(error.message.includes("registered") ? "Este e-mail já tem conta. Use Entrar." : "Não foi possível criar a conta.");
-      if (!data.session) setInfo("Conta criada. Confirme pelo link enviado ao seu e-mail para entrar.");
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      setBusy(false);
-      if (error) onError("E-mail ou senha incorretos.");
     }
   }
 
@@ -56,15 +77,18 @@ function EmailPasswordForm({ onError }: { onError: (m: string | null) => void })
         E-mail
         <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className={input} />
       </label>
-      <label className="grid gap-1 text-sm text-foreground">
+      {mode !== "recuperar" && <label className="grid gap-1 text-sm text-foreground">
         Senha
         <input type="password" required minLength={6} autoComplete={mode === "cadastrar" ? "new-password" : "current-password"} value={password} onChange={(e) => setPassword(e.target.value)} className={input} />
-      </label>
+      </label>}
       <button type="submit" disabled={busy} className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
-        {mode === "cadastrar" ? "Criar conta" : "Entrar"}
+        {mode === "recuperar" ? "Enviar instruções" : mode === "cadastrar" ? "Criar conta" : "Entrar"}
       </button>
-      <button type="button" onClick={() => setMode(mode === "entrar" ? "cadastrar" : "entrar")} className="text-sm text-primary underline-offset-4 hover:underline">
+      {mode !== "recuperar" && <button type="button" onClick={() => setMode(mode === "entrar" ? "cadastrar" : "entrar")} className="text-sm text-primary underline-offset-4 hover:underline">
         {mode === "entrar" ? "Não tem conta? Cadastre-se (técnico ou cliente)" : "Já tem conta? Entrar"}
+      </button>}
+      <button type="button" onClick={() => { setMode(mode === "recuperar" ? "entrar" : "recuperar"); setInfo(null); onError(null); }} className="text-sm text-primary underline-offset-4 hover:underline">
+        {mode === "recuperar" ? "Voltar ao login" : "Esqueci minha senha"}
       </button>
       {info && <p className="text-sm text-muted-foreground">{info}</p>}
     </form>

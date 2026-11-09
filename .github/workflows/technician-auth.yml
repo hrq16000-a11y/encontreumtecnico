@@ -1,0 +1,39 @@
+name: Technician auth gate
+on:
+  pull_request:
+    paths:
+      - 'src/routes/entrar.tsx'
+      - 'src/routes/redefinir-senha.tsx'
+      - 'src/routes/reivindicar-cadastro.tsx'
+      - '.github/workflows/technician-auth.yml'
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Locked dependencies
+        run: bun install --frozen-lockfile
+      - name: TanStack production build
+        run: bun run build
+      - name: Verify auth route and recovery contract
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const signin = readFileSync('src/routes/entrar.tsx','utf8');
+          const reset = readFileSync('src/routes/redefinir-senha.tsx','utf8');
+          for (const s of ['signInWithPassword','signUp','resetPasswordForEmail','Esqueci minha senha']) {
+            if (!signin.includes(s)) throw Error('Missing login flow: '+s);
+          }
+          for (const s of ['createFileRoute("/redefinir-senha")','updateUser({ password })','noindex, nofollow']) {
+            if (!reset.includes(s)) throw Error('Missing recovery flow: '+s);
+          }
+          const claim = readFileSync('src/routes/reivindicar-cadastro.tsx','utf8');
+          for (const s of ['eligibleToClaim','roles.includes("tecnico")','status: "pendente"']) {
+            if (!claim.includes(s)) throw Error('Missing manual claim safety: '+s);
+          }
+          console.log('Technician auth static contract: OK');
+          NODE
