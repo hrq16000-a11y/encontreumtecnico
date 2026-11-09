@@ -257,6 +257,15 @@ h1, h2, h3 { font-family: var(--font-heading); letter-spacing: -0.02em; }
 @keyframes float-slow { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
 @utility animate-rise { animation: rise-in 0.7s cubic-bezier(.2,.7,.2,1) both; }
 @utility animate-float { animation: float-slow 6s ease-in-out infinite; }
+
+/* Decorative layers used by the home opening: dot grid and soft glows. */
+.bg-dot-grid {
+  background-image: radial-gradient(currentColor 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+.bg-glow {
+  background-image: radial-gradient(closest-side, var(--brand-glow), transparent);
+}
 @media (prefers-reduced-motion: reduce) {
   .animate-rise, .animate-float { animation: none; }
 }
