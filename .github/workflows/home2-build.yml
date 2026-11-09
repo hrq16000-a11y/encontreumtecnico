@@ -38,7 +38,7 @@ jobs:
           check(home2.includes('function Home2Header()') && home2.includes('function Home2Footer()'), 'Shell próprio incompleto');
           check(!home2.includes('PageShell') || home2.includes('Não importar PageShell'), 'Revisar importação de PageShell');
           check(home2.includes('noindex, nofollow'), 'Proteção de homologação ausente');
-          check(home2.includes('import { CATEGORIES } from "../lib/categories"'), 'Categorias não usam fonte oficial');
+          check(home2.includes('useActiveCategories()') && home2.includes('categoryHref(cat.slug)'), 'Categorias não usam catálogo oficial');
           check(existsSync('src/routes/tecnicos.index.tsx'), 'Destino /tecnicos ausente');
           check(existsSync('src/routes/entrar.tsx'), 'Destino /entrar ausente');
           check(existsSync('src/routes/cadastro.tsx'), 'Destino /cadastro ausente');
