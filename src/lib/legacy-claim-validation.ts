@@ -1,0 +1,16 @@
+/** Identificador do registro WordPress recebido pela interface; não prova titularidade. */
+export function normalizeWpPostId(value: string): number | null {
+  const trimmed = value.trim();
+  if (!/^[1-9]\d{0,11}$/.test(trimmed)) return null;
+  const id = Number(trimmed);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
+export function normalizeClaimantNote(note: string): string {
+  return note.replace(/[\u0000-\u001F\u007F]/g, " ").replace(/\s+/g, " ").trim().slice(0, 500);
+}
+
+export function normalizeVerificationNote(note: string): string | null {
+  const value = note.replace(/[\u0000-\u001F\u007F]/g, " ").replace(/\s+/g, " ").trim();
+  return value.length >= 20 && value.length <= 600 ? value : null;
+}

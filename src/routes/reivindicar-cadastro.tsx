@@ -1,0 +1,153 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState, type FormEvent } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { PageShell } from "@/components/page-placeholder";
+import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
+import { normalizeClaimantNote, normalizeWpPostId } from "@/lib/legacy-claim-validation";
+
+export const Route = createFileRoute("/reivindicar-cadastro")({
+  head: () => ({
+    meta: [
+      { name: "robots", content: "noindex, nofollow" },
+      { title: "Recuperar cadastro antigo — Encontre um Técnico" },
+      { name: "description", content: "Solicite a conferência e vinculação do seu perfil antigo com a conta Google." },
+    ],
+  }),
+  component: LegacyClaimPage,
+});
+
+type ClaimSummary = {
+  id: string;
+  wp_post_id: number;
+  status: "pendente" | "em_analise" | "rejeitado" | "vinculado";
+  created_at: string;
+};
+
+// Tabela externa criada no Supabase EUT, ainda não presente no arquivo gerado pelo Lovable.
+const db = supabase as unknown as SupabaseClient;
+const labels: Record<ClaimSummary["status"], string> = {
+  pendente: "Aguardando análise",
+  em_analise: "Em verificação",
+  rejeitado: "Pedido não aprovado",
+  vinculado: "Vínculo confirmado — perfil aguardando aprovação",
+};
+
+function LegacyClaimPage() {
+  const { user, loading } = useAuth();
+  const [reference, setReference] = useState("");
+  const [note, setNote] = useState("");
+  const [rows, setRows] = useState<ClaimSummary[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const googleLinked = !!user && (
+    user.identities?.some((identity) => identity.provider === "google") ||
+    user.app_metadata?.provider === "google" ||
+    user.app_metadata?.providers?.includes("google")
+  );
+
+  async function loadClaims(userId: string) {
+    const { data, error } = await db.from("legacy_profile_claims")
+      .select("id,wp_post_id,status,created_at")
+      .eq("claimant_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(25);
+    if (!error) setRows((data ?? []) as ClaimSummary[]);
+  }
+  useEffect(() => {
+    if (user?.id) void loadClaims(user.id);
+    else setRows([]);
+  }, [user?.id]);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!user || !googleLinked || saving) return;
+    const wpId = normalizeWpPostId(reference);
+    if (!wpId) {
+      setFeedback("Informe o ID numérico do perfil antigo. A equipe pode ajudá-lo a localizar esse número.");
+      return;
+    }
+    setSaving(true);
+    setFeedback(null);
+    const { error } = await db.from("legacy_profile_claims").insert({
+      source_key: "wordpress_20261108",
+      wp_post_id: wpId,
+      claimant_id: user.id,
+      claimant_note: normalizeClaimantNote(note),
+      status: "pendente",
+    });
+    setSaving(false);
+    if (error) {
+      setFeedback(error.code === "23505"
+        ? "Você já enviou uma solicitação para esse cadastro."
+        : "Não foi possível registrar o pedido. Verifique o ID ou tente novamente.");
+    } else {
+      setFeedback("Pedido registrado. A equipe verificará sua titularidade antes de vincular os dados antigos.");
+      setReference("");
+      setNote("");
+      await loadClaims(user.id);
+    }
+  }
+
+  return (
+    <PageShell>
+      <section className="mx-auto max-w-2xl px-4 py-10">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Recuperar meu cadastro antigo</h1>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Já era técnico no WordPress? Solicite o vínculo com sua conta Google. A referência não é prova de titularidade:
+          a equipe precisa conferir sua identidade antes de liberar o perfil.
+        </p>
+        {loading ? (
+          <p className="mt-5 text-sm text-muted-foreground">Verificando sua conta…</p>
+        ) : !user ? (
+          <p className="mt-5 text-sm text-foreground">
+            <Link to="/entrar" className="text-primary underline">Entre com Google</Link> para solicitar o vínculo.
+          </p>
+        ) : !googleLinked ? (
+          <p className="mt-5 text-sm text-muted-foreground">
+            Para vincular um cadastro anterior é necessário usar uma identidade Google verificada.
+          </p>
+        ) : (
+          <>
+            <form onSubmit={submit} className="mt-6 grid gap-4 rounded-lg border border-border bg-card p-5">
+              <label className="grid gap-2 text-sm font-medium text-foreground">
+                ID numérico do cadastro WordPress
+                <input required inputMode="numeric" value={reference} onChange={(event) => setReference(event.target.value)}
+                  maxLength={12} placeholder="Ex.: 1234"
+                  className="min-h-11 rounded-md border border-input bg-background px-3 text-base text-foreground" />
+              </label>
+              <label className="grid gap-2 text-sm font-medium text-foreground">
+                Observações para a equipe (opcional)
+                <textarea value={note} onChange={(event) => setNote(event.target.value)}
+                  maxLength={500} rows={3}
+                  placeholder="Não inclua documentos, senhas, telefones ou dados de terceiros."
+                  className="rounded-md border border-input bg-background px-3 py-2 text-base text-foreground" />
+              </label>
+              <button type="submit" disabled={saving}
+                className="min-h-11 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+                {saving ? "Enviando…" : "Solicitar análise do meu cadastro"}
+              </button>
+            </form>
+            {feedback && <p role="status" className="mt-4 text-sm text-foreground">{feedback}</p>}
+            <h2 className="mt-8 text-lg font-semibold text-foreground">Minhas solicitações de vínculo</h2>
+            {rows.length === 0 ? (
+              <p className="mt-3 text-sm text-muted-foreground">Nenhuma solicitação registrada.</p>
+            ) : (
+              <ul className="mt-3 grid gap-2">
+                {rows.map((row) => (
+                  <li key={row.id} className="rounded-lg border border-border bg-card p-4 text-sm">
+                    <strong className="text-card-foreground">WordPress #{row.wp_post_id}</strong>
+                    <span className="ml-3 text-muted-foreground">{labels[row.status] ?? row.status}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="mt-5 text-xs text-muted-foreground">
+              Mesmo após a confirmação de titularidade, o perfil profissional ficará pendente até a moderação final.
+            </p>
+          </>
+        )}
+      </section>
+    </PageShell>
+  );
+}

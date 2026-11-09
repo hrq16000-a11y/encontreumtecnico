@@ -127,6 +127,12 @@ function TechnicianAreaPage() {
             <p className="mt-2 text-sm text-muted-foreground">
               Seu perfil só aparece na busca depois de aprovado. Qualquer alteração volta para análise.
             </p>
+            <p className="mt-4 text-sm text-muted-foreground">
+              Já tinha perfil no portal antigo?{" "}
+              <Link to="/reivindicar-cadastro" className="font-medium text-primary underline">
+                Solicitar vínculo com meu cadastro WordPress
+              </Link>
+            </p>
             <form onSubmit={save} className="mt-6 grid gap-4">
               <label className="text-sm font-medium text-foreground">Nome público
                 <input required minLength={2} maxLength={80} className={input} value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} />
