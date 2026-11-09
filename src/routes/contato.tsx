@@ -1,28 +1,31 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ContactForm } from "../components/contact-form";
-import { TextPage, TextSection, pageHead } from "../components/text-page";
+import { ContactForm } from "@/components/contact-form";
+import { TextPage, TextSection, pageHead } from "@/components/text-page";
 
 export const Route = createFileRoute("/contato")({
-  head: () => pageHead("Contato", "Fale com a equipe do Encontre um Técnico."),
+  head: () => pageHead("Contato e atendimento", "Canais para dúvidas sobre o portal, privacidade, cobrança e suporte ao acesso."),
   component: () => (
-    <TextPage title="Contato" intro="Fale com a equipe do portal.">
-      <TextSection title="Antes de escrever">
+    <TextPage title="Contato e atendimento" intro="Atendimento sobre a plataforma, seus dados e seus direitos.">
+      <TextSection title="Dúvidas e pedidos de privacidade">
         <p>
-          Muitas respostas já estão nas{" "}
-          <Link to="/faq" className="text-primary underline">perguntas frequentes</Link>.
+          Solicitações de acesso a dados, correções, segurança, reclamações de consumo sobre o serviço digital e dúvidas
+          de pagamento podem ser feitas sem adquirir o contato de um prestador.
+        </p>
+        <p>Canal de privacidade: <a href="mailto:dpo@encontreumtecnico.com" className="font-medium text-primary underline">dpo@encontreumtecnico.com</a>.</p>
+        <p>
+          Consulte também as <Link to="/faq" className="font-medium text-primary underline">perguntas frequentes</Link> e a{" "}
+          <Link to="/politicas" className="font-medium text-primary underline">central de políticas</Link>.
         </p>
       </TextSection>
-      <TextSection title="Informações de contato">
+      <TextSection title="Ajuda na busca por prestadores">
         <p>
-          Telefone / WhatsApp:{" "}
-          <a href="tel:+5541997452053" className="text-primary underline">(41) 9 9745-2053</a>
-        </p>
-        <p>
-          Privacidade e dados pessoais:{" "}
-          <a href="mailto:dpo@encontreumtecnico.com" className="text-primary underline">dpo@encontreumtecnico.com</a>
+          Se não encontrar um prestador em sua região, o auxílio específico para localizar alternativas está
+          vinculado à aquisição de acesso oferecida na plataforma, quando a funcionalidade de pagamento estiver ativa.
+          Esse apoio não garante disponibilidade nem substitui a negociação direta entre as partes.
         </p>
       </TextSection>
-      <TextSection title="Formulário de contato">
+      <TextSection title="Fale com a equipe">
+        <p>Não envie senhas, códigos de autenticação, números completos de cartão ou dados sensíveis desnecessários pelo formulário.</p>
         <ContactForm />
       </TextSection>
     </TextPage>
