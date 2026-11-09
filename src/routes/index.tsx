@@ -12,7 +12,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Busque técnicos aprovados por especialidade, cidade e região. A melhor maneira de encontrar e contratar profissionais de tecnologia no Brasil.",
+          "Encontre técnicos de CFTV, câmeras de segurança, informática, redes e impressoras na sua cidade. Perfis aprovados e solicitação online.",
       },
       { property: "og:title", content: "Encontre um Técnico — Técnicos de CFTV e informática perto de você" },
       {
