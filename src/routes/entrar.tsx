@@ -18,6 +18,58 @@ export const Route = createFileRoute("/entrar")({
   component: SignInPage,
 });
 
+function EmailPasswordForm({ onError }: { onError: (m: string | null) => void }) {
+  const [mode, setMode] = useState<"entrar" | "cadastrar">("entrar");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [info, setInfo] = useState<string | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    onError(null);
+    setInfo(null);
+    if (password.length < 6) return onError("A senha precisa ter pelo menos 6 caracteres.");
+    setBusy(true);
+    if (mode === "cadastrar") {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: `${window.location.origin}/entrar` },
+      });
+      setBusy(false);
+      if (error) return onError(error.message.includes("registered") ? "Este e-mail já tem conta. Use Entrar." : "Não foi possível criar a conta.");
+      if (!data.session) setInfo("Conta criada. Confirme pelo link enviado ao seu e-mail para entrar.");
+    } else {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      setBusy(false);
+      if (error) onError("E-mail ou senha incorretos.");
+    }
+  }
+
+  const input = "min-h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground";
+  return (
+    <form onSubmit={submit} className="mt-6 grid w-full gap-3 text-left">
+      <div className="text-center text-xs text-muted-foreground">ou com e-mail e senha</div>
+      <label className="grid gap-1 text-sm text-foreground">
+        E-mail
+        <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className={input} />
+      </label>
+      <label className="grid gap-1 text-sm text-foreground">
+        Senha
+        <input type="password" required minLength={6} autoComplete={mode === "cadastrar" ? "new-password" : "current-password"} value={password} onChange={(e) => setPassword(e.target.value)} className={input} />
+      </label>
+      <button type="submit" disabled={busy} className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
+        {mode === "cadastrar" ? "Criar conta" : "Entrar"}
+      </button>
+      <button type="button" onClick={() => setMode(mode === "entrar" ? "cadastrar" : "entrar")} className="text-sm text-primary underline-offset-4 hover:underline">
+        {mode === "entrar" ? "Não tem conta? Cadastre-se (técnico ou cliente)" : "Já tem conta? Entrar"}
+      </button>
+      {info && <p className="text-sm text-muted-foreground">{info}</p>}
+    </form>
+  );
+}
+
 function SignInPage() {
   const { user, roles, loading, refreshRoles } = useAuth();
   const navigate = useNavigate();
@@ -66,6 +118,7 @@ function SignInPage() {
             >
               Entrar com Google
             </button>
+            <EmailPasswordForm onError={setError} />
           </>
         ) : (
           <>
