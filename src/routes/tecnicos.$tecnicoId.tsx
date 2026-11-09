@@ -21,10 +21,10 @@ export const Route = createFileRoute("/tecnicos/$tecnicoId")({
         { property: "og:description", content: desc },
         { property: "og:type", content: "profile" },
         { name: "twitter:card", content: "summary" },
-        { property: "og:url", content: `https://find-your-trusted-technician.lovable.app/tecnicos/${params.tecnicoId}` },
+        { property: "og:url", content: `https://encontreumtecnico.com/tecnicos/${params.tecnicoId}` },
         ...(!loaderData ? [{ name: "robots", content: "noindex, nofollow" }] : []),
       ],
-      links: [{ rel: "canonical", href: `https://find-your-trusted-technician.lovable.app/tecnicos/${params.tecnicoId}` }],
+      links: [{ rel: "canonical", href: `https://encontreumtecnico.com/tecnicos/${params.tecnicoId}` }],
     };
   },
   component: TechnicianProfilePage,
