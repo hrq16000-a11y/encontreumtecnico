@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { PageShell } from "../components/page-placeholder";
+import { normalizeTechnicianSearch } from "../lib/technician-search";
 
 const CATEGORIES = [
   "Ar-condicionado",
@@ -54,7 +55,10 @@ function HomePage() {
             className="mx-auto mt-8 flex max-w-xl flex-col gap-3 sm:flex-row"
             onSubmit={(e) => {
               e.preventDefault();
-              navigate({ to: "/tecnicos" });
+              navigate({
+                to: "/tecnicos",
+                search: normalizeTechnicianSearch({ especialidade: specialty, cidade: city }),
+              });
             }}
           >
             <label className="sr-only" htmlFor="busca-especialidade">Especialidade</label>
@@ -92,6 +96,7 @@ function HomePage() {
             <li key={category}>
               <Link
                 to="/tecnicos"
+                search={normalizeTechnicianSearch({ especialidade: category, cidade: city })}
                 className="block rounded-lg border border-border bg-card px-4 py-5 text-center text-sm font-medium text-card-foreground transition-colors hover:border-primary hover:text-primary"
               >
                 {category}
