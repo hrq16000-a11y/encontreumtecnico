@@ -25,3 +25,22 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Build TanStack
         run: bun run build
+      - name: Smoke estático Home2 — rota, isolamento e indexação
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, existsSync } from 'node:fs';
+          const home2 = readFileSync('src/routes/home2.tsx', 'utf8');
+          const root = readFileSync('src/routes/index.tsx', 'utf8');
+          const check = (ok, reason) => { if (!ok) throw Error(reason); };
+          check(home2.includes('createFileRoute("/home2")'), 'Rota /home2 ausente');
+          check(root.includes('createFileRoute("/")'), 'Home1 original ausente');
+          check(home2.includes('function Home2Header()') && home2.includes('function Home2Footer()'), 'Shell próprio incompleto');
+          check(!home2.includes('PageShell') || home2.includes('Não importar PageShell'), 'Revisar importação de PageShell');
+          check(home2.includes('noindex, nofollow'), 'Proteção de homologação ausente');
+          check(home2.includes('import { CATEGORIES } from "../lib/categories"'), 'Categorias não usam fonte oficial');
+          check(existsSync('src/routes/tecnicos.index.tsx'), 'Destino /tecnicos ausente');
+          check(existsSync('src/routes/entrar.tsx'), 'Destino /entrar ausente');
+          check(existsSync('src/routes/cadastro.tsx'), 'Destino /cadastro ausente');
+          console.log('Home2 smoke estático: OK');
+          NODE
