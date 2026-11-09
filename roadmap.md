@@ -22,3 +22,5 @@
 - [x] Comparar seções abaixo da foto inicial com a captura de referência (5 seções restauradas, sem fotos)
 - [ ] Chat de suporte com central de ajuda + pedidos e passagem para humano (aguarda: ainda não existem pedidos; definir quem atende)
 - [x] Privacidade: texto real do site original
+- [x] Enriquecimento da inicial: categorias com ícones, como funciona, cobertura por região, como o perfil é aprovado, dúvidas frequentes, faixa de atendimento, animação ao rolar
+- [x] Logotipo em versão marinho (cabeçalho e rodapé legíveis)
