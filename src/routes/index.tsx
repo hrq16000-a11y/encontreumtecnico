@@ -1,17 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { PageShell } from "../components/page-placeholder";
-
-const CATEGORIES = [
-  "Ar-condicionado",
-  "Automação",
-  "CFTV",
-  "Computador",
-  "Comunicações",
-  "Elétrica",
-  "Gráfica",
-  "Impressora",
-];
+import { ProblemAssistant } from "../components/problem-assistant";
+import { CATEGORIES } from "../lib/categories";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -54,7 +45,14 @@ function HomePage() {
             className="mx-auto mt-8 flex max-w-xl flex-col gap-3 sm:flex-row"
             onSubmit={(e) => {
               e.preventDefault();
-              navigate({ to: "/tecnicos" });
+              window.__lovableEvents?.track?.("project.technician_search", {
+                has_specialty: specialty.trim() !== "",
+                has_city: city.trim() !== "",
+              });
+              navigate({
+                to: "/tecnicos",
+                search: { especialidade: specialty.trim() || "Todas", cidade: city.trim(), regiao: "" },
+              });
             }}
           >
             <label className="sr-only" htmlFor="busca-especialidade">Especialidade</label>
@@ -92,6 +90,8 @@ function HomePage() {
             <li key={category}>
               <Link
                 to="/tecnicos"
+                search={{ especialidade: category, cidade: "", regiao: "" }}
+                onClick={() => window.__lovableEvents?.track?.("project.category_selected", { category })}
                 className="block rounded-lg border border-border bg-card px-4 py-5 text-center text-sm font-medium text-card-foreground transition-colors hover:border-primary hover:text-primary"
               >
                 {category}
@@ -99,6 +99,10 @@ function HomePage() {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="mx-auto max-w-3xl px-4 pb-12">
+        <ProblemAssistant />
       </section>
 
       <section className="border-t border-border bg-muted/40 px-4 py-12">

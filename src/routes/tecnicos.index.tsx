@@ -1,20 +1,19 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import { PageShell, EmptyState } from "../components/page-placeholder";
+import { CATEGORIES } from "../lib/categories";
 
-const SPECIALTIES = [
-  "Todas",
-  "Ar-condicionado",
-  "Automação",
-  "CFTV",
-  "Computador",
-  "Comunicações",
-  "Elétrica",
-  "Gráfica",
-  "Impressora",
-];
+const SPECIALTIES = ["Todas", ...CATEGORIES];
+
+const searchSchema = z.object({
+  especialidade: fallback(z.string(), "Todas").default("Todas"),
+  cidade: fallback(z.string(), "").default(""),
+  regiao: fallback(z.string(), "").default(""),
+});
 
 export const Route = createFileRoute("/tecnicos/")({
+  validateSearch: zodValidator(searchSchema),
   head: () => ({
     meta: [
       { title: "Técnicos — Encontre um Técnico" },
@@ -28,10 +27,23 @@ export const Route = createFileRoute("/tecnicos/")({
   component: TechniciansPage,
 });
 
+function trackFilter(filter: "especialidade" | "cidade" | "regiao", value: string) {
+  window.__lovableEvents?.track?.("project.technician_filter_used", {
+    filter,
+    has_value: value.trim() !== "" && value !== "Todas",
+    ...(filter === "especialidade" ? { category: value } : {}),
+  });
+}
+
 function TechniciansPage() {
-  const [specialty, setSpecialty] = useState("Todas");
-  const [city, setCity] = useState("");
-  const [region, setRegion] = useState("");
+  const search = Route.useSearch();
+  const navigate = useNavigate({ from: "/tecnicos/" });
+  const specialty = SPECIALTIES.includes(search.especialidade as (typeof SPECIALTIES)[number])
+    ? search.especialidade
+    : "Todas";
+
+  const update = (patch: Partial<typeof search>) =>
+    navigate({ search: (prev) => ({ ...prev, ...patch }), replace: true });
 
   return (
     <PageShell>
@@ -49,7 +61,10 @@ function TechniciansPage() {
             <select
               id="filtro-especialidade"
               value={specialty}
-              onChange={(e) => setSpecialty(e.target.value)}
+              onChange={(e) => {
+                update({ especialidade: e.target.value });
+                trackFilter("especialidade", e.target.value);
+              }}
               className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
             >
               {SPECIALTIES.map((s) => (
@@ -64,8 +79,9 @@ function TechniciansPage() {
             <input
               id="filtro-cidade"
               type="text"
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
+              value={search.cidade}
+              onChange={(e) => update({ cidade: e.target.value })}
+              onBlur={(e) => trackFilter("cidade", e.target.value)}
               placeholder="Ex.: São Paulo"
               className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground"
             />
@@ -77,8 +93,9 @@ function TechniciansPage() {
             <input
               id="filtro-regiao"
               type="text"
-              value={region}
-              onChange={(e) => setRegion(e.target.value)}
+              value={search.regiao}
+              onChange={(e) => update({ regiao: e.target.value })}
+              onBlur={(e) => trackFilter("regiao", e.target.value)}
               placeholder="Ex.: Zona Sul"
               className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground"
             />
