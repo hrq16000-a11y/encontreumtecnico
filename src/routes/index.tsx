@@ -6,7 +6,15 @@ import heroImg from "@/assets/tecnico-cftv-instalacao.jpg";
 import techImg from "@/assets/tecnica-informatica.jpg";
 import { PageShell } from "../components/page-placeholder";
 import { ProblemAssistant } from "../components/problem-assistant";
-import { CATEGORIES } from "../lib/categories";
+import { Reveal } from "../components/motion";
+import {
+  CategoryGrid,
+  HowItWorksRich,
+  CoverageSection,
+  ApprovalProcessSection,
+  FaqPreview,
+  ContactBand,
+} from "../components/home-rich";
 import { FindOneSection, JoinNetworkSection, CtaBand, ValuesSection, StepsSection } from "../components/home-sections";
 
 const SITE = "https://find-your-trusted-technician.lovable.app";
@@ -73,6 +81,13 @@ const TRUST = [
   { icon: Scale, title: "Valorização do técnico", text: "Sem leilão de preço: o profissional define seu trabalho." },
 ];
 
+const CHIPS = [
+  { i: Camera, t: "CFTV" },
+  { i: Laptop, t: "Informática" },
+  { i: Wifi, t: "Redes" },
+  { i: Printer, t: "Impressoras" },
+];
+
 function HomePage() {
   const navigate = useNavigate();
   const [specialty, setSpecialty] = useState("");
@@ -81,7 +96,13 @@ function HomePage() {
   return (
     <PageShell>
       <section className="relative overflow-hidden bg-gradient-to-b from-accent to-background px-4 pb-16 pt-12 md:pb-24 md:pt-16">
-        <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[1.1fr_1fr]">
+        <div aria-hidden className="pointer-events-none absolute inset-0">
+          <div className="bg-glow absolute -top-24 -left-24 h-96 w-96 opacity-25 blur-2xl" />
+          <div className="bg-glow absolute -right-32 top-10 h-[28rem] w-[28rem] opacity-20 blur-2xl" />
+          <div className="bg-dot-grid absolute inset-0 text-primary/15 [mask-image:radial-gradient(60%_60%_at_50%_35%,black,transparent)]" />
+        </div>
+
+        <div className="relative mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[1.1fr_1fr]">
           <div className="animate-rise">
             <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-card px-3 py-1 text-xs font-semibold text-primary">
               <BadgeCheck className="h-4 w-4" aria-hidden /> Portal nacional · sem custo para o profissional
@@ -92,47 +113,47 @@ function HomePage() {
             <p className="mt-4 max-w-xl text-lg text-muted-foreground">
               Técnicos de CFTV, informática, redes e impressoras aprovados na sua cidade — com transparência e valorização de quem faz o serviço.
             </p>
-          <form
-            className="mt-8 flex flex-col gap-3 rounded-xl bg-card p-3 shadow-soft sm:flex-row"
-            onSubmit={(e) => {
-              e.preventDefault();
-              window.__lovableEvents?.track?.("project.technician_search", {
-                has_specialty: specialty.trim() !== "",
-                has_city: city.trim() !== "",
-              });
-              navigate({
-                to: "/tecnicos",
-                search: { especialidade: specialty.trim() || "Todas", cidade: city.trim(), regiao: "" },
-              });
-            }}
-          >
-            <label className="sr-only" htmlFor="busca-especialidade">Especialidade</label>
-            <input
-              id="busca-especialidade"
-              type="text"
-              value={specialty}
-              onChange={(e) => setSpecialty(e.target.value)}
-              placeholder="Especialidade (ex.: Computador)"
-              className="h-11 min-h-11 w-full shrink-0 sm:w-auto sm:flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-            <label className="sr-only" htmlFor="busca-cidade">Cidade</label>
-            <input
-              id="busca-cidade"
-              type="text"
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              placeholder="Cidade ou região"
-              className="h-11 min-h-11 w-full shrink-0 sm:w-auto sm:flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-            <button
-              type="submit"
-              className="h-11 rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            <form
+              className="mt-8 flex flex-col gap-3 rounded-xl bg-card p-3 shadow-soft sm:flex-row"
+              onSubmit={(e) => {
+                e.preventDefault();
+                window.__lovableEvents?.track?.("project.technician_search", {
+                  has_specialty: specialty.trim() !== "",
+                  has_city: city.trim() !== "",
+                });
+                navigate({
+                  to: "/tecnicos",
+                  search: { especialidade: specialty.trim() || "Todas", cidade: city.trim(), regiao: "" },
+                });
+              }}
             >
-              Buscar
-            </button>
-          </form>
+              <label className="sr-only" htmlFor="busca-especialidade">Especialidade</label>
+              <input
+                id="busca-especialidade"
+                type="text"
+                value={specialty}
+                onChange={(e) => setSpecialty(e.target.value)}
+                placeholder="Especialidade (ex.: Computador)"
+                className="h-11 min-h-11 w-full shrink-0 sm:w-auto sm:flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <label className="sr-only" htmlFor="busca-cidade">Cidade</label>
+              <input
+                id="busca-cidade"
+                type="text"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="Cidade ou região"
+                className="h-11 min-h-11 w-full shrink-0 sm:w-auto sm:flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <button
+                type="submit"
+                className="h-11 rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                Buscar
+              </button>
+            </form>
             <ul className="mt-5 flex flex-wrap gap-2 text-xs text-muted-foreground">
-              {[{ i: Camera, t: "CFTV" }, { i: Laptop, t: "Informática" }, { i: Wifi, t: "Redes" }, { i: Printer, t: "Impressoras" }].map(({ i: I, t }) => (
+              {CHIPS.map(({ i: I, t }) => (
                 <li key={t} className="inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-1.5 font-medium text-foreground shadow-sm">
                   <I className="h-3.5 w-3.5 text-primary" aria-hidden /> {t}
                 </li>
@@ -160,27 +181,13 @@ function HomePage() {
         </ul>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-12">
-        <h2 className="text-xl font-semibold text-foreground">Categorias de atividades populares</h2>
-        <ul className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {CATEGORIES.map((category) => (
-            <li key={category}>
-              <Link
-                to="/tecnicos"
-                search={{ especialidade: category, cidade: "", regiao: "" }}
-                onClick={() => window.__lovableEvents?.track?.("project.category_selected", { category })}
-                className="block rounded-lg border border-border bg-card px-4 py-5 text-center text-sm font-medium text-card-foreground transition-colors hover:border-primary hover:text-primary"
-              >
-                {category}
-              </Link>
-            </li>
-          ))}
-        </ul>
+      <Reveal><CategoryGrid /></Reveal>
+
+      <section className="mx-auto max-w-3xl px-4 pb-16">
+        <Reveal><ProblemAssistant /></Reveal>
       </section>
 
-      <section className="mx-auto max-w-3xl px-4 pb-12">
-        <ProblemAssistant />
-      </section>
+      <Reveal><HowItWorksRich /></Reveal>
 
       <section className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 lg:grid-cols-2">
         <img src={techImg} alt="Técnica de informática fazendo manutenção em computador e roteador" width={1280} height={960} loading="lazy" className="aspect-[4/3] w-full rounded-3xl object-cover shadow-soft" />
@@ -196,34 +203,19 @@ function HomePage() {
         </div>
       </section>
 
+      <Reveal><CoverageSection /></Reveal>
+      <Reveal><ApprovalProcessSection /></Reveal>
+
       <FindOneSection />
       <JoinNetworkSection />
       <CtaBand />
       <ValuesSection />
       <StepsSection />
 
-      <section className="border-t border-border bg-muted/40 px-4 py-12">
-        <div className="mx-auto max-w-6xl">
-          <h2 className="text-xl font-semibold text-foreground">Como funciona</h2>
-          <ol className="mt-6 grid gap-6 md:grid-cols-3">
-            {[
-              { step: "1", title: "Busque", text: "Pesquise por especialidade, cidade ou região." },
-              { step: "2", title: "Escolha", text: "Compare perfis de técnicos aprovados pela plataforma." },
-              { step: "3", title: "Solicite", text: "Abra uma solicitação de atendimento com segurança." },
-            ].map((item) => (
-              <li key={item.step} className="rounded-lg border border-border bg-card p-6">
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-                  {item.step}
-                </span>
-                <h3 className="mt-3 font-semibold text-card-foreground">{item.title}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{item.text}</p>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </section>
+      <Reveal><FaqPreview /></Reveal>
+      <Reveal><ContactBand /></Reveal>
 
-      <section className="mx-auto max-w-6xl px-4 py-12">
+      <section className="mx-auto max-w-6xl px-4 pb-16">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="rounded-lg border border-border bg-card p-8 text-center">
             <h2 className="text-lg font-semibold text-card-foreground">Sou Cliente</h2>
