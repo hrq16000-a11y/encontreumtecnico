@@ -222,6 +222,9 @@ export type Database = {
           created_at: string
           display_name: string
           id: string
+          neighborhood: string | null
+          state_uf: string | null
+          service_slugs: string[]
           region: string | null
           reviewed_at: string | null
           specialties: string[]
@@ -235,6 +238,9 @@ export type Database = {
           created_at?: string
           display_name: string
           id?: string
+          neighborhood?: string | null
+          state_uf?: string | null
+          service_slugs?: string[]
           region?: string | null
           reviewed_at?: string | null
           specialties?: string[]
@@ -248,6 +254,9 @@ export type Database = {
           created_at?: string
           display_name?: string
           id?: string
+          neighborhood?: string | null
+          state_uf?: string | null
+          service_slugs?: string[]
           region?: string | null
           reviewed_at?: string | null
           specialties?: string[]
