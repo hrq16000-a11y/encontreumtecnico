@@ -32,7 +32,7 @@ jobs:
           for (const file of publicFiles) {
             const code = read(file);
             if (code.includes('find-your-trusted-technician.lovable.app')) throw Error('Legacy canonical: ' + file);
-            if (!code.includes('https://encontreumtecnico.com')) throw Error('Official origin missing: ' + file);
+            if (!code.includes('https://www.encontreumtecnico.com')) throw Error('Official origin missing: ' + file);
           }
           const privateFiles = ['src/routes/entrar.tsx','src/routes/redefinir-senha.tsx','src/routes/reivindicar-cadastro.tsx','src/routes/area-cliente.tsx','src/routes/area-tecnico.tsx','src/routes/admin.tsx','src/routes/home2.tsx'];
           for (const file of privateFiles) {
