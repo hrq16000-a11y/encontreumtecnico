@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "events": {
+    "project.category_selected": {
+      "event_schema_version": 1,
+      "description": "A visitor clicked a service category on the home page.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "category"
+        ],
+        "properties": {
+          "category": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "project.problem_triaged": {
+      "event_schema_version": 1,
+      "description": "The AI assistant suggested a service category for a described problem.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "category"
+        ],
+        "properties": {
+          "category": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "project.technician_filter_used": {
+      "event_schema_version": 1,
+      "description": "A visitor changed a filter (specialty, city or region) on the technicians list.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "filter",
+          "has_value"
+        ],
+        "properties": {
+          "filter": {
+            "type": "string"
+          },
+          "has_value": {
+            "type": "boolean"
+          },
+          "category": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "project.technician_search": {
+      "event_schema_version": 1,
+      "description": "A visitor submitted the technician search on the home page.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "has_specialty",
+          "has_city"
+        ],
+        "properties": {
+          "has_specialty": {
+            "type": "boolean"
+          },
+          "has_city": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

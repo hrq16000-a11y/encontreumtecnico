@@ -33,3 +33,5 @@ use the editor.
 
 - Backend is the user's own external Supabase project (`pqtzhctvjbfcunmrvxne`); never enable Lovable Cloud or create another database — the spec forbids it.
 - Pages are TanStack Start file routes under `src/routes/`; shared chrome lives in `src/components/site-header.tsx` / `site-footer.tsx` via `PageShell`.
+- AI calls go through `@lovable.dev/ai-gateway` inside server functions in `src/lib/*.functions.ts`; never call models from browser code (keeps the key server-side).
+- Technician filters live in `/tecnicos` search params (`especialidade`, `cidade`, `regiao`) so searches, categories and the AI assistant can deep-link into them.
