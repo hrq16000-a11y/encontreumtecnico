@@ -8,9 +8,6 @@ export function TextPage({ title, intro, children }: { title: string; intro?: st
         <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
         {intro && <p className="mt-2 text-sm text-muted-foreground">{intro}</p>}
         <div className="mt-8 space-y-6 text-sm leading-relaxed text-muted-foreground">{children}</div>
-        <p className="mt-10 rounded-md border border-dashed border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-          Texto provisório — será revisado antes da homologação.
-        </p>
       </section>
     </PageShell>
   );
@@ -25,9 +22,10 @@ export function TextSection({ title, children }: { title: string; children: Reac
   );
 }
 
-export function pageHead(title: string, description: string) {
+export function pageHead(title: string, description: string, canonicalPath?: string) {
   const full = `${title} — Encontre um Técnico`;
   return {
+    links: canonicalPath ? [{ rel: "canonical" as const, href: `https://www.encontreumtecnico.com${canonicalPath}` }] : [],
     meta: [
       { title: full },
       { name: "description", content: description },

@@ -27,9 +27,9 @@ export const Route = createFileRoute("/tecnicos/")({
   head: () => ({
     meta: [
       { title: "Técnicos de CFTV, informática e redes — Encontre um Técnico" },
-      { name: "description", content: "Lista de técnicos aprovados de CFTV, informática, redes e impressoras. Filtre por especialidade, cidade e região." },
+      { name: "description", content: "Consulte técnicos com perfil público de CFTV, informática, redes e impressoras. Filtre por serviço, UF, cidade e bairro." },
       { property: "og:title", content: "Técnicos de CFTV, informática e redes — Encontre um Técnico" },
-      { property: "og:description", content: "Lista de técnicos aprovados de CFTV, informática, redes e impressoras. Filtre por especialidade, cidade e região." },
+      { property: "og:description", content: "Consulte técnicos com perfil público de CFTV, informática, redes e impressoras. Filtre por serviço, UF, cidade e bairro." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { property: "og:url", content: "https://www.encontreumtecnico.com/tecnicos" },
@@ -82,7 +82,7 @@ function TechniciansPage() {
       <section className="mx-auto max-w-6xl px-4 py-10">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Técnicos</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Apenas perfis aprovados pela plataforma aparecem nesta listagem.
+          Perfis publicados são declarados pelos próprios profissionais. A plataforma não certifica habilidades nem garante atendimento.
         </p>
 
         <div className="mt-6 grid gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-3">
@@ -165,7 +165,7 @@ function TechniciansPage() {
           {technicians.length === 0 ? (
             <EmptyState
               title="Nenhum técnico encontrado"
-              description="Ainda não há técnicos aprovados com esses filtros. Os registros importados do WordPress aparecem abaixo, separados e em validação."
+              description="Ainda não há perfis públicos que correspondam aos filtros. Cadastros WordPress em migração podem aparecer abaixo como registros históricos, sem contato disponível."
             />
           ) : (
             <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -178,7 +178,7 @@ function TechniciansPage() {
                   >
                     <div className="flex items-start justify-between gap-2">
                       <h2 className="font-semibold text-card-foreground">{t.display_name}</h2>
-                      <span className="shrink-0 rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Aprovado</span>
+                      <span className="shrink-0 rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Perfil público</span>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {t.city}{t.state_uf ? `/${t.state_uf}` : ""}{t.neighborhood ? ` · ${t.neighborhood}` : ""}{t.region ? ` · ${t.region}` : ""}

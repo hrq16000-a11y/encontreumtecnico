@@ -24,7 +24,7 @@ export const Route = createFileRoute("/area-tecnico")({
   component: TechnicianAreaPage,
 });
 
-const STATUS_LABEL = { pendente: "Em análise", aprovado: "Aprovado — visível na busca", rejeitado: "Não aprovado", suspenso: "Suspenso pela administração" };
+const STATUS_LABEL = { pendente: "Aguardando publicação", aprovado: "Publicado — visível na busca", rejeitado: "Oculto", suspenso: "Visibilidade suspensa" };
 
 function TechnicianRequests() {
   const [rows, setRows] = useState<Req[] | null>(null);
@@ -139,7 +139,7 @@ function TechnicianAreaPage() {
               </p>
             )}
             <p className="mt-2 text-sm text-muted-foreground">
-              Seu perfil só aparece na busca depois de aprovado. Qualquer alteração volta para análise.
+              Seu cadastro é gratuito. A publicação depende dos requisitos operacionais de visibilidade; o portal não avalia sua capacidade técnica.
             </p>
             <LegacyAccountActivation userId={user.id} role="tecnico" />
             <p className="mt-4 text-sm text-muted-foreground">

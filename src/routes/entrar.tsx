@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { PageShell } from "../components/page-placeholder";
@@ -26,11 +26,13 @@ function EmailPasswordForm({ onError }: { onError: (m: string | null) => void })
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [info, setInfo] = useState<string | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     onError(null);
     setInfo(null);
+    if (mode === "cadastrar" && !termsAccepted) return onError("Leia e aceite os Termos de Uso para criar sua conta.");
     if (mode !== "recuperar" && password.length < 6) return onError("A senha precisa ter pelo menos 6 caracteres.");
     setBusy(true);
     if (mode === "recuperar") {
@@ -82,7 +84,13 @@ function EmailPasswordForm({ onError }: { onError: (m: string | null) => void })
         Senha
         <input type="password" required minLength={6} autoComplete={mode === "cadastrar" ? "new-password" : "current-password"} value={password} onChange={(e) => setPassword(e.target.value)} className={input} />
       </label>}
-      <button type="submit" disabled={busy} className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
+      {mode === "cadastrar" && (
+        <label className="flex items-start gap-2 rounded-md border border-border p-3 text-xs leading-relaxed text-muted-foreground">
+          <input type="checkbox" required checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>Li e aceito os <Link to="/termos" className="font-semibold text-primary underline">Termos e condições</Link> e fui informado sobre a <Link to="/privacidade" className="font-semibold text-primary underline">Política de privacidade</Link>. Este aceite não substitui as opções de consentimento para cookies.</span>
+        </label>
+      )}
+      <button type="submit" disabled={busy || (mode === "cadastrar" && !termsAccepted)} className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
         {mode === "recuperar" ? "Enviar instruções" : mode === "cadastrar" ? "Criar conta" : "Entrar"}
       </button>
       {mode !== "recuperar" && <button type="button" onClick={() => setMode(mode === "entrar" ? "cadastrar" : "entrar")} className="text-sm text-primary underline-offset-4 hover:underline">
@@ -102,6 +110,7 @@ function SignInPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [canRecoverAdmin, setCanRecoverAdmin] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [legacyRole, setLegacyRole] = useState<"tecnico" | "cliente" | null>(null);
   const [legacyChecked, setLegacyChecked] = useState(false);
 
@@ -154,6 +163,7 @@ function SignInPage() {
   }
 
   async function recoverAdmin() {
+    if (!termsAccepted) return setError("Leia e aceite os Termos de Uso antes de recuperar a administração.");
     setBusy(true);
     setError(null);
     try {
@@ -170,6 +180,7 @@ function SignInPage() {
 
   async function choose(role: Role) {
     if (busy || !legacyChecked || (role !== "tecnico" && role !== "cliente")) return;
+    if (!termsAccepted) return setError("Leia e aceite os Termos de Uso antes de escolher o tipo de conta.");
     if (legacyRole && role !== legacyRole) {
       setError("Seu cadastro WordPress já tem um tipo definido. Selecione o tipo indicado para associar sua conta.");
       return;
@@ -221,17 +232,21 @@ function SignInPage() {
             <p className="mt-2 text-sm text-muted-foreground">Escolha uma vez; isso define sua área.</p>
             {!legacyChecked && <p className="mt-4 text-sm text-muted-foreground">Verificando seu cadastro anterior…</p>}
             {legacyRole && <p className="mt-4 rounded-md border border-border bg-muted/40 p-3 text-left text-sm text-foreground" role="status">
-              Identificamos um cadastro WordPress do tipo <strong>{legacyRole === "tecnico" ? "técnico/prestador" : "cliente/contratante"}</strong> associado à sua identidade verificada. Mantenha esse tipo para recuperar sua conta; a aprovação de perfil profissional é uma etapa separada.
+              Identificamos um cadastro WordPress do tipo <strong>{legacyRole === "tecnico" ? "técnico/prestador" : "cliente/contratante"}</strong> associado à sua identidade verificada. Mantenha esse tipo para recuperar sua conta; a publicação do perfil profissional é uma etapa separada.
             </p>}
-            <div className="mt-8 grid w-full gap-3">
-              <button disabled={busy || !legacyChecked || legacyRole === "cliente"} onClick={() => choose("tecnico")} className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
+            <label className="mt-6 flex items-start gap-2 rounded-md border border-border bg-card p-3 text-left text-xs leading-relaxed text-muted-foreground">
+              <input type="checkbox" required checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>Li e aceito os <Link to="/termos" className="font-medium text-primary underline">Termos e condições</Link> e tomei conhecimento da <Link to="/privacidade" className="font-medium text-primary underline">Política de privacidade</Link>.</span>
+            </label>
+            <div className="mt-5 grid w-full gap-3">
+              <button disabled={busy || !legacyChecked || !termsAccepted || legacyRole === "cliente"} onClick={() => choose("tecnico")} className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
                 Sou técnico — quero oferecer serviços
               </button>
-              <button disabled={busy || !legacyChecked || legacyRole === "tecnico"} onClick={() => choose("cliente")} className="min-h-11 rounded-md border border-input px-4 py-2.5 text-sm font-medium text-foreground disabled:opacity-60">
+              <button disabled={busy || !legacyChecked || !termsAccepted || legacyRole === "tecnico"} onClick={() => choose("cliente")} className="min-h-11 rounded-md border border-input px-4 py-2.5 text-sm font-medium text-foreground disabled:opacity-60">
                 Sou cliente — quero contratar
               </button>
               {canRecoverAdmin && (
-                <button type="button" disabled={busy} onClick={() => void recoverAdmin()}
+                <button type="button" disabled={busy || !termsAccepted} onClick={() => void recoverAdmin()}
                   className="min-h-11 rounded-md border border-primary px-4 py-2.5 text-sm font-medium text-primary disabled:opacity-60">
                   Recuperar administração do portal anterior
                 </button>
