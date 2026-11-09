@@ -82,7 +82,7 @@ footer{background:white;border-top:1px solid #e7edf5;color:#7a899c;font-size:12p
       const li=make("li","card");li.append(make("h2","",item.display_name));
       li.append(make("span","state","Em validação"));
       const tags=make("div");
-      (Array.isArray(item.sector_tags)?item.sector_tags:[]).forEach(tag=>tags.append(make("span","tag",tag)));
+      const actual=(Array.isArray(item.sector_tags)?item.sector_tags:[]).filter(tag=>!/^TI\s*[-–]\s*Informática$/i.test(String(tag))); (actual.length?actual:["Especialidades a confirmar"]).forEach(tag=>tags.append(make("span","tag",tag)));
       li.append(tags);
       li.append(make("p","meta","Brasil · município a confirmar"));
       li.append(make("p","meta","Cadastro WordPress #"+item.wp_post_id+" · Contato ainda indisponível"));
