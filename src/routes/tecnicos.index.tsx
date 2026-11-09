@@ -29,9 +29,9 @@ export const Route = createFileRoute("/tecnicos/")({
       { property: "og:description", content: "Lista de técnicos aprovados de CFTV, informática, redes e impressoras. Filtre por especialidade, cidade e região." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { property: "og:url", content: "https://encontreumtecnico.com/tecnicos" },
+      { property: "og:url", content: "https://www.encontreumtecnico.com/tecnicos" },
     ],
-    links: [{ rel: "canonical", href: "https://encontreumtecnico.com/tecnicos" }],
+    links: [{ rel: "canonical", href: "https://www.encontreumtecnico.com/tecnicos" }],
   }),
   component: TechniciansPage,
 });
