@@ -16,7 +16,7 @@ import {
   UserCheck,
   Zap,
 } from "lucide-react";
-import { CATEGORIES } from "../lib/categories";
+import { useActiveCategories } from "@/hooks/use-active-categories";
 import { FAQ } from "../lib/faq";
 import { SectionHeading } from "./motion";
 
@@ -25,14 +25,16 @@ const ALL = { especialidade: "Todas", cidade: "", regiao: "" };
 type Icon = typeof Cctv;
 
 const CATEGORY_INFO: Record<string, { icon: Icon; text: string }> = {
-  "Ar-condicionado": { icon: AirVent, text: "Instalação, limpeza e manutenção de split e janela." },
-  Automação: { icon: CircuitBoard, text: "Automação residencial e predial, sensores e cenários." },
-  CFTV: { icon: Cctv, text: "Câmeras, gravadores e acesso remoto com segurança." },
-  Computador: { icon: Laptop, text: "Manutenção, formatação, upgrade e recuperação de dados." },
-  Comunicações: { icon: RadioTower, text: "Redes, cabeamento estruturado e telefonia IP." },
-  Elétrica: { icon: Zap, text: "Instalações, quadros de força e adequações elétricas." },
-  Gráfica: { icon: Newspaper, text: "Impressos, plotagens e serviços gráficos sob demanda." },
-  Impressora: { icon: Printer, text: "Instalação, recarga, manutenção e impressora em rede." },
+  climatizacao: { icon: AirVent, text: "Instalação, limpeza e manutenção de split e janela." },
+  automacao: { icon: CircuitBoard, text: "Automação residencial e predial, sensores e cenários." },
+  cftv: { icon: Cctv, text: "Câmeras, gravadores e acesso remoto com segurança." },
+  computadores: { icon: Laptop, text: "Manutenção, formatação, upgrade e recuperação de dados." },
+  software: { icon: Laptop, text: "Instalação de sistemas, configuração e recuperação de dados." },
+  comunicacoes: { icon: RadioTower, text: "Redes, cabeamento estruturado e telefonia IP." },
+  redes: { icon: RadioTower, text: "Redes, cabeamento estruturado e conectividade." },
+  eletrica: { icon: Zap, text: "Instalações, quadros de força e adequações elétricas." },
+  "design-grafico": { icon: Newspaper, text: "Impressos, plotagens e serviços gráficos sob demanda." },
+  impressoras: { icon: Printer, text: "Instalação, recarga, manutenção e impressora em rede." },
 };
 
 const REGIONS = [
@@ -51,6 +53,7 @@ const APPROVAL = [
 ];
 
 export function CategoryGrid() {
+  const { categories } = useActiveCategories();
   return (
     <section className="mx-auto max-w-6xl px-4 py-16">
       <SectionHeading
@@ -59,24 +62,24 @@ export function CategoryGrid() {
         text="Escolha uma área e veja os técnicos aprovados que atendem nela."
       />
       <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {CATEGORIES.map((category) => {
-          const info = CATEGORY_INFO[category] ?? { icon: Cctv, text: "" };
+        {categories.map((category) => {
+          const info = CATEGORY_INFO[category.slug] ?? { icon: Cctv, text: "" };
           const I = info.icon;
           return (
-            <li key={category}>
+            <li key={category.slug}>
               <Link
                 to="/tecnicos"
-                search={{ especialidade: category, cidade: "", regiao: "" }}
+                search={{ especialidade: category.slug, cidade: "", regiao: "" }}
                 onClick={() =>
-                  window.__lovableEvents?.track?.("project.category_selected", { category })
+                  window.__lovableEvents?.track?.("project.category_selected", { category: category.slug })
                 }
                 className="group flex h-full flex-col rounded-2xl border border-border bg-card p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-soft"
               >
                 <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors duration-300 group-hover:bg-primary group-hover:text-primary-foreground">
                   <I className="h-5 w-5" aria-hidden />
                 </span>
-                <h3 className="mt-4 font-semibold text-card-foreground">{category}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{info.text}</p>
+                <h3 className="mt-4 font-semibold text-card-foreground">{category.label}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">{category.description || info.text}</p>
                 <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100">
                   Ver técnicos <ArrowRight className="h-3.5 w-3.5" aria-hidden />
                 </span>
