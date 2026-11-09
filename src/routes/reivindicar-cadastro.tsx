@@ -11,7 +11,7 @@ export const Route = createFileRoute("/reivindicar-cadastro")({
     meta: [
       { name: "robots", content: "noindex, nofollow" },
       { title: "Recuperar cadastro antigo — Encontre um Técnico" },
-      { name: "description", content: "Solicite a conferência e vinculação do seu perfil antigo com a conta Google." },
+      { name: "description", content: "Solicite a conferência do seu cadastro antigo com conta verificada, por Google ou e-mail e senha." },
     ],
   }),
   component: LegacyClaimPage,
@@ -34,7 +34,7 @@ const labels: Record<ClaimSummary["status"], string> = {
 };
 
 function LegacyClaimPage() {
-  const { user, loading } = useAuth();
+  const { user, roles, loading } = useAuth();
   const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
   const [rows, setRows] = useState<ClaimSummary[]>([]);
@@ -45,6 +45,8 @@ function LegacyClaimPage() {
     user.app_metadata?.provider === "google" ||
     user.app_metadata?.providers?.includes("google")
   );
+
+  const eligibleToClaim = googleLinked || roles.includes("tecnico");
 
   async function loadClaims(userId: string) {
     const { data, error } = await db.from("legacy_profile_claims")
@@ -61,7 +63,7 @@ function LegacyClaimPage() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!user || !googleLinked || saving) return;
+    if (!user || !eligibleToClaim || saving) return;
     const wpId = normalizeWpPostId(reference);
     if (!wpId) {
       setFeedback("Informe o ID numérico do perfil antigo. A equipe pode ajudá-lo a localizar esse número.");
@@ -94,18 +96,18 @@ function LegacyClaimPage() {
       <section className="mx-auto max-w-2xl px-4 py-10">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Recuperar meu cadastro antigo</h1>
         <p className="mt-3 text-sm text-muted-foreground">
-          Já era técnico no WordPress? Solicite o vínculo com sua conta Google. A referência não é prova de titularidade:
+          Já era técnico no WordPress? Solicite o vínculo usando sua conta Google ou conta de técnico com e-mail confirmado. A referência não é prova de titularidade:
           a equipe precisa conferir sua identidade antes de liberar o perfil.
         </p>
         {loading ? (
           <p className="mt-5 text-sm text-muted-foreground">Verificando sua conta…</p>
         ) : !user ? (
           <p className="mt-5 text-sm text-foreground">
-            <Link to="/entrar" className="text-primary underline">Entre com Google</Link> para solicitar o vínculo.
+            <Link to="/entrar" className="text-primary underline">Entre com Google ou e-mail e senha</Link> para solicitar o vínculo.
           </p>
-        ) : !googleLinked ? (
+        ) : !eligibleToClaim ? (
           <p className="mt-5 text-sm text-muted-foreground">
-            Para vincular um cadastro anterior é necessário usar uma identidade Google verificada.
+            Para solicitar o vínculo, entre com Google ou confirme seu e-mail e escolha o tipo de conta técnico. O vínculo depende de revisão administrativa.
           </p>
         ) : (
           <>
