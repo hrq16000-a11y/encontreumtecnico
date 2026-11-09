@@ -4,6 +4,6 @@ import { legalDocuments } from "@/lib/legal-documents";
 import { pageHead } from "@/components/text-page";
 
 export const Route = createFileRoute("/cookies")({
-  head: () => pageHead(legalDocuments.cookies.title, legalDocuments.cookies.description),
+  head: () => pageHead(legalDocuments.cookies.title, legalDocuments.cookies.description, "/cookies"),
   component: () => <LegalDocument documentKey="cookies" />,
 });
