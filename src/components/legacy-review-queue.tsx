@@ -46,11 +46,11 @@ export function LegacyReviewQueue() {
       let query = db.from("legacy_review_profiles")
         .select(FIELDS, { count: "exact" })
         .eq("source_key", "wordpress_20261108")
-        .eq("kind", kind)
+        .eq("kind", kind);
+      if (term) query = query.ilike("title", `%${term}%`);
+      const { data, error: readError, count } = await query
         .order("wp_post_id", { ascending: true })
         .range(page * LEGACY_REVIEW_PAGE_SIZE, (page + 1) * LEGACY_REVIEW_PAGE_SIZE - 1);
-      if (term) query = query.ilike("title", `%${term}%`);
-      const { data, error: readError, count } = await query;
       if (!current) return;
       if (readError) {
         setRows([]);
