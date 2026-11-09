@@ -43,6 +43,34 @@ jobs:
           console.log('Legacy owner lookup: contract OK');
           NODE
 
+  auth-provider-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check public Supabase Auth settings, without creating accounts
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const client = readFileSync('src/integrations/supabase/client.ts', 'utf8');
+          const endpoint = client.match(/const SUPABASE_URL = "([^"]+)"/)?.[1];
+          const publicKey = client.match(/const SUPABASE_PUBLISHABLE_KEY = "([^"]+)"/)?.[1];
+          if (!endpoint || !publicKey) throw Error('Supabase public configuration unavailable');
+          const res = await fetch(endpoint + '/auth/v1/settings', {
+            headers: { apikey: publicKey },
+            signal: AbortSignal.timeout(12000),
+          });
+          if (!res.ok) throw Error('Supabase Auth settings unreachable (HTTP ' + res.status + ')');
+          const settings = await res.json();
+          const emailEnabled = settings.external?.email !== false;
+          const signupEnabled = settings.disable_signup !== true;
+          console.log('Email provider enabled:', emailEnabled);
+          console.log('Public signup enabled:', signupEnabled);
+          console.log('Google provider enabled:', Boolean(settings.external?.google));
+          console.log('Email confirmation required:', settings.mailer_autoconfirm === false);
+          if (!emailEnabled || !signupEnabled) throw Error('Required email signup is disabled');
+          NODE
+
   live-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 4
