@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import logo from "@/assets/logo-encontreumtecnico.png.asset.json";
+import logo from "@/assets/logo-marinho.png";
 
 const NAV_ITEMS = [
   { to: "/", label: "Início" },

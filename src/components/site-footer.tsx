@@ -1,13 +1,12 @@
 import { Link } from "@tanstack/react-router";
+import logo from "@/assets/logo-marinho.png";
 
 export function SiteFooter() {
   return (
     <footer className="border-t border-border bg-muted/40">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 md:grid-cols-4">
         <div>
-          <p className="text-lg font-bold text-foreground">
-            Encontre um <span className="text-primary">Técnico</span>
-          </p>
+          <img src={logo} alt="Encontre um Técnico" width={324} height={60} className="h-9 w-auto" />
           <p className="mt-2 text-sm text-muted-foreground">
             A melhor maneira de encontrar e contratar profissionais de tecnologia no Brasil.
           </p>
