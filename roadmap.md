@@ -1,5 +1,10 @@
 # Roadmap (uma micro-rodada por vez)
 
+- [ ] Rodada atual: salvar buscas consentidas no Supabase e mostrar gráficos administrativos
+- [ ] Publicar melhorias atuais com metadados CFTV/informática e sitemap
+- [ ] Entregar planilha real para aprovação; importação pendente depende de vincular contas com o Codex (357 cidades ausentes)
+- [ ] Conceder admin a hrq16000@gmail.com depois do primeiro acesso; Google depende de configurar credenciais no Supabase externo
+
 - [x] Páginas públicas FAQ, contato, termos e privacidade ligadas ao rodapé
 - [x] Analytics de pesquisas, categorias e filtros na busca de técnicos
 - [x] Testar menu do celular, aviso de cookies e botões principais
