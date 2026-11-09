@@ -8,16 +8,16 @@ import { FindOneSection, JoinNetworkSection, CtaBand, ValuesSection, StepsSectio
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Encontre um Técnico — Encontre profissionais de TI perto de você" },
+      { title: "Encontre um Técnico — Técnicos de CFTV e informática perto de você" },
       {
         name: "description",
         content:
           "Busque técnicos aprovados por especialidade, cidade e região. A melhor maneira de encontrar e contratar profissionais de tecnologia no Brasil.",
       },
-      { property: "og:title", content: "Encontre um Técnico — Encontre profissionais de TI perto de você" },
+      { property: "og:title", content: "Encontre um Técnico — Técnicos de CFTV e informática perto de você" },
       {
         property: "og:description",
-        content: "Busque técnicos aprovados por especialidade, cidade e região.",
+        content: "Técnicos de CFTV e informática aprovados na sua cidade. Busque por especialidade e solicite atendimento.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
