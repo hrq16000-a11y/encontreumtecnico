@@ -7,6 +7,7 @@ import { RequestCard, type Req } from "../components/request-list";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { CATEGORIES } from "@/lib/categories";
+import { LegacyAccountActivation } from "@/components/legacy-account-activation";
 
 export const Route = createFileRoute("/area-cliente")({
   validateSearch: zodValidator(z.object({ tecnico: z.string().optional() })),
@@ -81,6 +82,7 @@ function ClientAreaPage() {
           </p>
         ) : (
           <>
+            <LegacyAccountActivation userId={user.id} role="cliente" />
             <h2 className="mt-6 text-lg font-semibold text-foreground">Nova solicitação</h2>
             {tecnico && <p className="mt-1 text-sm text-muted-foreground">Esta solicitação será enviada ao técnico escolhido.</p>}
             <form onSubmit={submit} className="mt-4 grid gap-4">
