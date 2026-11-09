@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { BRAZIL_STATES, serviceSlug, validMunicipality } from "@/lib/service-taxonomy";
+import { EutCoverageManager } from "@/components/eut-coverage-manager";
 
 const db = supabase as unknown as SupabaseClient;
 const SOURCE = "wordpress_20261108";
@@ -363,6 +364,7 @@ export function EutAdminManager() {
               </li>)}
             </ul>
           </div>
+          <EutCoverageManager key={selected.wp_post_id} sourceKey={selected.source_key} wpPostId={selected.wp_post_id} />
           <button type="button" className={btn+" mt-5"} onClick={()=>{setSelected(null);setForm(null);}}>Fechar ficha</button>
         </section>
       )}
