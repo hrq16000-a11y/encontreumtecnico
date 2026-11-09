@@ -1,16 +1,23 @@
 import { Link } from "@tanstack/react-router";
+import logo from "@/assets/logo-marinho.png";
 
 export function SiteFooter() {
   return (
     <footer className="border-t border-border bg-muted/40">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 md:grid-cols-4">
         <div>
-          <p className="text-lg font-bold text-foreground">
-            Encontre um <span className="text-primary">Técnico</span>
-          </p>
+          <img src={logo} alt="Encontre um Técnico" width={324} height={60} className="h-9 w-auto" />
           <p className="mt-2 text-sm text-muted-foreground">
             A melhor maneira de encontrar e contratar profissionais de tecnologia no Brasil.
           </p>
+          <ul className="mt-3 space-y-1 text-sm text-muted-foreground">
+            <li>
+              <a href="tel:+5541997452053" className="hover:text-foreground">(41) 9 9745-2053</a>
+            </li>
+            <li>
+              <a href="mailto:dpo@encontreumtecnico.com" className="hover:text-foreground">dpo@encontreumtecnico.com</a>
+            </li>
+          </ul>
         </div>
         <nav aria-label="Links do portal">
           <p className="text-sm font-semibold text-foreground">Portal</p>
@@ -39,7 +46,8 @@ export function SiteFooter() {
         </nav>
       </div>
       <div className="border-t border-border py-4 text-center text-xs text-muted-foreground">
-        Versão de desenvolvimento — layout provisório.
+        Encontre um Técnico — portal nacional de técnicos de CFTV e informática, sem custo para o profissional.
+        <br />© 2026 Ping Soluções.
       </div>
     </footer>
   );
