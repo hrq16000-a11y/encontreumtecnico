@@ -14,8 +14,12 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AreaClienteRouteImport } from './routes/area-cliente'
 import { Route as AreaTecnicoRouteImport } from './routes/area-tecnico'
 import { Route as ComoFuncionaRouteImport } from './routes/como-funciona'
+import { Route as ContatoRouteImport } from './routes/contato'
 import { Route as EntrarRouteImport } from './routes/entrar'
+import { Route as FaqRouteImport } from './routes/faq'
+import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as ServicosRouteImport } from './routes/servicos'
+import { Route as TermosRouteImport } from './routes/termos'
 import { Route as TecnicosIndexRouteImport } from './routes/tecnicos.index'
 import { Route as TecnicosTecnicoIdRouteImport } from './routes/tecnicos.$tecnicoId'
 
@@ -44,14 +48,34 @@ const ComoFuncionaRoute = ComoFuncionaRouteImport.update({
   path: '/como-funciona',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ContatoRoute = ContatoRouteImport.update({
+  id: '/contato',
+  path: '/contato',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EntrarRoute = EntrarRouteImport.update({
   id: '/entrar',
   path: '/entrar',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FaqRoute = FaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacidadeRoute = PrivacidadeRouteImport.update({
+  id: '/privacidade',
+  path: '/privacidade',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ServicosRoute = ServicosRouteImport.update({
   id: '/servicos',
   path: '/servicos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermosRoute = TermosRouteImport.update({
+  id: '/termos',
+  path: '/termos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TecnicosIndexRoute = TecnicosIndexRouteImport.update({
@@ -71,8 +95,12 @@ export interface FileRoutesByFullPath {
   '/area-cliente': typeof AreaClienteRoute
   '/area-tecnico': typeof AreaTecnicoRoute
   '/como-funciona': typeof ComoFuncionaRoute
+  '/contato': typeof ContatoRoute
   '/entrar': typeof EntrarRoute
+  '/faq': typeof FaqRoute
+  '/privacidade': typeof PrivacidadeRoute
   '/servicos': typeof ServicosRoute
+  '/termos': typeof TermosRoute
   '/tecnicos/$tecnicoId': typeof TecnicosTecnicoIdRoute
   '/tecnicos/': typeof TecnicosIndexRoute
 }
@@ -82,8 +110,12 @@ export interface FileRoutesByTo {
   '/area-cliente': typeof AreaClienteRoute
   '/area-tecnico': typeof AreaTecnicoRoute
   '/como-funciona': typeof ComoFuncionaRoute
+  '/contato': typeof ContatoRoute
   '/entrar': typeof EntrarRoute
+  '/faq': typeof FaqRoute
+  '/privacidade': typeof PrivacidadeRoute
   '/servicos': typeof ServicosRoute
+  '/termos': typeof TermosRoute
   '/tecnicos/$tecnicoId': typeof TecnicosTecnicoIdRoute
   '/tecnicos': typeof TecnicosIndexRoute
 }
@@ -94,8 +126,12 @@ export interface FileRoutesById {
   '/area-cliente': typeof AreaClienteRoute
   '/area-tecnico': typeof AreaTecnicoRoute
   '/como-funciona': typeof ComoFuncionaRoute
+  '/contato': typeof ContatoRoute
   '/entrar': typeof EntrarRoute
+  '/faq': typeof FaqRoute
+  '/privacidade': typeof PrivacidadeRoute
   '/servicos': typeof ServicosRoute
+  '/termos': typeof TermosRoute
   '/tecnicos/$tecnicoId': typeof TecnicosTecnicoIdRoute
   '/tecnicos/': typeof TecnicosIndexRoute
 }
@@ -107,8 +143,12 @@ export interface FileRouteTypes {
     | '/area-cliente'
     | '/area-tecnico'
     | '/como-funciona'
+    | '/contato'
     | '/entrar'
+    | '/faq'
+    | '/privacidade'
     | '/servicos'
+    | '/termos'
     | '/tecnicos/$tecnicoId'
     | '/tecnicos/'
   fileRoutesByTo: FileRoutesByTo
@@ -118,8 +158,12 @@ export interface FileRouteTypes {
     | '/area-cliente'
     | '/area-tecnico'
     | '/como-funciona'
+    | '/contato'
     | '/entrar'
+    | '/faq'
+    | '/privacidade'
     | '/servicos'
+    | '/termos'
     | '/tecnicos/$tecnicoId'
     | '/tecnicos'
   id:
@@ -129,8 +173,12 @@ export interface FileRouteTypes {
     | '/area-cliente'
     | '/area-tecnico'
     | '/como-funciona'
+    | '/contato'
     | '/entrar'
+    | '/faq'
+    | '/privacidade'
     | '/servicos'
+    | '/termos'
     | '/tecnicos/$tecnicoId'
     | '/tecnicos/'
   fileRoutesById: FileRoutesById
@@ -141,8 +189,12 @@ export interface RootRouteChildren {
   AreaClienteRoute: typeof AreaClienteRoute
   AreaTecnicoRoute: typeof AreaTecnicoRoute
   ComoFuncionaRoute: typeof ComoFuncionaRoute
+  ContatoRoute: typeof ContatoRoute
   EntrarRoute: typeof EntrarRoute
+  FaqRoute: typeof FaqRoute
+  PrivacidadeRoute: typeof PrivacidadeRoute
   ServicosRoute: typeof ServicosRoute
+  TermosRoute: typeof TermosRoute
   TecnicosTecnicoIdRoute: typeof TecnicosTecnicoIdRoute
   TecnicosIndexRoute: typeof TecnicosIndexRoute
 }
@@ -184,6 +236,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ComoFuncionaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/contato': {
+      id: '/contato'
+      path: '/contato'
+      fullPath: '/contato'
+      preLoaderRoute: typeof ContatoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/entrar': {
       id: '/entrar'
       path: '/entrar'
@@ -191,11 +250,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EntrarRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/faq': {
+      id: '/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof FaqRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacidade': {
+      id: '/privacidade'
+      path: '/privacidade'
+      fullPath: '/privacidade'
+      preLoaderRoute: typeof PrivacidadeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/servicos': {
       id: '/servicos'
       path: '/servicos'
       fullPath: '/servicos'
       preLoaderRoute: typeof ServicosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/termos': {
+      id: '/termos'
+      path: '/termos'
+      fullPath: '/termos'
+      preLoaderRoute: typeof TermosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/tecnicos/': {
@@ -221,8 +301,12 @@ const rootRouteChildren: RootRouteChildren = {
   AreaClienteRoute: AreaClienteRoute,
   AreaTecnicoRoute: AreaTecnicoRoute,
   ComoFuncionaRoute: ComoFuncionaRoute,
+  ContatoRoute: ContatoRoute,
   EntrarRoute: EntrarRoute,
+  FaqRoute: FaqRoute,
+  PrivacidadeRoute: PrivacidadeRoute,
   ServicosRoute: ServicosRoute,
+  TermosRoute: TermosRoute,
   TecnicosTecnicoIdRoute: TecnicosTecnicoIdRoute,
   TecnicosIndexRoute: TecnicosIndexRoute,
 }
