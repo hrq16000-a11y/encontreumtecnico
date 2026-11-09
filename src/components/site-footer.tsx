@@ -47,7 +47,8 @@ export function SiteFooter() {
         </nav>
       </div>
       <div className="border-t border-border py-4 text-center text-xs text-muted-foreground">
-        Versão de desenvolvimento — layout provisório.
+        Encontre um Técnico — portal nacional de técnicos de CFTV e informática, sem custo para o profissional.
+        <br />© 2026 Ping Soluções.
       </div>
     </footer>
   );
