@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-const SITE = "https://encontreumtecnico.com";
+const SITE = "https://www.encontreumtecnico.com";
 const PATHS = ["/", "/tecnicos", "/servicos", "/como-funciona", "/faq", "/contato", "/termos", "/privacidade"];
 
 export const Route = createFileRoute("/sitemap.xml")({
