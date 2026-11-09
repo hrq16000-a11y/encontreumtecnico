@@ -17,7 +17,7 @@ import {
 } from "../components/home-rich";
 import { FindOneSection, JoinNetworkSection, CtaBand, ValuesSection, StepsSection } from "../components/home-sections";
 
-const SITE = "https://find-your-trusted-technician.lovable.app";
+const SITE = "https://www.encontreumtecnico.com";
 const TITLE = "Encontre um Técnico — Portal nacional de técnicos de CFTV e informática, sem custo para o profissional";
 const DESC = "Portal brasileiro que conecta clientes a técnicos de CFTV, informática, redes e impressoras com transparência: perfis aprovados, sem cobrar do profissional e sem leilão de preço.";
 

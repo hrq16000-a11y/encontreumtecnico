@@ -11,7 +11,7 @@ export const Route = createFileRoute("/entrar")({
       { title: "Entrar — Encontre um Técnico" },
       { name: "description", content: "Acesse sua conta de técnico ou cliente com Google ou e-mail e senha." },
       { property: "og:title", content: "Entrar — Encontre um Técnico" },
-      { property: "og:description", content: "Acesse sua conta de técnico ou cliente com login Google." },
+      { property: "og:description", content: "Acesse sua conta de técnico ou cliente com Google ou e-mail e senha." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -143,6 +143,11 @@ function SignInPage() {
             >
               Entrar com Google
             </button>
+            <p className="mt-4 rounded-md border border-border bg-muted/30 p-3 text-left text-sm text-muted-foreground">
+              <strong className="text-foreground">Já tinha conta no WordPress?</strong>{" "}
+              Cadastre-se com o mesmo e-mail ou entre com Google. A senha antiga não foi transferida.
+              Após confirmar seu e-mail, escolha seu tipo de conta. Técnicos podem solicitar a recuperação do perfil anterior.
+            </p>
             <EmailPasswordForm onError={setError} />
           </>
         ) : (
