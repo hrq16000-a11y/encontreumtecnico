@@ -20,7 +20,7 @@ export const Route = createFileRoute("/entrar")({
 });
 
 function EmailPasswordForm({ onError }: { onError: (m: string | null) => void }) {
-  const [mode, setMode] = useState<"entrar" | "cadastrar">("entrar");
+  const [mode, setMode] = useState<"entrar" | "cadastrar" | "recuperar">("entrar");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -30,8 +30,22 @@ function EmailPasswordForm({ onError }: { onError: (m: string | null) => void })
     e.preventDefault();
     onError(null);
     setInfo(null);
-    if (password.length < 6) return onError("A senha precisa ter pelo menos 6 caracteres.");
+    if (mode !== "recuperar" && password.length < 6) return onError("A senha precisa ter pelo menos 6 caracteres.");
     setBusy(true);
+    if (mode === "recuperar") {
+      try {
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: `${window.location.origin}/redefinir-senha`,
+        });
+        if (error) onError("Não foi possível enviar a recuperação agora. Tente novamente.");
+        else setInfo("Se houver uma conta com este e-mail, você receberá instruções para redefinir sua senha.");
+      } catch {
+        onError("Falha de conexão. Tente novamente.");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     if (mode === "cadastrar") {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -56,15 +70,18 @@ function EmailPasswordForm({ onError }: { onError: (m: string | null) => void })
         E-mail
         <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className={input} />
       </label>
-      <label className="grid gap-1 text-sm text-foreground">
+      {mode !== "recuperar" && <label className="grid gap-1 text-sm text-foreground">
         Senha
         <input type="password" required minLength={6} autoComplete={mode === "cadastrar" ? "new-password" : "current-password"} value={password} onChange={(e) => setPassword(e.target.value)} className={input} />
-      </label>
+      </label>}
       <button type="submit" disabled={busy} className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
-        {mode === "cadastrar" ? "Criar conta" : "Entrar"}
+        {mode === "recuperar" ? "Enviar instruções" : mode === "cadastrar" ? "Criar conta" : "Entrar"}
       </button>
-      <button type="button" onClick={() => setMode(mode === "entrar" ? "cadastrar" : "entrar")} className="text-sm text-primary underline-offset-4 hover:underline">
+      {mode !== "recuperar" && <button type="button" onClick={() => setMode(mode === "entrar" ? "cadastrar" : "entrar")} className="text-sm text-primary underline-offset-4 hover:underline">
         {mode === "entrar" ? "Não tem conta? Cadastre-se (técnico ou cliente)" : "Já tem conta? Entrar"}
+      </button>}
+      <button type="button" onClick={() => { setMode(mode === "recuperar" ? "entrar" : "recuperar"); setInfo(null); onError(null); }} className="text-sm text-primary underline-offset-4 hover:underline">
+        {mode === "recuperar" ? "Voltar ao login" : "Esqueci minha senha"}
       </button>
       {info && <p className="text-sm text-muted-foreground">{info}</p>}
     </form>
