@@ -1,20 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { PageShell, EmptyState } from "../components/page-placeholder";
-
-const SPECIALTIES = [
-  "Todas",
-  "Ar-condicionado",
-  "Automação",
-  "CFTV",
-  "Computador",
-  "Comunicações",
-  "Elétrica",
-  "Gráfica",
-  "Impressora",
-];
+import { normalizeTechnicianSearch } from "../lib/technician-search";
 
 export const Route = createFileRoute("/tecnicos/")({
+  validateSearch: normalizeTechnicianSearch,
   head: () => ({
     meta: [
       { title: "Técnicos — Encontre um Técnico" },
@@ -29,8 +19,9 @@ export const Route = createFileRoute("/tecnicos/")({
 });
 
 function TechniciansPage() {
-  const [specialty, setSpecialty] = useState("Todas");
-  const [city, setCity] = useState("");
+  const { especialidade, cidade } = Route.useSearch();
+  const [specialty, setSpecialty] = useState(especialidade);
+  const [city, setCity] = useState(cidade);
   const [region, setRegion] = useState("");
 
   return (
@@ -46,16 +37,14 @@ function TechniciansPage() {
             <label htmlFor="filtro-especialidade" className="text-xs font-medium text-muted-foreground">
               Especialidade
             </label>
-            <select
+            <input
               id="filtro-especialidade"
+              type="text"
               value={specialty}
               onChange={(e) => setSpecialty(e.target.value)}
+              placeholder="Ex.: Computador, CFTV"
               className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
-            >
-              {SPECIALTIES.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
+            />
           </div>
           <div>
             <label htmlFor="filtro-cidade" className="text-xs font-medium text-muted-foreground">
