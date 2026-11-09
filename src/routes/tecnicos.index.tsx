@@ -3,7 +3,9 @@ import { listApprovedTechnicians } from "../lib/technicians.functions";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { PageShell, EmptyState } from "../components/page-placeholder";
-import { useActiveCategories } from "@/hooks/use-active-categories";
+import { useActiveCategories, categoryLabel } from "@/hooks/use-active-categories";
+import { useActiveServices, serviceLabel } from "@/hooks/use-active-services";
+import { BRAZIL_STATES } from "@/lib/service-taxonomy";
 import { LegacyPublicArchive } from "../components/legacy-public-archive";
 import { canShowLegacyArchive } from "../lib/legacy-archive-filters";
 import { useEffect, useRef, useState } from "react";
@@ -13,6 +15,9 @@ const searchSchema = z.object({
   especialidade: fallback(z.string(), "Todas").default("Todas"),
   cidade: fallback(z.string(), "").default(""),
   regiao: fallback(z.string(), "").default(""),
+  servico: fallback(z.string(), "").default(""),
+  uf: fallback(z.string(), "").default(""),
+  bairro: fallback(z.string(), "").default(""),
 });
 
 export const Route = createFileRoute("/tecnicos/")({
@@ -34,7 +39,7 @@ export const Route = createFileRoute("/tecnicos/")({
   component: TechniciansPage,
 });
 
-function trackFilter(filter: "especialidade" | "cidade" | "regiao", value: string) {
+function trackFilter(filter: "especialidade" | "cidade" | "regiao" | "servico" | "uf" | "bairro", value: string) {
   if (!analyticsAllowed(localStorage.getItem("eut-cookie-consent"))) return;
   window.__lovableEvents?.track?.("project.technician_filter_used", {
     filter,
@@ -46,6 +51,7 @@ function trackFilter(filter: "especialidade" | "cidade" | "regiao", value: strin
 function TechniciansPage() {
   const search = Route.useSearch();
   const { categories, loading: catalogLoading } = useActiveCategories();
+  const { services, loading: servicesLoading } = useActiveServices();
   const technicians = Route.useLoaderData();
   const navigate = useNavigate({ from: "/tecnicos/" });
   const lastRecorded = useRef("");
@@ -63,7 +69,7 @@ function TechniciansPage() {
       void recordSearch({ ...search, resultCount: technicians.length });
     }, 800);
     return () => clearTimeout(timer);
-  }, [search.especialidade, search.cidade, search.regiao, technicians.length, consentRevision]);
+  }, [search.especialidade, search.cidade, search.regiao, search.servico, search.uf, search.bairro, technicians.length, consentRevision]);
   const specialty = categories.some((c) => c.slug === search.especialidade)
     ? search.especialidade
     : "Todas";
@@ -88,7 +94,7 @@ function TechniciansPage() {
               id="filtro-especialidade"
               value={specialty}
               onChange={(e) => {
-                update({ especialidade: e.target.value });
+                update({ especialidade: e.target.value, servico: "" });
                 trackFilter("especialidade", e.target.value);
               }}
               className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
@@ -98,6 +104,25 @@ function TechniciansPage() {
               {categories.map((c) => (
                 <option key={c.slug} value={c.slug}>{c.label}</option>
               ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="filtro-servico" className="text-xs font-medium text-muted-foreground">Serviço específico</label>
+            <select id="filtro-servico" value={services.some((service) => service.slug === search.servico) ? search.servico : ""}
+              onChange={(e) => { update({ servico: e.target.value }); trackFilter("servico", e.target.value); }}
+              disabled={servicesLoading} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
+              <option value="">Todos os serviços</option>
+              {services.filter((service) => specialty === "Todas" || service.category_slug === specialty).map((service) => (
+                <option key={service.slug} value={service.slug}>{service.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="filtro-uf" className="text-xs font-medium text-muted-foreground">Estado (UF)</label>
+            <select id="filtro-uf" value={search.uf} onChange={(e) => { update({ uf: e.target.value }); trackFilter("uf", e.target.value); }}
+              className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
+              <option value="">Todos os estados</option>
+              {BRAZIL_STATES.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
             </select>
           </div>
           <div>
@@ -113,6 +138,12 @@ function TechniciansPage() {
               placeholder="Ex.: São Paulo"
               className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground"
             />
+          </div>
+          <div>
+            <label htmlFor="filtro-bairro" className="text-xs font-medium text-muted-foreground">Bairro</label>
+            <input id="filtro-bairro" type="text" value={search.bairro}
+              onChange={(e) => update({ bairro: e.target.value })} onBlur={(e) => trackFilter("bairro", e.target.value)}
+              placeholder="Ex.: Centro" className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground" />
           </div>
           <div>
             <label htmlFor="filtro-regiao" className="text-xs font-medium text-muted-foreground">
@@ -150,11 +181,14 @@ function TechniciansPage() {
                       <span className="shrink-0 rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Aprovado</span>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {t.city}{t.region ? ` · ${t.region}` : ""}
+                      {t.city}{t.state_uf ? `/${t.state_uf}` : ""}{t.neighborhood ? ` · ${t.neighborhood}` : ""}{t.region ? ` · ${t.region}` : ""}
                     </p>
                     <ul className="mt-3 flex flex-wrap gap-1.5">
                       {t.specialties.map((s) => (
-                        <li key={s} className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-foreground">{s}</li>
+                        <li key={s} className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-foreground">{categoryLabel(s, categories)}</li>
+                      ))}
+                      {t.service_slugs.map((slug) => (
+                        <li key={slug} className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs text-primary">{serviceLabel(slug, services)}</li>
                       ))}
                     </ul>
                   </Link>
