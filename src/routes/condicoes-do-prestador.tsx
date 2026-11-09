@@ -4,6 +4,6 @@ import { legalDocuments } from "@/lib/legal-documents";
 import { pageHead } from "@/components/text-page";
 
 export const Route = createFileRoute("/condicoes-do-prestador")({
-  head: () => pageHead(legalDocuments.prestadores.title, legalDocuments.prestadores.description),
+  head: () => pageHead(legalDocuments.prestadores.title, legalDocuments.prestadores.description, "/condicoes-do-prestador"),
   component: () => <LegalDocument documentKey="prestadores" />,
 });
