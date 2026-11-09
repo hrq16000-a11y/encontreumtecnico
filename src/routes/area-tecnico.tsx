@@ -4,6 +4,7 @@ import { PageShell } from "../components/page-placeholder";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { CATEGORIES } from "@/lib/categories";
+import { BRAZIL_STATES, validMunicipality } from "@/lib/service-taxonomy";
 import { LegacyAccountActivation } from "@/components/legacy-account-activation";
 import { RequestCard, type Req } from "../components/request-list";
 
@@ -62,7 +63,7 @@ function TechnicianRequests() {
 
 function TechnicianAreaPage() {
   const { user, roles, loading } = useAuth();
-  const [form, setForm] = useState({ display_name: "", city: "", region: "", bio: "", specialties: [] as string[] });
+  const [form, setForm] = useState({ display_name: "", state_uf: "", city: "", neighborhood: "", region: "", bio: "", specialties: [] as string[] });
   const [status, setStatus] = useState<keyof typeof STATUS_LABEL | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -71,7 +72,7 @@ function TechnicianAreaPage() {
     if (!user) return;
     supabase.from("technicians").select("*").eq("user_id", user.id).maybeSingle().then(({ data }) => {
       if (data) {
-        setForm({ display_name: data.display_name, city: data.city, region: data.region ?? "", bio: data.bio ?? "", specialties: data.specialties });
+        setForm({ display_name: data.display_name, state_uf: data.state_uf ?? "", city: data.city, neighborhood: data.neighborhood ?? "", region: data.region ?? "", bio: data.bio ?? "", specialties: data.specialties });
         setStatus(data.status);
       } else {
         setForm((f) => ({ ...f, display_name: (user.user_metadata?.["full_name"] as string) ?? "" }));
@@ -82,6 +83,7 @@ function TechnicianAreaPage() {
   async function save(e: FormEvent) {
     e.preventDefault();
     if (!user) return;
+    if (!validMunicipality(form.state_uf, form.city)) return setMsg("Selecione a UF e informe uma cidade válida para sua área de atendimento.");
     if (form.specialties.length === 0) return setMsg("Escolha pelo menos uma especialidade.");
     setSaving(true);
     setMsg(null);
@@ -89,6 +91,8 @@ function TechnicianAreaPage() {
       user_id: user.id,
       display_name: form.display_name.trim(),
       city: form.city.trim(),
+      state_uf: form.state_uf,
+      neighborhood: form.neighborhood.trim() || null,
       region: form.region.trim() || null,
       bio: form.bio.trim() || null,
       specialties: form.specialties,
@@ -140,10 +144,21 @@ function TechnicianAreaPage() {
                 <input required minLength={2} maxLength={80} className={input} value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} />
               </label>
               <div className="grid gap-4 sm:grid-cols-2">
-                <label className="text-sm font-medium text-foreground">Cidade
-                  <input required maxLength={80} className={input} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+                <label className="text-sm font-medium text-foreground">Estado (UF)
+                  <select required className={input} value={form.state_uf} onChange={(e) => setForm({ ...form, state_uf: e.target.value })}>
+                    <option value="">Selecione o estado</option>
+                    {BRAZIL_STATES.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
+                  </select>
                 </label>
-                <label className="text-sm font-medium text-foreground">Região / bairros
+                <label className="text-sm font-medium text-foreground">Município
+                  <input required maxLength={80} className={input} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="Ex.: Curitiba" />
+                </label>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="text-sm font-medium text-foreground">Bairro de referência (opcional)
+                  <input maxLength={80} className={input} value={form.neighborhood} onChange={(e) => setForm({ ...form, neighborhood: e.target.value })} />
+                </label>
+                <label className="text-sm font-medium text-foreground">Regiões e outros bairros atendidos
                   <input maxLength={120} className={input} value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} />
                 </label>
               </div>
