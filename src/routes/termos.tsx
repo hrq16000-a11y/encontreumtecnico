@@ -4,6 +4,6 @@ import { legalDocuments } from "@/lib/legal-documents";
 import { pageHead } from "@/components/text-page";
 
 export const Route = createFileRoute("/termos")({
-  head: () => pageHead(legalDocuments.termos.title, legalDocuments.termos.description),
+  head: () => pageHead(legalDocuments.termos.title, legalDocuments.termos.description, "/termos"),
   component: () => <LegalDocument documentKey="termos" />,
 });
