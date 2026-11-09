@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageShell, EmptyState } from "../components/page-placeholder";
 import { getApprovedTechnician } from "../lib/technicians.functions";
 import { categoryLabel, useActiveCategories } from "@/hooks/use-active-categories";
+import { useActiveServices, serviceLabel } from "@/hooks/use-active-services";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -34,6 +35,7 @@ export const Route = createFileRoute("/tecnicos/$tecnicoId")({
 function TechnicianProfilePage() {
   const t = Route.useLoaderData();
   const { categories } = useActiveCategories();
+  const { services } = useActiveServices();
 
   return (
     <PageShell>
@@ -47,13 +49,21 @@ function TechnicianProfilePage() {
           <div className="mt-4 rounded-lg border border-border bg-card p-6">
             <h1 className="text-2xl font-bold tracking-tight text-card-foreground">{t.display_name}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              {t.city}{t.region ? ` · ${t.region}` : ""}
+              {t.city}{t.state_uf ? `/${t.state_uf}` : ""}{t.neighborhood ? ` · ${t.neighborhood}` : ""}{t.region ? ` · ${t.region}` : ""}
             </p>
             <ul className="mt-4 flex flex-wrap gap-2">
               {t.specialties.map((s) => (
                 <li key={s} className="rounded-full bg-muted px-3 py-1 text-xs text-foreground">{categoryLabel(s, categories)}</li>
               ))}
             </ul>
+            {t.service_slugs.length > 0 && (
+              <section className="mt-5" aria-label="Serviços específicos do técnico">
+                <h2 className="text-sm font-semibold text-card-foreground">Serviços que realiza</h2>
+                <ul className="mt-2 flex flex-wrap gap-2">
+                  {t.service_slugs.map((slug) => <li key={slug} className="rounded-full bg-primary/10 px-3 py-1 text-xs text-primary">{serviceLabel(slug, services)}</li>)}
+                </ul>
+              </section>
+            )}
             {t.bio && <p className="mt-4 whitespace-pre-line text-sm text-foreground">{t.bio}</p>}
             <Link to="/area-cliente" search={{ tecnico: t.id }} className="mt-6 inline-flex min-h-11 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">
               Solicitar atendimento
