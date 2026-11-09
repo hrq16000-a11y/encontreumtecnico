@@ -51,7 +51,7 @@ footer{background:white;border-top:1px solid #e7edf5;color:#7a899c;font-size:12p
  const api="https://pqtzhctvjbfcunmrvxne.supabase.co/rest/v1/legacy_public_archive";
  const key="sb_publishable__zZHvgUWLxuwBuNIAGOBiQ_vp3Vmj4e";
  const size=24;
- let page=0,total=0,search="",request=0;
+ let page=0,total=0,search="",request=0,cached=null;
  const $=id=>document.getElementById(id);
  const results=$("results"),msg=$("message"),count=$("count"),prev=$("previous"),next=$("next"),num=$("pagenum");
  function make(tag,cls,txt){const el=document.createElement(tag);if(cls)el.className=cls;if(txt!==undefined)el.textContent=txt;return el}
@@ -63,18 +63,21 @@ footer{background:white;border-top:1px solid #e7edf5;color:#7a899c;font-size:12p
   u.searchParams.set("select","wp_post_id,display_name,sector_tags");
   u.searchParams.set("validation_status","eq.em_validacao");
   u.searchParams.set("order","wp_post_id.asc");
-  u.searchParams.set("limit",String(size));
-  u.searchParams.set("offset",String(page*size));
-  if(search){u.searchParams.set("display_name","ilike.*"+search+"*");}
+  u.searchParams.set("limit","1000");
+  u.searchParams.set("offset","0");
   try{
-    const response=await fetch(u,{headers:{"apikey":key,"Prefer":"count=exact","Accept":"application/json"}});
-    if(!response.ok)throw new Error("Falha de leitura "+response.status);
-    const data=await response.json();
+    if(!cached){
+      const response=await fetch(u,{headers:{"apikey":key,"Accept":"application/json"}});
+      if(!response.ok)throw new Error("Falha de leitura "+response.status);
+      const data=await response.json();
+      if(!Array.isArray(data))throw new Error("Resposta inválida");
+      cached=data;
+    }
     if(id!==request)return;
-    if(!Array.isArray(data))throw new Error("Resposta inválida");
-    const range=response.headers.get("content-range")||"0-0/0";
-    const amount=Number(range.split("/")[1]);total=Number.isFinite(amount)?amount:data.length;
+    const matching=cached.filter(item=>!search||String(item.display_name||"").toLocaleLowerCase("pt-BR").includes(search.toLocaleLowerCase("pt-BR")));
+    total=matching.length;
     count.textContent=total+" cadastro(s) históricos para consulta";
+    const data=matching.slice(page*size,(page+1)*size);
     data.forEach(item=>{
       const li=make("li","card");li.append(make("h2","",item.display_name));
       li.append(make("span","state","Em validação"));
