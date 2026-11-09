@@ -19,10 +19,10 @@ export const Route = createFileRoute("/tecnicos/")({
   loader: ({ deps }) => listApprovedTechnicians({ data: deps }),
   head: () => ({
     meta: [
-      { title: "Técnicos — Encontre um Técnico" },
-      { name: "description", content: "Galeria de técnicos aprovados. Filtre por especialidade, cidade e região." },
-      { property: "og:title", content: "Técnicos — Encontre um Técnico" },
-      { property: "og:description", content: "Galeria de técnicos aprovados. Filtre por especialidade, cidade e região." },
+      { title: "Técnicos de CFTV, informática e redes — Encontre um Técnico" },
+      { name: "description", content: "Lista de técnicos aprovados de CFTV, informática, redes e impressoras. Filtre por especialidade, cidade e região." },
+      { property: "og:title", content: "Técnicos de CFTV, informática e redes — Encontre um Técnico" },
+      { property: "og:description", content: "Lista de técnicos aprovados de CFTV, informática, redes e impressoras. Filtre por especialidade, cidade e região." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
