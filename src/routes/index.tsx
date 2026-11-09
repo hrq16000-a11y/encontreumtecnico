@@ -113,7 +113,7 @@ function HomePage() {
               value={specialty}
               onChange={(e) => setSpecialty(e.target.value)}
               placeholder="Especialidade (ex.: Computador)"
-              className="h-11 flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="h-11 w-full shrink-0 sm:w-auto sm:flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
             <label className="sr-only" htmlFor="busca-cidade">Cidade</label>
             <input
@@ -122,7 +122,7 @@ function HomePage() {
               value={city}
               onChange={(e) => setCity(e.target.value)}
               placeholder="Cidade ou região"
-              className="h-11 flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="h-11 w-full shrink-0 sm:w-auto sm:flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
             <button
               type="submit"
