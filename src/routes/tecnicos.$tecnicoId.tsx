@@ -50,6 +50,9 @@ function TechnicianProfilePage() {
               ))}
             </ul>
             {t.bio && <p className="mt-4 whitespace-pre-line text-sm text-foreground">{t.bio}</p>}
+            <Link to="/area-cliente" search={{ tecnico: t.id }} className="mt-6 inline-flex min-h-11 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">
+              Solicitar atendimento
+            </Link>
           </div>
         )}
       </section>
