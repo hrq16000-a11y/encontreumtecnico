@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -13,6 +13,18 @@ export type PublicTechnician = {
 };
 
 const COLUMNS = "id, display_name, specialties, city, region, bio";
+
+// Links e classificação por IA anteriores usavam rótulos, não identificadores.
+const LEGACY_CATEGORY_ALIASES: Record<string, string> = {
+  "Ar-condicionado": "climatizacao",
+  "Automação": "automacao",
+  CFTV: "cftv",
+  Computador: "computadores",
+  Comunicações: "comunicacoes",
+  Elétrica: "eletrica",
+  Gráfica: "design-grafico",
+  Impressora: "impressoras",
+};
 
 function publicClient() {
   const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
@@ -43,7 +55,14 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
       .eq("status", "aprovado")
       .order("created_at", { ascending: false })
       .limit(200);
-    if (data.especialidade && data.especialidade !== "Todas") q = q.contains("specialties", [data.especialidade]);
+    if (data.especialidade && data.especialidade !== "Todas") {
+      const slug = LEGACY_CATEGORY_ALIASES[data.especialidade] ?? data.especialidade;
+      const { data: active, error: catalogError } = await (publicClient() as unknown as SupabaseClient)
+        .from("eut_service_categories").select("slug").eq("slug", slug).eq("active", true).maybeSingle();
+      if (catalogError) throw new Error("Não foi possível validar a categoria selecionada.");
+      if (!active) return [];
+      q = q.contains("specialties", [slug]);
+    }
     const city = clean(data.cidade);
     if (city) q = q.ilike("city", `%${city}%`);
     const region = clean(data.regiao);
