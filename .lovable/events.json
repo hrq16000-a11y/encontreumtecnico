@@ -41,6 +41,50 @@
         }
       }
     },
+    "project.service_accepted": {
+      "event_schema_version": 1,
+      "description": "A technician accepted a service request (north-star moment).",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "category"
+        ],
+        "properties": {
+          "category": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "project.service_requested": {
+      "event_schema_version": 1,
+      "description": "A client opened a service request.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "category",
+          "direct_to_technician"
+        ],
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "direct_to_technician": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
     "project.technician_filter_used": {
       "event_schema_version": 1,
       "description": "A visitor changed a filter (specialty, city or region) on the technicians list.",
