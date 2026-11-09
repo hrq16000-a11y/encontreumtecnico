@@ -11,7 +11,7 @@ export const Route = createFileRoute("/entrar")({
       { title: "Entrar — Encontre um Técnico" },
       { name: "description", content: "Acesse sua conta de técnico ou cliente com Google ou e-mail e senha." },
       { property: "og:title", content: "Entrar — Encontre um Técnico" },
-      { property: "og:description", content: "Acesse sua conta de técnico ou cliente com login Google." },
+      { property: "og:description", content: "Acesse sua conta de técnico ou cliente com Google ou e-mail e senha." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
