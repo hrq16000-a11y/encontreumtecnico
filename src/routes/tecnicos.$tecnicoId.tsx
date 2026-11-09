@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageShell, EmptyState } from "../components/page-placeholder";
 import { getApprovedTechnician } from "../lib/technicians.functions";
+import { categoryLabel, useActiveCategories } from "@/hooks/use-active-categories";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -32,6 +33,7 @@ export const Route = createFileRoute("/tecnicos/$tecnicoId")({
 
 function TechnicianProfilePage() {
   const t = Route.useLoaderData();
+  const { categories } = useActiveCategories();
 
   return (
     <PageShell>
@@ -49,7 +51,7 @@ function TechnicianProfilePage() {
             </p>
             <ul className="mt-4 flex flex-wrap gap-2">
               {t.specialties.map((s) => (
-                <li key={s} className="rounded-full bg-muted px-3 py-1 text-xs text-foreground">{s}</li>
+                <li key={s} className="rounded-full bg-muted px-3 py-1 text-xs text-foreground">{categoryLabel(s, categories)}</li>
               ))}
             </ul>
             {t.bio && <p className="mt-4 whitespace-pre-line text-sm text-foreground">{t.bio}</p>}
