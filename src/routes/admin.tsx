@@ -9,6 +9,7 @@ import type { Tables } from "@/integrations/supabase/types";
 export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
+      { name: "robots", content: "noindex, nofollow" },
       { title: "Administração — Encontre um Técnico" },
       { name: "description", content: "Painel administrativo restrito a administradores autorizados." },
       { property: "og:title", content: "Administração — Encontre um Técnico" },
