@@ -22,9 +22,10 @@ export function TextSection({ title, children }: { title: string; children: Reac
   );
 }
 
-export function pageHead(title: string, description: string) {
+export function pageHead(title: string, description: string, canonicalPath?: string) {
   const full = `${title} — Encontre um Técnico`;
   return {
+    links: canonicalPath ? [{ rel: "canonical" as const, href: `https://www.encontreumtecnico.com${canonicalPath}` }] : [],
     meta: [
       { title: full },
       { name: "description", content: description },
