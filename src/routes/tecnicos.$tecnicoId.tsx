@@ -7,7 +7,7 @@ const UUID = /^[0-9a-f-]{36}$/i;
 export const Route = createFileRoute("/tecnicos/$tecnicoId")({
   loader: ({ params }) =>
     UUID.test(params.tecnicoId) ? getApprovedTechnician({ data: { id: params.tecnicoId } }) : null,
-  head: ({ loaderData }) => {
+  head: ({ loaderData, params }) => {
     const name = loaderData?.display_name;
     const title = name ? `${name} — Técnico em ${loaderData.city} | Encontre um Técnico` : "Perfil do técnico — Encontre um Técnico";
     const desc = name
@@ -21,7 +21,10 @@ export const Route = createFileRoute("/tecnicos/$tecnicoId")({
         { property: "og:description", content: desc },
         { property: "og:type", content: "profile" },
         { name: "twitter:card", content: "summary" },
+        { property: "og:url", content: `https://find-your-trusted-technician.lovable.app/tecnicos/${params.tecnicoId}` },
+        ...(!loaderData ? [{ name: "robots", content: "noindex, nofollow" }] : []),
       ],
+      links: [{ rel: "canonical", href: `https://find-your-trusted-technician.lovable.app/tecnicos/${params.tecnicoId}` }],
     };
   },
   component: TechnicianProfilePage,

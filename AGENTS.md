@@ -35,3 +35,4 @@ use the editor.
 - Pages are TanStack Start file routes under `src/routes/`; shared chrome lives in `src/components/site-header.tsx` / `site-footer.tsx` via `PageShell`.
 - AI calls go through `@lovable.dev/ai-gateway` inside server functions in `src/lib/*.functions.ts`; never call models from browser code (keeps the key server-side).
 - Technician filters live in `/tecnicos` search params (`especialidade`, `cidade`, `regiao`) so searches, categories and the AI assistant can deep-link into them.
+- Search analytics writes consented listing searches without visitor identity to `search_events`; admin charts use a role-checked RLS-scoped aggregate RPC to avoid truncated totals.

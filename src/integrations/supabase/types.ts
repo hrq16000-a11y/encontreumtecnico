@@ -122,6 +122,39 @@ export type Database = {
         }
         Relationships: []
       }
+      search_events: {
+        Row: {
+          category: string
+          city: string
+          created_at: string
+          filters: string[]
+          id: string
+          region: string
+          result_count: number
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          city?: string
+          created_at?: string
+          filters?: string[]
+          id?: string
+          region?: string
+          result_count?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          city?: string
+          created_at?: string
+          filters?: string[]
+          id?: string
+          region?: string
+          result_count?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       service_requests: {
         Row: {
           accepted_at: string | null
@@ -258,6 +291,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_search_metrics: { Args: never; Returns: Json }
       choose_account_type: {
         Args: { _role: Database["public"]["Enums"]["app_role"] }
         Returns: undefined

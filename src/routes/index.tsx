@@ -48,7 +48,7 @@ export const Route = createFileRoute("/")({
               name: "Encontre um Técnico",
               legalName: "Ping Soluções",
               url: SITE,
-              logo: SITE + logo.url,
+              logo: new URL(logo.url, SITE).href,
               areaServed: "BR",
               email: "dpo@encontreumtecnico.com",
               telephone: "+55-41-99745-2053",

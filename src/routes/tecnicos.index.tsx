@@ -4,6 +4,8 @@ import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { PageShell, EmptyState } from "../components/page-placeholder";
 import { CATEGORIES } from "../lib/categories";
+import { useEffect, useRef, useState } from "react";
+import { analyticsAllowed, recordSearch } from "@/lib/search-analytics";
 
 const SPECIALTIES = ["Todas", ...CATEGORIES];
 
@@ -25,12 +27,15 @@ export const Route = createFileRoute("/tecnicos/")({
       { property: "og:description", content: "Lista de técnicos aprovados de CFTV, informática, redes e impressoras. Filtre por especialidade, cidade e região." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { property: "og:url", content: "https://find-your-trusted-technician.lovable.app/tecnicos" },
     ],
+    links: [{ rel: "canonical", href: "https://find-your-trusted-technician.lovable.app/tecnicos" }],
   }),
   component: TechniciansPage,
 });
 
 function trackFilter(filter: "especialidade" | "cidade" | "regiao", value: string) {
+  if (!analyticsAllowed(localStorage.getItem("eut-cookie-consent"))) return;
   window.__lovableEvents?.track?.("project.technician_filter_used", {
     filter,
     has_value: value.trim() !== "" && value !== "Todas",
@@ -42,6 +47,22 @@ function TechniciansPage() {
   const search = Route.useSearch();
   const technicians = Route.useLoaderData();
   const navigate = useNavigate({ from: "/tecnicos/" });
+  const lastRecorded = useRef("");
+  const [consentRevision, setConsentRevision] = useState(0);
+  useEffect(() => {
+    const changed = () => setConsentRevision(value => value + 1);
+    window.addEventListener("eut-consent-changed", changed);
+    return () => window.removeEventListener("eut-consent-changed", changed);
+  }, []);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const key = JSON.stringify(search);
+      if (key === lastRecorded.current || !analyticsAllowed(localStorage.getItem("eut-cookie-consent"))) return;
+      lastRecorded.current = key;
+      void recordSearch({ ...search, resultCount: technicians.length });
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [search.especialidade, search.cidade, search.regiao, technicians.length, consentRevision]);
   const specialty = SPECIALTIES.includes(search.especialidade as (typeof SPECIALTIES)[number])
     ? search.especialidade
     : "Todas";
