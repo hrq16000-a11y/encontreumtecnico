@@ -14,7 +14,7 @@ const policies = [
 ] as const;
 
 export const Route = createFileRoute("/politicas")({
-  head: () => pageHead("Central de políticas e transparência", "Políticas, termos, pagamentos, privacidade e responsabilidade do Encontre um Técnico."),
+  head: () => pageHead("Central de políticas e transparência", "Políticas, termos, pagamentos, privacidade e responsabilidade do Encontre um Técnico.", "/politicas"),
   component: LegalCenter,
 });
 
