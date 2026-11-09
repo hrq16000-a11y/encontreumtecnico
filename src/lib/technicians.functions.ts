@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
+import { resolveCatalogLabels } from "@/lib/catalog-filters";
 
 export type PublicTechnician = {
   id: string;
@@ -19,16 +20,6 @@ export type PublicServiceCatalog = { categories: PublicCategory[]; services: Pub
 
 const COLUMNS = "id,display_name,specialties,city,region,state_uf,neighborhood,bio";
 const UF = new Set(["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"]);
-const OLD_CATEGORY_SLUGS: Record<string,string> = {
-  "Ar-condicionado": "climatizacao",
-  "Automação": "automacao",
-  "CFTV": "cftv",
-  "Computador": "computadores",
-  "Comunicações": "comunicacoes",
-  "Elétrica": "eletrica",
-  "Gráfica": "design-grafico",
-  "Impressora": "impressoras",
-};
 
 function publicClient() {
   const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
@@ -86,18 +77,9 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
     const filter = data.especialidade.trim();
     if (filter && filter !== "Todas") {
       const catalog = await readPublicServiceCatalog();
-      const mappedLegacy = OLD_CATEGORY_SLUGS[filter];
-      const categorySlug = filter.startsWith("cat:") ? filter.slice(4) : mappedLegacy;
-      const serviceSlug = filter.startsWith("svc:") ? filter.slice(4) : "";
-      let labels: string[] = [];
-      if (categorySlug && catalog.categories.some(c => c.slug === categorySlug)) {
-        labels = catalog.services.filter(s => s.category_slug === categorySlug).map(s => s.label);
-      } else if (serviceSlug) {
-        const service = catalog.services.find(s => s.slug === serviceSlug);
-        if (service) labels = [service.label];
-      }
-      // An unknown/deactivated category or an empty catalog must never return all technicians.
-      if (!labels.length) return [];
+      const labels = resolveCatalogLabels(filter, catalog);
+      // Unknown or inactive categories must never fall back to "all technicians".
+      if (!labels?.length) return [];
       q = q.overlaps("specialties", labels);
     }
     const city = clean(data.cidade);
