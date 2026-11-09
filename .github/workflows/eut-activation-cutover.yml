@@ -1,0 +1,59 @@
+name: EUT activation and cutover gate
+
+on:
+  pull_request:
+    paths:
+      - 'src/routes/reivindicar-cadastro.tsx'
+      - '.github/workflows/eut-activation-cutover.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eut-activation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install reproducibly
+        run: bun install --frozen-lockfile
+      - name: Build server and client
+        run: bun run build
+      - name: Verify safe legacy self-service contract
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const code = readFileSync('src/routes/reivindicar-cadastro.tsx', 'utf8');
+          for (const part of [
+            'eut_my_legacy_candidate_profiles',
+            'eligibleToClaim',
+            'normalizeWpPostId',
+            'status: "pendente"',
+            'revisão administrativa',
+          ]) {
+            if (!code.includes(part)) throw Error('Missing guarded claim contract: ' + part);
+          }
+          if (code.includes('service_role') || code.includes('auth.admin.createUser')) throw Error('Unsafe credential management in client');
+          console.log('Legacy owner lookup: contract OK');
+          NODE
+
+  live-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Check currently published Vercel site (read-only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in / /entrar /tecnicos /home2 /reivindicar-cadastro; do
+            target="https://encontreumtecnico.vercel.app${path}"
+            status=$(curl --silent --show-error --location --max-time 18 --output /dev/null --write-out '%{http_code}' "$target")
+            echo "${path}: HTTP ${status}"
+            test "$status" = "200"
+          done
