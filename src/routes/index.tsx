@@ -19,7 +19,7 @@ import { FindOneSection, JoinNetworkSection, CtaBand, ValuesSection, StepsSectio
 
 const SITE = "https://www.encontreumtecnico.com";
 const TITLE = "Encontre um Técnico — Portal nacional de técnicos de CFTV e informática, sem custo para o profissional";
-const DESC = "Portal brasileiro que conecta clientes a técnicos de CFTV, informática, redes e impressoras com transparência: perfis aprovados, sem cobrar do profissional e sem leilão de preço.";
+const DESC = "Portal brasileiro que conecta clientes a técnicos de CFTV, informática, redes e impressoras com transparência: cadastro livre, sem cobrança ao profissional e sem leilão de preço.";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -75,7 +75,7 @@ export const Route = createFileRoute("/")({
 });
 
 const TRUST = [
-  { icon: BadgeCheck, title: "Perfis aprovados", text: "Cada técnico passa por análise antes de aparecer." },
+  { icon: Eye, title: "Cadastro livre", text: "Profissionais informam seus serviços; a plataforma não certifica a capacidade técnica." },
   { icon: HandCoins, title: "Sem custo para o profissional", text: "O técnico não paga para estar na rede nem por contato." },
   { icon: Eye, title: "Transparência", text: "Especialidades, cidade e status claros em cada perfil." },
   { icon: Scale, title: "Valorização do técnico", text: "Sem leilão de preço: o profissional define seu trabalho." },
@@ -111,7 +111,7 @@ function HomePage() {
               Precisou? <span className="text-primary">Encontrou!</span>
             </h1>
             <p className="mt-4 max-w-xl text-lg text-muted-foreground">
-              Técnicos de CFTV, informática, redes e impressoras aprovados na sua cidade — com transparência e valorização de quem faz o serviço.
+              Encontre prestadores cadastrados de CFTV, informática, redes e impressoras na sua região. Negocie diretamente, sem leilão de menor preço.
             </p>
             <form
               className="mt-8 flex flex-col gap-3 rounded-xl bg-card p-3 shadow-soft sm:flex-row"
@@ -220,7 +220,7 @@ function HomePage() {
           <div className="rounded-lg border border-border bg-card p-8 text-center">
             <h2 className="text-lg font-semibold text-card-foreground">Sou Cliente</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Cadastre-se e abra solicitações de atendimento com técnicos aprovados.
+              Cadastre-se, pesquise profissionais por região e negocie diretamente com o prestador.
             </p>
             <Link
               to="/entrar"
