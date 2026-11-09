@@ -21,3 +21,4 @@
 - [ ] Fotos reais na página inicial (aguarda fotos reais do usuário — não usar fotos fictícias como se fossem técnicos)
 - [x] Comparar seções abaixo da foto inicial com a captura de referência (5 seções restauradas, sem fotos)
 - [ ] Chat de suporte com central de ajuda + pedidos e passagem para humano (aguarda: ainda não existem pedidos; definir quem atende)
+- [x] Privacidade: texto real do site original
