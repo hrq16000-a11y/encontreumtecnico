@@ -8,11 +8,13 @@
 - [x] Rodada 2: login Google, tipos de conta, cadastro de técnico e aprovação no painel admin
 - [ ] Ativar Google no painel do Supabase e definir o primeiro admin (aguarda o usuário)
 - [x] /tecnicos mostrando só cadastros aprovados (+ perfil individual)
-- [ ] Solicitações: cliente abre pedido, técnico aceita (métrica mensal) — próxima rodada
+- [x] Solicitações: cliente abre pedido, técnico aceita/conclui, histórico e status, analytics
+- [x] Admin: pendentes/aprovados/suspensos, suspender/reativar, solicitações e indicadores do mês
+- [ ] Textos reais de FAQ, Contato, Termos e Privacidade (próxima rodada)
+- [ ] Refazer as 12 páginas vinculadas no design atual, com links internos
 - [ ] Busca por localização do visitante (geo/IP) — depois da migração dos técnicos
 - [ ] Publicar o site (após aprovação final)
 - [ ] Formulário de contato que salva mensagens + email de aviso (precisa de domínio de email do usuário)
-- [ ] Importar as 12 páginas do site original (aguarda decisão: texto antigo vs. novo design)
 - [ ] Fotos reais na página inicial (aguarda fotos reais do usuário — não usar fotos fictícias como se fossem técnicos)
 - [x] Comparar seções abaixo da foto inicial com a captura de referência (5 seções restauradas, sem fotos)
 - [ ] Chat de suporte com central de ajuda + pedidos e passagem para humano (aguarda: ainda não existem pedidos; definir quem atende)
