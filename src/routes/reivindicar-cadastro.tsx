@@ -17,6 +17,11 @@ export const Route = createFileRoute("/reivindicar-cadastro")({
   component: LegacyClaimPage,
 });
 
+type SuggestedLegacyProfile = {
+  wp_post_id: number;
+  display_name: string;
+};
+
 type ClaimSummary = {
   id: string;
   wp_post_id: number;
@@ -40,6 +45,9 @@ function LegacyClaimPage() {
   const [rows, setRows] = useState<ClaimSummary[]>([]);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [suggested, setSuggested] = useState<SuggestedLegacyProfile[]>([]);
+  const [suggestedLoading, setSuggestedLoading] = useState(false);
+  const [suggestedError, setSuggestedError] = useState(false);
   const googleLinked = !!user && (
     user.identities?.some((identity) => identity.provider === "google") ||
     user.app_metadata?.provider === "google" ||
@@ -47,6 +55,30 @@ function LegacyClaimPage() {
   );
 
   const eligibleToClaim = googleLinked || roles.includes("tecnico");
+
+  useEffect(() => {
+    let active = true;
+    if (!user?.id || !eligibleToClaim) {
+      setSuggested([]);
+      setSuggestedLoading(false);
+      return () => { active = false; };
+    }
+    setSuggestedLoading(true);
+    setSuggestedError(false);
+    void db.rpc("eut_my_legacy_candidate_profiles").then(({ data, error }) => {
+      if (!active) return;
+      if (error) {
+        setSuggestedError(true);
+        setSuggested([]);
+      } else {
+        setSuggested((data ?? []) as SuggestedLegacyProfile[]);
+      }
+      setSuggestedLoading(false);
+    }).catch(() => {
+      if (active) { setSuggestedError(true); setSuggestedLoading(false); }
+    });
+    return () => { active = false; };
+  }, [user?.id, eligibleToClaim]);
 
   async function loadClaims(userId: string) {
     const { data, error } = await db.from("legacy_profile_claims")
@@ -111,6 +143,31 @@ function LegacyClaimPage() {
           </p>
         ) : (
           <>
+            {suggestedLoading && (
+              <p className="mt-5 text-sm text-muted-foreground">Procurando seus cadastros antigos pelo e-mail confirmado…</p>
+            )}
+            {!suggestedLoading && suggested.length > 0 && (
+              <section className="mt-5 rounded-lg border border-primary/30 bg-primary/5 p-4" aria-label="Cadastros antigos encontrados">
+                <h2 className="font-semibold text-foreground">Cadastros antigos encontrados para sua conta</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Identificamos referências associadas ao e-mail confirmado. Selecione seu cadastro para solicitar análise; nenhum perfil é liberado automaticamente.
+                </p>
+                <ul className="mt-3 grid gap-2">
+                  {suggested.map((profile) => (
+                    <li key={profile.wp_post_id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-background px-3 py-2">
+                      <span className="text-sm text-foreground">{profile.display_name} <span className="text-muted-foreground">· #{profile.wp_post_id}</span></span>
+                      <button type="button" onClick={() => setReference(String(profile.wp_post_id))}
+                        className="min-h-10 rounded-md border border-input px-3 text-sm font-medium text-foreground hover:bg-accent">
+                        Selecionar cadastro
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+            {!suggestedLoading && suggestedError && (
+              <p className="mt-4 text-sm text-muted-foreground">Não conseguimos consultar seus registros agora. Você ainda pode informar o ID manualmente.</p>
+            )}
             <form onSubmit={submit} className="mt-6 grid gap-4 rounded-lg border border-border bg-card p-5">
               <label className="grid gap-2 text-sm font-medium text-foreground">
                 ID numérico do cadastro WordPress
