@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { PageShell } from "../components/page-placeholder";
 import { signInWithGoogle, useAuth, type Role } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -100,6 +101,17 @@ function SignInPage() {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [canRecoverAdmin, setCanRecoverAdmin] = useState(false);
+
+  useEffect(() => {
+    if (loading || !user || roles.length > 0) { setCanRecoverAdmin(false); return; }
+    let active = true;
+    const client = supabase as unknown as SupabaseClient;
+    void client.rpc("eut_can_bootstrap_legacy_admin").then(({ data, error }) => {
+      if (active) setCanRecoverAdmin(!error && data === true);
+    }).catch(() => { if (active) setCanRecoverAdmin(false); });
+    return () => { active = false; };
+  }, [loading, user?.id, roles.length]);
 
   useEffect(() => {
     if (loading || !user || roles.length === 0) return;
@@ -115,6 +127,21 @@ function SignInPage() {
     setError(null);
     const { error } = await signInWithGoogle();
     if (error) setError("Não foi possível iniciar o login com Google. Tente novamente.");
+  }
+
+  async function recoverAdmin() {
+    setBusy(true);
+    setError(null);
+    try {
+      const client = supabase as unknown as SupabaseClient;
+      const { data, error } = await client.rpc("eut_bootstrap_legacy_admin");
+      if (error || data !== "admin_ativado") setError("Não foi possível recuperar este acesso administrativo. Solicite revisão de titularidade.");
+      else await refreshRoles();
+    } catch {
+      setError("Falha de conexão. Tente novamente.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function choose(role: Role) {
@@ -161,6 +188,12 @@ function SignInPage() {
               <button disabled={busy} onClick={() => choose("cliente")} className="min-h-11 rounded-md border border-input px-4 py-2.5 text-sm font-medium text-foreground disabled:opacity-60">
                 Sou cliente — quero contratar
               </button>
+              {canRecoverAdmin && (
+                <button type="button" disabled={busy} onClick={() => void recoverAdmin()}
+                  className="min-h-11 rounded-md border border-primary px-4 py-2.5 text-sm font-medium text-primary disabled:opacity-60">
+                  Recuperar administração do portal anterior
+                </button>
+              )}
             </div>
           </>
         )}
