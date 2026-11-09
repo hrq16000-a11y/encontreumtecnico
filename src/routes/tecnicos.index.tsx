@@ -4,16 +4,12 @@ import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { PageShell, EmptyState } from "../components/page-placeholder";
 import { BRAZIL_STATES } from "../lib/service-taxonomy";
+import { normalizeCatalogSelection } from "../lib/catalog-filters";
 import { LegacyPublicArchive } from "../components/legacy-public-archive";
 import { canShowLegacyArchive } from "../lib/legacy-archive-filters";
 import { useEffect, useRef, useState } from "react";
 import { analyticsAllowed, recordSearch } from "@/lib/search-analytics";
 
-const LEGACY_CATEGORY_FILTERS: Record<string,string> = {
-  "Ar-condicionado": "climatizacao", "Automação": "automacao", "CFTV": "cftv",
-  "Computador": "computadores", "Comunicações": "comunicacoes",
-  "Elétrica": "eletrica", "Gráfica": "design-grafico", "Impressora": "impressoras",
-};
 
 const searchSchema = z.object({
   especialidade: fallback(z.string(), "Todas").default("Todas"),
@@ -77,13 +73,7 @@ function TechniciansPage() {
     }, 800);
     return () => clearTimeout(timer);
   }, [search.especialidade, search.cidade, search.regiao, search.uf, search.bairro, technicians.length, consentRevision]);
-  const requested = LEGACY_CATEGORY_FILTERS[search.especialidade]
-    ? `cat:${LEGACY_CATEGORY_FILTERS[search.especialidade]}`
-    : search.especialidade;
-  const specialty = requested === "Todas" ||
-    (requested.startsWith("cat:") && catalog.categories.some(c => `cat:${c.slug}` === requested)) ||
-    (requested.startsWith("svc:") && catalog.services.some(s => `svc:${s.slug}` === requested))
-    ? requested : "Todas";
+  const specialty = normalizeCatalogSelection(search.especialidade, catalog);
 
   const update = (patch: Partial<typeof search>) =>
     navigate({ search: (prev) => ({ ...prev, ...patch }), replace: true });
