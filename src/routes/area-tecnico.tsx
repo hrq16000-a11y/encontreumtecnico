@@ -9,6 +9,7 @@ import { RequestCard, type Req } from "../components/request-list";
 export const Route = createFileRoute("/area-tecnico")({
   head: () => ({
     meta: [
+      { name: "robots", content: "noindex, nofollow" },
       { title: "Área do técnico — Encontre um Técnico" },
       { name: "description", content: "Painel do técnico: perfil profissional, especialidades, regiões atendidas e aprovação cadastral." },
       { property: "og:title", content: "Área do técnico — Encontre um Técnico" },

@@ -12,6 +12,7 @@ export const Route = createFileRoute("/area-cliente")({
   validateSearch: zodValidator(z.object({ tecnico: z.string().optional() })),
   head: () => ({
     meta: [
+      { name: "robots", content: "noindex, nofollow" },
       { title: "Área do cliente — Encontre um Técnico" },
       { name: "description", content: "Abra solicitações de atendimento e acompanhe o histórico e o status de cada uma." },
       { property: "og:title", content: "Área do cliente — Encontre um Técnico" },

@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/entrar")({
   head: () => ({
     meta: [
+      { name: "robots", content: "noindex, nofollow" },
       { title: "Entrar — Encontre um Técnico" },
       { name: "description", content: "Acesse sua conta de técnico ou cliente com login Google." },
       { property: "og:title", content: "Entrar — Encontre um Técnico" },
