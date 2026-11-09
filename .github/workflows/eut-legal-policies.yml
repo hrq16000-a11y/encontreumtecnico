@@ -1,0 +1,80 @@
+name: EUT legal pages and transparency
+
+on:
+  pull_request:
+    paths:
+      - 'src/lib/legal-documents.ts'
+      - 'src/components/legal-document.tsx'
+      - 'src/components/site-footer.tsx'
+      - 'src/components/cookie-notice.tsx'
+      - 'src/components/text-page.tsx'
+      - 'src/routes/*.tsx'
+      - 'src/routes/sitemap[.]xml.ts'
+      - 'src/lib/faq.ts'
+      - 'src/components/home-rich.tsx'
+      - '.github/workflows/eut-legal-policies.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eut-legal-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  legal-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install with frozen lockfile
+        run: bun install --frozen-lockfile
+      - name: TanStack production build
+        run: bun run build
+      - name: TypeScript check
+        run: bunx tsc --noEmit --pretty false
+      - name: Validate legal routes and copy
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const read=(p)=>readFileSync(p,'utf8');
+          const routes = [
+            ['termos','termos'],['privacidade','privacidade'],['cookies','cookies'],
+            ['pagamentos-e-reembolsos','pagamentos'],['condicoes-do-prestador','prestadores'],
+            ['responsabilidades','responsabilidades'],['seguranca','seguranca'],
+            ['direitos-dos-titulares','direitos']
+          ];
+          const doc=read('src/lib/legal-documents.ts');
+          for(const [path,key] of routes){
+            const file=read('src/routes/'+path+'.tsx');
+            if(!file.includes('documentKey="'+key+'"'))throw Error('Missing legal page: '+path);
+            if(!doc.includes('"'+key+'": {'))throw Error('Missing policy: '+key);
+          }
+          for(const path of ['politicas','politica-de-privacidade','termos-de-uso','politica-de-cookies']){
+            if(!read('src/routes/'+path+'.tsx').includes('createFileRoute('))throw Error('Missing index/redirect '+path);
+          }
+          const privacy=read('src/routes/privacidade.tsx')+doc;
+          if(privacy.includes('https://www.precisodeumtecnico.com')||privacy.includes('41.723.708/0001-58'))
+            throw Error('Incorrect former operator remains in current privacy');
+          for(const value of ['R$ 9,99','R$ 29,99','não certifica','Cadastro livre','LGPD']){
+            if(!(doc+read('src/lib/faq.ts')+read('src/routes/como-funciona.tsx')).includes(value))
+              throw Error('Missing commercial or legal disclosure: '+value);
+          }
+          const notice=read('src/components/cookie-notice.tsx');
+          const footer=read('src/components/site-footer.tsx');
+          if(!notice.includes('eut-open-cookie-preferences')||!footer.includes('eut-open-cookie-preferences'))
+            throw Error('Cookie preferences cannot be reopened');
+          if(!footer.includes('/politicas')||!footer.includes('/pagamentos-e-reembolsos'))
+            throw Error('Legal footer incomplete');
+          const signin=read('src/routes/entrar.tsx');
+          if(!signin.includes('termsAccepted')||!signin.includes('Política de privacidade'))
+            throw Error('Terms acknowledgment absent from signup');
+          const sitemap=read('src/routes/sitemap[.]xml.ts');
+          if(!sitemap.includes('/politicas')||!sitemap.includes('/direitos-dos-titulares'))
+            throw Error('Legal sitemap incomplete');
+          if(doc.includes('texto original de encontreumtecnico.com')||doc.includes('pessoa jurídica de direito privado, inscrita'))
+            throw Error('Unverified operator text');
+          console.log('EUT legal pages: eight policies + center, consent UI, redirects and sitemap OK');
+          NODE
