@@ -1,4 +1,5 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { listApprovedTechnicians } from "../lib/technicians.functions";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { PageShell, EmptyState } from "../components/page-placeholder";
@@ -14,6 +15,8 @@ const searchSchema = z.object({
 
 export const Route = createFileRoute("/tecnicos/")({
   validateSearch: zodValidator(searchSchema),
+  loaderDeps: ({ search }) => search,
+  loader: ({ deps }) => listApprovedTechnicians({ data: deps }),
   head: () => ({
     meta: [
       { title: "Técnicos — Encontre um Técnico" },
@@ -37,6 +40,7 @@ function trackFilter(filter: "especialidade" | "cidade" | "regiao", value: strin
 
 function TechniciansPage() {
   const search = Route.useSearch();
+  const technicians = Route.useLoaderData();
   const navigate = useNavigate({ from: "/tecnicos/" });
   const specialty = SPECIALTIES.includes(search.especialidade as (typeof SPECIALTIES)[number])
     ? search.especialidade
@@ -103,10 +107,34 @@ function TechniciansPage() {
         </div>
 
         <div className="mt-6">
-          <EmptyState
-            title="Nenhum técnico cadastrado ainda"
-            description="A listagem pública será preenchida automaticamente quando os primeiros perfis forem aprovados pela administração."
-          />
+          {technicians.length === 0 ? (
+            <EmptyState
+              title="Nenhum técnico encontrado"
+              description="Ainda não há técnicos aprovados com esses filtros. Tente outra cidade ou especialidade."
+            />
+          ) : (
+            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {technicians.map((t) => (
+                <li key={t.id}>
+                  <Link
+                    to="/tecnicos/$tecnicoId"
+                    params={{ tecnicoId: t.id }}
+                    className="block h-full rounded-lg border border-border bg-card p-5 transition-colors hover:border-primary"
+                  >
+                    <h2 className="font-semibold text-card-foreground">{t.display_name}</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {t.city}{t.region ? ` · ${t.region}` : ""}
+                    </p>
+                    <ul className="mt-3 flex flex-wrap gap-1.5">
+                      {t.specialties.map((s) => (
+                        <li key={s} className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-foreground">{s}</li>
+                      ))}
+                    </ul>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </section>
     </PageShell>

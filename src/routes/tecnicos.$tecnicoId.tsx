@@ -1,34 +1,57 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageShell, EmptyState } from "../components/page-placeholder";
+import { getApprovedTechnician } from "../lib/technicians.functions";
+
+const UUID = /^[0-9a-f-]{36}$/i;
 
 export const Route = createFileRoute("/tecnicos/$tecnicoId")({
-  head: () => ({
-    meta: [
-      { title: "Perfil do técnico — Encontre um Técnico" },
-      { name: "description", content: "Perfil público do técnico, especialidades e regiões atendidas." },
-      { property: "og:title", content: "Perfil do técnico — Encontre um Técnico" },
-      { property: "og:description", content: "Perfil público do técnico, especialidades e regiões atendidas." },
-      { property: "og:type", content: "profile" },
-      { name: "twitter:card", content: "summary" },
-    ],
-  }),
+  loader: ({ params }) =>
+    UUID.test(params.tecnicoId) ? getApprovedTechnician({ data: { id: params.tecnicoId } }) : null,
+  head: ({ loaderData }) => {
+    const name = loaderData?.display_name;
+    const title = name ? `${name} — Técnico em ${loaderData.city} | Encontre um Técnico` : "Perfil do técnico — Encontre um Técnico";
+    const desc = name
+      ? `${name}: ${loaderData.specialties.join(", ")} em ${loaderData.city}.`
+      : "Perfil público do técnico, especialidades e regiões atendidas.";
+    return {
+      meta: [
+        { title },
+        { name: "description", content: desc },
+        { property: "og:title", content: title },
+        { property: "og:description", content: desc },
+        { property: "og:type", content: "profile" },
+        { name: "twitter:card", content: "summary" },
+      ],
+    };
+  },
   component: TechnicianProfilePage,
 });
 
 function TechnicianProfilePage() {
-  const { tecnicoId } = Route.useParams();
+  const t = Route.useLoaderData();
 
   return (
     <PageShell>
       <section className="mx-auto max-w-3xl px-4 py-10">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Perfil do técnico</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Identificador: {tecnicoId}</p>
-        <div className="mt-6">
-          <EmptyState
-            title="Perfil indisponível"
-            description="As páginas individuais dos técnicos serão preenchidas quando houver perfis aprovados na plataforma."
-          />
-        </div>
+        <Link to="/tecnicos" className="text-sm text-primary hover:underline">← Voltar para técnicos</Link>
+        {!t ? (
+          <div className="mt-6">
+            <EmptyState title="Perfil indisponível" description="Este técnico não existe ou ainda não foi aprovado." />
+          </div>
+        ) : (
+          <div className="mt-4 rounded-lg border border-border bg-card p-6">
+            <h1 className="text-2xl font-bold tracking-tight text-card-foreground">{t.display_name}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t.city}{t.region ? ` · ${t.region}` : ""}
+            </p>
+            <ul className="mt-4 flex flex-wrap gap-2">
+              {t.specialties.map((s) => (
+                <li key={s} className="rounded-full bg-muted px-3 py-1 text-xs text-foreground">{s}</li>
+              ))}
+            </ul>
+            {t.bio && <p className="mt-4 whitespace-pre-line text-sm text-foreground">{t.bio}</p>}
+          </div>
+        )}
       </section>
     </PageShell>
   );
