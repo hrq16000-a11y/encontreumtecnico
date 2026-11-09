@@ -143,6 +143,11 @@ function SignInPage() {
             >
               Entrar com Google
             </button>
+            <p className="mt-4 rounded-md border border-border bg-muted/30 p-3 text-left text-sm text-muted-foreground">
+              <strong className="text-foreground">Já tinha conta no WordPress?</strong>{" "}
+              Cadastre-se com o mesmo e-mail ou entre com Google. A senha antiga não foi transferida.
+              Após confirmar seu e-mail, escolha seu tipo de conta. Técnicos podem solicitar a recuperação do perfil anterior.
+            </p>
             <EmailPasswordForm onError={setError} />
           </>
         ) : (
