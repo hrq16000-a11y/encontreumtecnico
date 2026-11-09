@@ -14,7 +14,10 @@
 - [ ] Refazer as 12 páginas vinculadas no design atual, com links internos
 - [ ] Busca por localização do visitante (geo/IP) — depois da migração dos técnicos
 - [ ] Publicar o site (após aprovação final)
-- [ ] Formulário de contato que salva mensagens + email de aviso (precisa de domínio de email do usuário)
+- [x] Formulário de contato salvando mensagens (lidas no painel admin)
+- [ ] Email de aviso das mensagens de contato (precisa de domínio de email do usuário)
+- [x] /lista-de-tecnicos redireciona para /tecnicos (só aprovados)
+- [ ] Avaliação de Google/IA e termos de busca (site segue fora do Google até homologação)
 - [ ] Fotos reais na página inicial (aguarda fotos reais do usuário — não usar fotos fictícias como se fossem técnicos)
 - [x] Comparar seções abaixo da foto inicial com a captura de referência (5 seções restauradas, sem fotos)
 - [ ] Chat de suporte com central de ajuda + pedidos e passagem para humano (aguarda: ainda não existem pedidos; definir quem atende)
