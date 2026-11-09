@@ -28,3 +28,8 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+## Architecture
+
+- Backend is the user's own external Supabase project (`pqtzhctvjbfcunmrvxne`); never enable Lovable Cloud or create another database — the spec forbids it.
+- Pages are TanStack Start file routes under `src/routes/`; shared chrome lives in `src/components/site-header.tsx` / `site-footer.tsx` via `PageShell`.
