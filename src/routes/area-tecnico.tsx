@@ -4,6 +4,7 @@ import { PageShell } from "../components/page-placeholder";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { CATEGORIES } from "@/lib/categories";
+import { LegacyAccountActivation } from "@/components/legacy-account-activation";
 import { RequestCard, type Req } from "../components/request-list";
 
 export const Route = createFileRoute("/area-tecnico")({
@@ -127,6 +128,7 @@ function TechnicianAreaPage() {
             <p className="mt-2 text-sm text-muted-foreground">
               Seu perfil só aparece na busca depois de aprovado. Qualquer alteração volta para análise.
             </p>
+            <LegacyAccountActivation userId={user.id} role="tecnico" />
             <p className="mt-4 text-sm text-muted-foreground">
               Já tinha perfil no portal antigo?{" "}
               <Link to="/reivindicar-cadastro" className="font-medium text-primary underline">
