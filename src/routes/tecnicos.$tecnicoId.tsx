@@ -43,7 +43,7 @@ function TechnicianProfilePage() {
         <Link to="/tecnicos" className="text-sm text-primary hover:underline">← Voltar para técnicos</Link>
         {!t ? (
           <div className="mt-6">
-            <EmptyState title="Perfil indisponível" description="Este técnico não existe ou ainda não foi aprovado." />
+            <EmptyState title="Perfil indisponível" description="Este técnico não está disponível publicamente neste momento." />
           </div>
         ) : (
           <div className="mt-4 rounded-lg border border-border bg-card p-6">
