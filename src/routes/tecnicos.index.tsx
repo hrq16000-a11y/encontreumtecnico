@@ -121,7 +121,10 @@ function TechniciansPage() {
                     params={{ tecnicoId: t.id }}
                     className="block h-full rounded-lg border border-border bg-card p-5 transition-colors hover:border-primary"
                   >
-                    <h2 className="font-semibold text-card-foreground">{t.display_name}</h2>
+                    <div className="flex items-start justify-between gap-2">
+                      <h2 className="font-semibold text-card-foreground">{t.display_name}</h2>
+                      <span className="shrink-0 rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Aprovado</span>
+                    </div>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {t.city}{t.region ? ` · ${t.region}` : ""}
                     </p>
