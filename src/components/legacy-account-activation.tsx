@@ -28,7 +28,7 @@ export function LegacyAccountActivation({
   useEffect(() => {
     let mounted = true;
     setLoading(true);
-    void db.rpc("eut_my_legacy_account").then(({ data, error }) => {
+    void Promise.resolve(db.rpc("eut_my_legacy_account")).then(({ data, error }) => {
       if (!mounted) return;
       if (!error && Array.isArray(data)) {
         setRecord((data[0] as LegacyAccount | undefined) ?? null);

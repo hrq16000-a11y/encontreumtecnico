@@ -107,7 +107,7 @@ function SignInPage() {
     if (loading || !user || roles.length > 0) { setCanRecoverAdmin(false); return; }
     let active = true;
     const client = supabase as unknown as SupabaseClient;
-    void client.rpc("eut_can_bootstrap_legacy_admin").then(({ data, error }) => {
+    void Promise.resolve(client.rpc("eut_can_bootstrap_legacy_admin")).then(({ data, error }) => {
       if (active) setCanRecoverAdmin(!error && data === true);
     }).catch(() => { if (active) setCanRecoverAdmin(false); });
     return () => { active = false; };

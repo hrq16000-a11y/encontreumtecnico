@@ -65,7 +65,7 @@ function LegacyClaimPage() {
     }
     setSuggestedLoading(true);
     setSuggestedError(false);
-    void db.rpc("eut_my_legacy_candidate_profiles").then(({ data, error }) => {
+    void Promise.resolve(db.rpc("eut_my_legacy_candidate_profiles")).then(({ data, error }) => {
       if (!active) return;
       if (error) {
         setSuggestedError(true);

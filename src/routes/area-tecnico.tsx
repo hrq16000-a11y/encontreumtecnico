@@ -4,6 +4,7 @@ import { PageShell } from "../components/page-placeholder";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveCategories } from "@/hooks/use-active-categories";
+import { useActiveServices } from "@/hooks/use-active-services";
 import { BRAZIL_STATES, validMunicipality } from "@/lib/service-taxonomy";
 import { LegacyAccountActivation } from "@/components/legacy-account-activation";
 import { RequestCard, type Req } from "../components/request-list";
@@ -64,7 +65,8 @@ function TechnicianRequests() {
 function TechnicianAreaPage() {
   const { user, roles, loading } = useAuth();
   const { categories, loading: catalogLoading, error: catalogError } = useActiveCategories();
-  const [form, setForm] = useState({ display_name: "", state_uf: "", city: "", neighborhood: "", region: "", bio: "", specialties: [] as string[] });
+  const { services, loading: servicesLoading, error: servicesError } = useActiveServices();
+  const [form, setForm] = useState({ display_name: "", state_uf: "", city: "", neighborhood: "", region: "", bio: "", specialties: [] as string[], service_slugs: [] as string[] });
   const [status, setStatus] = useState<keyof typeof STATUS_LABEL | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -73,7 +75,7 @@ function TechnicianAreaPage() {
     if (!user) return;
     supabase.from("technicians").select("*").eq("user_id", user.id).maybeSingle().then(({ data }) => {
       if (data) {
-        setForm({ display_name: data.display_name, state_uf: data.state_uf ?? "", city: data.city, neighborhood: data.neighborhood ?? "", region: data.region ?? "", bio: data.bio ?? "", specialties: data.specialties });
+        setForm({ display_name: data.display_name, state_uf: data.state_uf ?? "", city: data.city, neighborhood: data.neighborhood ?? "", region: data.region ?? "", bio: data.bio ?? "", specialties: data.specialties, service_slugs: data.service_slugs ?? [] });
         setStatus(data.status);
       } else {
         setForm((f) => ({ ...f, display_name: (user.user_metadata?.["full_name"] as string) ?? "" }));
@@ -88,6 +90,9 @@ function TechnicianAreaPage() {
     if (catalogLoading || catalogError || !categories.length) return setMsg("O catálogo está indisponível. Não é possível validar especialidades agora.");
     if (form.specialties.length === 0) return setMsg("Escolha pelo menos uma especialidade.");
     if (form.specialties.some((slug) => !categories.some((c) => c.slug === slug))) return setMsg("Selecione apenas categorias ativas do catálogo.");
+    if (servicesLoading || servicesError) return setMsg("O catálogo de serviços não está disponível. Tente novamente.");
+    if (form.service_slugs.length === 0) return setMsg("Escolha pelo menos um serviço específico que você executa.");
+    if (form.service_slugs.some((slug) => !services.some((service) => service.slug === slug && form.specialties.includes(service.category_slug)))) return setMsg("Os serviços precisam pertencer às categorias selecionadas e estar ativos.");
     setSaving(true);
     setMsg(null);
     const row = {
@@ -99,6 +104,7 @@ function TechnicianAreaPage() {
       region: form.region.trim() || null,
       bio: form.bio.trim() || null,
       specialties: form.specialties,
+      service_slugs: form.service_slugs,
       status: "pendente" as const,
     };
     const { error } = status
@@ -174,7 +180,7 @@ function TechnicianAreaPage() {
                     const on = form.specialties.includes(c.slug);
                     return (
                       <button type="button" key={c.slug} aria-pressed={on}
-                        onClick={() => setForm({ ...form, specialties: on ? form.specialties.filter((s) => s !== c.slug) : [...form.specialties, c.slug] })}
+                        onClick={() => setForm({ ...form, specialties: on ? form.specialties.filter((s) => s !== c.slug) : [...form.specialties, c.slug], service_slugs: on ? form.service_slugs.filter((slug) => services.find((service) => service.slug === slug)?.category_slug !== c.slug) : form.service_slugs })}
                         className={`min-h-11 rounded-full border px-4 text-sm ${on ? "border-primary bg-primary text-primary-foreground" : "border-input text-foreground"}`}>
                         {c.label}
                       </button>
@@ -182,10 +188,25 @@ function TechnicianAreaPage() {
                   })}
                 </div>
               </fieldset>
+              <fieldset>
+                <legend className="text-sm font-medium text-foreground">Serviços que você realmente executa</legend>
+                <p className="mt-1 text-xs text-muted-foreground">Selecione os serviços específicos dentro das suas categorias. A aprovação dependerá da conferência administrativa.</p>
+                {servicesLoading && <p className="mt-2 text-sm text-muted-foreground">Carregando serviços…</p>}
+                {servicesError && <p role="alert" className="mt-2 text-sm text-destructive">Serviços indisponíveis. Recarregue a página.</p>}
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {services.filter((service) => form.specialties.includes(service.category_slug)).map((service) => (
+                    <label key={service.slug} className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
+                      <input type="checkbox" className="h-4 w-4" checked={form.service_slugs.includes(service.slug)}
+                        onChange={(e) => setForm((old) => ({ ...old, service_slugs: e.target.checked ? [...old.service_slugs, service.slug] : old.service_slugs.filter((slug) => slug !== service.slug) }))} />
+                      <span>{service.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
               <label className="text-sm font-medium text-foreground">Apresentação
                 <textarea maxLength={1000} rows={4} className={input} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} />
               </label>
-              <button disabled={saving || catalogLoading || catalogError || categories.length === 0} className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
+              <button disabled={saving || catalogLoading || catalogError || servicesLoading || servicesError || categories.length === 0} className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
                 {saving ? "Enviando…" : "Enviar para análise"}
               </button>
               {msg && <p role="status" className="text-sm text-foreground">{msg}</p>}
