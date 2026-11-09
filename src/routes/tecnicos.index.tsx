@@ -4,6 +4,8 @@ import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { PageShell, EmptyState } from "../components/page-placeholder";
 import { CATEGORIES } from "../lib/categories";
+import { LegacyPublicArchive } from "../components/legacy-public-archive";
+import { canShowLegacyArchive } from "../lib/legacy-archive-filters";
 import { useEffect, useRef, useState } from "react";
 import { analyticsAllowed, recordSearch } from "@/lib/search-analytics";
 
@@ -131,7 +133,7 @@ function TechniciansPage() {
           {technicians.length === 0 ? (
             <EmptyState
               title="Nenhum técnico encontrado"
-              description="Ainda não há técnicos aprovados com esses filtros. Tente outra cidade ou especialidade."
+              description="Ainda não há técnicos aprovados com esses filtros. Os registros importados do WordPress aparecem abaixo, separados e em validação."
             />
           ) : (
             <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -160,6 +162,7 @@ function TechniciansPage() {
             </ul>
           )}
         </div>
+        <LegacyPublicArchive show={canShowLegacyArchive(search)} />
       </section>
     </PageShell>
   );
