@@ -8,6 +8,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { SearchMetrics } from "@/components/search-metrics";
 import { LegacyReviewQueue } from "@/components/legacy-review-queue";
 import { LegacyClaimReview } from "@/components/legacy-claim-review";
+import { EutAdminManager } from "@/components/eut-admin-manager";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -104,6 +105,7 @@ function AdminPage() {
             <SearchMetrics />
             <LegacyReviewQueue />
             <LegacyClaimReview />
+            <EutAdminManager />
 
             <h2 className="mt-10 text-lg font-semibold text-foreground">Técnicos</h2>
             <div role="tablist" className="mt-3 flex flex-wrap gap-2">
