@@ -38,6 +38,66 @@ export type Database = {
         }
         Relationships: []
       }
+      service_requests: {
+        Row: {
+          accepted_at: string | null
+          category: string
+          city: string
+          client_id: string
+          created_at: string
+          description: string
+          id: string
+          region: string | null
+          status: Database["public"]["Enums"]["request_status"]
+          technician_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          category: string
+          city: string
+          client_id: string
+          created_at?: string
+          description: string
+          id?: string
+          region?: string | null
+          status?: Database["public"]["Enums"]["request_status"]
+          technician_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          category?: string
+          city?: string
+          client_id?: string
+          created_at?: string
+          description?: string
+          id?: string
+          region?: string | null
+          status?: Database["public"]["Enums"]["request_status"]
+          technician_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_requests_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_requests_technician_id_fkey"
+            columns: ["technician_id"]
+            isOneToOne: false
+            referencedRelation: "technicians"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       technicians: {
         Row: {
           bio: string | null
@@ -125,10 +185,24 @@ export type Database = {
         }
         Returns: boolean
       }
+      my_technician_id: { Args: never; Returns: string }
+      set_request_status: {
+        Args: {
+          _id: string
+          _status: Database["public"]["Enums"]["request_status"]
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "tecnico" | "cliente"
-      approval_status: "pendente" | "aprovado" | "rejeitado"
+      approval_status: "pendente" | "aprovado" | "rejeitado" | "suspenso"
+      request_status:
+        | "aberta"
+        | "aceita"
+        | "recusada"
+        | "concluida"
+        | "cancelada"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -257,7 +331,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "tecnico", "cliente"],
-      approval_status: ["pendente", "aprovado", "rejeitado"],
+      approval_status: ["pendente", "aprovado", "rejeitado", "suspenso"],
+      request_status: [
+        "aberta",
+        "aceita",
+        "recusada",
+        "concluida",
+        "cancelada",
+      ],
     },
   },
 } as const
