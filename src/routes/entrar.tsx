@@ -19,73 +19,22 @@ export const Route = createFileRoute("/entrar")({
   component: SignInPage,
 });
 
-function EmailPasswordForm({ onError }: { onError: (m: string | null) => void }) {
-  const [mode, setMode] = useState<"entrar" | "cadastrar">("entrar");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [info, setInfo] = useState<string | null>(null);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    onError(null);
-    setInfo(null);
-    if (password.length < 6) return onError("A senha precisa ter pelo menos 6 caracteres.");
-    setBusy(true);
-    if (mode === "cadastrar") {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { emailRedirectTo: `${window.location.origin}/entrar` },
-      });
-      setBusy(false);
-      if (error) return onError(error.message.includes("registered") ? "Este e-mail já tem conta. Use Entrar." : "Não foi possível criar a conta.");
-      if (!data.session) setInfo("Conta criada. Confirme pelo link enviado ao seu e-mail para entrar.");
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      setBusy(false);
-      if (error) onError("E-mail ou senha incorretos.");
-    }
-  }
-
-  const input = "min-h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground";
-  return (
-    <form onSubmit={submit} className="mt-6 grid w-full gap-3 text-left">
-      <div className="text-center text-xs text-muted-foreground">ou com e-mail e senha</div>
-      <label className="grid gap-1 text-sm text-foreground">
-        E-mail
-        <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className={input} />
-      </label>
-      <label className="grid gap-1 text-sm text-foreground">
-        Senha
-        <input type="password" required minLength={6} autoComplete={mode === "cadastrar" ? "new-password" : "current-password"} value={password} onChange={(e) => setPassword(e.target.value)} className={input} />
-      </label>
-      <button type="submit" disabled={busy} className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
-        {mode === "cadastrar" ? "Criar conta" : "Entrar"}
-      </button>
-      <button type="button" onClick={() => setMode(mode === "entrar" ? "cadastrar" : "entrar")} className="text-sm text-primary underline-offset-4 hover:underline">
-        {mode === "entrar" ? "Não tem conta? Cadastre-se (técnico ou cliente)" : "Já tem conta? Entrar"}
-      </button>
-      {info && <p className="text-sm text-muted-foreground">{info}</p>}
-    </form>
-  );
-}
-
 function SignInPage() {
   const { user, roles, loading, refreshRoles } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const googleLinked = Boolean(user?.identities?.some((identity) => identity.provider === "google") || user?.app_metadata?.providers?.includes("google"));
 
   useEffect(() => {
-    if (loading || !user || roles.length === 0) return;
+    if (loading || !user || !googleLinked || roles.length === 0) return;
     const stored = sessionStorage.getItem("eut-after-login");
     sessionStorage.removeItem("eut-after-login");
     if (stored && stored !== "/entrar") navigate({ to: stored as "/" });
     else if (roles.includes("admin")) navigate({ to: "/admin" });
     else if (roles.includes("tecnico")) navigate({ to: "/area-tecnico" });
     else navigate({ to: "/area-cliente" });
-  }, [loading, user, roles, navigate]);
+  }, [loading, user, roles, googleLinked, navigate]);
 
   async function google() {
     setError(null);
@@ -94,6 +43,7 @@ function SignInPage() {
   }
 
   async function choose(role: Role) {
+    if (!googleLinked) return setError("É necessário autenticar-se com Google.");
     setBusy(true);
     const { error } = await supabase.rpc("choose_account_type", { _role: role });
     setBusy(false);
@@ -110,7 +60,7 @@ function SignInPage() {
           <>
             <h1 className="text-2xl font-bold tracking-tight text-foreground">Entre na sua conta</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Técnicos e clientes acessam com Google ou e-mail e senha.
+              Técnicos e clientes entram exclusivamente com Google. Não é necessário criar outra senha.
             </p>
             <button
               type="button"
@@ -119,7 +69,21 @@ function SignInPage() {
             >
               Entrar com Google
             </button>
-            <EmailPasswordForm onError={setError} />
+
+          </>
+        ) : !googleLinked ? (
+          <>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Entre com uma conta Google</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Para continuar, saia desta sessão e entre novamente usando Google.
+            </p>
+            <button
+              type="button"
+              onClick={() => void supabase.auth.signOut()}
+              className="mt-6 min-h-11 rounded-md border border-input px-4 text-sm font-medium text-foreground"
+            >
+              Sair desta sessão
+            </button>
           </>
         ) : (
           <>
