@@ -29,6 +29,8 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Build TanStack Start
         run: bun run build
+      - name: TypeScript check
+        run: bunx tsc --noEmit --pretty false
       - name: Check services and location contract
         run: |
           node --input-type=module <<'NODE'
