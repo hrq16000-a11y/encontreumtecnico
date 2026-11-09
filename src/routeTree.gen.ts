@@ -10,33 +10,141 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AreaClienteRouteImport } from './routes/area-cliente'
+import { Route as AreaTecnicoRouteImport } from './routes/area-tecnico'
+import { Route as ComoFuncionaRouteImport } from './routes/como-funciona'
+import { Route as EntrarRouteImport } from './routes/entrar'
+import { Route as ServicosRouteImport } from './routes/servicos'
+import { Route as TecnicosIndexRouteImport } from './routes/tecnicos.index'
+import { Route as TecnicosTecnicoIdRouteImport } from './routes/tecnicos.$tecnicoId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AreaClienteRoute = AreaClienteRouteImport.update({
+  id: '/area-cliente',
+  path: '/area-cliente',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AreaTecnicoRoute = AreaTecnicoRouteImport.update({
+  id: '/area-tecnico',
+  path: '/area-tecnico',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ComoFuncionaRoute = ComoFuncionaRouteImport.update({
+  id: '/como-funciona',
+  path: '/como-funciona',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EntrarRoute = EntrarRouteImport.update({
+  id: '/entrar',
+  path: '/entrar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ServicosRoute = ServicosRouteImport.update({
+  id: '/servicos',
+  path: '/servicos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TecnicosIndexRoute = TecnicosIndexRouteImport.update({
+  id: '/tecnicos/',
+  path: '/tecnicos/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TecnicosTecnicoIdRoute = TecnicosTecnicoIdRouteImport.update({
+  id: '/tecnicos/$tecnicoId',
+  path: '/tecnicos/$tecnicoId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/area-cliente': typeof AreaClienteRoute
+  '/area-tecnico': typeof AreaTecnicoRoute
+  '/como-funciona': typeof ComoFuncionaRoute
+  '/entrar': typeof EntrarRoute
+  '/servicos': typeof ServicosRoute
+  '/tecnicos/$tecnicoId': typeof TecnicosTecnicoIdRoute
+  '/tecnicos/': typeof TecnicosIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/area-cliente': typeof AreaClienteRoute
+  '/area-tecnico': typeof AreaTecnicoRoute
+  '/como-funciona': typeof ComoFuncionaRoute
+  '/entrar': typeof EntrarRoute
+  '/servicos': typeof ServicosRoute
+  '/tecnicos/$tecnicoId': typeof TecnicosTecnicoIdRoute
+  '/tecnicos': typeof TecnicosIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/area-cliente': typeof AreaClienteRoute
+  '/area-tecnico': typeof AreaTecnicoRoute
+  '/como-funciona': typeof ComoFuncionaRoute
+  '/entrar': typeof EntrarRoute
+  '/servicos': typeof ServicosRoute
+  '/tecnicos/$tecnicoId': typeof TecnicosTecnicoIdRoute
+  '/tecnicos/': typeof TecnicosIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/area-cliente'
+    | '/area-tecnico'
+    | '/como-funciona'
+    | '/entrar'
+    | '/servicos'
+    | '/tecnicos/$tecnicoId'
+    | '/tecnicos/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/admin'
+    | '/area-cliente'
+    | '/area-tecnico'
+    | '/como-funciona'
+    | '/entrar'
+    | '/servicos'
+    | '/tecnicos/$tecnicoId'
+    | '/tecnicos'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/area-cliente'
+    | '/area-tecnico'
+    | '/como-funciona'
+    | '/entrar'
+    | '/servicos'
+    | '/tecnicos/$tecnicoId'
+    | '/tecnicos/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
+  AreaClienteRoute: typeof AreaClienteRoute
+  AreaTecnicoRoute: typeof AreaTecnicoRoute
+  ComoFuncionaRoute: typeof ComoFuncionaRoute
+  EntrarRoute: typeof EntrarRoute
+  ServicosRoute: typeof ServicosRoute
+  TecnicosTecnicoIdRoute: typeof TecnicosTecnicoIdRoute
+  TecnicosIndexRoute: typeof TecnicosIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +156,75 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/area-cliente': {
+      id: '/area-cliente'
+      path: '/area-cliente'
+      fullPath: '/area-cliente'
+      preLoaderRoute: typeof AreaClienteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/area-tecnico': {
+      id: '/area-tecnico'
+      path: '/area-tecnico'
+      fullPath: '/area-tecnico'
+      preLoaderRoute: typeof AreaTecnicoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/como-funciona': {
+      id: '/como-funciona'
+      path: '/como-funciona'
+      fullPath: '/como-funciona'
+      preLoaderRoute: typeof ComoFuncionaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/entrar': {
+      id: '/entrar'
+      path: '/entrar'
+      fullPath: '/entrar'
+      preLoaderRoute: typeof EntrarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/servicos': {
+      id: '/servicos'
+      path: '/servicos'
+      fullPath: '/servicos'
+      preLoaderRoute: typeof ServicosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tecnicos/': {
+      id: '/tecnicos/'
+      path: '/tecnicos'
+      fullPath: '/tecnicos/'
+      preLoaderRoute: typeof TecnicosIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tecnicos/$tecnicoId': {
+      id: '/tecnicos/$tecnicoId'
+      path: '/tecnicos/$tecnicoId'
+      fullPath: '/tecnicos/$tecnicoId'
+      preLoaderRoute: typeof TecnicosTecnicoIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
+  AreaClienteRoute: AreaClienteRoute,
+  AreaTecnicoRoute: AreaTecnicoRoute,
+  ComoFuncionaRoute: ComoFuncionaRoute,
+  EntrarRoute: EntrarRoute,
+  ServicosRoute: ServicosRoute,
+  TecnicosTecnicoIdRoute: TecnicosTecnicoIdRoute,
+  TecnicosIndexRoute: TecnicosIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
