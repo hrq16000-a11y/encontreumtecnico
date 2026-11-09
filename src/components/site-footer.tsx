@@ -11,6 +11,14 @@ export function SiteFooter() {
           <p className="mt-2 text-sm text-muted-foreground">
             A melhor maneira de encontrar e contratar profissionais de tecnologia no Brasil.
           </p>
+          <ul className="mt-3 space-y-1 text-sm text-muted-foreground">
+            <li>
+              <a href="tel:+5541997452053" className="hover:text-foreground">(41) 9 9745-2053</a>
+            </li>
+            <li>
+              <a href="mailto:dpo@encontreumtecnico.com" className="hover:text-foreground">dpo@encontreumtecnico.com</a>
+            </li>
+          </ul>
         </div>
         <nav aria-label="Links do portal">
           <p className="text-sm font-semibold text-foreground">Portal</p>
