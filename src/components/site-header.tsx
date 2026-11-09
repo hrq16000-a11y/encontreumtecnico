@@ -16,7 +16,7 @@ export function SiteHeader() {
     <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
         <Link to="/" className="flex items-center" aria-label="Encontre um Técnico — página inicial">
-          <img src={logo.url} alt="Encontre um Técnico" width={324} height={60} className="h-9 w-auto" />
+          <img src={logo} alt="Encontre um Técnico" width={324} height={60} className="h-9 w-auto" />
         </Link>
 
         <nav className="hidden items-center gap-6 md:flex" aria-label="Navegação principal">
