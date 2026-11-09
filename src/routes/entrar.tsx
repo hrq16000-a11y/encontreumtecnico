@@ -102,6 +102,8 @@ function SignInPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [canRecoverAdmin, setCanRecoverAdmin] = useState(false);
+  const [legacyRole, setLegacyRole] = useState<"tecnico" | "cliente" | null>(null);
+  const [legacyChecked, setLegacyChecked] = useState(false);
 
   useEffect(() => {
     if (loading || !user || roles.length > 0) { setCanRecoverAdmin(false); return; }
@@ -110,6 +112,28 @@ function SignInPage() {
     void Promise.resolve(client.rpc("eut_can_bootstrap_legacy_admin")).then(({ data, error }) => {
       if (active) setCanRecoverAdmin(!error && data === true);
     }).catch(() => { if (active) setCanRecoverAdmin(false); });
+    return () => { active = false; };
+  }, [loading, user?.id, roles.length]);
+
+  // Only the authenticated owner can query the imported WordPress role;
+  // the server also checks it before granting access, regardless of UI.
+  useEffect(() => {
+    if (loading || !user || roles.length > 0) {
+      setLegacyChecked(false);
+      setLegacyRole(null);
+      return;
+    }
+    let active = true;
+    setLegacyChecked(false);
+    setLegacyRole(null);
+    const client = supabase as unknown as SupabaseClient;
+    void Promise.resolve(client.rpc("eut_my_legacy_account")).then(({ data, error }) => {
+      if (!active) return;
+      const record = !error && Array.isArray(data) ? data[0] : null;
+      const originalType = record?.intended_type;
+      setLegacyRole(originalType === "tecnico" || originalType === "cliente" ? originalType : null);
+      setLegacyChecked(true);
+    }).catch(() => { if (active) { setLegacyRole(null); setLegacyChecked(true); } });
     return () => { active = false; };
   }, [loading, user?.id, roles.length]);
 
@@ -145,11 +169,25 @@ function SignInPage() {
   }
 
   async function choose(role: Role) {
+    if (busy || !legacyChecked || (role !== "tecnico" && role !== "cliente")) return;
+    if (legacyRole && role !== legacyRole) {
+      setError("Seu cadastro WordPress já tem um tipo definido. Selecione o tipo indicado para associar sua conta.");
+      return;
+    }
     setBusy(true);
-    const { error } = await supabase.rpc("choose_account_type", { _role: role });
-    setBusy(false);
-    if (error) setError("Não foi possível salvar o tipo de conta.");
-    else refreshRoles();
+    setError(null);
+    try {
+      const { error } = await supabase.rpc("choose_account_type", { _role: role });
+      if (error) {
+        setError("Não foi possível definir este tipo. Contas antigas devem manter o papel original e usar uma identidade confirmada.");
+      } else {
+        await refreshRoles();
+      }
+    } catch {
+      setError("Falha de conexão. Tente novamente.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -181,11 +219,15 @@ function SignInPage() {
           <>
             <h1 className="text-2xl font-bold tracking-tight text-foreground">Como você vai usar o portal?</h1>
             <p className="mt-2 text-sm text-muted-foreground">Escolha uma vez; isso define sua área.</p>
+            {!legacyChecked && <p className="mt-4 text-sm text-muted-foreground">Verificando seu cadastro anterior…</p>}
+            {legacyRole && <p className="mt-4 rounded-md border border-border bg-muted/40 p-3 text-left text-sm text-foreground" role="status">
+              Identificamos um cadastro WordPress do tipo <strong>{legacyRole === "tecnico" ? "técnico/prestador" : "cliente/contratante"}</strong> associado à sua identidade verificada. Mantenha esse tipo para recuperar sua conta; a aprovação de perfil profissional é uma etapa separada.
+            </p>}
             <div className="mt-8 grid w-full gap-3">
-              <button disabled={busy} onClick={() => choose("tecnico")} className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
+              <button disabled={busy || !legacyChecked || legacyRole === "cliente"} onClick={() => choose("tecnico")} className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
                 Sou técnico — quero oferecer serviços
               </button>
-              <button disabled={busy} onClick={() => choose("cliente")} className="min-h-11 rounded-md border border-input px-4 py-2.5 text-sm font-medium text-foreground disabled:opacity-60">
+              <button disabled={busy || !legacyChecked || legacyRole === "tecnico"} onClick={() => choose("cliente")} className="min-h-11 rounded-md border border-input px-4 py-2.5 text-sm font-medium text-foreground disabled:opacity-60">
                 Sou cliente — quero contratar
               </button>
               {canRecoverAdmin && (
