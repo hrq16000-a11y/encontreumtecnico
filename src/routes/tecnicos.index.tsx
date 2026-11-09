@@ -18,9 +18,15 @@ export const Route = createFileRoute("/tecnicos/")({
   head: () => ({
     meta: [
       { title: "Técnicos — Encontre um Técnico" },
-      { name: "description", content: "Galeria de técnicos aprovados. Filtre por especialidade, cidade e região." },
+      {
+        name: "description",
+        content: "Galeria de técnicos aprovados. Filtre por especialidade, cidade e região.",
+      },
       { property: "og:title", content: "Técnicos — Encontre um Técnico" },
-      { property: "og:description", content: "Galeria de técnicos aprovados. Filtre por especialidade, cidade e região." },
+      {
+        property: "og:description",
+        content: "Galeria de técnicos aprovados. Filtre por especialidade, cidade e região.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -43,7 +49,10 @@ function TechniciansPage() {
 
         <div className="mt-6 grid gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-3">
           <div>
-            <label htmlFor="filtro-especialidade" className="text-xs font-medium text-muted-foreground">
+            <label
+              htmlFor="filtro-especialidade"
+              className="text-xs font-medium text-muted-foreground"
+            >
               Especialidade
             </label>
             <select
@@ -53,7 +62,9 @@ function TechniciansPage() {
               className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
             >
               {SPECIALTIES.map((s) => (
-                <option key={s} value={s}>{s}</option>
+                <option key={s} value={s}>
+                  {s}
+                </option>
               ))}
             </select>
           </div>

@@ -5,9 +5,17 @@ export const Route = createFileRoute("/area-tecnico")({
   head: () => ({
     meta: [
       { title: "Área do técnico — Encontre um Técnico" },
-      { name: "description", content: "Painel do técnico: perfil profissional, especialidades, regiões atendidas e aprovação cadastral." },
+      {
+        name: "description",
+        content:
+          "Painel do técnico: perfil profissional, especialidades, regiões atendidas e aprovação cadastral.",
+      },
       { property: "og:title", content: "Área do técnico — Encontre um Técnico" },
-      { property: "og:description", content: "Painel do técnico: perfil profissional, especialidades, regiões atendidas e aprovação cadastral." },
+      {
+        property: "og:description",
+        content:
+          "Painel do técnico: perfil profissional, especialidades, regiões atendidas e aprovação cadastral.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

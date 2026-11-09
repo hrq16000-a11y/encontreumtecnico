@@ -5,9 +5,17 @@ export const Route = createFileRoute("/como-funciona")({
   head: () => ({
     meta: [
       { title: "Como funciona — Encontre um Técnico" },
-      { name: "description", content: "Entenda como clientes encontram técnicos aprovados e abrem solicitações de atendimento." },
+      {
+        name: "description",
+        content:
+          "Entenda como clientes encontram técnicos aprovados e abrem solicitações de atendimento.",
+      },
       { property: "og:title", content: "Como funciona — Encontre um Técnico" },
-      { property: "og:description", content: "Entenda como clientes encontram técnicos aprovados e abrem solicitações de atendimento." },
+      {
+        property: "og:description",
+        content:
+          "Entenda como clientes encontram técnicos aprovados e abrem solicitações de atendimento.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

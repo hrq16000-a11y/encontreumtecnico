@@ -5,9 +5,15 @@ export const Route = createFileRoute("/tecnicos/$tecnicoId")({
   head: () => ({
     meta: [
       { title: "Perfil do técnico — Encontre um Técnico" },
-      { name: "description", content: "Perfil público do técnico, especialidades e regiões atendidas." },
+      {
+        name: "description",
+        content: "Perfil público do técnico, especialidades e regiões atendidas.",
+      },
       { property: "og:title", content: "Perfil do técnico — Encontre um Técnico" },
-      { property: "og:description", content: "Perfil público do técnico, especialidades e regiões atendidas." },
+      {
+        property: "og:description",
+        content: "Perfil público do técnico, especialidades e regiões atendidas.",
+      },
       { property: "og:type", content: "profile" },
       { name: "twitter:card", content: "summary" },
     ],

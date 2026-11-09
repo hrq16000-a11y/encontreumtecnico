@@ -15,17 +15,41 @@ export function SiteFooter() {
         <nav aria-label="Links do portal">
           <p className="text-sm font-semibold text-foreground">Portal</p>
           <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-            <li><Link to="/tecnicos" className="hover:text-foreground">Técnicos</Link></li>
-            <li><Link to="/servicos" className="hover:text-foreground">Serviços</Link></li>
-            <li><Link to="/como-funciona" className="hover:text-foreground">Como funciona</Link></li>
+            <li>
+              <Link to="/tecnicos" className="hover:text-foreground">
+                Técnicos
+              </Link>
+            </li>
+            <li>
+              <Link to="/servicos" className="hover:text-foreground">
+                Serviços
+              </Link>
+            </li>
+            <li>
+              <Link to="/como-funciona" className="hover:text-foreground">
+                Como funciona
+              </Link>
+            </li>
           </ul>
         </nav>
         <nav aria-label="Links de conta">
           <p className="text-sm font-semibold text-foreground">Conta</p>
           <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-            <li><Link to="/entrar" className="hover:text-foreground">Entrar</Link></li>
-            <li><Link to="/area-tecnico" className="hover:text-foreground">Área do técnico</Link></li>
-            <li><Link to="/area-cliente" className="hover:text-foreground">Área do cliente</Link></li>
+            <li>
+              <Link to="/entrar" className="hover:text-foreground">
+                Entrar
+              </Link>
+            </li>
+            <li>
+              <Link to="/area-tecnico" className="hover:text-foreground">
+                Área do técnico
+              </Link>
+            </li>
+            <li>
+              <Link to="/area-cliente" className="hover:text-foreground">
+                Área do cliente
+              </Link>
+            </li>
           </ul>
         </nav>
       </div>

@@ -5,9 +5,17 @@ export const Route = createFileRoute("/area-cliente")({
   head: () => ({
     meta: [
       { title: "Área do cliente — Encontre um Técnico" },
-      { name: "description", content: "Painel do cliente: pesquisa de profissionais, solicitações de atendimento e histórico." },
+      {
+        name: "description",
+        content:
+          "Painel do cliente: pesquisa de profissionais, solicitações de atendimento e histórico.",
+      },
       { property: "og:title", content: "Área do cliente — Encontre um Técnico" },
-      { property: "og:description", content: "Painel do cliente: pesquisa de profissionais, solicitações de atendimento e histórico." },
+      {
+        property: "og:description",
+        content:
+          "Painel do cliente: pesquisa de profissionais, solicitações de atendimento e histórico.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

@@ -16,9 +16,15 @@ export const Route = createFileRoute("/servicos")({
   head: () => ({
     meta: [
       { title: "Serviços — Encontre um Técnico" },
-      { name: "description", content: "Especialidades e serviços oferecidos pelos técnicos da plataforma." },
+      {
+        name: "description",
+        content: "Especialidades e serviços oferecidos pelos técnicos da plataforma.",
+      },
       { property: "og:title", content: "Serviços — Encontre um Técnico" },
-      { property: "og:description", content: "Especialidades e serviços oferecidos pelos técnicos da plataforma." },
+      {
+        property: "og:description",
+        content: "Especialidades e serviços oferecidos pelos técnicos da plataforma.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

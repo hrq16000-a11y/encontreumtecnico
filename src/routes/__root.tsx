@@ -10,6 +10,7 @@ import {
   type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -84,7 +85,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "Encontre um Técnico" },
       { name: "description", content: "Encontre e contrate técnicos de tecnologia perto de você." },
       { property: "og:title", content: "Encontre um Técnico" },
-      { property: "og:description", content: "Encontre e contrate técnicos de tecnologia perto de você." },
+      {
+        property: "og:description",
+        content: "Encontre e contrate técnicos de tecnologia perto de você.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -112,16 +116,21 @@ declare module "@tanstack/react-router" {
 }
 
 function RootShell({ children }: { children: ReactNode }) {
-  const importedDocument = useImportedMatches({ select: matches => matches.at(-1)?.staticData.importedDocument });
+  const importedDocument = useImportedMatches({
+    select: (matches) => matches.at(-1)?.staticData.importedDocument,
+  });
   return (
     <html lang="en" {...importedDocument?.html}>
       <head>
-        <style href="site-import-inline" precedence="imported-inline">{"@layer imported-inline;"}</style>
+        <style href="site-import-inline" precedence="imported-inline">
+          {"@layer imported-inline;"}
+        </style>
         <HeadContent />
       </head>
       <body {...importedDocument?.body}>
         {children}
         <Scripts />
+        <SpeedInsights />
       </body>
     </html>
   );

@@ -44,7 +44,15 @@ export function SiteHeader() {
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
         >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+          >
             {open ? (
               <>
                 <line x1="18" y1="6" x2="6" y2="18" />
@@ -62,7 +70,10 @@ export function SiteHeader() {
       </div>
 
       {open && (
-        <nav className="border-t border-border bg-background px-4 py-3 md:hidden" aria-label="Navegação móvel">
+        <nav
+          className="border-t border-border bg-background px-4 py-3 md:hidden"
+          aria-label="Navegação móvel"
+        >
           <ul className="flex flex-col gap-1">
             {NAV_ITEMS.map((item) => (
               <li key={item.to}>
@@ -70,7 +81,10 @@ export function SiteHeader() {
                   to={item.to}
                   onClick={() => setOpen(false)}
                   className="block rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
-                  activeProps={{ className: "block rounded-md px-3 py-2 text-sm font-medium bg-accent text-foreground" }}
+                  activeProps={{
+                    className:
+                      "block rounded-md px-3 py-2 text-sm font-medium bg-accent text-foreground",
+                  }}
                 >
                   {item.label}
                 </Link>

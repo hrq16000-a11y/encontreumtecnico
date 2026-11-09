@@ -22,7 +22,10 @@ export const Route = createFileRoute("/")({
         content:
           "Busque técnicos aprovados por especialidade, cidade e região. A melhor maneira de encontrar e contratar profissionais de tecnologia no Brasil.",
       },
-      { property: "og:title", content: "Encontre um Técnico — Encontre profissionais de TI perto de você" },
+      {
+        property: "og:title",
+        content: "Encontre um Técnico — Encontre profissionais de TI perto de você",
+      },
       {
         property: "og:description",
         content: "Busque técnicos aprovados por especialidade, cidade e região.",
@@ -57,7 +60,9 @@ function HomePage() {
               navigate({ to: "/tecnicos" });
             }}
           >
-            <label className="sr-only" htmlFor="busca-especialidade">Especialidade</label>
+            <label className="sr-only" htmlFor="busca-especialidade">
+              Especialidade
+            </label>
             <input
               id="busca-especialidade"
               type="text"
@@ -66,7 +71,9 @@ function HomePage() {
               placeholder="Especialidade (ex.: Computador)"
               className="h-11 flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
-            <label className="sr-only" htmlFor="busca-cidade">Cidade</label>
+            <label className="sr-only" htmlFor="busca-cidade">
+              Cidade
+            </label>
             <input
               id="busca-cidade"
               type="text"
@@ -86,7 +93,9 @@ function HomePage() {
       </section>
 
       <section className="mx-auto max-w-6xl px-4 py-12">
-        <h2 className="text-xl font-semibold text-foreground">Categorias de atividades populares</h2>
+        <h2 className="text-xl font-semibold text-foreground">
+          Categorias de atividades populares
+        </h2>
         <ul className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {CATEGORIES.map((category) => (
             <li key={category}>
@@ -107,8 +116,16 @@ function HomePage() {
           <ol className="mt-6 grid gap-6 md:grid-cols-3">
             {[
               { step: "1", title: "Busque", text: "Pesquise por especialidade, cidade ou região." },
-              { step: "2", title: "Escolha", text: "Compare perfis de técnicos aprovados pela plataforma." },
-              { step: "3", title: "Solicite", text: "Abra uma solicitação de atendimento com segurança." },
+              {
+                step: "2",
+                title: "Escolha",
+                text: "Compare perfis de técnicos aprovados pela plataforma.",
+              },
+              {
+                step: "3",
+                title: "Solicite",
+                text: "Abra uma solicitação de atendimento com segurança.",
+              },
             ].map((item) => (
               <li key={item.step} className="rounded-lg border border-border bg-card p-6">
                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">

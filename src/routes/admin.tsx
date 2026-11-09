@@ -5,9 +5,15 @@ export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
       { title: "Administração — Encontre um Técnico" },
-      { name: "description", content: "Painel administrativo restrito a administradores autorizados." },
+      {
+        name: "description",
+        content: "Painel administrativo restrito a administradores autorizados.",
+      },
       { property: "og:title", content: "Administração — Encontre um Técnico" },
-      { property: "og:description", content: "Painel administrativo restrito a administradores autorizados." },
+      {
+        property: "og:description",
+        content: "Painel administrativo restrito a administradores autorizados.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -33,14 +39,8 @@ function AdminPage() {
             title="Solicitações"
             description="Gerenciamento das solicitações de atendimento."
           />
-          <EmptyState
-            title="Indicadores"
-            description="Métricas básicas de uso da plataforma."
-          />
-          <EmptyState
-            title="Auditoria"
-            description="Registro de ações administrativas."
-          />
+          <EmptyState title="Indicadores" description="Métricas básicas de uso da plataforma." />
+          <EmptyState title="Auditoria" description="Registro de ações administrativas." />
         </div>
       </section>
     </PageShell>
