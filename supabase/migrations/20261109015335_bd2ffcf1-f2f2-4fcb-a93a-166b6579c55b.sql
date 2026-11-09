@@ -1,0 +1,4 @@
+CREATE FUNCTION public.assign_portal_owner_admin() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$ BEGIN IF lower(NEW.email)='hrq16000@gmail.com' AND NEW.email_confirmed_at IS NOT NULL THEN INSERT INTO public.user_roles(user_id,role) VALUES(NEW.id,'admin') ON CONFLICT DO NOTHING; END IF; RETURN NEW; END $$;
+REVOKE ALL ON FUNCTION public.assign_portal_owner_admin() FROM PUBLIC,anon,authenticated;
+CREATE TRIGGER assign_portal_owner_after_signup AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.assign_portal_owner_admin();
+CREATE TRIGGER assign_portal_owner_after_confirmation AFTER UPDATE OF email_confirmed_at,email ON auth.users FOR EACH ROW EXECUTE FUNCTION public.assign_portal_owner_admin();
