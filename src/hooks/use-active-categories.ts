@@ -14,10 +14,10 @@ export function useActiveCategories() {
 
   useEffect(() => {
     let mounted = true;
-    void supabase.from("eut_service_categories")
+    void Promise.resolve(supabase.from("eut_service_categories")
       .select("slug,label,description")
       .eq("active", true)
-      .order("display_order")
+      .order("display_order"))
       .then(({ data, error: queryError }) => {
         if (!mounted) return;
         setCategories(queryError ? [] : (data ?? []));
