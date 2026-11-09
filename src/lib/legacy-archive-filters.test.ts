@@ -8,5 +8,9 @@ describe("read-only historic listing", () => {
     expect(canShowLegacyArchive({ especialidade: "Computador", cidade: "", regiao: "" })).toBe(false);
     expect(canShowLegacyArchive({ especialidade: "Todas", cidade: "Curitiba", regiao: "" })).toBe(false);
     expect(canShowLegacyArchive({ especialidade: "Todas", cidade: "", regiao: "Centro" })).toBe(false);
+    expect(canShowLegacyArchive({ especialidade: "Todas", uf: "PR" })).toBe(false);
+    expect(canShowLegacyArchive({ especialidade: "Todas", bairro: "Centro" })).toBe(false);
+    expect(canShowLegacyArchive({ especialidade: "cat:computadores" })).toBe(false);
+    expect(canShowLegacyArchive({ especialidade: "svc:manutencao-notebook" })).toBe(false);
   });
 });
