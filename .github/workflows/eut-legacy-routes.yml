@@ -1,0 +1,40 @@
+name: Legacy WordPress URL compatibility
+on:
+  pull_request:
+    paths:
+      - 'src/lib/legacy-route.functions.ts'
+      - 'src/components/historical-wordpress-profile.tsx'
+      - 'src/routes/tecnico.$slug.tsx'
+      - 'src/routes/cliente.$slug.tsx'
+      - '.github/workflows/eut-legacy-routes.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - name: Verify historical records cannot expose contact or live approval
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const read = file => readFileSync(file, 'utf8');
+          const source = read('src/lib/legacy-route.functions.ts');
+          const ui = read('src/components/historical-wordpress-profile.tsx');
+          const paths = ['src/routes/tecnico.$slug.tsx','src/routes/cliente.$slug.tsx'];
+          for (const part of ['eut_legacy_url_routes','.eq("status", "em_validacao")']) {
+            if (!source.includes(part)) throw Error('Historical query missing '+part);
+          }
+          for (const p of paths) {
+            if (!read(p).includes('noindex, nofollow')) throw Error('Noindex missing '+p);
+          }
+          if (!ui.includes('Contato não') && !ui.includes('O contato não está habilitado')) throw Error('Warning missing');
+          for (const part of ['contact_phone','contact_email','auth.admin','service_role']) {
+            if (source.includes(part)||ui.includes(part)) throw Error('Unsafe legacy data field: '+part);
+          }
+          console.log('Legacy routes: sanitized read-only by design');
+          NODE
