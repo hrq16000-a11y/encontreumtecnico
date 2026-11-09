@@ -34,17 +34,26 @@ function AdminPage() {
   const isAdmin = roles.includes("admin");
   const [techs, setTechs] = useState<Tech[] | null>(null);
   const [reqs, setReqs] = useState<Req[]>([]);
+  const [msgs, setMsgs] = useState<Tables<"contact_messages">[]>([]);
   const [tab, setTab] = useState<TStatus>("pendente");
   const [error, setError] = useState<string | null>(null);
 
   async function load() {
-    const [t, r] = await Promise.all([
+    const [t, r, m] = await Promise.all([
       supabase.from("technicians").select("*").order("created_at", { ascending: true }),
       supabase.from("service_requests").select("*").order("created_at", { ascending: false }).limit(500),
+      supabase.from("contact_messages").select("*").neq("status", "arquivada").order("created_at", { ascending: false }).limit(100),
     ]);
-    if (t.error || r.error) setError("Não foi possível carregar os dados.");
+    if (t.error || r.error || m.error) setError("Não foi possível carregar os dados.");
     setTechs(t.data ?? []);
     setReqs(r.data ?? []);
+    setMsgs(m.data ?? []);
+  }
+
+  async function setMsgStatus(id: string, status: "respondida" | "arquivada") {
+    const { error } = await supabase.from("contact_messages").update({ status }).eq("id", id);
+    if (error) setError("Não foi possível atualizar a mensagem.");
+    else load();
   }
   useEffect(() => { if (isAdmin) load(); }, [isAdmin]);
 
@@ -112,6 +121,28 @@ function AdminPage() {
                       {t.status !== "aprovado" && <button onClick={() => setStatus(t.id, "aprovado")} className={`${btn} bg-primary text-primary-foreground`}>{t.status === "suspenso" ? "Reativar" : "Aprovar"}</button>}
                       {t.status === "pendente" && <button onClick={() => setStatus(t.id, "rejeitado")} className={`${btn} border border-input text-foreground`}>Rejeitar</button>}
                       {t.status === "aprovado" && <button onClick={() => setStatus(t.id, "suspenso")} className={`${btn} border border-input text-foreground`}>Suspender</button>}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <h2 className="mt-10 text-lg font-semibold text-foreground">Mensagens de contato</h2>
+            {msgs.length === 0 ? (
+              <p className="mt-3 text-sm text-muted-foreground">Nenhuma mensagem recebida.</p>
+            ) : (
+              <ul className="mt-3 grid gap-3">
+                {msgs.map((m) => (
+                  <li key={m.id} className="rounded-lg border border-border bg-card p-4">
+                    <div className="flex flex-wrap justify-between gap-2">
+                      <p className="font-semibold text-card-foreground">{m.subject}</p>
+                      <span className="rounded bg-muted px-2 py-0.5 text-xs text-foreground">{m.status}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{m.name} · <a className="text-primary underline" href={`mailto:${m.email}`}>{m.email}</a> · {new Date(m.created_at).toLocaleString("pt-BR")}</p>
+                    <p className="mt-2 whitespace-pre-line text-sm text-card-foreground">{m.message}</p>
+                    <div className="mt-3 flex gap-2">
+                      {m.status !== "respondida" && <button onClick={() => setMsgStatus(m.id, "respondida")} className={`${btn} bg-primary text-primary-foreground`}>Marcar respondida</button>}
+                      {m.status !== "arquivada" && <button onClick={() => setMsgStatus(m.id, "arquivada")} className={`${btn} border border-input text-foreground`}>Arquivar</button>}
                     </div>
                   </li>
                 ))}

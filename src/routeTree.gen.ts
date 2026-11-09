@@ -17,6 +17,7 @@ import { Route as ComoFuncionaRouteImport } from './routes/como-funciona'
 import { Route as ContatoRouteImport } from './routes/contato'
 import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as FaqRouteImport } from './routes/faq'
+import { Route as ListaDeTecnicosRouteImport } from './routes/lista-de-tecnicos'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as ServicosRouteImport } from './routes/servicos'
 import { Route as TermosRouteImport } from './routes/termos'
@@ -63,6 +64,11 @@ const FaqRoute = FaqRouteImport.update({
   path: '/faq',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ListaDeTecnicosRoute = ListaDeTecnicosRouteImport.update({
+  id: '/lista-de-tecnicos',
+  path: '/lista-de-tecnicos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrivacidadeRoute = PrivacidadeRouteImport.update({
   id: '/privacidade',
   path: '/privacidade',
@@ -98,6 +104,7 @@ export interface FileRoutesByFullPath {
   '/contato': typeof ContatoRoute
   '/entrar': typeof EntrarRoute
   '/faq': typeof FaqRoute
+  '/lista-de-tecnicos': typeof ListaDeTecnicosRoute
   '/privacidade': typeof PrivacidadeRoute
   '/servicos': typeof ServicosRoute
   '/termos': typeof TermosRoute
@@ -113,6 +120,7 @@ export interface FileRoutesByTo {
   '/contato': typeof ContatoRoute
   '/entrar': typeof EntrarRoute
   '/faq': typeof FaqRoute
+  '/lista-de-tecnicos': typeof ListaDeTecnicosRoute
   '/privacidade': typeof PrivacidadeRoute
   '/servicos': typeof ServicosRoute
   '/termos': typeof TermosRoute
@@ -129,6 +137,7 @@ export interface FileRoutesById {
   '/contato': typeof ContatoRoute
   '/entrar': typeof EntrarRoute
   '/faq': typeof FaqRoute
+  '/lista-de-tecnicos': typeof ListaDeTecnicosRoute
   '/privacidade': typeof PrivacidadeRoute
   '/servicos': typeof ServicosRoute
   '/termos': typeof TermosRoute
@@ -146,6 +155,7 @@ export interface FileRouteTypes {
     | '/contato'
     | '/entrar'
     | '/faq'
+    | '/lista-de-tecnicos'
     | '/privacidade'
     | '/servicos'
     | '/termos'
@@ -161,6 +171,7 @@ export interface FileRouteTypes {
     | '/contato'
     | '/entrar'
     | '/faq'
+    | '/lista-de-tecnicos'
     | '/privacidade'
     | '/servicos'
     | '/termos'
@@ -176,6 +187,7 @@ export interface FileRouteTypes {
     | '/contato'
     | '/entrar'
     | '/faq'
+    | '/lista-de-tecnicos'
     | '/privacidade'
     | '/servicos'
     | '/termos'
@@ -192,6 +204,7 @@ export interface RootRouteChildren {
   ContatoRoute: typeof ContatoRoute
   EntrarRoute: typeof EntrarRoute
   FaqRoute: typeof FaqRoute
+  ListaDeTecnicosRoute: typeof ListaDeTecnicosRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   ServicosRoute: typeof ServicosRoute
   TermosRoute: typeof TermosRoute
@@ -257,6 +270,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FaqRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lista-de-tecnicos': {
+      id: '/lista-de-tecnicos'
+      path: '/lista-de-tecnicos'
+      fullPath: '/lista-de-tecnicos'
+      preLoaderRoute: typeof ListaDeTecnicosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/privacidade': {
       id: '/privacidade'
       path: '/privacidade'
@@ -304,6 +324,7 @@ const rootRouteChildren: RootRouteChildren = {
   ContatoRoute: ContatoRoute,
   EntrarRoute: EntrarRoute,
   FaqRoute: FaqRoute,
+  ListaDeTecnicosRoute: ListaDeTecnicosRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   ServicosRoute: ServicosRoute,
   TermosRoute: TermosRoute,
