@@ -79,6 +79,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
+      // Temporário: o portal novo está em homologação; remover só após testes e autorização.
+      { name: "robots", content: "noindex, nofollow" },
+      { name: "googlebot", content: "noindex, nofollow" },
       { title: "Encontre um Técnico" },
       { name: "description", content: "Encontre e contrate técnicos de tecnologia perto de você." },
       { property: "og:title", content: "Encontre um Técnico" },
