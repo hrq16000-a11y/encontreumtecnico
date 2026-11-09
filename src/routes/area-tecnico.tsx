@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { CATEGORIES } from "@/lib/categories";
 import { RequestCard, type Req } from "../components/request-list";
+import { formatLegacyClaim, LEGACY_CLAIM_SUBJECT } from "@/lib/legacy-claim";
 
 export const Route = createFileRoute("/area-tecnico")({
   head: () => ({
@@ -64,6 +65,41 @@ function TechnicianAreaPage() {
   const [status, setStatus] = useState<keyof typeof STATUS_LABEL | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [legacyRef, setLegacyRef] = useState("");
+  const [legacyNote, setLegacyNote] = useState("");
+  const [claimBusy, setClaimBusy] = useState(false);
+  const [claimMessage, setClaimMessage] = useState<string | null>(null);
+  const googleLinked = Boolean(
+    user?.identities?.some((identity) => identity.provider === "google") ||
+    user?.app_metadata?.providers?.includes("google"),
+  );
+
+  async function requestLegacyClaim(e: FormEvent) {
+    e.preventDefault();
+    if (!user?.email || !googleLinked || claimBusy) return;
+    const message = formatLegacyClaim(legacyRef, legacyNote);
+    if (!message) {
+      setClaimMessage("Informe o ID numérico ou o link completo do seu perfil antigo.");
+      return;
+    }
+    setClaimBusy(true);
+    setClaimMessage(null);
+    const displayName = String(user.user_metadata?.["full_name"] ?? "Técnico cadastrado").trim().slice(0, 100) || "Técnico cadastrado";
+    const { error } = await supabase.from("contact_messages").insert({
+      name: displayName,
+      email: user.email,
+      subject: LEGACY_CLAIM_SUBJECT,
+      message,
+    });
+    setClaimBusy(false);
+    if (error) setClaimMessage("Não foi possível registrar o pedido. Tente novamente.");
+    else {
+      setClaimMessage("Pedido recebido para análise. O perfil antigo NÃO foi vinculado ou publicado automaticamente.");
+      setLegacyRef("");
+      setLegacyNote("");
+    }
+  }
+
 
   useEffect(() => {
     if (!user) return;
@@ -161,6 +197,45 @@ function TechnicianAreaPage() {
               </button>
               {msg && <p role="status" className="text-sm text-foreground">{msg}</p>}
             </form>
+            <section className="mt-10 rounded-lg border border-border bg-card p-5">
+              <h2 className="text-lg font-semibold text-card-foreground">Já tinha cadastro no portal antigo?</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Solicite a revisão do seu perfil histórico. Nenhum dado privado ou perfil antigo será liberado automaticamente.
+                A administração confirmará sua identidade antes de qualquer vínculo.
+              </p>
+              {!googleLinked ? (
+                <p className="mt-3 text-sm text-muted-foreground">Para solicitar o vínculo, entre com sua conta Google.</p>
+              ) : (
+                <form className="mt-4 grid gap-3" onSubmit={requestLegacyClaim}>
+                  <label className="text-sm font-medium text-foreground">
+                    ID do perfil antigo ou link completo
+                    <input
+                      required
+                      maxLength={250}
+                      className={input}
+                      value={legacyRef}
+                      onChange={(e) => setLegacyRef(e.target.value)}
+                      placeholder="Ex.: 1234 ou https://encontreumtecnico.com/..."
+                    />
+                  </label>
+                  <label className="text-sm font-medium text-foreground">
+                    Observações para localizar seu cadastro (opcional)
+                    <textarea
+                      maxLength={650}
+                      rows={2}
+                      className={input}
+                      value={legacyNote}
+                      onChange={(e) => setLegacyNote(e.target.value)}
+                      placeholder="Não envie senhas, documentos, telefones ou dados de terceiros."
+                    />
+                  </label>
+                  <button type="submit" disabled={claimBusy} className="min-h-11 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-60">
+                    {claimBusy ? "Registrando…" : "Solicitar análise do meu perfil antigo"}
+                  </button>
+                </form>
+              )}
+              {claimMessage && <p role="status" className="mt-3 text-sm text-foreground">{claimMessage}</p>}
+            </section>
             {status === "aprovado" && <TechnicianRequests />}
           </>
         )}
