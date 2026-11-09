@@ -9,7 +9,7 @@ export const Route = createFileRoute("/entrar")({
     meta: [
       { name: "robots", content: "noindex, nofollow" },
       { title: "Entrar — Encontre um Técnico" },
-      { name: "description", content: "Acesse sua conta de técnico ou cliente com login Google." },
+      { name: "description", content: "Acesse sua conta de técnico ou cliente com Google ou e-mail e senha." },
       { property: "og:title", content: "Entrar — Encontre um Técnico" },
       { property: "og:description", content: "Acesse sua conta de técnico ou cliente com login Google." },
       { property: "og:type", content: "website" },
@@ -46,19 +46,26 @@ function EmailPasswordForm({ onError }: { onError: (m: string | null) => void })
       }
       return;
     }
-    if (mode === "cadastrar") {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { emailRedirectTo: `${window.location.origin}/entrar` },
-      });
+    try {
+      if (mode === "cadastrar") {
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: { emailRedirectTo: `${window.location.origin}/entrar` },
+        });
+        if (error) {
+          onError(error.message.includes("registered") ? "Este e-mail já tem conta. Use Entrar." : "Não foi possível criar a conta.");
+          return;
+        }
+        if (!data.session) setInfo("Se o cadastro puder ser realizado, verifique seu e-mail para confirmar o acesso.");
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        if (error) onError("Não foi possível entrar. Verifique o e-mail, a senha e se a conta foi confirmada.");
+      }
+    } catch {
+      onError("Falha de conexão. Tente novamente.");
+    } finally {
       setBusy(false);
-      if (error) return onError(error.message.includes("registered") ? "Este e-mail já tem conta. Use Entrar." : "Não foi possível criar a conta.");
-      if (!data.session) setInfo("Conta criada. Confirme pelo link enviado ao seu e-mail para entrar.");
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      setBusy(false);
-      if (error) onError("E-mail ou senha incorretos.");
     }
   }
 
