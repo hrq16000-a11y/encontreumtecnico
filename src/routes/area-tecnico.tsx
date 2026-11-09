@@ -3,7 +3,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { PageShell } from "../components/page-placeholder";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
-import { CATEGORIES } from "@/lib/categories";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { BRAZIL_STATES, validMunicipality } from "@/lib/service-taxonomy";
 import { RequestCard, type Req } from "../components/request-list";
 
 export const Route = createFileRoute("/area-tecnico")({
@@ -20,6 +21,10 @@ export const Route = createFileRoute("/area-tecnico")({
   }),
   component: TechnicianAreaPage,
 });
+
+const dynamicDb = supabase as unknown as SupabaseClient;
+type ServiceItem = { slug: string; category_slug: string; label: string };
+type CategoryItem = { slug: string; label: string };
 
 const STATUS_LABEL = { pendente: "Em análise", aprovado: "Aprovado — visível na busca", rejeitado: "Não aprovado", suspenso: "Suspenso pela administração" };
 
@@ -61,17 +66,39 @@ function TechnicianRequests() {
 
 function TechnicianAreaPage() {
   const { user, roles, loading } = useAuth();
-  const [form, setForm] = useState({ display_name: "", city: "", region: "", bio: "", specialties: [] as string[] });
+  const [form, setForm] = useState({
+    display_name: "", city: "", state_uf: "", neighborhood: "", region: "",
+    bio: "", specialties: [] as string[],
+  });
+  const [services, setServices] = useState<ServiceItem[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [catalogError, setCatalogError] = useState(false);
+  useEffect(() => {
+    let mounted = true;
+    Promise.all([
+      dynamicDb.from("eut_service_categories").select("slug,label").eq("active", true).order("display_order"),
+      dynamicDb.from("eut_service_types").select("slug,category_slug,label").eq("active", true).order("display_order"),
+    ]).then(([c, s]) => {
+      if (!mounted) return;
+      if (c.error || s.error) { setCatalogError(true); return; }
+      const list = (c.data ?? []) as CategoryItem[];
+      const allowed = new Set(list.map(x => x.slug));
+      setCategories(list);
+      setServices(((s.data ?? []) as ServiceItem[]).filter(x => allowed.has(x.category_slug)));
+      setCatalogError(false);
+    }).catch(() => { if (mounted) setCatalogError(true); });
+    return () => { mounted = false; };
+  }, []);
   const [status, setStatus] = useState<keyof typeof STATUS_LABEL | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("technicians").select("*").eq("user_id", user.id).maybeSingle().then(({ data }) => {
+    dynamicDb.from("technicians").select("*").eq("user_id", user.id).maybeSingle().then(({ data }) => {
       if (data) {
-        setForm({ display_name: data.display_name, city: data.city, region: data.region ?? "", bio: data.bio ?? "", specialties: data.specialties });
-        setStatus(data.status);
+        setForm({ display_name: data.display_name, city: data.city, state_uf: data.state_uf ?? "", neighborhood: data.neighborhood ?? "", region: data.region ?? "", bio: data.bio ?? "", specialties: data.specialties });
+        setStatus(data.status as keyof typeof STATUS_LABEL);
       } else {
         setForm((f) => ({ ...f, display_name: (user.user_metadata?.["full_name"] as string) ?? "" }));
       }
@@ -81,21 +108,27 @@ function TechnicianAreaPage() {
   async function save(e: FormEvent) {
     e.preventDefault();
     if (!user) return;
-    if (form.specialties.length === 0) return setMsg("Escolha pelo menos uma especialidade.");
+    if (!validMunicipality(form.state_uf, form.city)) return setMsg("Escolha a UF e informe uma cidade real de atendimento.");
+    const catalogLabels = new Set(services.map(item => item.label));
+    const validatedServices = form.specialties.filter(label => catalogLabels.has(label));
+    if (!validatedServices.length) return setMsg("Escolha pelo menos um serviço ativo do catálogo.");
+    if (catalogError || !services.length) return setMsg("Catálogo indisponível: cadastro não enviado.");
     setSaving(true);
     setMsg(null);
     const row = {
       user_id: user.id,
       display_name: form.display_name.trim(),
       city: form.city.trim(),
+      state_uf: form.state_uf,
+      neighborhood: form.neighborhood.trim() || null,
       region: form.region.trim() || null,
       bio: form.bio.trim() || null,
-      specialties: form.specialties,
+      specialties: validatedServices,
       status: "pendente" as const,
     };
     const { error } = status
-      ? await supabase.from("technicians").update(row).eq("user_id", user.id)
-      : await supabase.from("technicians").insert(row);
+      ? await dynamicDb.from("technicians").update(row).eq("user_id", user.id)
+      : await dynamicDb.from("technicians").insert(row);
     setSaving(false);
     if (error) setMsg("Não foi possível salvar. Confira os campos e tente novamente.");
     else {
@@ -141,24 +174,42 @@ function TechnicianAreaPage() {
                 <label className="text-sm font-medium text-foreground">Cidade
                   <input required maxLength={80} className={input} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
                 </label>
-                <label className="text-sm font-medium text-foreground">Região / bairros
+                <label className="text-sm font-medium text-foreground">UF
+                  <select required className={input} value={form.state_uf} onChange={(e) => setForm({ ...form, state_uf: e.target.value })}>
+                    <option value="">Escolha o estado</option>
+                    {BRAZIL_STATES.map(uf => <option key={uf} value={uf}>{uf}</option>)}
+                  </select>
+                </label>
+                <label className="text-sm font-medium text-foreground">Bairro de referência
+                  <input maxLength={100} className={input} value={form.neighborhood} onChange={(e) => setForm({ ...form, neighborhood: e.target.value })} />
+                </label>
+                <label className="text-sm font-medium text-foreground">Região / áreas atendidas
                   <input maxLength={120} className={input} value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} />
                 </label>
               </div>
               <fieldset>
-                <legend className="text-sm font-medium text-foreground">Especialidades</legend>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {CATEGORIES.map((c) => {
-                    const on = form.specialties.includes(c);
-                    return (
-                      <button type="button" key={c} aria-pressed={on}
-                        onClick={() => setForm({ ...form, specialties: on ? form.specialties.filter((s) => s !== c) : [...form.specialties, c] })}
-                        className={`min-h-11 rounded-full border px-4 text-sm ${on ? "border-primary bg-primary text-primary-foreground" : "border-input text-foreground"}`}>
-                        {c}
-                      </button>
-                    );
-                  })}
-                </div>
+                <legend className="text-sm font-medium text-foreground">Serviços específicos realizados</legend>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Selecione os serviços reais. A antiga categoria genérica TI não será usada como comprovação.
+                </p>
+                {catalogError && <p role="alert" className="mt-2 text-sm text-destructive">Catálogo de serviços indisponível.</p>}
+                {categories.map(category => (
+                  <div key={category.slug} className="mt-3">
+                    <p className="text-xs font-semibold text-foreground">{category.label}</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {services.filter(item => item.category_slug === category.slug).map(item => {
+                        const on = form.specialties.includes(item.label);
+                        return (
+                          <button type="button" key={item.slug} aria-pressed={on}
+                            onClick={() => setForm({ ...form, specialties: on ? form.specialties.filter(s => s !== item.label) : [...form.specialties, item.label] })}
+                            className={`min-h-11 rounded-full border px-4 text-sm ${on ? "border-primary bg-primary text-primary-foreground" : "border-input text-foreground"}`}>
+                            {item.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </fieldset>
               <label className="text-sm font-medium text-foreground">Apresentação
                 <textarea maxLength={1000} rows={4} className={input} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} />
