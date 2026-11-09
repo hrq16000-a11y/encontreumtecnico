@@ -109,7 +109,7 @@ function SignInPage() {
           <>
             <h1 className="text-2xl font-bold tracking-tight text-foreground">Entre na sua conta</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Técnicos e clientes acessam com a conta Google.
+              Técnicos e clientes acessam com Google ou e-mail e senha.
             </p>
             <button
               type="button"
