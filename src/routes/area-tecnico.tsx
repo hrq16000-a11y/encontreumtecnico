@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { PageShell } from "../components/page-placeholder";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
-import { CATEGORIES } from "@/lib/categories";
+import { useActiveCategories } from "@/hooks/use-active-categories";
 import { BRAZIL_STATES, validMunicipality } from "@/lib/service-taxonomy";
 import { LegacyAccountActivation } from "@/components/legacy-account-activation";
 import { RequestCard, type Req } from "../components/request-list";
@@ -63,6 +63,7 @@ function TechnicianRequests() {
 
 function TechnicianAreaPage() {
   const { user, roles, loading } = useAuth();
+  const { categories, loading: catalogLoading, error: catalogError } = useActiveCategories();
   const [form, setForm] = useState({ display_name: "", state_uf: "", city: "", neighborhood: "", region: "", bio: "", specialties: [] as string[] });
   const [status, setStatus] = useState<keyof typeof STATUS_LABEL | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -84,7 +85,9 @@ function TechnicianAreaPage() {
     e.preventDefault();
     if (!user) return;
     if (!validMunicipality(form.state_uf, form.city)) return setMsg("Selecione a UF e informe uma cidade válida para sua área de atendimento.");
+    if (catalogLoading || catalogError || !categories.length) return setMsg("O catálogo está indisponível. Não é possível validar especialidades agora.");
     if (form.specialties.length === 0) return setMsg("Escolha pelo menos uma especialidade.");
+    if (form.specialties.some((slug) => !categories.some((c) => c.slug === slug))) return setMsg("Selecione apenas categorias ativas do catálogo.");
     setSaving(true);
     setMsg(null);
     const row = {
@@ -164,14 +167,16 @@ function TechnicianAreaPage() {
               </div>
               <fieldset>
                 <legend className="text-sm font-medium text-foreground">Especialidades</legend>
+                {catalogLoading && <p className="mt-2 text-sm text-muted-foreground">Carregando categorias…</p>}
+                {catalogError && <p role="alert" className="mt-2 text-sm text-destructive">Não foi possível carregar o catálogo. Recarregue a página.</p>}
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {CATEGORIES.map((c) => {
-                    const on = form.specialties.includes(c);
+                  {categories.map((c) => {
+                    const on = form.specialties.includes(c.slug);
                     return (
-                      <button type="button" key={c} aria-pressed={on}
-                        onClick={() => setForm({ ...form, specialties: on ? form.specialties.filter((s) => s !== c) : [...form.specialties, c] })}
+                      <button type="button" key={c.slug} aria-pressed={on}
+                        onClick={() => setForm({ ...form, specialties: on ? form.specialties.filter((s) => s !== c.slug) : [...form.specialties, c.slug] })}
                         className={`min-h-11 rounded-full border px-4 text-sm ${on ? "border-primary bg-primary text-primary-foreground" : "border-input text-foreground"}`}>
-                        {c}
+                        {c.label}
                       </button>
                     );
                   })}
@@ -180,7 +185,7 @@ function TechnicianAreaPage() {
               <label className="text-sm font-medium text-foreground">Apresentação
                 <textarea maxLength={1000} rows={4} className={input} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} />
               </label>
-              <button disabled={saving} className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
+              <button disabled={saving || catalogLoading || catalogError || categories.length === 0} className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
                 {saving ? "Enviando…" : "Enviar para análise"}
               </button>
               {msg && <p role="status" className="text-sm text-foreground">{msg}</p>}

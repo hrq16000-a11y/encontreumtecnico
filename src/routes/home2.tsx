@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { Search, MapPin, Briefcase, Star, TrendingUp, ShieldCheck, Zap, Menu, ArrowRight } from "lucide-react";
-import { CATEGORIES } from "../lib/categories";
+import { useActiveCategories } from "@/hooks/use-active-categories";
 
 /**
  * Home2 é uma LP visual independente da Home1.
@@ -65,6 +65,7 @@ function Home2Footer() {
 }
 
 function Home2Landing() {
+  const { categories, loading: catalogLoading } = useActiveCategories();
   const [query, setQuery] = useState("");
   const [city, setCity] = useState("");
 
@@ -98,7 +99,10 @@ function Home2Landing() {
               <label className="flex flex-1 items-center rounded-xl bg-white px-4 py-3">
                 <Search className="mr-3 h-5 w-5 text-zinc-400" aria-hidden="true" />
                 <span className="sr-only">Serviço procurado</span>
-                <input value={query} onChange={e => setQuery(e.target.value)} placeholder="O que você procura? (ex: CFTV)" className="w-full bg-transparent text-zinc-900 outline-none placeholder:text-zinc-400" />
+                <select value={query} onChange={e => setQuery(e.target.value)} disabled={catalogLoading} aria-label="Especialidade procurada" className="w-full bg-transparent text-zinc-900 outline-none disabled:opacity-60">
+                  <option value="">Todas as especialidades</option>
+                  {categories.map(c => <option key={c.slug} value={c.slug}>{c.label}</option>)}
+                </select>
               </label>
               <label className="flex flex-1 items-center rounded-xl bg-white px-4 py-3">
                 <MapPin className="mr-3 h-5 w-5 text-zinc-400" aria-hidden="true" />
@@ -109,7 +113,7 @@ function Home2Landing() {
             </form>
             <div className="flex flex-wrap justify-center gap-4 text-sm text-zinc-300">
               <span>Populares:</span>
-              {CATEGORIES.slice(0, 5).map(cat => <a key={cat} href={categoryHref(cat)} className="underline decoration-zinc-500 underline-offset-4 hover:text-emerald-400">{cat}</a>)}
+              {categories.slice(0, 5).map(cat => <a key={cat.slug} href={categoryHref(cat.slug)} className="underline decoration-zinc-500 underline-offset-4 hover:text-emerald-400">{cat.label}</a>)}
             </div>
           </div>
         </section>
@@ -141,9 +145,9 @@ function Home2Landing() {
               <a href="/tecnicos" className="font-semibold text-emerald-600 hover:underline">Ver todos <ArrowRight className="inline h-4 w-4" /></a>
             </div>
             <div className="grid grid-cols-2 gap-6 md:grid-cols-4 lg:grid-cols-5">
-              {CATEGORIES.map(cat => <a key={cat} href={categoryHref(cat)} className="group flex flex-col items-center rounded-2xl border border-zinc-200 bg-white p-6 text-center transition-all hover:border-emerald-500 hover:shadow-lg">
+              {categories.map(cat => <a key={cat.slug} href={categoryHref(cat.slug)} className="group flex flex-col items-center rounded-2xl border border-zinc-200 bg-white p-6 text-center transition-all hover:border-emerald-500 hover:shadow-lg">
                 <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-50 text-zinc-400 group-hover:bg-emerald-50 group-hover:text-emerald-600"><Briefcase className="h-6 w-6" /></div>
-                <span className="font-semibold">{cat}</span>
+                <span className="font-semibold">{cat.label}</span>
               </a>)}
             </div>
           </div>
