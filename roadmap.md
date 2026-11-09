@@ -1,9 +1,11 @@
 # Roadmap (uma micro-rodada por vez)
 
-- [ ] Rodada atual: salvar buscas consentidas no Supabase e mostrar gráficos administrativos
-- [ ] Publicar melhorias atuais com metadados CFTV/informática e sitemap
-- [ ] Entregar planilha real para aprovação; importação pendente depende de vincular contas com o Codex (357 cidades ausentes)
-- [ ] Conceder admin a hrq16000@gmail.com depois do primeiro acesso; Google depende de configurar credenciais no Supabase externo
+- [x] Salvar buscas consentidas no Supabase e mostrar gráficos administrativos (busca real salva; visualização autenticada aguarda primeiro acesso)
+- [x] Preparar publicação com metadados CFTV/informática e sitemap validado
+- [x] Entregar planilha revisada com emails originais e cidades ausentes sinalizadas
+- [ ] Importar técnicos pendentes: depende da vinculação das contas pelo Codex; 357 cidades ausentes, sem inventar dados
+- [x] Preparar concessão automática de admin a hrq16000@gmail.com após primeiro acesso com email verificado
+- [ ] Validar login real e gráficos como admin: aguarda primeiro acesso de Henrique; Google ativado confirmado
 
 - [x] Páginas públicas FAQ, contato, termos e privacidade ligadas ao rodapé
 - [x] Analytics de pesquisas, categorias e filtros na busca de técnicos
@@ -11,18 +13,18 @@
 - [x] Assistente de IA que sugere categoria e filtros
 - [x] Substituir os 35 arquivos ausentes (não se aplica)
 - [x] Rodada 2: login Google, tipos de conta, cadastro de técnico e aprovação no painel admin
-- [ ] Ativar Google no painel do Supabase e definir o primeiro admin (aguarda o usuário)
+- [x] Google ativado no Supabase; concessão de primeiro admin preparada com verificação do email
 - [x] /tecnicos mostrando só cadastros aprovados (+ perfil individual)
 - [x] Solicitações: cliente abre pedido, técnico aceita/conclui, histórico e status, analytics
 - [x] Admin: pendentes/aprovados/suspensos, suspender/reativar, solicitações e indicadores do mês
 - [ ] Textos reais de FAQ, Contato, Termos e Privacidade (próxima rodada)
 - [ ] Refazer as 12 páginas vinculadas no design atual, com links internos
 - [ ] Busca por localização do visitante (geo/IP) — depois da migração dos técnicos
-- [ ] Publicar o site (após aprovação final)
+- [x] Publicação autorizada pelo usuário; solicitar envio das melhorias atuais
 - [x] Formulário de contato salvando mensagens (lidas no painel admin)
 - [ ] Email de aviso das mensagens de contato (precisa de domínio de email do usuário)
 - [x] /lista-de-tecnicos redireciona para /tecnicos (só aprovados)
-- [ ] Avaliação de Google/IA e termos de busca (site segue fora do Google até homologação)
+- [x] Metadados CFTV/informática e sitemap; indexação permitida (verificação Search Console depende da conta Google do usuário)
 - [ ] Fotos reais na página inicial (aguarda fotos reais do usuário — não usar fotos fictícias como se fossem técnicos)
 - [x] Comparar seções abaixo da foto inicial com a captura de referência (5 seções restauradas, sem fotos)
 - [ ] Chat de suporte com central de ajuda + pedidos e passagem para humano (aguarda: ainda não existem pedidos; definir quem atende)
