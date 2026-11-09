@@ -12,6 +12,20 @@ export function CookieNotice() {
 
   useEffect(() => {
     if (!localStorage.getItem(KEY)) setOpen(true);
+    function reopen() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(KEY) || "{}") as Partial<Consent>;
+        setFunctional(saved.functional === true);
+        setAnalytics(saved.analytics === true);
+      } catch {
+        setFunctional(false);
+        setAnalytics(false);
+      }
+      setCustom(true);
+      setOpen(true);
+    }
+    window.addEventListener("eut-open-cookie-preferences", reopen);
+    return () => window.removeEventListener("eut-open-cookie-preferences", reopen);
   }, []);
 
   function save(c: Consent) {
@@ -27,9 +41,11 @@ export function CookieNotice() {
       <div className="mx-auto max-w-6xl">
         <p className="text-sm font-semibold text-foreground">Valorizamos sua privacidade</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Utilizamos cookies para aprimorar sua experiência de navegação, exibir conteúdo personalizado e analisar nosso tráfego.
-          Ao clicar em “Aceitar todos”, você concorda com nosso uso de cookies.{" "}
-          <Link to="/privacidade" className="text-primary underline">Política de privacidade</Link>
+          Cookies necessários mantêm as funções essenciais. Cookies opcionais podem oferecer recursos funcionais e análises;
+          você pode escolher as categorias e mudar de preferência a qualquer momento.{" "}
+          <Link to="/cookies" className="text-primary underline">Política de cookies</Link>
+          {" · "}
+          <Link to="/privacidade" className="text-primary underline">Privacidade</Link>
         </p>
 
         {custom && (
