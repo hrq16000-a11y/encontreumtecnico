@@ -215,6 +215,71 @@ export type Database = {
           },
         ]
       }
+      eut_service_categories: {
+        Row: {
+          slug: string
+          label: string
+          description: string
+          display_order: number
+          active: boolean
+          created_at: string
+        }
+        Insert: {
+          slug: string
+          label: string
+          description?: string
+          display_order?: number
+          active?: boolean
+          created_at?: string
+        }
+        Update: {
+          slug?: string
+          label?: string
+          description?: string
+          display_order?: number
+          active?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
+      eut_service_types: {
+        Row: {
+          slug: string
+          category_slug: string
+          label: string
+          description: string
+          display_order: number
+          active: boolean
+          created_at: string
+        }
+        Insert: {
+          slug: string
+          category_slug: string
+          label: string
+          description?: string
+          display_order?: number
+          active?: boolean
+          created_at?: string
+        }
+        Update: {
+          slug?: string
+          category_slug?: string
+          label?: string
+          description?: string
+          display_order?: number
+          active?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eut_service_types_category_slug_fkey"
+            columns: ["category_slug"]
+            isOneToOne: false
+            referencedRelation: "eut_service_categories"
+            referencedColumns: ["slug"]
+          },
+        ]
+      }
       technicians: {
         Row: {
           bio: string | null
