@@ -36,3 +36,4 @@ use the editor.
 - AI calls go through `@lovable.dev/ai-gateway` inside server functions in `src/lib/*.functions.ts`; never call models from browser code (keeps the key server-side).
 - Technician filters live in `/tecnicos` search params (`especialidade`, `cidade`, `regiao`) so searches, categories and the AI assistant can deep-link into them.
 - Search analytics writes consented listing searches without visitor identity to `search_events`; admin charts use a role-checked RLS-scoped aggregate RPC to avoid truncated totals.
+- The explicitly designated portal owner's initial admin role is granted by an Auth lifecycle trigger only after email verification; never infer admin from editable profile metadata.
