@@ -19,6 +19,8 @@ jobs:
         run: bun install --frozen-lockfile
       - name: TanStack production build
         run: bun run build
+      - name: TypeScript check
+        run: bunx tsc --noEmit --pretty false
       - name: Verify auth route and recovery contract
         run: |
           node --input-type=module <<'NODE'
@@ -30,6 +32,15 @@ jobs:
           }
           for (const s of ['createFileRoute("/redefinir-senha")','updateUser({ password })','noindex, nofollow']) {
             if (!reset.includes(s)) throw Error('Missing recovery flow: '+s);
+          }
+          for (const s of [
+            'eut_my_legacy_account',
+            'legacyRole === "cliente"',
+            'legacyRole === "tecnico"',
+            'role !== legacyRole',
+            'Verificando seu cadastro anterior',
+          ]) {
+            if (!signin.includes(s)) throw Error('Missing legacy role guard: '+s);
           }
           const claim = readFileSync('src/routes/reivindicar-cadastro.tsx','utf8');
           for (const s of ['eligibleToClaim','roles.includes("tecnico")','status: "pendente"']) {
