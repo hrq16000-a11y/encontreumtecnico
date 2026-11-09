@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { SearchMetrics } from "@/components/search-metrics";
+import { LegacyReviewQueue } from "@/components/legacy-review-queue";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -100,6 +101,8 @@ function AdminPage() {
             </dl>
 
             <SearchMetrics />
+            <LegacyReviewQueue />
+
             <h2 className="mt-10 text-lg font-semibold text-foreground">Técnicos</h2>
             <div role="tablist" className="mt-3 flex flex-wrap gap-2">
               {TABS.map((t) => (
