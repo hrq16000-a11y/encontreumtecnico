@@ -58,7 +58,7 @@ jobs:
           const privacy=read('src/routes/privacidade.tsx')+doc;
           if(privacy.includes('https://www.precisodeumtecnico.com')||privacy.includes('41.723.708/0001-58'))
             throw Error('Incorrect former operator remains in current privacy');
-          for(const value of ['R$ 9,99','R$ 29,99','não certifica','Cadastro livre','LGPD']){
+          for(const value of ['R$ 9,99','R$ 29,99','certificação','Cadastro livre','LGPD']){
             if(!(doc+read('src/lib/faq.ts')+read('src/routes/como-funciona.tsx')).includes(value))
               throw Error('Missing commercial or legal disclosure: '+value);
           }
@@ -74,6 +74,7 @@ jobs:
           const sitemap=read('src/routes/sitemap[.]xml.ts');
           if(!sitemap.includes('/politicas')||!sitemap.includes('/direitos-dos-titulares'))
             throw Error('Legal sitemap incomplete');
+          if(!read('src/components/text-page.tsx').includes('rel: "canonical"') || !read('src/routes/privacidade.tsx').includes('"/privacidade"')) throw Error('Legal canonicals missing');
           if(doc.includes('texto original de encontreumtecnico.com')||doc.includes('pessoa jurídica de direito privado, inscrita'))
             throw Error('Unverified operator text');
           console.log('EUT legal pages: eight policies + center, consent UI, redirects and sitemap OK');
