@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feat/eut-admin-catalogo-localizacao-r1
+      - feat/eut-public-dynamic-filters-coverage-r2
   pull_request:
     branches:
       - lovable-sync
@@ -12,6 +13,14 @@ on:
       - "src/lib/service-taxonomy.ts"
       - "src/lib/service-taxonomy.test.ts"
       - "src/routes/admin.tsx"
+      - "src/routes/area-tecnico.tsx"
+      - "src/routes/tecnicos.index.tsx"
+      - "src/lib/technicians.functions.ts"
+      - "src/lib/catalog-filters.ts"
+      - "src/lib/catalog-filters.test.ts"
+      - "src/components/eut-coverage-manager.tsx"
+      - "src/lib/legacy-archive-filters.ts"
+      - "src/lib/legacy-archive-filters.test.ts"
 permissions:
   contents: read
 jobs:
