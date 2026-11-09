@@ -1,0 +1,27 @@
+name: Home2 build gate
+
+on:
+  pull_request:
+    paths:
+      - 'src/routes/home2.tsx'
+      - '.github/workflows/home2-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: home2-build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install (locked)
+        run: bun install --frozen-lockfile
+      - name: Build TanStack
+        run: bun run build
