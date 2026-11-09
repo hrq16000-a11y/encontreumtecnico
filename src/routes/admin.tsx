@@ -5,6 +5,7 @@ import { RequestCard, type Req } from "../components/request-list";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import { LEGACY_CLAIM_SUBJECT } from "@/lib/legacy-claim";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -63,6 +64,8 @@ function AdminPage() {
     else load();
   }
 
+  const claims = msgs.filter((m) => m.subject === LEGACY_CLAIM_SUBJECT);
+  const regularMsgs = msgs.filter((m) => m.subject !== LEGACY_CLAIM_SUBJECT);
   const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
   const acceptedMonth = reqs.filter((r) => r.accepted_at && new Date(r.accepted_at) >= monthStart).length;
   const openedMonth = reqs.filter((r) => new Date(r.created_at) >= monthStart).length;
@@ -127,12 +130,39 @@ function AdminPage() {
               </ul>
             )}
 
+            <h2 className="mt-10 text-lg font-semibold text-foreground">Pedidos de vínculo com cadastros antigos</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {claims.length} pedido(s) em análise. Mensagem recebida não comprova a titularidade do cadastro.
+              Antes de vincular uma conta ou publicar um perfil, valide a identidade por canal independente.
+            </p>
+            {claims.length === 0 ? (
+              <p className="mt-3 text-sm text-muted-foreground">Nenhuma reivindicação aguardando triagem.</p>
+            ) : (
+              <ul className="mt-3 grid gap-3">
+                {claims.map((m) => (
+                  <li key={m.id} className="rounded-lg border border-border bg-card p-4">
+                    <p className="font-semibold text-card-foreground">{m.name}</p>
+                    <p className="text-sm text-muted-foreground">{m.email} · {new Date(m.created_at).toLocaleString("pt-BR")}</p>
+                    <p className="mt-2 whitespace-pre-line text-sm text-card-foreground">{m.message}</p>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      A caixa de contato não comprova o provedor de login nem o proprietário do perfil. Não aprove automaticamente.
+                    </p>
+                    {m.status !== "respondida" && (
+                      <button type="button" onClick={() => setMsgStatus(m.id, "respondida")} className={`${btn} mt-3 border border-input text-foreground`}>
+                        Marcar como respondida
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+
             <h2 className="mt-10 text-lg font-semibold text-foreground">Mensagens de contato</h2>
-            {msgs.length === 0 ? (
+            {regularMsgs.length === 0 ? (
               <p className="mt-3 text-sm text-muted-foreground">Nenhuma mensagem recebida.</p>
             ) : (
               <ul className="mt-3 grid gap-3">
-                {msgs.map((m) => (
+                {regularMsgs.map((m) => (
                   <li key={m.id} className="rounded-lg border border-border bg-card p-4">
                     <div className="flex flex-wrap justify-between gap-2">
                       <p className="font-semibold text-card-foreground">{m.subject}</p>
