@@ -252,6 +252,10 @@
   --shadow-soft: var(--shadow-soft);
 }
 h1, h2, h3 { font-family: var(--font-heading); letter-spacing: -0.02em; }
+.search-progress { appearance: none; border: 0; background: var(--muted); color: var(--primary); border-radius: 4px; overflow: hidden; }
+.search-progress::-webkit-progress-bar { background: var(--muted); }
+.search-progress::-webkit-progress-value { background: var(--primary); }
+.search-progress::-moz-progress-bar { background: var(--primary); }
 
 @keyframes rise-in { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
 @keyframes float-slow { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
