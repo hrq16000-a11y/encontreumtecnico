@@ -21,6 +21,7 @@ type Managed = {
   record_state:"pendente"|"em_revisao"|"pronto_para_validacao"|"excluido";
   verification_basis:string;admin_notes:string;
 };
+type SpecialtyEvidence = { taxonomy: "sector"|"skill"; term_name:string; review_state:"pendente" };
 type Assignment = {
   service_slug:string;confirmation_status:"pendente"|"confirmado";evidence:string;
 };
@@ -36,6 +37,7 @@ export function EutAdminManager() {
   const [selected,setSelected] = useState<Historical|null>(null);
   const [form,setForm] = useState<Managed|null>(null);
   const [assignments,setAssignments] = useState<Assignment[]>([]);
+  const [specialtyEvidence,setSpecialtyEvidence] = useState<SpecialtyEvidence[]>([]);
   const [catName,setCatName] = useState("");
   const [catDescription,setCatDescription] = useState("");
   const [serviceName,setServiceName] = useState("");
@@ -86,6 +88,13 @@ export function EutAdminManager() {
     setSelected(profile);
     setForm({...detail});
     setServiceEvidence("");
+    setSpecialtyEvidence([]);
+    const { data:originalEvidence,error:evidenceError }=await db.from("eut_legacy_specialty_evidence")
+      .select("taxonomy,term_name,review_state")
+      .eq("source_key",SOURCE).eq("wp_post_id",profile.wp_post_id)
+      .order("taxonomy").order("term_name");
+    if (evidenceError) setMessage("Não foi possível consultar os indícios de especialidades do WordPress.");
+    else setSpecialtyEvidence((originalEvidence??[]) as SpecialtyEvidence[]);
     const { data, error }=await db.from("eut_legacy_profile_services")
       .select("service_slug,confirmation_status,evidence")
       .eq("source_key",SOURCE).eq("wp_post_id",profile.wp_post_id)
@@ -271,6 +280,20 @@ export function EutAdminManager() {
           <p className="mt-2 text-xs text-muted-foreground">
             Categorias antigas: {selected.wp_sector_tags?.join(", ")||"não identificadas"}. Não usar “TI” como serviço específico sem comprovação.
           </p>
+          <section className="mt-4 rounded-md border border-border bg-muted/30 p-3" aria-label="Indícios originais de especialidades">
+            <h4 className="text-sm font-semibold">Indícios específicos recuperados ({specialtyEvidence.length})</h4>
+            {specialtyEvidence.length ? (
+              <ul className="mt-2 flex flex-wrap gap-2">
+                {specialtyEvidence.map(e=><li key={`${e.taxonomy}:${e.term_name}`}
+                  className="rounded border border-border bg-background px-2 py-1 text-xs text-foreground">
+                  {e.term_name} <span className="text-muted-foreground">({e.taxonomy==="sector"?"setor":"habilidade"})</span>
+                </li>)}
+              </ul>
+            ) : <p className="mt-2 text-xs text-muted-foreground">Nenhum indício específico além das categorias genéricas do WordPress.</p>}
+            <p className="mt-2 text-xs text-muted-foreground">
+              Os termos acima são pistas da base antiga, não comprovam serviços executados nem disponibilidade. Confirme com o titular antes de liberar serviços.
+            </p>
+          </section>
           <form className="mt-4 grid gap-3 md:grid-cols-2" onSubmit={saveProfile}>
             <label className="grid gap-1 text-sm">Nome de exibição corrigido
               <input className={common} value={form.corrected_name??""}
