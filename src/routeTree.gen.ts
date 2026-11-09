@@ -20,6 +20,7 @@ import { Route as FaqRouteImport } from './routes/faq'
 import { Route as ListaDeTecnicosRouteImport } from './routes/lista-de-tecnicos'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as ServicosRouteImport } from './routes/servicos'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as TermosRouteImport } from './routes/termos'
 import { Route as TecnicosIndexRouteImport } from './routes/tecnicos.index'
 import { Route as TecnicosTecnicoIdRouteImport } from './routes/tecnicos.$tecnicoId'
@@ -79,6 +80,11 @@ const ServicosRoute = ServicosRouteImport.update({
   path: '/servicos',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TermosRoute = TermosRouteImport.update({
   id: '/termos',
   path: '/termos',
@@ -107,6 +113,7 @@ export interface FileRoutesByFullPath {
   '/lista-de-tecnicos': typeof ListaDeTecnicosRoute
   '/privacidade': typeof PrivacidadeRoute
   '/servicos': typeof ServicosRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/termos': typeof TermosRoute
   '/tecnicos/$tecnicoId': typeof TecnicosTecnicoIdRoute
   '/tecnicos/': typeof TecnicosIndexRoute
@@ -123,6 +130,7 @@ export interface FileRoutesByTo {
   '/lista-de-tecnicos': typeof ListaDeTecnicosRoute
   '/privacidade': typeof PrivacidadeRoute
   '/servicos': typeof ServicosRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/termos': typeof TermosRoute
   '/tecnicos/$tecnicoId': typeof TecnicosTecnicoIdRoute
   '/tecnicos': typeof TecnicosIndexRoute
@@ -140,6 +148,7 @@ export interface FileRoutesById {
   '/lista-de-tecnicos': typeof ListaDeTecnicosRoute
   '/privacidade': typeof PrivacidadeRoute
   '/servicos': typeof ServicosRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/termos': typeof TermosRoute
   '/tecnicos/$tecnicoId': typeof TecnicosTecnicoIdRoute
   '/tecnicos/': typeof TecnicosIndexRoute
@@ -158,6 +167,7 @@ export interface FileRouteTypes {
     | '/lista-de-tecnicos'
     | '/privacidade'
     | '/servicos'
+    | '/sitemap.xml'
     | '/termos'
     | '/tecnicos/$tecnicoId'
     | '/tecnicos/'
@@ -174,6 +184,7 @@ export interface FileRouteTypes {
     | '/lista-de-tecnicos'
     | '/privacidade'
     | '/servicos'
+    | '/sitemap.xml'
     | '/termos'
     | '/tecnicos/$tecnicoId'
     | '/tecnicos'
@@ -190,6 +201,7 @@ export interface FileRouteTypes {
     | '/lista-de-tecnicos'
     | '/privacidade'
     | '/servicos'
+    | '/sitemap.xml'
     | '/termos'
     | '/tecnicos/$tecnicoId'
     | '/tecnicos/'
@@ -207,6 +219,7 @@ export interface RootRouteChildren {
   ListaDeTecnicosRoute: typeof ListaDeTecnicosRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   ServicosRoute: typeof ServicosRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermosRoute: typeof TermosRoute
   TecnicosTecnicoIdRoute: typeof TecnicosTecnicoIdRoute
   TecnicosIndexRoute: typeof TecnicosIndexRoute
@@ -291,6 +304,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServicosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/termos': {
       id: '/termos'
       path: '/termos'
@@ -327,6 +347,7 @@ const rootRouteChildren: RootRouteChildren = {
   ListaDeTecnicosRoute: ListaDeTecnicosRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   ServicosRoute: ServicosRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermosRoute: TermosRoute,
   TecnicosTecnicoIdRoute: TecnicosTecnicoIdRoute,
   TecnicosIndexRoute: TecnicosIndexRoute,
