@@ -35,7 +35,7 @@ function TechnicianAreaPage() {
         setForm({ display_name: data.display_name, city: data.city, region: data.region ?? "", bio: data.bio ?? "", specialties: data.specialties });
         setStatus(data.status);
       } else {
-        setForm((f) => ({ ...f, display_name: (user.user_metadata?.full_name as string) ?? "" }));
+        setForm((f) => ({ ...f, display_name: (user.user_metadata?.["full_name"] as string) ?? "" }));
       }
     });
   }, [user]);
