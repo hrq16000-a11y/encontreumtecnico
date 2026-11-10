@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { legacyAvatarUrl } from "@/lib/legacy-avatar-urls";
 
 type HistoricalProfile = {
   wp_post_id: number;
@@ -53,8 +54,8 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
       <h2 className="text-xl font-semibold tracking-tight text-foreground">Cadastros do portal anterior</h2>
       <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
         Perfis que estavam publicados no WordPress e foram recuperados para conferência.
-        Eles ainda não passaram pela aprovação desta nova plataforma: município,
-        identidade e disponibilidade precisam ser confirmados. Não há contato nem
+        A identidade do titular, o município e a disponibilidade ainda precisam ser atualizados.
+        Cadastro histórico não significa avaliação técnica ou indicação pelo portal. Não há contato nem
         solicitação de serviço habilitados para esses registros.
       </p>
       {!show ? (
@@ -75,11 +76,23 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
               {profiles.map((profile) => (
                 <li key={profile.wp_post_id}
                   className="rounded-lg border border-border bg-card p-5">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <h3 className="font-semibold text-card-foreground">{profile.display_name}</h3>
-                    <span className="rounded bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
-                      Em validação
-                    </span>
+                  <div className="flex items-start gap-3">
+                    {legacyAvatarUrl(profile.wp_post_id) ? (
+                      <img src={legacyAvatarUrl(profile.wp_post_id)!}
+                        alt={`Foto publicada anteriormente no perfil ${profile.display_name}`}
+                        loading="lazy" width={64} height={64}
+                        className="h-16 w-16 shrink-0 rounded-lg border border-border object-cover" />
+                    ) : (
+                      <div aria-hidden="true" className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-muted text-lg font-semibold text-muted-foreground">
+                        {profile.display_name.trim().slice(0,1).toLocaleUpperCase("pt-BR") || "?"}
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-semibold text-card-foreground">{profile.display_name}</h3>
+                      <span className="mt-1 inline-flex rounded bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+                        Cadastro histórico
+                      </span>
+                    </div>
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">
                     Brasil · município a confirmar
@@ -92,7 +105,7 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
                     ))}
                   </ul>
                   <p className="mt-3 text-xs text-muted-foreground">
-                    Cadastro histórico #{profile.wp_post_id}. Contato indisponível até aprovação.
+                    Cadastro histórico #{profile.wp_post_id}. Contato indisponível até a associação e ativação do titular.
                   </p>
                 </li>
               ))}

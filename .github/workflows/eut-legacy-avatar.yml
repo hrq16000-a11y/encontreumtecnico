@@ -1,0 +1,31 @@
+name: EUT legacy avatar safe migration
+on:
+  pull_request:
+    paths:
+      - 'src/lib/legacy-avatar-urls.ts'
+      - 'src/components/legacy-public-archive.tsx'
+      - '.github/workflows/eut-legacy-avatar.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - run: bunx tsc --noEmit --pretty false
+      - name: Ensure photos are explicit and contacts remain private
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const view=readFileSync('src/components/legacy-public-archive.tsx','utf8');
+          const photos=readFileSync('src/lib/legacy-avatar-urls.ts','utf8');
+          for(const needle of ['legacyAvatarUrl(profile.wp_post_id)','Cadastro histórico','Contato indisponível']) if(!view.includes(needle)) throw Error('Missing safe historical profile disclosure: '+needle);
+          if(!photos.includes('530: "https://res.cloudinary.com/')) throw Error('Transferred asset mapping not found');
+          if(photos.includes('encontreumtecnico.com/wp-content'))throw Error('Broken WordPress origin link used');
+          if(view.includes('contact_phone')||view.includes('contact_email')) throw Error('Private contact information in archive');
+          console.log('Original avatar rendered only for corroborated WordPress profile');
+          NODE
