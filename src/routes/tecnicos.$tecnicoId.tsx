@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageShell, EmptyState } from "../components/page-placeholder";
 import { getApprovedTechnician } from "../lib/technicians.functions";
+import { TechnicianAvatar } from "@/components/technician-avatar";
 import { categoryLabel, useActiveCategories } from "@/hooks/use-active-categories";
 import { useActiveServices, serviceLabel } from "@/hooks/use-active-services";
 
@@ -47,7 +48,13 @@ function TechnicianProfilePage() {
           </div>
         ) : (
           <div className="mt-4 rounded-lg border border-border bg-card p-6">
-            <h1 className="text-2xl font-bold tracking-tight text-card-foreground">{t.display_name}</h1>
+            <div className="flex items-center gap-4">
+              <TechnicianAvatar name={t.display_name} size="profile" />
+              <div className="min-w-0 flex-1">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Perfil do profissional</p>
+                <h1 className="text-2xl font-bold tracking-tight text-card-foreground">{t.display_name}</h1>
+              </div>
+            </div>
             {t.online_now && <p className="mt-2 inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
               Online recentemente — disponibilidade de atendimento não garantida
             </p>}
