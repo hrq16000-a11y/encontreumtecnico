@@ -6,6 +6,7 @@ on:
       - "vercel.json"
       - "docs/migration/WORDPRESS-PARIDADE-E-RELEASE.md"
       - "docs/sql/eut-wordpress-parity-readonly.sql"
+      - "docs/sql/eut-operational-readiness-readonly.sql"
       - "scripts/eut-parity-preflight.mjs"
       - "src/lib/legacy-archive-filters.ts"
       - "src/lib/legacy-archive-filters.test.ts"

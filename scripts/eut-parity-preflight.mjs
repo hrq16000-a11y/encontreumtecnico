@@ -52,6 +52,31 @@ for (const marker of [
 assert.equal(/\b(?:INSERT\s+INTO|UPDATE\s+\w|DELETE\s+FROM|CREATE\s+(?:TABLE|FUNCTION)|ALTER\s+TABLE|DROP\s+TABLE|TRUNCATE\s+TABLE)\b/i.test(sql),
   false, "Relatório de paridade deve ser SOMENTE LEITURA.");
 
+// Live operational counters are read-only; do not confuse checks with a release.
+const readinessSql = read("docs/sql/eut-operational-readiness-readonly.sql");
+for (const required of [
+  "eligible_wp_candidates", "eligible_wp_employers",
+  "mapped_historical_routes", "all_eligible_historical_urls_mapped",
+  "demo_routes_exposed", "legacy_contacts_exposed",
+  "technician_roles", "client_roles", "approved_technicians",
+  "new_service_requests", "confirmed_legacy_services",
+  "confirmed_legacy_areas", "active_categories", "active_service_types",
+  "media_sha256_verified", "oauth_two_real_users_e2e_proven",
+  "backup_restore_e2e_proven", "dns_cutover_approved_automatically",
+]) {
+  assert.ok(readinessSql.includes(required), "Faltando métrica operacional: " + required);
+}
+assert.equal(/\b(?:INSERT\s+INTO|UPDATE\s+\w|DELETE\s+FROM|CREATE\s+(?:TABLE|FUNCTION|POLICY|VIEW)|ALTER\s+TABLE|DROP\s+TABLE|TRUNCATE\s+TABLE)\b/i.test(readinessSql),
+  false, "Auditoria operacional não deve conter escritas.");
+for (const metric of [
+  "oauth_two_real_users_e2e_proven",
+  "backup_restore_e2e_proven",
+  "dns_cutover_approved_automatically",
+]) {
+  assert.ok(readinessSql.includes("FALSE AS " + metric),
+    "Aprovação externa não pode ser inferida automaticamente: " + metric);
+}
+
 const docs = read("docs/migration/WORDPRESS-PARIDADE-E-RELEASE.md");
 for (const criterion of [
   "913", "655", "434", "316", "114", "404", "508",
