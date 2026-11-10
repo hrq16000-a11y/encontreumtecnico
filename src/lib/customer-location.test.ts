@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { parseBrazilianDeviceLocation } from "./customer-location";
+import { parseBrazilianDeviceLocation, suggestTechnicianArea } from "./customer-location";
 
 describe("detecção de bairro/cidade por GPS com privacidade", () => {
   it("normaliza município e UF a partir de GPS autorizado no Brasil", () => {
@@ -21,6 +21,46 @@ describe("detecção de bairro/cidade por GPS com privacidade", () => {
       { countryCode: "BR", city: "Tubarão", principalSubdivisionCode: "BR-ZZ" },
     ]) expect(parseBrazilianDeviceLocation(value)).toBeNull();
   });
+  it("preenche UF, cidade e bairro no primeiro cadastro técnico sem adivinhar serviços", () => {
+    const draft = { display_name: "Profissional", state_uf: "", city: "", neighborhood: "",
+      region: "Centro e bairros vizinhos", specialties: ["redes"] };
+    const located = suggestTechnicianArea(draft,
+      { uf: "PR", city: "Curitiba", neighborhood: "Água Verde" }, "automatic");
+    expect(located).toEqual({ ...draft, state_uf: "PR", city: "Curitiba", neighborhood: "Água Verde" });
+    expect(located.region).toBe("Centro e bairros vizinhos");
+    expect(located.specialties).toEqual(["redes"]);
+  });
+
+  it("não sobrescreve cidade/bairro informados pelo técnico em detecção automática", () => {
+    const profile = { state_uf: "SP", city: "Campinas", neighborhood: "Cambuí", bio: "Atende Campinas" };
+    expect(suggestTechnicianArea(profile,
+      { uf: "PR", city: "Curitiba", neighborhood: "Centro" }, "automatic")).toBe(profile);
+  });
+
+  it("permite corrigir manualmente a localidade sem publicar nem trocar especialidades", () => {
+    const profile = { state_uf: "SP", city: "Campinas", neighborhood: "Centro", service_slugs: ["redes-wifi"] };
+    expect(suggestTechnicianArea(profile,
+      { uf: "PR", city: "Curitiba", neighborhood: "Batel" }, "manual")).toEqual({
+      ...profile, state_uf: "PR", city: "Curitiba", neighborhood: "Batel",
+    });
+  });
+
+  it("facilita a busca na Home e o cadastro real sem expor GPS nem endereço", () => {
+    const home = readFileSync("src/routes/index.tsx", "utf8");
+    const tech = readFileSync("src/routes/area-tecnico.tsx", "utf8");
+    const button = readFileSync("src/components/customer-location-button.tsx", "utf8");
+    expect(home).toContain("Buscar técnicos em {city}/{locationUf}");
+    expect(home).toContain('prioridade: "regiao"');
+    expect(tech).toContain('purpose="technician"');
+    expect(tech).toContain('suggestTechnicianArea(current, area, source)');
+    expect(tech).toContain('autoIfGranted={!profileId');
+    expect(button).toContain("cidade, UF e");
+    expect(button).toContain("bairro informados poderão aparecer no perfil público");
+    expect(button).toContain("BigDataCloud");
+    expect(button).toContain("coordenadas e IP");
+    expect(tech).toContain('activationDb.rpc("eut_publish_my_technician"');
+  });
+
   it("mantém consentimento prévio e coordenadas fora da URL interna do cliente", () => {
     const code = readFileSync("src/components/customer-location-button.tsx", "utf8");
     const locator = readFileSync("src/lib/customer-location.ts", "utf8");
