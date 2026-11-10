@@ -11,8 +11,8 @@ function Cadastro(){
  async function submit(event:FormEvent<HTMLFormElement>){
   event.preventDefault();const form=event.currentTarget
   const data=Object.fromEntries(new FormData(form).entries()) as Record<string,unknown>
-  data.aceite=(form.elements.namedItem('aceite') as HTMLInputElement).checked
-  data.autorizacaoPublica=(form.elements.namedItem('autorizacaoPublica') as HTMLInputElement).checked
+  data['aceite']=(form.elements.namedItem('aceite') as HTMLInputElement).checked
+  data['autorizacaoPublica']=(form.elements.namedItem('autorizacaoPublica') as HTMLInputElement).checked
   setSaving(true);setError('')
   try{
    const response=await lp2Fetch('/api/cadastro',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})

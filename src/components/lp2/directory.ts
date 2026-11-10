@@ -23,7 +23,7 @@ export function profileRoute(profile:DirectoryProfile):string|null{
    const source=new URL(profile.url)
    if(source.protocol==='https:'&&source.hostname==='encontreumtecnico.com'){
     const found=/^\/tecnico\/([a-z0-9._%-]{2,160})\/?$/i.exec(source.pathname)
-    if(found)return found[1]
+    if(found)return found[1] ?? null
    }
   }catch{return null}
  }

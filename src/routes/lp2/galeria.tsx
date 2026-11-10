@@ -9,7 +9,7 @@ import type {DirectoryProfile as Tech} from '../../components/lp2/directory'
 const getProfiles=createServerFn({method:'GET'}).handler(async()=>[] as Tech[])
 const specialties=['Notebook','Computador','Redes','Wi-Fi','Impressora','Suporte remoto','Servidor','Celular']
 export const Route=createFileRoute('/lp2/galeria')({
- validateSearch:(search:Record<string,unknown>)=>({q:typeof search.q==='string'?search.q.slice(0,90):'',city:typeof search.city==='string'?search.city.slice(0,90):''}),
+ validateSearch:(search:Record<string,unknown>)=>({q:typeof search['q']==='string'?search['q'].slice(0,90):'',city:typeof search['city']==='string'?search['city'].slice(0,90):''}),
  loader:()=>getProfiles(),component:Gallery
 })
 function Gallery(){
