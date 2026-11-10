@@ -1,0 +1,25 @@
+name: EUT preserve targeted technician through login
+
+on:
+  pull_request:
+    paths:
+      - 'src/lib/selected-technician-target.ts'
+      - 'src/lib/selected-technician-target.test.ts'
+      - 'src/routes/area-cliente.tsx'
+      - '.github/workflows/eut-selected-target.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Target retention and triage tests
+        run: bun run test src/lib/selected-technician-target.test.ts src/lib/triage-draft.test.ts
+      - name: Build
+        run: bun run build
