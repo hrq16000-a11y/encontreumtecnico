@@ -79,7 +79,12 @@ export function TechnicianAvatarEditor({
       if (activeUserId.current === owner) {
         onSaved(path);
         setSelected(null); setAccepted(false);
-        setMessage("Foto pública salva e associada ao seu perfil.");
+        if (avatarPath && avatarPath !== path) {
+          const old = await supabase.storage.from("eut-technician-avatars").remove([avatarPath]);
+          setMessage(old.error
+            ? "Nova foto publicada. Não conseguimos excluir o arquivo anterior; solicite ajuda para removê-lo."
+            : "Foto pública salva e associada ao seu perfil.");
+        } else setMessage("Foto pública salva e associada ao seu perfil.");
       }
     } catch (error) {
       if (path && activeUserId.current === owner) {
@@ -101,7 +106,10 @@ export function TechnicianAvatarEditor({
       if (error || data?.state !== "salvo") throw new Error("Não foi possível ocultar a foto.");
       if (activeUserId.current === owner) {
         onSaved(null);
-        setMessage("Foto removida do perfil público. Suas iniciais serão exibidas.");
+        const deletion = await supabase.storage.from("eut-technician-avatars").remove([avatarPath]);
+        setMessage(deletion.error
+          ? "Foto desvinculada do perfil, mas o arquivo antigo ainda pode ser acessado por seu link. Solicite a exclusão ao suporte."
+          : "Foto desvinculada e arquivo excluído. Suas iniciais serão exibidas.");
       }
     } catch {
       if (activeUserId.current === owner) setMessage("Falha ao ocultar a foto. Tente novamente.");
@@ -127,7 +135,7 @@ export function TechnicianAvatarEditor({
       <label className="mt-4 flex items-start gap-3 rounded-lg border border-border p-3 text-sm text-foreground">
         <input type="checkbox" checked={accepted} disabled={saving}
           onChange={(e) => setAccepted(e.target.checked)} className="mt-1 h-4 w-4 shrink-0" />
-        <span>Confirmo que a foto é minha e **autorizo sua exibição pública** no cadastro.
+        <span>Confirmo que a foto é minha e autorizo sua exibição pública no cadastro.
           A imagem poderá ser vista e compartilhada por qualquer visitante.</span>
       </label>
       <div className="mt-4 flex flex-wrap gap-3">
