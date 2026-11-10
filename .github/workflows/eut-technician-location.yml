@@ -3,6 +3,10 @@ on:
   pull_request:
     paths:
       - 'src/routes/area-tecnico.tsx'
+      - 'src/lib/technician-registration-wizard.ts'
+      - 'src/lib/technician-registration-wizard.test.ts'
+      - 'src/components/page-placeholder.tsx'
+      - 'src/components/back-to-top.tsx'
       - 'src/routes/index.tsx'
       - 'src/components/customer-location-button.tsx'
       - 'src/lib/customer-location.ts'
@@ -19,7 +23,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: GPS with permission, locality protection and Home shortcut
-        run: bunx vitest run src/lib/customer-location.test.ts
+        run: bunx vitest run src/lib/customer-location.test.ts src/lib/technician-registration-wizard.test.ts
       - run: bun run build
       - name: TypeScript after route generation
         run: bunx tsc --noEmit --pretty false
