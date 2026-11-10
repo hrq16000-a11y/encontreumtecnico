@@ -17,3 +17,15 @@ describe("IDs da página pública do técnico", () => {
     expect(isValidTechnicianId(id)).toBe(false);
   });
 });
+
+import { isValidTechnicianSlug } from "./technician-id";
+
+describe("slugs legíveis em vez de UUIDs na URL pública", () => {
+  it("aceita nomes, cidades e UF normalizados", () => {
+    expect(isValidTechnicianSlug("jefferson-santana-tubarao-sc")).toBe(true);
+    expect(isValidTechnicianSlug("tecnico-curitiba-pr-abcdef123456")).toBe(true);
+  });
+  it.each(["", "ab", "Jefferson-Santana", "São José", "cidade_", "a/contato", "../../admin", "slug--duplo", "slug-", "a".repeat(97)])("rejeita slug inválido: %s", value => {
+    expect(isValidTechnicianSlug(value)).toBe(false);
+  });
+});
