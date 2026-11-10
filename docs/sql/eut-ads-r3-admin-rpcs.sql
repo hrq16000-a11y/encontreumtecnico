@@ -3,6 +3,11 @@
 -- Privilegiadas e role-checked: o navegador só usa RPCs autenticadas,
 -- sem chave service_role, sem grants diretos nas tabelas de eut_ads.
 
+-- Additional private-route constraint for LP2 and sensitive flows.
+ALTER TABLE eut_ads.placements
+  ADD CONSTRAINT placements_disallow_sensitive_lp_routes
+  CHECK (route_pattern !~ '^/(lp2/(entrar|admin|cliente|meu-perfil)|acesso-contato|checkout|pagar|recuperar-senha|confirmar-email|auth|api)(/|$)');
+
 -- Private image library (no public URLs and no public ads).
 INSERT INTO storage.buckets (id,name,public,file_size_limit,allowed_mime_types)
 VALUES ('eut-ad-assets','eut-ad-assets',false,5242880,
