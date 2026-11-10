@@ -8,6 +8,7 @@ import { useActiveServices, serviceLabel } from "@/hooks/use-active-services";
 import { BRAZIL_STATES } from "@/lib/service-taxonomy";
 import { localMatchLabel } from "@/lib/technician-local-ranking";
 import { LegacyPublicArchive } from "../components/legacy-public-archive";
+import { TechnicianAvatar } from "@/components/technician-avatar";
 import { canShowLegacyArchive } from "../lib/legacy-archive-filters";
 import { useEffect, useRef, useState } from "react";
 import { analyticsAllowed, recordSearch } from "@/lib/search-analytics";
@@ -206,13 +207,16 @@ function TechniciansPage() {
                     params={{ tecnicoId: t.id }}
                     className="block h-full rounded-lg border border-border bg-card p-5 transition-colors hover:border-primary"
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <h2 className="font-semibold text-card-foreground">{t.display_name}</h2>
-                      {t.online_now ? (
-                        <span className="shrink-0 rounded bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">Online recentemente</span>
-                      ) : (
-                        <span className="shrink-0 rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">Perfil público</span>
-                      )}
+                    <div className="flex items-start gap-3">
+                      <TechnicianAvatar name={t.display_name} />
+                      <div className="min-w-0 flex-1">
+                        <h2 className="font-semibold leading-snug text-card-foreground">{t.display_name}</h2>
+                        {t.online_now ? (
+                          <span className="mt-1 inline-flex rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">Online recentemente</span>
+                        ) : (
+                          <span className="mt-1 inline-flex rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">Perfil público</span>
+                        )}
+                      </div>
                     </div>
                     {prioritizeRegion && localMatchLabel(t, {
                       uf: search.uf, cidade: search.cidade, bairro: search.bairro,
@@ -232,6 +236,9 @@ function TechniciansPage() {
                         <li key={slug} className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs text-primary">{serviceLabel(slug, services)}</li>
                       ))}
                     </ul>
+                    <p className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
+                      Contato protegido · Dados liberados somente conforme as condições do portal
+                    </p>
                   </Link>
                 </li>
               ))}
