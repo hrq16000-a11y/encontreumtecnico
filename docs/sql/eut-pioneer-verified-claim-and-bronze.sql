@@ -37,6 +37,7 @@ DECLARE
  v_role text;
  v_account_count int;
  v_wp_user bigint;
+ v_wp_source text;
  v_account_kind text;
  v_prior_link uuid;
  v_group_count int;
@@ -62,7 +63,7 @@ BEGIN
  THEN RAISE EXCEPTION 'conflicting account role'; END IF;
 
  -- Correlação de EMAIL verificado com uma única conta histórica:
- SELECT count(*),max(source_user_id) INTO v_account_count,v_wp_user
+ SELECT count(*),max(source_user_id),max(split_part(source_id,':',1)) INTO v_account_count,v_wp_user,v_wp_source
  FROM eut_pioneers.pre_registrations
  WHERE origin='wordpress_account' AND email_hint=v_email;
  IF v_account_count>1 THEN RETURN jsonb_build_object('state','revisao_necessaria','linked',0); END IF;
@@ -72,6 +73,11 @@ BEGIN
    WHERE origin='wordpress_account' AND email_hint=v_email
    FOR UPDATE;
    IF v_account_kind<>v_role OR (v_prior_link IS NOT NULL AND v_prior_link<>v_uid)
+      OR EXISTS (SELECT 1 FROM eut_migration.legacy_accounts a
+        LEFT JOIN eut_migration.account_activation_queue q ON q.source_key=a.source_key AND q.wp_user_id=a.wp_user_id
+        WHERE a.source_key=v_wp_source AND a.wp_user_id=v_wp_user
+          AND ((a.auth_user_id IS NOT NULL AND a.auth_user_id<>v_uid)
+            OR (q.linked_auth_user_id IS NOT NULL AND q.linked_auth_user_id<>v_uid)))
    THEN RETURN jsonb_build_object('state','revisao_necessaria','linked',0); END IF;
 
    UPDATE eut_pioneers.pre_registrations
@@ -94,10 +100,11 @@ BEGIN
    LEFT JOIN public.eut_legacy_profile_management management
      ON management.source_key=d.source_key AND management.wp_post_id=d.wp_post_id
    WHERE p.origin='wordpress_profile' AND p.source_user_id=v_wp_user
-     AND p.source_post_id=d.wp_post_id AND p.person_kind=v_role
+     AND p.source_id=d.source_key||':'||d.wp_post_id::text AND d.source_key=v_wp_source
+     AND p.source_post_id=d.wp_post_id AND p.person_kind=v_role AND v_role='tecnico'
      AND (p.linked_auth_user_id IS NULL OR p.linked_auth_user_id=v_uid)
      AND d.source_status='publish' AND d.source_approved=true
-     AND coalesce(review.demo_candidate,false)=false
+     AND review.demo_candidate=false
      AND coalesce(management.record_state,'pendente')<>'excluido';
    -- Não publica nada. Auditoria por ID privado:
    INSERT INTO eut_pioneers.claim_audit(pre_registration_id,actor_user_id,proof)
