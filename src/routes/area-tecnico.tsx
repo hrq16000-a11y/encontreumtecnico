@@ -376,7 +376,7 @@ export function TechnicianAreaPage() {
                 </div>
               )}
               {msg && <p role="alert" className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm text-foreground">{msg}</p>}
-              <div className="sticky bottom-0 z-20 -mx-4 flex items-center gap-2 border-t border-border bg-background/95 px-4 py-3 pb-[calc(12px+env(safe-area-inset-bottom))] shadow-lg backdrop-blur sm:static sm:mx-0 sm:rounded-xl sm:border sm:shadow-none">
+              <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 -mx-4 flex items-center gap-2 border-t border-border bg-background/95 px-4 py-3 pb-[calc(12px+env(safe-area-inset-bottom))] shadow-lg backdrop-blur sm:static sm:mx-0 sm:rounded-xl sm:border sm:shadow-none">
                 {step > 1 && (
                   <button type="button" onClick={() => moveToStep((step - 1) as RegistrationStep)}
                     className="min-h-12 shrink-0 rounded-xl border border-border px-5 text-sm font-semibold text-foreground">
