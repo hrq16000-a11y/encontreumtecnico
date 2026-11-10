@@ -1,14 +1,19 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { PageShell, EmptyState } from "../components/page-placeholder";
+import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { PageShell } from "../components/page-placeholder";
 import { getApprovedTechnician } from "../lib/technicians.functions";
+import { isValidTechnicianId } from "@/lib/technician-id";
 import { categoryLabel, useActiveCategories } from "@/hooks/use-active-categories";
 import { useActiveServices, serviceLabel } from "@/hooks/use-active-services";
 
-const UUID = /^[0-9a-f-]{36}$/i;
-
 export const Route = createFileRoute("/tecnicos/$tecnicoId")({
-  loader: ({ params }) =>
-    UUID.test(params.tecnicoId) ? getApprovedTechnician({ data: { id: params.tecnicoId } }) : null,
+  // A published profile that does not exist must return a genuine HTTP 404,
+  // not a content-filled HTTP 200 (soft 404). A database failure remains 500.
+  loader: async ({ params }) => {
+    if (!isValidTechnicianId(params.tecnicoId)) throw notFound();
+    const technician = await getApprovedTechnician({ data: { id: params.tecnicoId } });
+    if (!technician) throw notFound();
+    return technician;
+  },
   head: ({ loaderData, params }) => {
     const name = loaderData?.display_name;
     const title = name ? `${name} — Técnico em ${loaderData.city} | Encontre um Técnico` : "Perfil do técnico — Encontre um Técnico";
@@ -41,11 +46,6 @@ function TechnicianProfilePage() {
     <PageShell>
       <section className="mx-auto max-w-3xl px-4 py-10">
         <Link to="/tecnicos" className="text-sm text-primary hover:underline">← Voltar para técnicos</Link>
-        {!t ? (
-          <div className="mt-6">
-            <EmptyState title="Perfil indisponível" description="Este técnico não está disponível publicamente neste momento." />
-          </div>
-        ) : (
           <div className="mt-4 rounded-lg border border-border bg-card p-6">
             <h1 className="text-2xl font-bold tracking-tight text-card-foreground">{t.display_name}</h1>
             {t.online_now && <p className="mt-2 inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
@@ -81,7 +81,6 @@ function TechnicianProfilePage() {
               nenhum número é exibido sem aquisição confirmada.
             </p>
           </div>
-        )}
       </section>
     </PageShell>
   );
