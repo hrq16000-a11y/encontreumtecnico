@@ -1,0 +1,79 @@
+name: EUT technician online presence gate
+
+on:
+  pull_request:
+    paths:
+      - 'src/components/technician-presence.tsx'
+      - 'src/routes/area-tecnico.tsx'
+      - 'src/routes/tecnicos.index.tsx'
+      - 'src/routes/tecnicos.$tecnicoId.tsx'
+      - 'src/lib/technicians.functions.ts'
+      - '.github/workflows/eut-online-presence.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eut-presence-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-privacy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install dependencies without changing lockfile
+        run: bun install --frozen-lockfile
+      - name: Build production
+        run: bun run build
+      - name: TypeScript
+        run: bunx tsc --noEmit --pretty false
+      - name: Validate voluntary heartbeat, privacy and safe search
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const r=p=>readFileSync(p,'utf8');
+          const presence=r('src/components/technician-presence.tsx');
+          const panel=r('src/routes/area-tecnico.tsx');
+          const server=r('src/lib/technicians.functions.ts');
+          const list=r('src/routes/tecnicos.index.tsx');
+          const detail=r('src/routes/tecnicos.$tecnicoId.tsx');
+          for(const term of ['eut_set_my_presence','eut_my_presence_is_online',
+            'HEARTBEAT_MS = 120_000','document.visibilityState','setInterval',
+            'Ficar online','Ficar offline']) {
+            if(!presence.includes(term))throw Error('Online presence guard missing: '+term);
+          }
+          if(!panel.includes('status === "aprovado" && <TechnicianPresence') ||
+             panel.includes('A aprovação dependerá da conferência administrativa')) {
+            throw Error('Presence must be restricted to published profiles without review claims');
+          }
+          for(const term of ['eut_online_published_ids','_technician_ids: rows.map','online_now','Number(b.online_now)']) {
+            if(!server.includes(term))throw Error('Online-only search relevance missing: '+term);
+          }
+          if(!server.includes('.eq("status", "aprovado")') || !list.includes('t.online_now') || !detail.includes('t.online_now')) {
+            throw Error('Public presence must not expose unapproved profiles');
+          }
+          if(presence.includes('service_role')||server.includes('service_role')) throw Error('Privileged API key exposed');
+          console.log('Optional presence, expiry and published-only search are enforced in UI');
+          NODE
+      - name: Read-only public RPC smoke (no account or personal data)
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          const src=readFileSync('src/integrations/supabase/client.ts','utf8');
+          const url=src.match(/const SUPABASE_URL = "([^"]+)"/)?.[1];
+          const key=src.match(/const SUPABASE_PUBLISHABLE_KEY = "([^"]+)"/)?.[1];
+          if(!url||!key)throw Error('Missing publishable Supabase settings');
+          const res=await fetch(url+'/rest/v1/rpc/eut_online_published_ids',{
+            method:'POST',
+            headers:{apikey:key,'Content-Type':'application/json'},
+            body:JSON.stringify({_technician_ids:[]}),
+            signal:AbortSignal.timeout(12000)
+          });
+          if(!res.ok)throw Error('Online published-only RPC HTTP '+res.status);
+          const data=await res.json();
+          if(!Array.isArray(data)||data.length!==0)throw Error('Empty presence lookup must return no data');
+          console.log('Anonymous read of empty approved-id batch: HTTP '+res.status+', zero results');
+          NODE

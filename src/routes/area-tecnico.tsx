@@ -9,6 +9,7 @@ import { useActiveServices } from "@/hooks/use-active-services";
 import { BRAZIL_STATES, validMunicipality } from "@/lib/service-taxonomy";
 import { LegacyAccountActivation } from "@/components/legacy-account-activation";
 import { LegacyProfileImport } from "@/components/legacy-profile-import";
+import { TechnicianPresence } from "@/components/technician-presence";
 import { RequestCard, type Req } from "../components/request-list";
 
 export const Route = createFileRoute("/area-tecnico")({
@@ -150,6 +151,7 @@ function TechnicianAreaPage() {
             <p className="mt-2 text-sm text-muted-foreground">
               Seu cadastro é gratuito. Ao confirmar sua cidade, especialidades e serviços, seu perfil é publicado automaticamente, sem avaliação da sua capacidade técnica pelo portal.
             </p>
+            {status === "aprovado" && <TechnicianPresence userId={user.id} />}
             <LegacyAccountActivation userId={user.id} role="tecnico" />
             <LegacyProfileImport userId={user.id}
               onUse={(data) => setForm((current) => ({
@@ -206,7 +208,7 @@ function TechnicianAreaPage() {
               </fieldset>
               <fieldset>
                 <legend className="text-sm font-medium text-foreground">Serviços que você realmente executa</legend>
-                <p className="mt-1 text-xs text-muted-foreground">Selecione os serviços específicos dentro das suas categorias. A aprovação dependerá da conferência administrativa.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Selecione os serviços que você realmente executa dentro das categorias. Seu perfil completo pode ser publicado automaticamente; o portal não certifica competência técnica.</p>
                 {servicesLoading && <p className="mt-2 text-sm text-muted-foreground">Carregando serviços…</p>}
                 {servicesError && <p role="alert" className="mt-2 text-sm text-destructive">Serviços indisponíveis. Recarregue a página.</p>}
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
