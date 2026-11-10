@@ -10,7 +10,7 @@ import { serviceLabel, useActiveServices } from "@/hooks/use-active-services";
 
 function initials(name: string) {
   const words = name.trim().split(/\s+/).filter(Boolean);
-  if (words.length >= 2) return (words[0][0] + words[words.length - 1][0]).toLocaleUpperCase("pt-BR");
+  if (words.length >= 2) return ((words[0]?.charAt(0) || "?") + (words[words.length - 1]?.charAt(0) || "?")).toLocaleUpperCase("pt-BR");
   return (words[0] || "?").slice(0, 2).toLocaleUpperCase("pt-BR");
 }
 
