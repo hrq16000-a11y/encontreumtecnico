@@ -42,10 +42,10 @@ jobs:
           NODE
       - name: Existing search and identity regression tests
         run: bunx vitest run src/lib/legacy-archive-filters.test.ts src/lib/account-scoped-queries.test.ts src/lib/legacy-claim-validation.test.ts
-      - name: TypeScript and production build
-        run: |
-          bunx tsc --noEmit --pretty false
-          bun run build
+      - name: Build TanStack and generate route types
+        run: bun run build
+      - name: TypeScript after route generation
+        run: bunx tsc --noEmit --pretty false
       - name: Read-only HTTP smoke against last published Vercel release
         continue-on-error: true
         run: node scripts/eut-public-smoke.mjs
