@@ -8,14 +8,14 @@ export type CustomerArea = { city: string; uf: string; neighborhood: string };
 export function parseBrazilianDeviceLocation(value: unknown): CustomerArea | null {
   if (!value || typeof value !== "object") return null;
   const item = value as Record<string, unknown>;
-  if (item.countryCode !== "BR") return null;
-  const city = typeof item.city === "string" ? item.city.trim().slice(0, 80) : "";
-  const rawState = typeof item.principalSubdivisionCode === "string"
-    ? item.principalSubdivisionCode.toUpperCase() : "";
+  if (item["countryCode"] !== "BR") return null;
+  const city = typeof item["city"] === "string" ? item["city"].trim().slice(0, 80) : "";
+  const rawState = typeof item["principalSubdivisionCode"] === "string"
+    ? item["principalSubdivisionCode"].toUpperCase() : "";
   const uf = rawState.match(/(?:^|-)BR-([A-Z]{2})$/)?.[1] ??
     (BRAZIL_STATES.find((s) => s === rawState) ?? "");
   if (city.length < 2 || !BRAZIL_STATES.some((s) => s === uf)) return null;
-  const locality = typeof item.locality === "string" ? item.locality.trim().slice(0, 80) : "";
+  const locality = typeof item["locality"] === "string" ? item["locality"].trim().slice(0, 80) : "";
   const neighborhood = locality && locality.toLocaleLowerCase("pt-BR") !== city.toLocaleLowerCase("pt-BR")
     ? locality : "";
   return { city, uf, neighborhood };
