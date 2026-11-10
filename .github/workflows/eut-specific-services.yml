@@ -41,7 +41,7 @@ jobs:
           const server=read('src/lib/technicians.functions.ts');
           const catalog=read('src/hooks/use-active-services.ts');
           const profile=read('src/routes/tecnicos.$tecnicoId.tsx');
-          for (const item of ['form.service_slugs.length === 0','service_slugs: form.service_slugs','status: "pendente" as const']) {
+          for (const item of ['form.service_slugs.length === 0','_service_slugs: form.service_slugs','eut_publish_my_technician']) {
             if (!tech.includes(item)) throw Error('Technician form contract absent: '+item);
           }
           for (const item of ['servico: fallback','uf: fallback','bairro: fallback','filtro-servico','filtro-uf','filtro-bairro']) {
@@ -52,7 +52,9 @@ jobs:
           }
           if (!catalog.includes('eut_service_types') || !catalog.includes('.eq("active", true)')) throw Error('Official service catalog missing');
           if (!profile.includes('t.service_slugs')) throw Error('Public profile service list missing');
-          console.log('Service and location filters: guarded contracts OK');
+          if (!tech.includes('data?.state === "publicado"')) throw Error('Server-confirmed automatic publication missing');
+          if (tech.includes('status: "aprovado" as const') || tech.includes('from("technicians").insert(')) throw Error('Client attempted to approve directly instead of secure RPC');
+          console.log('Server-only auto-publication + category and location guards: OK');
           NODE
       - name: Check catalog GET without login
         run: |
