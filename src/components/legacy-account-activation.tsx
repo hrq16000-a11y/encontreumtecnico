@@ -28,6 +28,8 @@ export function LegacyAccountActivation({
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [lookupFailed, setLookupFailed] = useState(false);
+  const [lookupAttempt, setLookupAttempt] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -36,23 +38,27 @@ export function LegacyAccountActivation({
     setLoadedOwnerId(null);
     setFeedback(null);
     setBusy(false);
+    setLookupFailed(false);
     void Promise.resolve(db.rpc("eut_my_legacy_account")).then(({ data, error }) => {
       if (!mounted || activeOwnerId.current !== userId) return;
       if (!error && Array.isArray(data)) {
         setRecord((data[0] as LegacyAccount | undefined) ?? null);
       } else {
+        // A failed lookup is NOT evidence that the WordPress account is absent.
         setRecord(null);
+        setLookupFailed(true);
       }
       setLoadedOwnerId(userId);
       setLoading(false);
     }).catch(() => {
       if (!mounted || activeOwnerId.current !== userId) return;
       setRecord(null);
+      setLookupFailed(true);
       setLoadedOwnerId(userId);
       setLoading(false);
     });
     return () => { mounted = false; };
-  }, [userId]);
+  }, [userId, lookupAttempt]);
 
   async function linkAccount() {
     if (busy || !record || loadedOwnerId !== userId ||
@@ -82,7 +88,23 @@ export function LegacyAccountActivation({
     }
   }
 
-  if (loading || loadedOwnerId !== userId || !record) return null;
+  if (loading || loadedOwnerId !== userId) return null;
+  if (lookupFailed) return (
+    <section className="mt-5 rounded-lg border border-destructive/40 bg-card p-5" role="alert" aria-label="Consulta do WordPress indisponível">
+      <p className="text-sm text-foreground">
+        Não conseguimos consultar seu cadastro WordPress agora. Isso não significa que ele foi perdido.
+        Nenhuma associação foi feita.
+      </p>
+      <button
+        type="button"
+        onClick={() => setLookupAttempt((n) => n + 1)}
+        className="mt-3 min-h-11 rounded-md border border-primary px-4 py-2 text-sm font-semibold text-primary"
+      >
+        Tentar consultar novamente
+      </button>
+    </section>
+  );
+  if (!record) return null;
 
   const sameRole = record.intended_type === role;
   return (
