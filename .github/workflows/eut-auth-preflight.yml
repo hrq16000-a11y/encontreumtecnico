@@ -121,3 +121,58 @@ jobs:
             console.log(path+': HTTP '+res.status);
           }
           NODE
+      - name: Validate live public catalog and private API boundary without signing in
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          const client=readFileSync('src/integrations/supabase/client.ts','utf8');
+          const base=client.match(/const SUPABASE_URL = "([^"]+)"/)?.[1];
+          const key=client.match(/const SUPABASE_PUBLISHABLE_KEY = "([^"]+)"/)?.[1];
+          if(!base||!key)throw Error('Missing public Supabase app config');
+          const headers={apikey:key,accept:'application/json'};
+          const endpoint=(path)=>base+'/rest/v1/'+path;
+          for(const table of ['eut_service_categories','eut_service_types']) {
+            const r=await fetch(endpoint(table+'?select=slug&active=eq.true&limit=1'),{
+              headers, signal:AbortSignal.timeout(12000)
+            });
+            if(!r.ok)throw Error('Anonymous public catalog failed: '+table+' HTTP '+r.status);
+            const rows=await r.json();
+            if(!Array.isArray(rows)||rows.length===0||typeof rows[0]?.slug!=='string'){
+              throw Error('Anonymous catalog empty or invalid: '+table);
+            }
+            console.log('Anonymous catalog:',table,'available');
+          }
+          const technicians=await fetch(endpoint('technicians?select=id&status=eq.aprovado&limit=1'),{
+            headers, signal:AbortSignal.timeout(12000)
+          });
+          if(!technicians.ok||!Array.isArray(await technicians.json())){
+            throw Error('Anonymous technician search cannot retrieve approved directory');
+          }
+          console.log('Approved technician search API reachable (may be empty before first verified signup)');
+          for(const [table,columns] of [
+            ['eut_direct_request_replies','request_id,body'],
+            ['eut_direct_request_consents','request_id'],
+            ['eut_technician_private_contacts','phone_e164'],
+          ]) {
+            const r=await fetch(endpoint(table+'?select='+encodeURIComponent(columns)+'&limit=1'),{
+              headers,signal:AbortSignal.timeout(12000)
+            });
+            if(r.ok)throw Error('Private table accessible anonymously: '+table);
+            if(r.status>=500)throw Error('Unexpected server error while checking private table '+table);
+            console.log('Anonymous private-table access denied:',table,'HTTP',r.status);
+          }
+          for(const [name,payload] of [
+            ['eut_share_direct_request',{_request_id:'00000000-0000-0000-0000-000000000000'}],
+            ['eut_respond_to_direct_request',{_request_id:'00000000-0000-0000-0000-000000000000',_body:'Verificando bloqueio de acesso anônimo sem criar pedido ou resposta.'}],
+          ]) {
+            const r=await fetch(endpoint('rpc/'+name),{
+              method:'POST',headers:{...headers,'content-type':'application/json'},
+              body:JSON.stringify(payload),signal:AbortSignal.timeout(12000)
+            });
+            if(r.ok)throw Error('Sensitive RPC callable anonymously: '+name);
+            if(r.status>=500)throw Error('Unexpected server error checking private RPC '+name);
+            console.log('Anonymous RPC call denied:',name,'HTTP',r.status);
+          }
+          // These are not E2E claims: no user, account, purchase or service request is created.
+          console.log('Read-only production API preflight PASS; real Google callback and signed-in RLS require two opted-in human accounts');
+          NODE
