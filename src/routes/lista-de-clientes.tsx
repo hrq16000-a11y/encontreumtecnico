@@ -12,7 +12,7 @@ const archiveDb = supabase as unknown as SupabaseClient;
 // No phone, WhatsApp, email, review, old plugin scripts or privileged keys.
 export const Route = createFileRoute("/lista-de-clientes")({
   validateSearch: (raw: Record<string, unknown>) => ({
-    employer_page: Math.max(1, Math.min(100, Math.trunc(Number(raw.employer_page) || 1))),
+    employer_page: Math.max(1, Math.min(100, Math.trunc(Number(raw["employer_page"]) || 1))),
   }),
   head: () => ({
     meta: [
