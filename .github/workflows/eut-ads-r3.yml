@@ -1,0 +1,67 @@
+name: EUT ads R3 admin CRUD and privacy gate
+on:
+  pull_request:
+    paths:
+      - 'docs/sql/eut-ads-r3-admin-rpcs.sql'
+      - 'docs/sql/tests/eut-ads-r3-rollback-tests.sql'
+      - 'src/components/admin-advertising-manager.tsx'
+      - 'src/components/admin-control-hub.tsx'
+      - 'src/routes/admin.tsx'
+      - '.github/workflows/eut-ads-r3.yml'
+permissions:
+  contents: read
+jobs:
+  ads-admin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Build application
+        run: bun run build
+      - name: TypeScript
+        run: bunx tsc --noEmit --pretty false
+      - name: Phone helper regression
+        run: bunx vitest run src/lib/brazilian-phone.test.ts
+      - name: Check server-side administration and private ads contract
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const sql = readFileSync('docs/sql/eut-ads-r3-admin-rpcs.sql','utf8');
+          const test = readFileSync('docs/sql/tests/eut-ads-r3-rollback-tests.sql','utf8');
+          const ui = readFileSync('src/components/admin-advertising-manager.tsx','utf8');
+          const admin = readFileSync('src/routes/admin.tsx','utf8');
+          const hub = readFileSync('src/components/admin-control-hub.tsx','utf8');
+          for (const term of [
+            'eut_ads.require_admin()', 'auth.uid()', "r.role='admin'::public.app_role",
+            'email_confirmed_at IS NOT NULL', 'SECURITY DEFINER',
+            'REVOKE ALL ON FUNCTION public.eut_ads_admin_snapshot() FROM PUBLIC, anon, authenticated',
+            'REVOKE ALL ON FUNCTION public.eut_ads_admin_save(text,jsonb) FROM PUBLIC, anon, authenticated',
+            "v_state NOT IN ('draft','paused','archived')",
+            "enabled=false", "status='paused'",
+            'CREATE POLICY "eut_ad_assets_admin_insert"',
+            'CREATE POLICY "eut_ad_assets_admin_select"',
+            "false,5242880", "public.has_role",
+            'Image must first be uploaded to the private ad library',
+            'placements_disallow_sensitive_lp_routes',
+          ]) if (!sql.includes(term)) throw Error('Missing secure admin RPC control: '+term);
+          for (const term of [
+            "has_function_privilege", "has_schema_privilege", "ROLLBACK", "Anonymous snapshot permitted",
+            "Non-admin could write ads", "R3 campaign activation allowed",
+            "Missing admin write audit events", "Campaign could not be paused",
+          ]) if (!test.includes(term)) throw Error('Missing rollback security test: '+term);
+          for (const term of [
+            "eut_ads_admin_snapshot", "eut_ads_admin_save", "eut-ad-assets",
+            "Nenhum anúncio é exibido publicamente", "upload(path, image",
+          ]) if (!ui.includes(term)) throw Error('Admin form integration missing: '+term);
+          if (ui.includes('service_role') || ui.includes('.from("eut_ads.') || ui.includes('auth.admin.')) {
+            throw Error('Browser must never access private tables or privileged auth');
+          }
+          if (!admin.includes('roles.includes("admin")') ||
+              !admin.includes('<AdminAdvertisingManager />') ||
+              !hub.includes('admin-patrocinadores')) {
+            throw Error('Admin-only routing or real navigation missing');
+          }
+          console.log('R3 admin CRUD and privacy static gate: PASS');
+          NODE

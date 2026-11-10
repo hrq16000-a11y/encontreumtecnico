@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'src/components/technician-direct-requests.tsx'
+      - 'src/lib/account-scoped-queries.ts'
+      - 'src/lib/account-scoped-queries.test.ts'
       - 'src/routes/area-tecnico.tsx'
       - 'src/routes/area-cliente.tsx'
       - 'src/routes/tecnicos.$tecnicoId.tsx'
@@ -26,6 +28,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
+      - name: Test isolation between accounts and stale queries
+        run: bun run test src/lib/account-scoped-queries.test.ts
       - name: Verify opt-in contract and no private contacts
         run: |
           node --input-type=module <<'NODE'
@@ -40,6 +44,14 @@ jobs:
           }
           if(!technician.includes('.select("id,title,description,category,city,region,created_at")')) throw Error('Technician list can expose extra fields');
           if(technician.includes('contact_phone') || technician.includes('contact_email')) throw Error('Contact data in technician inbox');
+          for (const file of [client, technician]) {
+            if (!file.includes('accountScopedRows') || !file.includes('canAcceptAccountResult')) {
+              throw Error('Missing same-tab account isolation or stale-query protection');
+            }
+          }
+          if (!client.includes('setRowsError(true)') || !client.includes('role="alert"')) {
+            throw Error('Failed private query must show an error instead of a false empty state');
+          }
           if(!profile.includes('to="/area-cliente" search={{ tecnico: t.id }}')) throw Error('Profile CTA missing');
           for(const fragment of ['create policy "Technician reads only explicitly shared direct requests"','daily direct-request limit reached','revoke all on public.eut_direct_request_consents']) {
             if(!sql.includes(fragment)) throw Error('Missing DB restriction: '+fragment);

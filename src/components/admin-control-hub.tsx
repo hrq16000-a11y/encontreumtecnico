@@ -5,6 +5,7 @@ type AdminShortcut = {
 };
 
 const SHORTCUTS: AdminShortcut[] = [
+  { anchor: "admin-patrocinadores", name: "Patrocinadores e banners", description: "Gerenciar anunciantes, espaços, campanhas e criativos privados" },
   { anchor: "admin-catalogo", name: "Categorias e serviços", description: "Criar, revisar e organizar especialidades" },
   { anchor: "admin-legado", name: "Acervo WordPress", description: "Conferir registros importados sem publicá-los" },
   { anchor: "admin-reivindicacoes", name: "Reivindicações", description: "Analisar pedidos de titularidade" },
@@ -16,8 +17,8 @@ const SHORTCUTS: AdminShortcut[] = [
 
 /**
  * Acesso direto somente a módulos reais já existentes.
- * O sistema publicitário é prioridade do plano mestre, mas não oferecemos
- * botões inertes ou dados de campanha fictícios antes do CRUD seguro existir.
+ * A publicidade possui CRUD privado real. Entrega pública e receita
+ * continuam bloqueadas até revisão das próximas rodadas.
  */
 export function AdminControlHub() {
   return (
@@ -43,10 +44,14 @@ export function AdminControlHub() {
           </span>
         </div>
         <p className="mt-2 text-sm text-muted-foreground">
-          O próximo módulo reunirá patrocinadores, posições publicitárias, criativos,
-          campanhas, agendamento, segmentação e relatórios. Ele será disponibilizado
-          após validação de permissões e publicação; ainda não há anúncios para gerenciar aqui.
+          A gestão privada de patrocinadores, posições, campanhas em rascunho,
+          criativos e imagens já está disponível abaixo. Agendamento público,
+          aprovação de campanhas, exibição de banners e relatórios de entrega
+          ainda dependem das próximas rodadas.
         </p>
+        <a href="#admin-patrocinadores" className="mt-3 inline-flex min-h-10 items-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
+          Abrir gestão de patrocínios
+        </a>
       </div>
 
       <nav aria-label="Acessos rápidos da administração" className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
