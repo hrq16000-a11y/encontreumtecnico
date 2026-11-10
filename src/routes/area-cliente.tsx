@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveCategories } from "@/hooks/use-active-categories";
 import { LegacyAccountActivation } from "@/components/legacy-account-activation";
+import { CustomerLocationButton } from "@/components/customer-location-button";
 import { consumeTriageDraft } from "@/lib/triage-draft";
 import { clearTechnicianTarget, recallTechnicianTarget, rememberTechnicianTarget } from "@/lib/selected-technician-target";
 import { containsObviousContact } from "@/lib/private-message-validation";
@@ -321,6 +322,12 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
                   className="font-semibold text-primary underline">Consultar condições de acesso ao contato</Link>
               </div>
             )}
+            <div className="mt-4">
+              <CustomerLocationButton onLocated={(area, source) => {
+                setForm(current => source === "automatic" && current.city.trim()
+                  ? current : { ...current, city: area.city, region: area.neighborhood });
+              }} />
+            </div>
             <form onSubmit={submit} className="mt-4 grid gap-4">
               <label className="text-sm font-medium text-foreground">Resumo do problema
                 <input required minLength={5} maxLength={120} className={input} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
