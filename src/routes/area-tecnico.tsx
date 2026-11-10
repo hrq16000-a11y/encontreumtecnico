@@ -7,6 +7,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useActiveCategories } from "@/hooks/use-active-categories";
 import { useActiveServices } from "@/hooks/use-active-services";
 import { BRAZIL_STATES, validMunicipality } from "@/lib/service-taxonomy";
+import { useMunicipalities } from "@/hooks/use-municipalities";
+import { MunicipalityPicker } from "@/components/municipality-picker";
+import { TechnicianCoverageEditor } from "@/components/technician-coverage-editor";
+import { TechnicianAvatarEditor } from "@/components/technician-avatar-editor";
 import { LegacyAccountActivation } from "@/components/legacy-account-activation";
 import { LegacyProfileImport } from "@/components/legacy-profile-import";
 import { TechnicianPresence } from "@/components/technician-presence";
@@ -44,11 +48,14 @@ export function TechnicianAreaPage() {
   const { services, loading: servicesLoading, error: servicesError } = useActiveServices();
   const [form, setForm] = useState({
     display_name: "", state_uf: "", city: "", neighborhood: "", region: "", bio: "",
-    specialties: [] as string[], service_slugs: [] as string[],
+    specialties: [] as string[], service_slugs: [] as string[], base_city_ibge_id: null as number | null,
   });
   const [status, setStatus] = useState<keyof typeof STATUS_LABEL | null>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
   const [profileSlug, setProfileSlug] = useState<string | null>(null);
+  const [savedCoverageIds, setSavedCoverageIds] = useState<number[]>([]);
+  const [savedRadius, setSavedRadius] = useState<number | null>(null);
+  const [avatarPath, setAvatarPath] = useState<string | null>(null);
   const [profileOwnerId, setProfileOwnerId] = useState<string | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState(false);
@@ -61,6 +68,8 @@ export function TechnicianAreaPage() {
   const currentUserRef = useRef<string | null>(null);
   currentUserRef.current = user?.id ?? null;
   const roleKey = roles.join(",");
+  const { cities: officialBaseCities } = useMunicipalities(form.state_uf);
+  const baseMunicipality = officialBaseCities.find((city) => city.id === form.base_city_ibge_id) ?? null;
   const currentStatus = roles.includes("tecnico") && profileOwnerId === user?.id ? status : null;
   const profileReady = Boolean(user && roles.includes("tecnico")
     && profileOwnerId === user.id && !profileLoading && !profileError);
@@ -71,11 +80,14 @@ export function TechnicianAreaPage() {
       display_name: typeof user?.user_metadata?.["full_name"] === "string"
         ? user.user_metadata["full_name"].slice(0, 80) : "",
       state_uf: "", city: "", neighborhood: "", region: "", bio: "",
-      specialties: [], service_slugs: [],
+      specialties: [], service_slugs: [], base_city_ibge_id: null,
     });
     setStatus(null);
     setProfileId(null);
     setProfileSlug(null);
+    setSavedCoverageIds([]);
+    setSavedRadius(null);
+    setAvatarPath(null);
     setProfileOwnerId(null);
     setProfileError(false);
     setMsg(null);
@@ -105,7 +117,11 @@ export function TechnicianAreaPage() {
             bio: data.bio ?? "",
             specialties: data.specialties ?? [],
             service_slugs: data.service_slugs ?? [],
+            base_city_ibge_id: null,
           });
+          setSavedCoverageIds(data.coverage_city_ids ?? []);
+          setSavedRadius(data.service_radius_km ?? null);
+          setAvatarPath(data.avatar_path ?? null);
           setStatus(data.status);
           setProfileId(data.id);
           setProfileSlug(data.public_slug);
@@ -302,14 +318,16 @@ export function TechnicianAreaPage() {
               </p>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="text-sm font-medium text-foreground">Estado (UF)
-                  <select required className={input} value={form.state_uf} onChange={(e) => setForm({ ...form, state_uf: e.target.value })}>
+                  <select required className={input} value={form.state_uf} onChange={(e) => setForm({ ...form, state_uf: e.target.value, city: "", base_city_ibge_id: null })}>
                     <option value="">Selecione o estado</option>
                     {BRAZIL_STATES.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
                   </select>
                 </label>
-                <label className="text-sm font-medium text-foreground">Município
-                  <input required maxLength={80} className={input} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="Ex.: Curitiba" />
-                </label>
+                <MunicipalityPicker uf={form.state_uf} selectedId={form.base_city_ibge_id}
+                  currentCityName={form.city}
+                  onSelect={(city) => setForm((current) => ({
+                    ...current, city: city.name, base_city_ibge_id: city.id,
+                  }))} />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="text-sm font-medium text-foreground">Bairro de referência (opcional)
@@ -376,6 +394,9 @@ export function TechnicianAreaPage() {
                         .map((service) => service.label).join(", ")}
                     </p>
                     <p className="mt-3 text-xs text-muted-foreground">
+                      Cidade-base validada: {form.city || "a selecionar"}{form.base_city_ibge_id ? " · IBGE " + form.base_city_ibge_id : ""}.
+                    </p>
+                    <p className="mt-3 text-xs text-muted-foreground">
                       Ao publicar, estas especialidades e sua região de atendimento
                       poderão aparecer no perfil público. Nenhum contato privado é divulgado.
                     </p>
@@ -406,6 +427,18 @@ export function TechnicianAreaPage() {
                 )}
               </div>
             </form>
+            {currentStatus === "aprovado" && profileId && (
+              <>
+                <p className="mt-5 text-sm text-muted-foreground">
+                  Depois de publicar ou atualizar a cidade-base acima, configure seu raio e até cinco
+                  municípios atendidos, incluindo a base. Cadastros anteriores são preservados.
+                </p>
+                <TechnicianCoverageEditor userId={user.id} baseMunicipality={baseMunicipality}
+                  savedCityIds={savedCoverageIds} savedRadius={savedRadius} />
+                <TechnicianAvatarEditor userId={user.id} name={form.display_name}
+                  avatarPath={avatarPath} onSaved={setAvatarPath} />
+              </>
+            )}
             <details className="mt-6 rounded-xl border border-border p-4">
               <summary className="cursor-pointer py-2 text-sm font-semibold text-primary">
                 Gerenciar contatos, presença, pedidos e oportunidades
