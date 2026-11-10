@@ -24,7 +24,9 @@ jobs:
         run: bunx vitest run src/components/back-to-top.test.tsx
       - name: WordPress runtime boundary
         run: node scripts/eut-wordpress-runtime-boundary.mjs
+      # TanStack regenerates src/routeTree.gen.ts during build. Keep the full
+      # TypeScript gate AFTER route generation, never waive diagnostics.
+      - name: Build and regenerate TanStack route types
+        run: bun run build
       - name: TypeScript
         run: bunx tsc --noEmit --pretty false
-      - name: Build
-        run: bun run build
