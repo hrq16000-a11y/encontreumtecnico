@@ -98,6 +98,15 @@ describe("isolamento de dados WordPress após troca de conta", () => {
     expect(useProfile).toHaveBeenCalledWith({ display_name: "Perfil B", bio: "Apresentação histórica" });
   });
 
+  it("não oferece vínculo de papel divergente na recuperação WordPress", async () => {
+    mocks.rpc.mockResolvedValue(oldAccount("Titular técnico"));
+    render(<LegacyAccountActivation userId="usuario-a" role="cliente" />);
+    expect(await screen.findByText("Titular técnico")).toBeTruthy();
+    expect(screen.getByText(/outro tipo de conta/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Associar minha conta antiga" })).toBeNull();
+    expect(mocks.rpc).toHaveBeenCalledWith("eut_my_legacy_account");
+  });
+
   it("ignora consulta de perfil da conta A que termina depois da conta B", async () => {
     const pendingA = deferred<ReturnType<typeof oldProfiles>>();
     mocks.rpc.mockImplementationOnce(() => pendingA.promise)

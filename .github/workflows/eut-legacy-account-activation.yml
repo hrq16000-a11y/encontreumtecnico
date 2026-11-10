@@ -8,6 +8,7 @@ on:
       - 'src/routes/area-tecnico.tsx'
       - 'src/components/legacy-profile-import.tsx'
       - '.github/workflows/eut-legacy-account-activation.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
