@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useContext, useEffect, useState, type FormEvent } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { PageShell, LP2EmbeddedContext } from "../components/page-placeholder";
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/area-cliente")({
 });
 
 const input = "mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-base text-foreground focus-visible:ring-2 focus-visible:ring-ring";
+const directDb = supabase as unknown as SupabaseClient;
 
 function CanonicalClientAreaPage() {
   const { tecnico } = Route.useSearch();
@@ -41,6 +43,9 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
   const [form, setForm] = useState({ title: "", description: "", category: "", city: "", region: "" });
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [shareNow, setShareNow] = useState(false);
+  const [sendingId, setSendingId] = useState<string | null>(null);
+  const [sharedIds, setSharedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     // Read only after a verified client session exists. Otherwise a login
@@ -63,6 +68,9 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
     if (!user) return;
     const { data } = await supabase.from("service_requests").select("*").eq("client_id", user.id).order("created_at", { ascending: false });
     setRows(data ?? []);
+    const shares = await directDb.from("eut_direct_request_consents")
+      .select("request_id").eq("client_id", user.id);
+    if (!shares.error) setSharedIds(new Set((shares.data ?? []).map((entry: { request_id: string }) => entry.request_id)));
   }
   useEffect(() => { load(); }, [user]);
 
@@ -74,7 +82,9 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
     }
     setSaving(true);
     setMsg(null);
+    const requestId = crypto.randomUUID();
     const { error } = await supabase.from("service_requests").insert({
+      id: requestId,
       client_id: user.id,
       technician_id: tecnico ?? null,
       title: form.title.trim(),
@@ -83,12 +93,40 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
       city: form.city.trim(),
       region: form.region.trim() || null,
     });
-    setSaving(false);
-    if (error) return setMsg("Não foi possível enviar a solicitação. Tente novamente.");
+    if (error) {
+      setSaving(false);
+      return setMsg("Não foi possível guardar a solicitação. Tente novamente.");
+    }
     window.__lovableEvents?.track?.("project.service_requested", { category: form.category, direct_to_technician: Boolean(tecnico) });
-    setMsg("Necessidade registrada apenas na sua área privada. Nada foi enviado aos técnicos. A compra de acesso ao contato será liberada após integração do pagamento real.");
+    if (shareNow && tecnico) {
+      const shared = await directDb.rpc("eut_share_direct_request", { _request_id: requestId });
+      setMsg(shared.error || shared.data?.status !== "enviado"
+        ? "A solicitação foi salva como privada, mas o compartilhamento não foi concluído. Você pode reenviar na lista abaixo."
+        : "Pedido compartilhado com o técnico escolhido. Ele poderá consultá-lo no painel. Nenhum telefone foi liberado.");
+    } else {
+      setMsg("Necessidade guardada somente na sua área privada. Nenhum técnico recebeu este registro.");
+    }
+    setSaving(false);
+    setShareNow(false);
     setForm({ ...form, title: "", description: "" });
-    load();
+    void load();
+  }
+
+  async function shareExisting(id: string) {
+    if (sendingId) return;
+    setSendingId(id);
+    setMsg(null);
+    try {
+      const { data, error } = await directDb.rpc("eut_share_direct_request", { _request_id: id });
+      setMsg(error || data?.status !== "enviado"
+        ? "Não foi possível compartilhar. Confira o perfil escolhido ou tente novamente."
+        : "Pedido enviado somente ao profissional selecionado. Contatos privados continuam protegidos.");
+      if (!error) void load();
+    } catch {
+      setMsg("Falha de conexão ao compartilhar o pedido.");
+    } finally {
+      setSendingId(null);
+    }
   }
 
   async function cancel(id: string) {
@@ -112,13 +150,14 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
             <LegacyAccountActivation userId={user.id} role="cliente" />
             <h2 className="mt-6 text-lg font-semibold text-foreground">Registrar minha necessidade</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Este registro é privado e serve para organizar sua necessidade; não constitui envio ao técnico,
-              contratação ou aquisição de contato. Evite inserir telefone e endereço completo na descrição.
+              Você pode guardar sua necessidade em particular ou compartilhar voluntariamente com o técnico escolhido.
+              O compartilhamento envia apenas o texto, a categoria e a região informada; não constitui contratação,
+              não libera telefone ou e-mail e não realiza cobrança. Evite colocar contato ou endereço completo na descrição.
             </p>
             {tecnico && (
               <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3 text-sm text-foreground">
-                Sua necessidade pode fazer referência ao perfil escolhido, mas não será enviada ao
-                profissional nem liberará seu telefone.
+                Este profissional foi selecionado. Você pode guardar o pedido em particular ou
+                autorizar que ele visualize a descrição na sua área de técnico. Nenhum telefone é liberado.
                 {" "}<Link to="/acesso-contato/$tecnicoId" params={{ tecnicoId: tecnico }}
                   className="font-semibold text-primary underline">Consultar condições de acesso ao contato</Link>
               </div>
@@ -148,8 +187,17 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
                   <input maxLength={120} className={input} value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} />
                 </label>
               </div>
+              {tecnico && (
+                <label className="flex items-start gap-2 rounded-lg border border-border p-3 text-sm text-foreground">
+                  <input type="checkbox" checked={shareNow} onChange={(e) => setShareNow(e.target.checked)}
+                    className="mt-1 h-4 w-4 shrink-0" />
+                  <span>Autorizo compartilhar o título, a descrição, a categoria e a localidade informada
+                    somente com o técnico selecionado. Não incluo telefone, e-mail ou endereço completo.
+                    Sei que isso não é uma contratação nem libera contato privado.</span>
+                </label>
+              )}
               <button disabled={saving || catalogLoading || Boolean(catalogError) || categories.length === 0} className="min-h-11 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-60">
-                {saving ? "Salvando…" : "Guardar necessidade na minha área"}
+                {saving ? "Salvando…" : shareNow && tecnico ? "Salvar e enviar ao técnico escolhido" : "Guardar necessidade na minha área"}
               </button>
               {msg && <p role="status" className="text-sm text-foreground">{msg}</p>}
             </form>
@@ -163,6 +211,14 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
               <ul className="mt-3 grid gap-3">
                 {rows.map((r) => (
                   <RequestCard key={r.id} r={r}>
+                    {sharedIds.has(r.id) ? (
+                      <span className="text-xs font-semibold text-primary">Enviado ao técnico selecionado</span>
+                    ) : r.technician_id && r.status === "aberta" ? (
+                      <button type="button" disabled={sendingId === r.id} onClick={() => void shareExisting(r.id)}
+                        className="min-h-11 rounded-md border border-primary px-3 text-sm font-semibold text-primary disabled:opacity-60">
+                        {sendingId === r.id ? "Enviando…" : "Compartilhar descrição com o técnico escolhido"}
+                      </button>
+                    ) : null}
                     {(r.status === "aberta" || r.status === "aceita") && (
                       <button onClick={() => cancel(r.id)} className="min-h-11 rounded-md border border-input px-4 text-sm text-foreground">Cancelar</button>
                     )}

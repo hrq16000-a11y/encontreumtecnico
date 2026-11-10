@@ -1,0 +1,50 @@
+name: EUT opt-in direct requests
+
+on:
+  pull_request:
+    paths:
+      - 'src/components/technician-direct-requests.tsx'
+      - 'src/routes/area-tecnico.tsx'
+      - 'src/routes/area-cliente.tsx'
+      - 'src/routes/tecnicos.$tecnicoId.tsx'
+      - 'docs/EUT_PEDIDOS_DIRETOS_SQL_20261109.md'
+      - '.github/workflows/eut-direct-requests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eut-direct-requests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Verify opt-in contract and no private contacts
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const read=(s)=>readFileSync(s,'utf8');
+          const client=read('src/routes/area-cliente.tsx');
+          const technician=read('src/components/technician-direct-requests.tsx');
+          const profile=read('src/routes/tecnicos.$tecnicoId.tsx');
+          const sql=read('docs/EUT_PEDIDOS_DIRETOS_SQL_20261109.md');
+          for(const fragment of ['shareNow','eut_share_direct_request','Autorizo compartilhar','eut_direct_request_consents']) {
+            if(!client.includes(fragment)) throw Error('Missing client consent: '+fragment);
+          }
+          if(!technician.includes('.select("id,title,description,category,city,region,created_at")')) throw Error('Technician list can expose extra fields');
+          if(technician.includes('contact_phone') || technician.includes('contact_email')) throw Error('Contact data in technician inbox');
+          if(!profile.includes('to="/area-cliente" search={{ tecnico: t.id }}')) throw Error('Profile CTA missing');
+          for(const fragment of ['create policy "Technician reads only explicitly shared direct requests"','daily direct-request limit reached','revoke all on public.eut_direct_request_consents']) {
+            if(!sql.includes(fragment)) throw Error('Missing DB restriction: '+fragment);
+          }
+          console.log('Opt-in direct requests: static safety contract PASS');
+          NODE
+      - name: Build TanStack
+        run: bun run build

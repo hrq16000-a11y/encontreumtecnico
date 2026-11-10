@@ -12,6 +12,7 @@ import { LegacyProfileImport } from "@/components/legacy-profile-import";
 import { TechnicianPresence } from "@/components/technician-presence";
 import { TechnicianMissions } from "@/components/technician-missions";
 import { TechnicianPrivateContact } from "@/components/technician-private-contact";
+import { TechnicianDirectRequests } from "@/components/technician-direct-requests";
 
 export const Route = createFileRoute("/area-tecnico")({
   head: () => ({
@@ -119,6 +120,7 @@ export function TechnicianAreaPage() {
             </p>
             {status === "aprovado" && <TechnicianPresence userId={user.id} />}
             <TechnicianPrivateContact userId={user.id} />
+            {status === "aprovado" && <TechnicianDirectRequests userId={user.id} />}
             <TechnicianMissions userId={user.id} />
             <LegacyAccountActivation userId={user.id} role="tecnico" />
             <LegacyProfileImport userId={user.id}
@@ -204,7 +206,7 @@ export function TechnicianAreaPage() {
                   Seu perfil aparece na busca conforme seus serviços e sua região.
                   O número privado não é exibido livremente: clientes terão acesso controlado
                   somente após a liberação do pagamento de conveniência.
-                  O portal não encaminha solicitações abertas indiscriminadamente aos profissionais.
+                  Pedidos individuais só aparecem aqui quando o cliente escolhe este perfil e autoriza o compartilhamento. Não há distribuição automática.
                 </p>
                 <p className="mt-2 text-xs text-muted-foreground">
                   O pagamento por contato ainda está em integração. Não haverá contatos adquiridos
