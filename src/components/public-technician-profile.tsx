@@ -5,14 +5,9 @@ import {
   MessageSquareText, MonitorCheck, Navigation, Sparkles, Wrench,
 } from "lucide-react";
 import type { PublicTechnician } from "@/lib/technicians.functions";
+import { TechnicianAvatar } from "@/components/technician-avatar";
 import { categoryLabel, useActiveCategories } from "@/hooks/use-active-categories";
 import { serviceLabel, useActiveServices } from "@/hooks/use-active-services";
-
-function initials(name: string) {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  if (words.length >= 2) return ((words[0]?.charAt(0) || "?") + (words[words.length - 1]?.charAt(0) || "?")).toLocaleUpperCase("pt-BR");
-  return (words[0] || "?").slice(0, 2).toLocaleUpperCase("pt-BR");
-}
 
 /** Presentation only: uses fields from the published and sanitized technician
  * profile. Never loads or guesses private contacts, ratings or endorsements.
@@ -41,9 +36,8 @@ export function PublicTechnicianProfile({ technician: t }: { technician: PublicT
           <div aria-hidden="true" className="pointer-events-none absolute -bottom-40 left-1/4 h-[320px] w-[440px] rounded-full bg-brand-glow/10 blur-3xl" />
           <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_240px] lg:items-center">
             <div className="flex min-w-0 flex-col items-start gap-5 sm:flex-row sm:gap-7">
-              <div aria-label={"Identificação visual de " + t.display_name} className="flex h-24 w-24 shrink-0 items-center justify-center rounded-[26px] border border-white/30 bg-gradient-to-br from-primary/80 to-brand-glow/25 text-3xl font-extrabold tracking-wide text-white shadow-xl ring-4 ring-white/10 sm:h-28 sm:w-28 sm:text-4xl">
-                {initials(t.display_name)}
-              </div>
+              <TechnicianAvatar name={t.display_name} avatarPath={t.avatar_path}
+                className="h-24 w-24 border-white/25 ring-4 ring-white/10 sm:h-28 sm:w-28" loading="eager" />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap gap-2">
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white">
@@ -110,6 +104,48 @@ export function PublicTechnicianProfile({ technician: t }: { technician: PublicT
                 </ul>
               ) : <p className="mt-4 text-sm text-muted-foreground">Os serviços específicos ainda não foram detalhados.</p>}
               <p className="mt-5 border-t border-border pt-4 text-xs leading-5 text-muted-foreground">A descrição dos serviços é responsabilidade do profissional. Confirme os detalhes diretamente antes de contratar.</p>
+            </section>
+            <section id="atendimento" aria-labelledby="titulo-atendimento"
+              className="eut-card-lift rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
+              <div className="flex items-start gap-3">
+                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <MapPin className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[.17em] text-primary">Cobertura informada pelo profissional</p>
+                  <h2 id="titulo-atendimento" className="mt-1 text-xl font-bold text-card-foreground sm:text-2xl">Onde este técnico atende</h2>
+                </div>
+              </div>
+              <p className="mt-4 text-sm text-foreground">
+                <strong>Cidade-base:</strong> {t.city}{t.state_uf ? "/" + t.state_uf : ""}
+              </p>
+              {t.service_radius_km != null && (
+                <p className="mt-3 rounded-xl bg-accent/60 p-3 text-sm font-semibold text-foreground">
+                  Raio declarado: até {t.service_radius_km} km em linha reta, aproximadamente, a partir
+                  do centro de referência da cidade-base.
+                </p>
+              )}
+              {(t.coverage_cities?.length ?? 0) > 0 ? (
+                <>
+                  <h3 className="mt-5 text-sm font-semibold text-foreground">
+                    Municípios de atendimento declarados ({t.coverage_cities?.length}/5)
+                  </h3>
+                  <ul className="mt-3 flex flex-wrap gap-2">
+                    {t.coverage_cities?.map(city => (
+                      <li key={city.id} className="rounded-full border border-primary/20 bg-primary/5 px-3 py-2 text-sm font-medium text-primary">
+                        {city.name}/{city.uf}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : <p className="mt-3 text-sm text-muted-foreground">
+                Cidades adicionais e raio ainda não declarados neste perfil.
+              </p>}
+              <p className="mt-4 border-t border-border pt-4 text-xs leading-5 text-muted-foreground">
+                Os nomes são selecionados do catálogo de municípios com códigos IBGE. A área é declarada
+                pelo técnico, não georreferenciamento de sua residência nem garantia de deslocamento,
+                tempo de chegada ou disponibilidade.
+              </p>
             </section>
             {t.bio && (
               <section id="sobre" aria-labelledby="titulo-sobre" className="eut-card-lift rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
