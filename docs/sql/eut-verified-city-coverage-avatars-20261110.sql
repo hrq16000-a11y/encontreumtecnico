@@ -54,14 +54,23 @@ END $$;
 CREATE OR REPLACE FUNCTION public.eut_validate_technician_city_and_coverage()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog'
 AS $$
-DECLARE expected_id integer; matched int;
+DECLARE expected_id integer; canonical_name text; matched int;
 BEGIN
  IF NEW.status = 'aprovado'::public.approval_status THEN
-  SELECT m.id INTO expected_id FROM public.eut_ibge_municipalities m
+  SELECT m.id,m.name INTO expected_id,canonical_name FROM public.eut_ibge_municipalities m
    WHERE m.uf=NEW.state_uf AND lower(m.name)=lower(btrim(NEW.city))
    LIMIT 1;
   IF expected_id IS NULL THEN
    RAISE EXCEPTION 'Selecione um município válido do catálogo IBGE para a UF escolhida';
+  END IF;
+  -- Store the exact canonical city spelling, even when input casing differed.
+  NEW.city := canonical_name;
+  -- A base-city change invalidates any previously declared radius and list.
+  -- Clear them, then the owner can confirm the new coverage explicitly.
+  IF TG_OP = 'UPDATE' AND
+    (OLD.city IS DISTINCT FROM NEW.city OR OLD.state_uf IS DISTINCT FROM NEW.state_uf) THEN
+    NEW.coverage_city_ids := '{}'::integer[];
+    NEW.service_radius_km := NULL;
   END IF;
  END IF;
  IF cardinality(NEW.coverage_city_ids)>0 THEN
@@ -80,6 +89,8 @@ BEGIN
  END IF;
  RETURN NEW;
 END; $$;
+REVOKE ALL ON FUNCTION public.eut_validate_technician_city_and_coverage()
+ FROM PUBLIC, anon, authenticated;
 DROP TRIGGER IF EXISTS eut_technician_city_coverage_guard ON public.technicians;
 CREATE TRIGGER eut_technician_city_coverage_guard
  BEFORE INSERT OR UPDATE OF city,state_uf,status,coverage_city_ids
