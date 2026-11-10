@@ -5,9 +5,11 @@ const mocks = vi.hoisted(() => {
     select: vi.fn(),
     eq: vi.fn(),
     maybeSingle: vi.fn(),
+    in: vi.fn(),
   };
   query.select.mockImplementation(() => query);
   query.eq.mockImplementation(() => query);
+  query.in.mockResolvedValue({ data: [], error: null });
   const client = {
     from: vi.fn(() => query),
     rpc: vi.fn(),
@@ -35,6 +37,7 @@ beforeEach(() => {
   mocks.query.select.mockClear();
   mocks.query.eq.mockClear();
   mocks.query.maybeSingle.mockReset();
+  mocks.query.in.mockResolvedValue({ data: [], error: null });
   mocks.client.from.mockClear();
   mocks.client.rpc.mockReset();
 });
@@ -77,7 +80,7 @@ describe("public technician profile lookup", () => {
     mocks.query.maybeSingle.mockResolvedValue({ data: profile, error: null });
     mocks.client.rpc.mockResolvedValue({ data: [], error: null });
     const result = await getApprovedTechnician({ data: { id } });
-    expect(result).toEqual({ ...profile, online_now: false });
+    expect(result).toEqual({ ...profile, online_now: false, pioneer_bronze: false });
     const selectedFields = String(mocks.query.select.mock.calls[0]?.[0]);
     expect(selectedFields).not.toMatch(/phone|email|contact|password/i);
   });
