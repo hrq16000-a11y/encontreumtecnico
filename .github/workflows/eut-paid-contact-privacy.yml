@@ -57,9 +57,25 @@ jobs:
              tech.includes('set_request_status')) throw Error('Technician can still browse or accept unpaid requests');
           if(!client.includes('useActiveCategories') || !client.includes('Guard') && !client.includes('categories.some'))
             throw Error('Private triage needs official categories');
-          if(!client.includes('Nada foi enviado aos técnicos')||
+          // Private drafts remain private; only an explicitly addressed and consented
+          // request can enter the technician's inbox. No paid contact is released.
+          if(!client.includes('Necessidade guardada somente na sua área privada')||
+             !client.includes('Autorizo compartilhar')||
+             !client.includes('eut_share_direct_request')||
              !history.includes('Registrada — privada'))
-            throw Error('Client may believe the request was sent to technician');
+            throw Error('Draft privacy or explicit sharing consent missing');
+          const directInbox=read('src/components/technician-direct-requests.tsx');
+          const directSql=read('docs/EUT_PEDIDOS_DIRETOS_SQL_20261109.md');
+          if(!directInbox.includes('.select("id,title,description,category,city,region,created_at")'))
+            throw Error('Direct-request inbox must select only sanitized non-contact fields');
+          for(const term of [
+            'create policy "Technician reads only explicitly shared direct requests"',
+            'eut_direct_request_consents', 'authenticated',
+            'verified client account required', 'daily direct-request limit reached',
+            'revoke all on public.eut_direct_request_consents'
+          ]) {
+            if(!directSql.includes(term)) throw Error('Missing consent and RLS protection: '+term);
+          }
           if(quote.includes('.select("phone")') || quote.includes('service_role'))
             throw Error('Quote page must not expose contact or use privileged keys');
           const stagedSql=read('docs/sql/eut-contact-purchase-preparation.sql');
