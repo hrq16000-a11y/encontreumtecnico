@@ -56,8 +56,9 @@ jobs:
             'Confirmo meus dados — recuperar conta e perfis',
             'eut_confirm_my_legacy_account',
           ]) if (!signin.includes(required)) throw Error('Secure independent signup flow missing: '+required);
-          if (!standalone.includes('legacyChecked || state.legacyLookupError') ||
-              !standalone.includes('state.legacyRole === null')) throw Error('Onboarding fallback must not override known legacy roles');
+          if (!standalone.includes('return state.legacyChecked || (state.legacyLookupError && state.legacyRole === null)')) {
+            throw Error('Known role cannot be guessed after a failed historical lookup; confirmed users may choose a new role');
+          }
           if (signin.includes('user_roles").insert(')) throw Error('Client must never assign a user role directly');
           if (!dbContract) throw Error('Server role authority missing');
           for (const v of [
@@ -83,7 +84,8 @@ jobs:
             'eut_my_legacy_account',
             'eut_confirm_my_legacy_account',
             'confirmLegacy',
-            'role !== legacyRole',
+            'Técnico com regras atuais',
+            'Cliente com regras atuais',
             'Confirmo meus dados',
             'Verificando seu cadastro anterior',
           ]) {
