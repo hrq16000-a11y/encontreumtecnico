@@ -9,6 +9,8 @@ on:
       - 'src/routes/area-tecnico.tsx'
       - 'src/components/technician-private-contact.tsx'
       - 'src/components/request-list.tsx'
+      - 'docs/sql/eut-contact-purchase-preparation.sql'
+      - 'docs/checkout-contact-activation.md'
       - '.github/workflows/eut-paid-contact-privacy.yml'
 
 permissions:
@@ -60,6 +62,18 @@ jobs:
             throw Error('Client may believe the request was sent to technician');
           if(quote.includes('.select("phone")') || quote.includes('service_role'))
             throw Error('Quote page must not expose contact or use privileged keys');
+          const stagedSql=read('docs/sql/eut-contact-purchase-preparation.sql');
+          const activation=read('docs/checkout-contact-activation.md');
+          for(const term of [
+            'eut_contact_purchase_intents', 'eut_prepare_contact_purchase',
+            "interval '15 minutes'", 'pg_advisory_xact_lock',
+            'v_entitlements+v_active_orders>=2', "'confirmed client session required'",
+            "'payment_available',false", "'contact_released',false"
+          ]) if(!stagedSql.includes(term))throw Error('Payment staging guard absent: '+term);
+          if(!activation.includes('NÃO cobra') || !activation.includes('webhook') ||
+            !activation.includes('sem transação')) {
+            throw Error('Activation checklist could misrepresent a paid transaction');
+          }
           const privateUi=read('src/components/technician-private-contact.tsx');
           for(const term of [
             'eut_my_private_contact',
@@ -111,7 +125,8 @@ jobs:
             ['eut_my_private_contact',{}],
             ['eut_save_my_private_contact',{_phone:'+5541999999999',_allow_paid_contact:true}],
             ['eut_remove_my_private_contact',{}],
-            ['eut_reveal_paid_technician_contact',{_technician_id:'00000000-0000-4000-8000-000000000000'}]
+            ['eut_reveal_paid_technician_contact',{_technician_id:'00000000-0000-4000-8000-000000000000'}],
+            ['eut_prepare_contact_purchase',{_technician_id:'00000000-0000-4000-8000-000000000000'}]
           ]) {
             const denied=await fetch(url+'/rest/v1/rpc/'+fn,{
               method:'POST', headers:{apikey:key,'Content-Type':'application/json'},
