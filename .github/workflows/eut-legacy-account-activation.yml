@@ -7,7 +7,9 @@ on:
       - 'src/routes/area-cliente.tsx'
       - 'src/routes/area-tecnico.tsx'
       - 'src/components/legacy-profile-import.tsx'
+      - 'src/components/legacy-account-isolation.test.tsx'
       - '.github/workflows/eut-legacy-account-activation.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -25,8 +27,12 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - name: Install dependencies from lockfile
         run: bun install --frozen-lockfile
+      - name: Test isolation when user account changes
+        run: bunx vitest run src/components/legacy-account-isolation.test.tsx
       - name: Build TanStack Start
         run: bun run build
+      - name: TypeScript after build
+        run: bunx tsc --noEmit --pretty false
       - name: Validate account-linking guardrails
         run: |
           node --input-type=module <<'NODE'

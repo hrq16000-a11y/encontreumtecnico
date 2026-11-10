@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +21,10 @@ export function LegacyAccountActivation({
   userId, role,
 }: { userId: string; role: "tecnico" | "cliente" }) {
   const [record, setRecord] = useState<LegacyAccount | null>(null);
+  const [loadedOwnerId, setLoadedOwnerId] = useState<string | null>(null);
+  // Synchronous render guard: never show another account's private legacy match.
+  const activeOwnerId = useRef(userId);
+  activeOwnerId.current = userId;
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -28,24 +32,37 @@ export function LegacyAccountActivation({
   useEffect(() => {
     let mounted = true;
     setLoading(true);
+    setRecord(null);
+    setLoadedOwnerId(null);
+    setFeedback(null);
+    setBusy(false);
     void Promise.resolve(db.rpc("eut_my_legacy_account")).then(({ data, error }) => {
-      if (!mounted) return;
+      if (!mounted || activeOwnerId.current !== userId) return;
       if (!error && Array.isArray(data)) {
         setRecord((data[0] as LegacyAccount | undefined) ?? null);
       } else {
         setRecord(null);
       }
+      setLoadedOwnerId(userId);
       setLoading(false);
-    }).catch(() => { if (mounted) setLoading(false); });
+    }).catch(() => {
+      if (!mounted || activeOwnerId.current !== userId) return;
+      setRecord(null);
+      setLoadedOwnerId(userId);
+      setLoading(false);
+    });
     return () => { mounted = false; };
   }, [userId]);
 
   async function linkAccount() {
-    if (busy || !record || record.intended_type !== role) return;
+    if (busy || !record || loadedOwnerId !== userId ||
+        activeOwnerId.current !== userId || record.intended_type !== role) return;
+    const requestedOwnerId = userId;
     setBusy(true);
     setFeedback(null);
     try {
       const { data, error } = await db.rpc("eut_confirm_my_legacy_account");
+      if (activeOwnerId.current !== requestedOwnerId) return;
       if (error) {
         setFeedback("Não foi possível verificar o vínculo. Confira a confirmação do e-mail ou solicite revisão pelo suporte.");
       } else if (data?.state === "vinculada") {
@@ -57,13 +74,15 @@ export function LegacyAccountActivation({
         setFeedback("Não encontramos uma correspondência segura. Confira o e-mail utilizado.");
       }
     } catch {
-      setFeedback("Não foi possível concluir agora. Tente novamente.");
+      if (activeOwnerId.current === requestedOwnerId) {
+        setFeedback("Não foi possível concluir agora. Tente novamente.");
+      }
     } finally {
-      setBusy(false);
+      if (activeOwnerId.current === requestedOwnerId) setBusy(false);
     }
   }
 
-  if (loading || !record) return null;
+  if (loading || loadedOwnerId !== userId || !record) return null;
 
   const sameRole = record.intended_type === role;
   return (
