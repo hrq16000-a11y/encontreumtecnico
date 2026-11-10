@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeWpPostId, normalizeClaimantNote, normalizeVerificationNote } from "./legacy-claim-validation";
+import { legacyClaimReturnPath, safeLegacyClaimReturnPath, normalizeWpPostId, normalizeClaimantNote, normalizeVerificationNote } from "./legacy-claim-validation";
 
 describe("reivindicação de cadastro histórico", () => {
   it("aceita só IDs WordPress positivos seguros", () => {
@@ -16,5 +16,14 @@ describe("reivindicação de cadastro histórico", () => {
     expect(normalizeVerificationNote("confirmado")).toBeNull();
     expect(normalizeVerificationNote("Verificação de titularidade por canal independente.")).not.toBeNull();
     expect(normalizeVerificationNote("x".repeat(601))).toBeNull();
+  });
+  it("retoma um cadastro após login sem permitir redirects externos", () => {
+    expect(legacyClaimReturnPath(" 1234 ")).toBe("/reivindicar-cadastro?wp=1234");
+    expect(legacyClaimReturnPath("0")).toBe("/reivindicar-cadastro");
+    expect(safeLegacyClaimReturnPath("/reivindicar-cadastro?wp=1234")).toBe("/reivindicar-cadastro?wp=1234");
+    expect(safeLegacyClaimReturnPath("/reivindicar-cadastro")).toBe("/reivindicar-cadastro");
+    for (const value of [null, "https://example.com", "//example.com", "/reivindicar-cadastro?wp=1&next=//evil.com", "/reivindicar-cadastro?wp=0001", "/reivindicar-cadastro?wp=0", "/reivindicar-cadastro/anything"]) {
+      expect(safeLegacyClaimReturnPath(value)).toBeNull();
+    }
   });
 });
