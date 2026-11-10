@@ -41,6 +41,11 @@ const labels: Record<ClaimSummary["status"], string> = {
 function LegacyClaimPage() {
   const { user, roles, loading } = useAuth();
   const [reference, setReference] = useState("");
+  // O ID da URL apenas preenche o formulário; nunca comprova titularidade.
+  useEffect(() => {
+    const wpId = normalizeWpPostId(new URLSearchParams(window.location.search).get("wp") ?? "");
+    if (wpId) setReference(String(wpId));
+  }, []);
   const [note, setNote] = useState("");
   const [rows, setRows] = useState<ClaimSummary[]>([]);
   const [saving, setSaving] = useState(false);
