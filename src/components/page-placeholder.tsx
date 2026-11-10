@@ -3,6 +3,7 @@ import { SiteHeader } from "./site-header";
 import { SiteFooter } from "./site-footer";
 import { CookieNotice } from "./cookie-notice";
 import { BackToTop } from "./back-to-top";
+import { FreeSearchHelp } from "./free-search-help";
 
 export const LP2EmbeddedContext = createContext(false);
 
@@ -15,6 +16,7 @@ export function PageShell({ children }: { children: ReactNode }) {
       <main id="conteudo-principal" tabIndex={-1} className="flex-1">{children}</main>
       <SiteFooter />
       <CookieNotice />
+      <FreeSearchHelp />
       <BackToTop />
     </div>
   );
