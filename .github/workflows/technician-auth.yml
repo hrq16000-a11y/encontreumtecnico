@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'src/routes/entrar.tsx'
+      - 'src/hooks/use-auth.tsx'
       - 'src/routes/redefinir-senha.tsx'
       - 'src/routes/reivindicar-cadastro.tsx'
       - 'src/routes/area-tecnico.tsx'
@@ -29,6 +30,19 @@ jobs:
           node --input-type=module <<'NODE'
           import { readFileSync } from 'node:fs';
           const signin = readFileSync('src/routes/entrar.tsx','utf8');
+          const auth = readFileSync('src/hooks/use-auth.tsx','utf8');
+          for (const v of [
+            'await supabase.auth.getUser()',
+            'onAuthStateChange',
+            'queueMicrotask(',
+            'generation',
+            'rolesError',
+          ]) {
+            if (!auth.includes(v)) throw Error('Session ordering / stale query protection missing: '+v);
+          }
+          if (!signin.includes('Recarregar minha área') || !signin.includes('params.has("error")')) {
+            throw Error('OAuth error and failed role recovery UI missing');
+          }
           const reset = readFileSync('src/routes/redefinir-senha.tsx','utf8');
           for (const s of ['signInWithPassword','signUp','resetPasswordForEmail','Esqueci minha senha']) {
             if (!signin.includes(s)) throw Error('Missing login flow: '+s);
