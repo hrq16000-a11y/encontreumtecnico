@@ -47,7 +47,7 @@ jobs:
             'placements_disallow_sensitive_lp_routes',
           ]) if (!sql.includes(term)) throw Error('Missing secure admin RPC control: '+term);
           for (const term of [
-            "REVOKE", "ROLLBACK", "Anonymous snapshot permitted",
+            "has_function_privilege", "has_schema_privilege", "ROLLBACK", "Anonymous snapshot permitted",
             "Non-admin could write ads", "R3 campaign activation allowed",
             "Missing admin write audit events", "Campaign could not be paused",
           ]) if (!test.includes(term)) throw Error('Missing rollback security test: '+term);
