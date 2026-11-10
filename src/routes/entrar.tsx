@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { PageShell } from "../components/page-placeholder";
 import { signInWithGoogle, useAuth, type Role } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
+import { safeLegacyClaimReturnPath } from "@/lib/legacy-claim-validation";
 
 export const Route = createFileRoute("/entrar")({
   head: () => ({
@@ -213,7 +214,8 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
 
   async function google() {
     setError(null);
-    const { error } = await signInWithGoogle(lp2 ? "/lp2/entrar" : "/entrar");
+    const pendingClaim = safeLegacyClaimReturnPath(sessionStorage.getItem("eut-after-login"));
+    const { error } = await signInWithGoogle(pendingClaim ?? (lp2 ? "/lp2/entrar" : "/entrar"));
     if (error) setError("Não foi possível iniciar o login com Google. Tente novamente.");
   }
 
