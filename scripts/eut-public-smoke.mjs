@@ -16,6 +16,7 @@ const routes = [
   ["/area-tecnico", 200], ["/area-cliente", 200],
   ["/reivindicar-cadastro", 200], ["/sitemap.xml", 200],
   ["/rota-inexistente-eut-cutover-check-404", 404],
+  ["/tecnicos/00000000-0000-0000-0000-000000000000", 404],
 ];
 const findings = [];
 async function probe(path, expected) {
