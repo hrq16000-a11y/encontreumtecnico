@@ -117,7 +117,7 @@ export function PublicTechnicianProfile({ technician: t }: { technician: PublicT
                 </div>
               </div>
               <p className="mt-4 text-sm text-foreground">
-                <strong>Cidade-base:</strong> {t.city}{t.state_uf ? "/" + t.state_uf : ""}
+                <strong>Cidade-base:</strong> {t.city}{t.state_uf ? " · " + t.state_uf : ""}
               </p>
               {t.service_radius_km != null && (
                 <p className="mt-3 rounded-xl bg-accent/60 p-3 text-sm font-semibold text-foreground">
