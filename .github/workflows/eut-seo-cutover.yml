@@ -16,6 +16,7 @@ on:
       - 'src/lib/technician-id.ts'
       - 'src/lib/technician-id.test.ts'
       - 'src/lib/technicians.functions.ts'
+      - 'src/lib/technicians.functions.test.ts'
       - 'scripts/eut-public-smoke.mjs'
       - 'public/robots.txt'
       - '.github/workflows/eut-seo-cutover.yml'
@@ -38,7 +39,7 @@ jobs:
       - name: Install dependencies (locked)
         run: bun install --frozen-lockfile
       - name: SEO regression tests
-        run: bunx vitest run src/lib/seo-public-pages.test.ts src/lib/technician-id.test.ts
+        run: bunx vitest run src/lib/seo-public-pages.test.ts src/lib/technician-id.test.ts src/lib/technicians.functions.test.ts
       - name: Build TanStack
         run: bun run build
       - name: TypeScript check
