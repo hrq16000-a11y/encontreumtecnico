@@ -148,6 +148,20 @@ export function TechnicianMissions({ userId }: { userId: string }) {
               </p>
             </div>
           </div>
+          <div className="mt-5 rounded-lg border border-primary/20 bg-primary/5 p-4">
+            <h3 className="text-sm font-semibold text-foreground">Recompensa: destaque na busca</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Após duas indicações de técnicos que publicarem seus próprios perfis,
+              seu cadastro recebe o selo Destaque por indicações e prioridade apenas
+              entre profissionais da mesma região e disponibilidade. Serviço compatível
+              e localização vêm primeiro. Não existe bônus financeiro.
+            </p>
+            <p className="mt-2 text-sm font-semibold text-foreground">
+              {dashboard.invited_public_profiles >= 2
+                ? "Destaque habilitado para perfil publicado."
+                : `Progresso: ${dashboard.invited_public_profiles} de 2 perfis indicados e publicados.`}
+            </p>
+          </div>
           <div className="mt-5 rounded-lg border border-border p-4">
             <h3 className="text-sm font-semibold text-foreground">Seu link exclusivo de indicação</h3>
             <p className="mt-1 text-xs text-muted-foreground">
