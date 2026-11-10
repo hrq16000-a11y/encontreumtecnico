@@ -124,8 +124,8 @@ function rowLabel(tab: Tab, row: Row, all: Snapshot): string {
   if (tab === "sponsors") return text(row["brand_name"]);
   if (tab === "placements") return text(row["position_label"]);
   if (tab === "campaigns" || tab === "creatives") return text(row["title"]);
-  return text(all.campaigns.find(c => c["id"] === row["campaign_id"])?.title) +
-    " · " + text(all.placements.find(p => p["id"] === row["placement_id"])?.slot_key);
+  return text(all.campaigns.find(c => c["id"] === row["campaign_id"])?.["title"]) +
+    " · " + text(all.placements.find(p => p["id"] === row["placement_id"])?.["slot_key"]);
 }
 function rowStatus(tab: Tab, row: Row): string {
   if (tab === "sponsors" || tab === "campaigns") return text(row["status"]);
@@ -180,7 +180,7 @@ export function AdminAdvertisingManager() {
       else if (f.type === "datetime-local") edited[f.key] = toLocal(row[f.key]);
       else edited[f.key] = text(row[f.key]);
     }
-    edited.media_storage_key = text(row["media_storage_key"]);
+    edited["media_storage_key"] = text(row["media_storage_key"]);
     setDraft(edited); setImage(null); setError(""); setNotice("");
   }
 
