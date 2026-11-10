@@ -5,6 +5,7 @@ on:
       - 'src/routes/entrar.tsx'
       - 'src/lib/onboarding-legacy-fallback.ts'
       - 'src/lib/onboarding-legacy-fallback.test.ts'
+      - 'scripts/eut-wordpress-runtime-boundary.mjs'
       - 'src/hooks/use-auth.tsx'
       - 'src/routes/redefinir-senha.tsx'
       - 'src/routes/reivindicar-cadastro.tsx'
@@ -29,6 +30,8 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - name: Locked dependencies
         run: bun install --frozen-lockfile
+      - name: Prove no live WordPress hosting dependency in modern UI
+        run: node scripts/eut-wordpress-runtime-boundary.mjs
       - name: TanStack production build
         run: bun run build
       - name: TypeScript check
