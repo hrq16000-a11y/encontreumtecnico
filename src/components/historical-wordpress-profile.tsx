@@ -44,7 +44,7 @@ export function HistoricalWordPressProfile({
             {kind === "candidate" && (
               <p className="mt-5 text-sm text-foreground">
                 Este cadastro é seu?{" "}
-                <Link to="/reivindicar-cadastro" search={{ wp: String(reference.wp_post_id) }} className="font-medium text-primary underline">
+                <Link to="/reivindicar-cadastro" search={{ wp: reference.wp_post_id }} className="font-medium text-primary underline">
                   Solicite a associação com sua nova conta
                 </Link>.
               </p>

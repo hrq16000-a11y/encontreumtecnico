@@ -4,8 +4,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ to, search, children }: { to: string; search?: { wp?: string }; children: ReactNode }) => (
-    <a href={to + (search?.wp ? "?wp=" + encodeURIComponent(search.wp) : "")}>{children}</a>
+  Link: ({ to, search, children }: { to: string; search?: { wp?: number }; children: ReactNode }) => (
+    <a href={to + (search?.wp ? "?wp=" + encodeURIComponent(JSON.stringify(search.wp)) : "")}>{children}</a>
   ),
 }));
 vi.mock("@/components/page-placeholder", () => ({
@@ -13,6 +13,7 @@ vi.mock("@/components/page-placeholder", () => ({
 }));
 
 import { HistoricalWordPressProfile } from "./historical-wordpress-profile";
+import { normalizeWpPostId } from "@/lib/legacy-claim-validation";
 
 const candidate = {
   kind: "candidate" as const,
@@ -29,6 +30,8 @@ describe("recuperação iniciada por página histórica", () => {
     render(<HistoricalWordPressProfile kind="candidate" reference={candidate} />);
     const link = screen.getByRole("link", { name: /Solicite a associação com sua nova conta/i });
     expect(link.getAttribute("href")).toBe("/reivindicar-cadastro?wp=4415");
+    const actualId = new URL(link.getAttribute("href")!, "https://example.test").searchParams.get("wp");
+    expect(normalizeWpPostId(actualId ?? "")).toBe(4415);
     expect(screen.getByText(/O contato não está habilitado/)).toBeTruthy();
   });
 
