@@ -1,7 +1,7 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound, redirect } from "@tanstack/react-router";
 import { PageShell } from "../components/page-placeholder";
 import { getApprovedTechnician } from "../lib/technicians.functions";
-import { isValidTechnicianId } from "@/lib/technician-id";
+import { isValidTechnicianId, isValidTechnicianSlug } from "@/lib/technician-id";
 import { categoryLabel, useActiveCategories } from "@/hooks/use-active-categories";
 import { useActiveServices, serviceLabel } from "@/hooks/use-active-services";
 
@@ -9,9 +9,14 @@ export const Route = createFileRoute("/tecnicos/$tecnicoId")({
   // A published profile that does not exist must return a genuine HTTP 404,
   // not a content-filled HTTP 200 (soft 404). A database failure remains 500.
   loader: async ({ params }) => {
-    if (!isValidTechnicianId(params.tecnicoId)) throw notFound();
+    const isLegacyUuid = isValidTechnicianId(params.tecnicoId);
+    if (!isLegacyUuid && !isValidTechnicianSlug(params.tecnicoId)) throw notFound();
     const technician = await getApprovedTechnician({ data: { id: params.tecnicoId } });
     if (!technician) throw notFound();
+    // Old UUID shares remain valid, but never compete with the readable canonical.
+    if (isLegacyUuid) throw redirect({
+      to: "/tecnicos/$tecnicoId", params: { tecnicoId: technician.public_slug }, statusCode: 301,
+    });
     return technician;
   },
   head: ({ loaderData, params }) => {
@@ -20,6 +25,7 @@ export const Route = createFileRoute("/tecnicos/$tecnicoId")({
     const desc = name
       ? `${name}: ${loaderData.specialties.join(", ")} em ${loaderData.city}.`
       : "Perfil público do técnico, especialidades e regiões atendidas.";
+    const canonical = `https://www.encontreumtecnico.com/tecnicos/${loaderData?.public_slug ?? params.tecnicoId}`;
     return {
       meta: [
         { title },
@@ -27,11 +33,11 @@ export const Route = createFileRoute("/tecnicos/$tecnicoId")({
         { property: "og:title", content: title },
         { property: "og:description", content: desc },
         { property: "og:type", content: "profile" },
-        { name: "twitter:card", content: "summary" },
-        { property: "og:url", content: `https://www.encontreumtecnico.com/tecnicos/${params.tecnicoId}` },
+        { name: "twitter:card", content: "summary_large_image" },
+        { property: "og:url", content: canonical },
         ...(!loaderData ? [{ name: "robots", content: "noindex, nofollow" }] : []),
       ],
-      links: [{ rel: "canonical", href: `https://www.encontreumtecnico.com/tecnicos/${params.tecnicoId}` }],
+      links: [{ rel: "canonical", href: canonical }],
     };
   },
   component: TechnicianProfilePage,
