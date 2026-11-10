@@ -105,7 +105,7 @@ function EmailPasswordForm({ onError }: { onError: (m: string | null) => void })
 }
 
 function SignInPage() {
-  const { user, roles, loading, refreshRoles } = useAuth();
+  const { user, roles, loading, rolesError, refreshRoles } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -118,6 +118,18 @@ function SignInPage() {
   const [legacyName, setLegacyName] = useState<string | null>(null);
   const [legacyProfileCount, setLegacyProfileCount] = useState(0);
   const roleKey = roles.join(",");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("error") || params.has("error_code")) {
+      setError("O login com Google não foi concluído. Nenhuma conta antiga foi alterada. Tente entrar novamente.");
+      // An OAuth error is not a session; remove only error parameters,
+      // never provider tokens or session state.
+      for (const key of ["error", "error_code", "error_description"]) params.delete(key);
+      const query = params.toString();
+      window.history.replaceState(window.history.state, "", window.location.pathname + (query ? "?" + query : ""));
+    }
+  }, []);
 
   useEffect(() => {
     if (loading || !user || roles.length > 0) { setCanRecoverAdmin(false); return; }
@@ -296,7 +308,16 @@ function SignInPage() {
           <>
             <h1 className="text-2xl font-bold tracking-tight text-foreground">Como você vai usar o portal?</h1>
             <p className="mt-2 text-sm text-muted-foreground">Escolha uma vez; isso define sua área.</p>
-            {!legacyChecked && !legacyLookupError && <p className="mt-4 text-sm text-muted-foreground">Verificando seu cadastro anterior…</p>}
+            {rolesError && (
+              <div role="alert" className="mt-4 rounded-md border border-destructive/40 bg-muted/40 p-4 text-left">
+                <p className="text-sm text-foreground">Não conseguimos carregar suas permissões. Seu cadastro não foi alterado.</p>
+                <button type="button" onClick={() => void refreshRoles()}
+                  className="mt-3 min-h-10 rounded-md border border-primary px-3 text-sm font-semibold text-primary">
+                  Recarregar minha área
+                </button>
+              </div>
+            )}
+            {!rolesError && !legacyChecked && !legacyLookupError && <p className="mt-4 text-sm text-muted-foreground">Verificando seu cadastro anterior…</p>}
             {legacyLookupError && (
               <div role="alert" className="mt-4 rounded-md border border-destructive/40 bg-muted/40 p-4 text-left">
                 <p className="text-sm text-foreground">
@@ -318,17 +339,17 @@ function SignInPage() {
             </label>
             <div className="mt-5 grid w-full gap-3">
               {legacyRole ? (
-                <button type="button" disabled={busy || !termsAccepted || !legacyChecked}
+                <button type="button" disabled={busy || !termsAccepted || !legacyChecked || rolesError}
                   onClick={() => void confirmLegacy()}
                   className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60">
                   {busy ? "Associando cadastro anterior…" : "Confirmo meus dados — recuperar conta e perfis"}
                 </button>
               ) : (
                 <>
-                  <button disabled={busy || !legacyChecked || !termsAccepted} onClick={() => choose("tecnico")} className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
+                  <button disabled={busy || !legacyChecked || !termsAccepted || rolesError} onClick={() => choose("tecnico")} className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
                     Sou técnico — quero oferecer serviços
                   </button>
-                  <button disabled={busy || !legacyChecked || !termsAccepted} onClick={() => choose("cliente")} className="min-h-11 rounded-md border border-input px-4 py-2.5 text-sm font-medium text-foreground disabled:opacity-60">
+                  <button disabled={busy || !legacyChecked || !termsAccepted || rolesError} onClick={() => choose("cliente")} className="min-h-11 rounded-md border border-input px-4 py-2.5 text-sm font-medium text-foreground disabled:opacity-60">
                     Sou cliente — quero contratar
                   </button>
                 </>
