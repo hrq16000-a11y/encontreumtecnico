@@ -85,7 +85,11 @@ describe("SEO global do Encontre um Técnico", () => {
   it("retorna notFound para perfil inexistente sem esconder erro do banco", () => {
     const profile = read("src/routes/tecnicos.$tecnicoId.tsx");
     const query = read("src/lib/technicians.functions.ts");
-    expect(profile).toContain('if (!isValidTechnicianId(params.tecnicoId)) throw notFound()');
+    expect(profile).toContain('if (!isLegacyUuid && !isValidTechnicianSlug(params.tecnicoId)) throw notFound()');
+    expect(profile).toContain('statusCode: 301');
+    expect(profile).toContain('technician.public_slug');
+    expect(profile).toContain('loaderData?.public_slug');
+    expect(read("src/routes/tecnicos.index.tsx")).toContain("params={{ tecnicoId: t.public_slug }}");
     expect(profile).toContain('if (!technician) throw notFound()');
     expect(query).toContain('if (error) {');
     expect(query).toContain('throw new Error("Não foi possível consultar o perfil do técnico.")');
