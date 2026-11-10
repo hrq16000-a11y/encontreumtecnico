@@ -52,7 +52,7 @@ function TechnicianProfilePage() {
     <PageShell>
       <section className="mx-auto max-w-3xl px-4 py-10">
         <Link to="/tecnicos" className="text-sm text-primary hover:underline">← Voltar para técnicos</Link>
-          <div className="mt-4 rounded-lg border border-border bg-card p-6">
+          <div className="mt-4 rounded-2xl border border-border bg-card p-6 shadow-soft sm:p-8">
             <h1 className="text-2xl font-bold tracking-tight text-card-foreground">{t.display_name}</h1>
             {t.referral_highlight && <p className="mt-2 inline-flex rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">Destaque por indicações · profissionais convidados com perfis públicos</p>}
             {t.pioneer_bronze && <p className="mt-2 inline-flex rounded-full border border-amber-700/30 bg-amber-800/10 px-3 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300">Pioneiro Bronze · registro histórico confirmado</p>}
@@ -77,11 +77,11 @@ function TechnicianProfilePage() {
             )}
             {t.bio && <p className="mt-4 whitespace-pre-line text-sm text-foreground">{t.bio}</p>}
             <Link to="/area-cliente" search={{ tecnico: t.id }}
-              className="mt-6 mr-3 inline-flex min-h-11 items-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground">
+              className="mt-6 mr-3 inline-flex min-h-11 items-center rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
               Descrever problema para este técnico
             </Link>
             <Link to="/acesso-contato/$tecnicoId" params={{ tecnicoId: t.id }}
-              className="mt-6 inline-flex min-h-11 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">
+              className="mt-4 inline-flex min-h-11 items-center rounded-lg border border-input bg-background px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
               Ver condições de acesso ao contato
             </Link>
             <p className="mt-3 text-xs text-muted-foreground">
