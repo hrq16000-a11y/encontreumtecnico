@@ -28,6 +28,26 @@ describe("projeção segura de anúncios patrocinados", () => {
     expect(asApprovedSponsoredCard({ ...approved, brand_name: " " }, "home.content_1")).toBeNull();
     expect(asApprovedSponsoredCard({ ...approved, headline: "X".repeat(151) }, "home.content_1")).toBeNull();
   });
+  it("aceita imagens somente com caminho público aprovado e alt seguro", () => {
+    const image = {
+      ...approved,
+      creative_type: "image",
+      public_media_key: "approved/12345678-1234-1234-1234-123456789abc/abcdefab-1234-1234-1234-abcdefabcdef.webp",
+      image_alt: "Câmera de segurança instalada na fachada",
+    };
+    expect(asApprovedSponsoredCard(image, "home.content_1")).toEqual(image);
+    for (const key of [
+      "ads/private.webp",
+      "../private.webp",
+      "approved/invalid/asset.webp",
+      "https://attacker.example/photo.webp",
+    ]) {
+      expect(asApprovedSponsoredCard({ ...image, public_media_key: key }, "home.content_1")).toBeNull();
+    }
+    expect(asApprovedSponsoredCard({ ...image, image_alt: "x" }, "home.content_1")).toBeNull();
+    expect(asApprovedSponsoredCard({ ...image, image_alt: "x".repeat(241) }, "home.content_1")).toBeNull();
+    expect(asApprovedSponsoredCard({ ...image, creative_type: "video" }, "home.content_1")).toBeNull();
+  });
   it("a projeção para a UI omite quaisquer chaves privadas não esperadas", () => {
     const payload = {
       ...approved,
