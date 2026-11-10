@@ -5,6 +5,7 @@ on:
     paths:
       - 'src/routes/entrar.tsx'
       - 'src/hooks/use-auth.tsx'
+      - 'src/hooks/use-auth.test.tsx'
       - 'docs/sql/eut-project-owner-bootstrap.sql'
       - '.github/workflows/eut-auth-preflight.yml'
   workflow_dispatch:
@@ -19,9 +20,17 @@ concurrency:
 jobs:
   readiness:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 13
     steps:
       - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Test live-auth hook against account switching, signout and stale roles
+        run: bun run test src/hooks/use-auth.test.tsx src/lib/account-scoped-queries.test.ts
+      - name: Build app and generate TanStack route tree
+        run: bun run build
+      - name: TypeScript after TanStack route generation
+        run: bunx tsc --noEmit --pretty false
       - name: Verify fail-closed WordPress lookup and existing Google login
         run: |
           node --input-type=module <<'NODE'
@@ -37,6 +46,9 @@ jobs:
             if (!ui.includes(term)) throw Error('Missing safe first-login step: '+term);
           }
           if (!auth.includes('provider: "google"')) throw Error('No Google login configured');
+          for (const guard of ['accountIdRef.current = nextId', 'setRoles([])', 'roleLookupVersion.current', 'canAcceptAccountResult']) {
+            if (!auth.includes(guard)) throw Error('Missing role isolation guard: '+guard);
+          }
           if (ui.includes('service_role')||ui.includes('auth.admin.createUser'))
             throw Error('Privileged account creation in browser');
           console.log('Confirmed-account WordPress lookup: fail closed, explicit retry, no privileged browser APIs');
