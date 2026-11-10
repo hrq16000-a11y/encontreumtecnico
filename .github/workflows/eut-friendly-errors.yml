@@ -1,0 +1,34 @@
+name: EUT friendly error pages
+
+on:
+  pull_request:
+    paths:
+      - 'src/routes/__root.tsx'
+      - 'src/components/friendly-error-state.tsx'
+      - 'src/lib/friendly-error-copy.ts'
+      - 'src/lib/error-page.ts'
+      - 'src/lib/error-page.test.ts'
+      - 'src/server.ts'
+      - '.github/workflows/eut-friendly-errors.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eut-friendly-errors-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  friendly-errors:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install dependencies (locked)
+        run: bun install --frozen-lockfile
+      - name: Test friendly errors
+        run: bun run test src/lib/error-page.test.ts
+      - name: Build TanStack application
+        run: bun run build
