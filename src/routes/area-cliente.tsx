@@ -11,6 +11,7 @@ import { useActiveCategories } from "@/hooks/use-active-categories";
 import { LegacyAccountActivation } from "@/components/legacy-account-activation";
 import { consumeTriageDraft } from "@/lib/triage-draft";
 import { clearTechnicianTarget, recallTechnicianTarget, rememberTechnicianTarget } from "@/lib/selected-technician-target";
+import { containsObviousContact } from "@/lib/private-message-validation";
 
 export const Route = createFileRoute("/area-cliente")({
   validateSearch: zodValidator(z.object({ tecnico: z.string().optional() })),
@@ -31,6 +32,8 @@ export const Route = createFileRoute("/area-cliente")({
 const input = "mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-base text-foreground focus-visible:ring-2 focus-visible:ring-ring";
 const directDb = supabase as unknown as SupabaseClient;
 
+type DirectReply = { request_id: string; body: string; created_at: string };
+
 function CanonicalClientAreaPage() {
   const { tecnico } = Route.useSearch();
   return <ClientAreaPage tecnico={tecnico} />;
@@ -48,6 +51,8 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
   const [technicianTarget, setTechnicianTarget] = useState<string | null>(tecnico ?? null);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [sharedIds, setSharedIds] = useState<Set<string>>(new Set());
+  const [replyByRequest, setReplyByRequest] = useState<Record<string, DirectReply>>({});
+  const [replyLoadError, setReplyLoadError] = useState(false);
 
   useEffect(() => {
     // Keep the selected public UUID across a Google/email login redirect.
@@ -84,6 +89,20 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
     const shares = await directDb.from("eut_direct_request_consents")
       .select("request_id").eq("client_id", user.id);
     if (!shares.error) setSharedIds(new Set((shares.data ?? []).map((entry: { request_id: string }) => entry.request_id)));
+    setReplyLoadError(false);
+    const requestIds = (data ?? []).map((request) => request.id);
+    if (!requestIds.length) {
+      setReplyByRequest({});
+      return;
+    }
+    const replies = await directDb.from("eut_direct_request_replies")
+      .select("request_id,body,created_at").in("request_id", requestIds);
+    if (replies.error) {
+      setReplyLoadError(true);
+      setReplyByRequest({});
+    } else {
+      setReplyByRequest(Object.fromEntries(((replies.data ?? []) as DirectReply[]).map((item) => [item.request_id, item])));
+    }
   }
   useEffect(() => { load(); }, [user]);
 
@@ -95,6 +114,10 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
     }
     setSaving(true);
     setMsg(null);
+    if (shareNow && technicianTarget && containsObviousContact(`${form.title} ${form.description} ${form.city} ${form.region}`)) {
+      setSaving(false);
+      return setMsg("Remova telefone, e-mail, links e endereço completo antes de compartilhar. Nenhum técnico recebeu seus dados.");
+    }
     const requestId = crypto.randomUUID();
     const { error } = await supabase.from("service_requests").insert({
       id: requestId,
@@ -132,6 +155,11 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
     setSendingId(id);
     setMsg(null);
     try {
+      const request = rows?.find((entry) => entry.id === id);
+      if (request && containsObviousContact(`${request.title} ${request.description} ${request.city} ${request.region ?? ""}`)) {
+        setMsg("Antes de compartilhar, retire telefone, e-mail, links e endereço completo. O pedido permanece privado.");
+        return;
+      }
       const { data, error } = await directDb.rpc("eut_share_direct_request", { _request_id: id });
       setMsg(error || data?.status !== "enviado"
         ? "Não foi possível compartilhar. Confira o perfil escolhido ou tente novamente."
@@ -217,7 +245,20 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
               {msg && <p role="status" className="text-sm text-foreground">{msg}</p>}
             </form>
 
-            <h2 className="mt-10 text-lg font-semibold text-foreground">Meus registros privados</h2>
+            <div className="mt-10 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold text-foreground">Meus pedidos e respostas</h2>
+              <button type="button" onClick={() => void load()}
+                className="min-h-10 rounded-md border border-input px-3 text-sm text-foreground">
+                Atualizar respostas
+              </button>
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              A resposta do profissional aparece aqui depois que ele a registra.
+              Esta área não libera números nem confirma contratação.
+            </p>
+            {replyLoadError && <p role="alert" className="mt-2 text-sm text-destructive">
+              Não foi possível atualizar as respostas. Tente novamente.
+            </p>}
             {rows === null ? (
               <p className="mt-3 text-sm text-muted-foreground">Carregando…</p>
             ) : rows.length === 0 ? (
@@ -225,9 +266,11 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
             ) : (
               <ul className="mt-3 grid gap-3">
                 {rows.map((r) => (
-                  <RequestCard key={r.id} r={r}>
+                  <RequestCard key={r.id} r={r} shared={sharedIds.has(r.id)}>
                     {sharedIds.has(r.id) ? (
-                      <span className="text-xs font-semibold text-primary">Enviado ao técnico selecionado</span>
+                      <span className="text-xs font-semibold text-primary">
+                        {r.status === "cancelada" ? "Compartilhamento encerrado pelo cancelamento" : "Compartilhado com o técnico selecionado"}
+                      </span>
                     ) : r.technician_id && r.status === "aberta" ? (
                       <button type="button" disabled={sendingId === r.id} onClick={() => void shareExisting(r.id)}
                         className="min-h-11 rounded-md border border-primary px-3 text-sm font-semibold text-primary disabled:opacity-60">
@@ -237,6 +280,17 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
                     {(r.status === "aberta" || r.status === "aceita") && (
                       <button onClick={() => cancel(r.id)} className="min-h-11 rounded-md border border-input px-4 text-sm text-foreground">Cancelar</button>
                     )}
+                    {replyByRequest[r.id] ? (
+                      <div className="w-full rounded-lg border border-primary/20 bg-primary/5 p-3">
+                        <p className="text-xs font-semibold text-primary">Resposta privada do técnico</p>
+                        <p className="mt-2 whitespace-pre-line break-words text-sm text-foreground">{replyByRequest[r.id].body}</p>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {new Date(replyByRequest[r.id].created_at).toLocaleDateString("pt-BR")}
+                        </p>
+                      </div>
+                    ) : sharedIds.has(r.id) && r.status === "aberta" ? (
+                      <span className="text-xs text-muted-foreground">Aguardando resposta. Atualize esta área para conferir.</span>
+                    ) : null}
                   </RequestCard>
                 ))}
               </ul>
