@@ -9,6 +9,8 @@ on:
       - 'src/routes/area-tecnico.tsx'
       - 'src/routes/area-cliente.tsx'
       - 'src/routes/tecnicos.$tecnicoId.tsx'
+      - 'src/lib/technicians.functions.ts'
+      - 'src/lib/technicians.functions.test.ts'
       - 'docs/EUT_PEDIDOS_DIRETOS_SQL_20261109.md'
       - '.github/workflows/eut-direct-requests.yml'
   workflow_dispatch:
@@ -30,6 +32,8 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Test isolation between accounts and stale queries
         run: bun run test src/lib/account-scoped-queries.test.ts
+      - name: Test public technician profile query outcomes
+        run: bunx vitest run src/lib/technicians.functions.test.ts
       - name: Verify opt-in contract and no private contacts
         run: |
           node --input-type=module <<'NODE'
