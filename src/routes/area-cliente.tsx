@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useActiveCategories } from "@/hooks/use-active-categories";
 import { LegacyAccountActivation } from "@/components/legacy-account-activation";
 import { consumeTriageDraft } from "@/lib/triage-draft";
+import { clearTechnicianTarget, recallTechnicianTarget, rememberTechnicianTarget } from "@/lib/selected-technician-target";
 
 export const Route = createFileRoute("/area-cliente")({
   validateSearch: zodValidator(z.object({ tecnico: z.string().optional() })),
@@ -44,8 +45,20 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [shareNow, setShareNow] = useState(false);
+  const [technicianTarget, setTechnicianTarget] = useState<string | null>(tecnico ?? null);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [sharedIds, setSharedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    // Keep the selected public UUID across a Google/email login redirect.
+    // Only this ID is persisted and it expires automatically after 30 min.
+    if (tecnico) {
+      const valid = rememberTechnicianTarget(tecnico);
+      setTechnicianTarget(valid ? tecnico : null);
+    } else {
+      setTechnicianTarget(recallTechnicianTarget());
+    }
+  }, [tecnico]);
 
   useEffect(() => {
     // Read only after a verified client session exists. Otherwise a login
@@ -86,7 +99,7 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
     const { error } = await supabase.from("service_requests").insert({
       id: requestId,
       client_id: user.id,
-      technician_id: tecnico ?? null,
+      technician_id: technicianTarget ?? null,
       title: form.title.trim(),
       description: form.description.trim(),
       category: form.category,
@@ -97,8 +110,8 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
       setSaving(false);
       return setMsg("Não foi possível guardar a solicitação. Tente novamente.");
     }
-    window.__lovableEvents?.track?.("project.service_requested", { category: form.category, direct_to_technician: Boolean(tecnico) });
-    if (shareNow && tecnico) {
+    window.__lovableEvents?.track?.("project.service_requested", { category: form.category, direct_to_technician: Boolean(technicianTarget) });
+    if (shareNow && technicianTarget) {
       const shared = await directDb.rpc("eut_share_direct_request", { _request_id: requestId });
       setMsg(shared.error || shared.data?.status !== "enviado"
         ? "A solicitação foi salva como privada, mas o compartilhamento não foi concluído. Você pode reenviar na lista abaixo."
@@ -108,6 +121,8 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
     }
     setSaving(false);
     setShareNow(false);
+    clearTechnicianTarget();
+    setTechnicianTarget(null);
     setForm({ ...form, title: "", description: "" });
     void load();
   }
@@ -154,11 +169,11 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
               O compartilhamento envia apenas o texto, a categoria e a região informada; não constitui contratação,
               não libera telefone ou e-mail e não realiza cobrança. Evite colocar contato ou endereço completo na descrição.
             </p>
-            {tecnico && (
+            {technicianTarget && (
               <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3 text-sm text-foreground">
                 Este profissional foi selecionado. Você pode guardar o pedido em particular ou
                 autorizar que ele visualize a descrição na sua área de técnico. Nenhum telefone é liberado.
-                {" "}<Link to="/acesso-contato/$tecnicoId" params={{ tecnicoId: tecnico }}
+                {" "}<Link to="/acesso-contato/$tecnicoId" params={{ tecnicoId: technicianTarget }}
                   className="font-semibold text-primary underline">Consultar condições de acesso ao contato</Link>
               </div>
             )}
@@ -187,7 +202,7 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
                   <input maxLength={120} className={input} value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} />
                 </label>
               </div>
-              {tecnico && (
+              {technicianTarget && (
                 <label className="flex items-start gap-2 rounded-lg border border-border p-3 text-sm text-foreground">
                   <input type="checkbox" checked={shareNow} onChange={(e) => setShareNow(e.target.checked)}
                     className="mt-1 h-4 w-4 shrink-0" />
@@ -197,7 +212,7 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
                 </label>
               )}
               <button disabled={saving || catalogLoading || Boolean(catalogError) || categories.length === 0} className="min-h-11 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-60">
-                {saving ? "Salvando…" : shareNow && tecnico ? "Salvar e enviar ao técnico escolhido" : "Guardar necessidade na minha área"}
+                {saving ? "Salvando…" : shareNow && technicianTarget ? "Salvar e enviar ao técnico escolhido" : "Guardar necessidade na minha área"}
               </button>
               {msg && <p role="status" className="text-sm text-foreground">{msg}</p>}
             </form>
