@@ -107,6 +107,12 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
                   <p className="mt-3 text-xs text-muted-foreground">
                     Cadastro histórico #{profile.wp_post_id}. Contato indisponível até a associação e ativação do titular.
                   </p>
+                  <a
+                    href={`/reivindicar-cadastro?wp=${profile.wp_post_id}`}
+                    className="mt-3 inline-flex min-h-11 items-center rounded-md border border-input px-3 py-2 text-sm font-medium text-foreground hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    Solicitar recuperação deste cadastro
+                  </a>
                 </li>
               ))}
             </ul>
