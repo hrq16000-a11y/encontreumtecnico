@@ -6,6 +6,7 @@ import { PageShell, EmptyState } from "../components/page-placeholder";
 import { SponsoredPublicSlot } from "@/components/sponsored-public-slot";
 import { useActiveCategories, categoryLabel } from "@/hooks/use-active-categories";
 import { useActiveServices, serviceLabel } from "@/hooks/use-active-services";
+import { DebouncedTextFilter } from "@/components/debounced-text-filter";
 import { BRAZIL_STATES } from "@/lib/service-taxonomy";
 import { localMatchLabel } from "@/lib/technician-local-ranking";
 import { LegacyPublicArchive } from "../components/legacy-public-archive";
@@ -130,40 +131,30 @@ function TechniciansPage() {
               {BRAZIL_STATES.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
             </select>
           </div>
-          <div>
-            <label htmlFor="filtro-cidade" className="text-xs font-medium text-muted-foreground">
-              Cidade
-            </label>
-            <input
-              id="filtro-cidade"
-              type="text"
-              value={search.cidade}
-              onChange={(e) => update({ cidade: e.target.value })}
-              onBlur={(e) => trackFilter("cidade", e.target.value)}
-              placeholder="Ex.: São Paulo"
-              className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground"
-            />
-          </div>
-          <div>
-            <label htmlFor="filtro-bairro" className="text-xs font-medium text-muted-foreground">Bairro</label>
-            <input id="filtro-bairro" type="text" value={search.bairro}
-              onChange={(e) => update({ bairro: e.target.value })} onBlur={(e) => trackFilter("bairro", e.target.value)}
-              placeholder="Ex.: Centro" className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground" />
-          </div>
-          <div>
-            <label htmlFor="filtro-regiao" className="text-xs font-medium text-muted-foreground">
-              Região
-            </label>
-            <input
-              id="filtro-regiao"
-              type="text"
-              value={search.regiao}
-              onChange={(e) => update({ regiao: e.target.value })}
-              onBlur={(e) => trackFilter("regiao", e.target.value)}
-              placeholder="Ex.: Zona Sul"
-              className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground"
-            />
-          </div>
+          <DebouncedTextFilter
+            id="filtro-cidade"
+            label="Cidade"
+            value={search.cidade}
+            placeholder="Ex.: São Paulo"
+            onCommit={(value) => update({ cidade: value })}
+            onBlurTrack={(value) => trackFilter("cidade", value)}
+          />
+          <DebouncedTextFilter
+            id="filtro-bairro"
+            label="Bairro"
+            value={search.bairro}
+            placeholder="Ex.: Centro"
+            onCommit={(value) => update({ bairro: value })}
+            onBlurTrack={(value) => trackFilter("bairro", value)}
+          />
+          <DebouncedTextFilter
+            id="filtro-regiao"
+            label="Região"
+            value={search.regiao}
+            placeholder="Ex.: Zona Sul"
+            onCommit={(value) => update({ regiao: value })}
+            onBlurTrack={(value) => trackFilter("regiao", value)}
+          />
         </div>
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 p-4">
