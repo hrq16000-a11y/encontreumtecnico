@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { legacyAvatarUrl } from "@/lib/legacy-avatar-urls";
+import { TechnicianAvatar } from "@/components/technician-avatar";
 
 type HistoricalProfile = {
   wp_post_id: number;
@@ -77,16 +78,10 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
                 <li key={profile.wp_post_id}
                   className="rounded-lg border border-border bg-card p-5">
                   <div className="flex items-start gap-3">
-                    {legacyAvatarUrl(profile.wp_post_id) ? (
-                      <img src={legacyAvatarUrl(profile.wp_post_id)!}
-                        alt={`Foto publicada anteriormente no perfil ${profile.display_name}`}
-                        loading="lazy" width={64} height={64}
-                        className="h-16 w-16 shrink-0 rounded-lg border border-border object-cover" />
-                    ) : (
-                      <div aria-hidden="true" className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-muted text-lg font-semibold text-muted-foreground">
-                        {profile.display_name.trim().slice(0,1).toLocaleUpperCase("pt-BR") || "?"}
-                      </div>
-                    )}
+                    <TechnicianAvatar
+                      name={profile.display_name}
+                      originalPhotoUrl={legacyAvatarUrl(profile.wp_post_id)}
+                    />}
                     <div className="min-w-0 flex-1">
                       <h3 className="font-semibold text-card-foreground">{profile.display_name}</h3>
                       <span className="mt-1 inline-flex rounded bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
