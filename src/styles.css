@@ -342,6 +342,8 @@ html {
 }
 [id] { scroll-margin-top: 4.5rem; }
 .eut-card-lift {
+  /* Visible separation at rest, not only when the user hovers a card. */
+  box-shadow: 0 4px 18px -12px color-mix(in oklab, var(--brand-navy) 34%, transparent);
   transition: transform 220ms cubic-bezier(.2,.7,.2,1),
               box-shadow 220ms ease, border-color 220ms ease;
 }
