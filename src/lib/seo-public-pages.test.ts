@@ -21,7 +21,12 @@ describe("SEO global do Encontre um Técnico", () => {
     ]) {
       const code = read(name);
       expect(code, name).toContain("canonical");
-      expect(code, name).toContain(uri);
+      if (name === "src/routes/index.tsx") {
+        expect(code).toContain('const SITE = "' + site + '"');
+        expect(code).toContain('href: SITE + "/"');
+      } else {
+        expect(code, name).toContain(uri);
+      }
     }
   });
 
