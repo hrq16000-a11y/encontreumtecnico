@@ -53,7 +53,7 @@ export function FriendlyErrorState({ status, onRetry }: FriendlyErrorStateProps)
           <nav aria-label="Opções para continuar" className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
             {content.actionHref ? (
               <Link to={content.actionHref} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-                <SearchX size={18} aria-hidden="true" />
+                <Symbol size={18} aria-hidden="true" />
                 {content.actionLabel}
               </Link>
             ) : (
