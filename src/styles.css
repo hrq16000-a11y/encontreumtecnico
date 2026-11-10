@@ -273,3 +273,36 @@ h1, h2, h3 { font-family: var(--font-heading); letter-spacing: -0.02em; }
 @media (prefers-reduced-motion: reduce) {
   .animate-rise, .animate-float { animation: none; }
 }
+
+
+/* Native UX recovered from the historical portal: no WordPress JS or CSS. */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 4.5rem;
+}
+[id] { scroll-margin-top: 4.5rem; }
+.eut-card-lift {
+  transition: transform 220ms cubic-bezier(.2,.7,.2,1),
+              box-shadow 220ms ease, border-color 220ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .eut-card-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-soft);
+  }
+}
+@keyframes eut-menu-drop {
+  from { opacity: 0; transform: translateY(-7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .eut-menu-enter { animation: eut-menu-drop 190ms ease-out both; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .eut-card-lift, .eut-menu-enter {
+    transition: none !important;
+    animation: none !important;
+    transform: none !important;
+  }
+}
