@@ -8,6 +8,8 @@ on:
       - 'src/lib/account-scoped-queries.test.ts'
       - 'src/lib/client-request-action.ts'
       - 'src/lib/client-request-action.test.ts'
+      - 'src/lib/client-request-wizard.ts'
+      - 'src/lib/client-request-wizard.test.ts'
       - 'docs/sql/eut-direct-flow-readiness-readonly.sql'
       - 'src/routes/area-tecnico.tsx'
       - 'src/routes/area-cliente.tsx'
@@ -33,7 +35,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: Test isolation between accounts and stale queries
-        run: bun run test src/lib/account-scoped-queries.test.ts src/lib/client-request-action.test.ts
+        run: bun run test src/lib/account-scoped-queries.test.ts src/lib/client-request-action.test.ts src/lib/client-request-wizard.test.ts
       - name: Verify opt-in contract and no private contacts
         run: |
           node --input-type=module <<'NODE'
@@ -84,5 +86,7 @@ jobs:
           }
           console.log('Opt-in direct requests and account switching safety: PASS');
           NODE
-      - name: Build TanStack
+      - name: Build TanStack and route types
         run: bun run build
+      - name: TypeScript after build
+        run: bunx tsc --noEmit --pretty false
