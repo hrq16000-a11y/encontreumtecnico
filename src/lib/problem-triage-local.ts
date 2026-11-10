@@ -64,7 +64,7 @@ export function triageLocally(description: string): LocalTriage {
       new RegExp("(^|[^a-z0-9])" + normalized(signal) + "([^a-z0-9]|$)").test(words),
     ),
   })).sort((a, b) => b.matches.length - a.matches.length || a.order - b.order);
-  const best = ranked[0];
+  const best = ranked[0] ?? { category: "Todas", matches: [] as string[] };
   const hasMatch = best.matches.length > 0;
   const location = extractDeclaredLocation(description);
   return {

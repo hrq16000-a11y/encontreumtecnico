@@ -3,7 +3,7 @@ import { TextPage, pageHead } from "../components/text-page";
 import { FAQ } from "../lib/faq";
 
 export const Route = createFileRoute("/faq")({
-  head: () => pageHead("Perguntas frequentes", "Respostas para as dúvidas mais comuns de clientes e técnicos."),
+  head: () => pageHead("Perguntas frequentes", "Respostas para as dúvidas mais comuns de clientes e técnicos.", "/faq"),
   component: () => (
     <TextPage title="Perguntas frequentes" intro="Dúvidas comuns de clientes e técnicos.">
       {FAQ.map((item) => (
