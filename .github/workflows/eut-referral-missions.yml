@@ -1,0 +1,79 @@
+name: EUT technician referral missions
+
+on:
+  pull_request:
+    paths:
+      - 'src/routes/convite.$codigo.tsx'
+      - 'src/components/technician-missions.tsx'
+      - 'src/routes/area-tecnico.tsx'
+      - '.github/workflows/eut-referral-missions.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eut-missions-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 13
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+      - name: Build TanStack production
+        run: bun run build
+      - name: TypeScript contract
+        run: bunx tsc --noEmit --pretty false
+      - name: Referral mission and privacy contract
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const src=path=>readFileSync(path,'utf8');
+          const invite=src('src/routes/convite.$codigo.tsx');
+          const mission=src('src/components/technician-missions.tsx');
+          const tech=src('src/routes/area-tecnico.tsx');
+          for (const term of ['CODE_PATTERN.test(codigo)', 'sessionStorage.setItem("eut-pending-technician-invite", codigo)', 'to: "/entrar"', 'noindex, nofollow']) {
+            if(!invite.includes(term))throw Error('Invite route missing required behavior: '+term);
+          }
+          for (const term of [
+            'eut_my_referral_dashboard', 'eut_accept_technician_invite',
+            'eut-pending-technician-invite','Confirmar convite recebido','Não aceitar',
+            'navigator.clipboard.writeText','invited_public_profiles',
+            'profile_published','online_recent','não existe bônus financeiro'
+          ]) {
+            if(!mission.includes(term))throw Error('Missions contract missing: '+term);
+          }
+          if(!tech.includes('<TechnicianMissions userId={user.id} />'))
+            throw Error('Missions are not accessible in technician area');
+          if(mission.includes('service_role') || invite.includes('service_role'))
+            throw Error('Privileged credentials used in browser');
+          if(mission.includes('rankingScore') || mission.includes('auto_approve_from_referral'))
+            throw Error('No unverified referral ranking or approval allowed');
+          console.log('Voluntary referral, confirmed attribution and mission display contract OK');
+          NODE
+      - name: Anonymous referral RPC must not disclose personal data
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          const s=readFileSync('src/integrations/supabase/client.ts','utf8');
+          const url=s.match(/const SUPABASE_URL = "([^"]+)"/)?.[1];
+          const key=s.match(/const SUPABASE_PUBLISHABLE_KEY = "([^"]+)"/)?.[1];
+          if(!url||!key)throw Error('Missing Supabase public configuration');
+          for (const [name,body] of [
+            ['eut_my_referral_dashboard',{}],
+            ['eut_accept_technician_invite',{_code:'00000000000000000000000000000000'}]
+          ]) {
+            const response=await fetch(url+'/rest/v1/rpc/'+name,{
+              method:'POST',
+              headers:{apikey:key,'Content-Type':'application/json'},
+              body:JSON.stringify(body),
+              signal:AbortSignal.timeout(12000)
+            });
+            if(response.ok)throw Error('Anonymous visitor was incorrectly permitted to call '+name);
+            console.log(name+': denied to anonymous visitor (HTTP '+response.status+')');
+          }
+          NODE
