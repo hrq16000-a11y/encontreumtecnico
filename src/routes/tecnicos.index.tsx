@@ -208,8 +208,10 @@ function TechniciansPage() {
                   <p className="mt-2 text-sm text-muted-foreground">
                     Registre sua necessidade na área do cliente. Se você já usou a triagem,
                     sua descrição poderá ser recuperada após o login.
-                    O registro é privado: não reserva serviço, não libera contatos
-                    e não envia solicitações automaticamente a profissionais.
+                    Esse registro é privado: não envia mensagens a profissionais,
+                    não reserva atendimento e não libera contatos.
+                    A solicitação só é compartilhada quando o cliente escolher
+                    um técnico e autorizar explicitamente.
                   </p>
                   <Link
                     to="/area-cliente"
