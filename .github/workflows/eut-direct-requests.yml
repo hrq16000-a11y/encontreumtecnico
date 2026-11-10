@@ -12,6 +12,7 @@ on:
       - 'src/routes/area-tecnico.tsx'
       - 'src/routes/area-cliente.tsx'
       - 'src/routes/tecnicos.$tecnicoId.tsx'
+      - 'src/components/public-technician-profile.tsx'
       - 'docs/EUT_PEDIDOS_DIRETOS_SQL_20261109.md'
       - '.github/workflows/eut-direct-requests.yml'
   workflow_dispatch:
@@ -40,7 +41,9 @@ jobs:
           const read=(s)=>readFileSync(s,'utf8');
           const client=read('src/routes/area-cliente.tsx');
           const technician=read('src/components/technician-direct-requests.tsx');
-          const profile=read('src/routes/tecnicos.$tecnicoId.tsx');
+          const profileRoute=read('src/routes/tecnicos.$tecnicoId.tsx');
+          const profile=read('src/components/public-technician-profile.tsx');
+          if(!profileRoute.includes('PublicTechnicianProfile'))throw Error('Profile route no longer renders the approved public layout');
           const sql=read('docs/EUT_PEDIDOS_DIRETOS_SQL_20261109.md');
           for(const fragment of ['shareNow','eut_share_direct_request','Autorizo compartilhar','eut_direct_request_consents']) {
             if(!client.includes(fragment)) throw Error('Missing client consent: '+fragment);

@@ -1,0 +1,27 @@
+name: EUT public technician profile premium UI gate
+on:
+  pull_request:
+    paths:
+      - 'src/routes/tecnicos.$tecnicoId.tsx'
+      - 'src/components/public-technician-profile.tsx'
+      - 'src/components/public-technician-profile.test.tsx'
+      - 'src/components/back-to-top.tsx'
+      - '.github/workflows/eut-premium-tech-profile.yml'
+permissions:
+  contents: read
+jobs:
+  technician-profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: UI behavior, factual badges, privacy
+        run: bunx vitest run src/components/public-technician-profile.test.tsx
+      - name: WordPress runtime independence
+        run: node scripts/eut-wordpress-runtime-boundary.mjs
+      - name: Generate TanStack routes and build
+        run: bun run build
+      - name: Check TypeScript with generated route types
+        run: bunx tsc --noEmit --pretty false

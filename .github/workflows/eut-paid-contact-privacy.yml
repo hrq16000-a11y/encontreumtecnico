@@ -5,6 +5,7 @@ on:
     paths:
       - 'src/routes/acesso-contato.$tecnicoId.tsx'
       - 'src/routes/tecnicos.$tecnicoId.tsx'
+      - 'src/components/public-technician-profile.tsx'
       - 'src/routes/area-cliente.tsx'
       - 'src/routes/area-tecnico.tsx'
       - 'src/components/technician-private-contact.tsx'
@@ -39,7 +40,9 @@ jobs:
           import {readFileSync} from 'node:fs';
           const read=path=>readFileSync(path,'utf8');
           const quote=read('src/routes/acesso-contato.$tecnicoId.tsx');
-          const profile=read('src/routes/tecnicos.$tecnicoId.tsx');
+          const profileRoute=read('src/routes/tecnicos.$tecnicoId.tsx');
+          const profile=read('src/components/public-technician-profile.tsx');
+          if(!profileRoute.includes('PublicTechnicianProfile'))throw Error('Profile route no longer renders the approved public layout');
           const client=read('src/routes/area-cliente.tsx');
           const tech=read('src/routes/area-tecnico.tsx');
           const history=read('src/components/request-list.tsx');
