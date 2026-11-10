@@ -50,6 +50,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "google-site-verification", content: "O-IQy-UG-3vu25luyD7srfGtD_lU8_tOTZzVbda7t9Q" },
       { title: "Encontre um Técnico" },
       { name: "description", content: "Encontre e contrate técnicos de tecnologia perto de você." },
       { property: "og:title", content: "Encontre um Técnico" },
