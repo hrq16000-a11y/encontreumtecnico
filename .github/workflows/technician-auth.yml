@@ -6,6 +6,9 @@ on:
       - 'src/hooks/use-auth.tsx'
       - 'src/routes/redefinir-senha.tsx'
       - 'src/routes/reivindicar-cadastro.tsx'
+      - 'src/lib/legacy-claim-validation.ts'
+      - 'src/lib/legacy-claim-validation.test.ts'
+      - 'src/components/legacy-public-archive.tsx'
       - 'src/routes/area-tecnico.tsx'
       - 'src/components/legacy-account-activation.tsx'
       - 'src/components/legacy-profile-import.tsx'
@@ -25,6 +28,8 @@ jobs:
         run: bun run build
       - name: TypeScript check
         run: bunx tsc --noEmit --pretty false
+      - name: Legacy claim return validation tests
+        run: bunx vitest run src/lib/legacy-claim-validation.test.ts
       - name: Verify auth route and recovery contract
         run: |
           node --input-type=module <<'NODE'
