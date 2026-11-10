@@ -96,7 +96,7 @@ describe("public technician profile lookup", () => {
     mocks.query.maybeSingle.mockResolvedValue({ data: profile, error: null });
     mocks.client.rpc.mockResolvedValue({ data: [], error: null });
     const result = await getApprovedTechnician({ data: { id } });
-    expect(result).toEqual({ ...profile, online_now: false, pioneer_bronze: false });
+    expect(result).toEqual({ ...profile, online_now: false, pioneer_bronze: false, referral_highlight: false });
     const selectedFields = String(mocks.query.select.mock.calls[0]?.[0]);
     expect(selectedFields).not.toMatch(/phone|email|contact|password/i);
   });
