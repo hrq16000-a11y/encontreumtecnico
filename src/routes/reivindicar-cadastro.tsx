@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { PageShell } from "@/components/page-placeholder";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
-import { normalizeClaimantNote, normalizeWpPostId } from "@/lib/legacy-claim-validation";
+import { legacyClaimReturnPath, normalizeClaimantNote, normalizeWpPostId } from "@/lib/legacy-claim-validation";
 
 export const Route = createFileRoute("/reivindicar-cadastro")({
   head: () => ({
@@ -139,7 +139,7 @@ function LegacyClaimPage() {
           <p className="mt-5 text-sm text-muted-foreground">Verificando sua conta…</p>
         ) : !user ? (
           <p className="mt-5 text-sm text-foreground">
-            <Link to="/entrar" className="text-primary underline">Entre com Google ou e-mail e senha</Link> para solicitar o vínculo.
+            <Link to="/entrar" onClick={() => sessionStorage.setItem("eut-after-login", legacyClaimReturnPath(reference))} className="text-primary underline">Entre com Google ou e-mail e senha</Link> para solicitar o vínculo.
           </p>
         ) : !eligibleToClaim ? (
           <p className="mt-5 text-sm text-muted-foreground">
