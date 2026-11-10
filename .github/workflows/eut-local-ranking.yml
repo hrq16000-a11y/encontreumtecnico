@@ -1,0 +1,69 @@
+name: EUT declared-region ranking
+
+on:
+  pull_request:
+    paths:
+      - 'src/lib/technician-local-ranking.ts'
+      - 'src/lib/technicians.functions.ts'
+      - 'src/routes/tecnicos.index.tsx'
+      - 'tests/technician-local-ranking.test.ts'
+      - '.github/workflows/eut-local-ranking.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eut-local-ranking-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regional-relevance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+      - name: Unit tests — declared locality first
+        run: bun test tests/technician-local-ranking.test.ts
+      - name: Build TanStack Start
+        run: bun run build
+      - name: TypeScript
+        run: bunx tsc --noEmit --pretty false
+      - name: Ranking and privacy contract
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          const r=path=>readFileSync(path,'utf8');
+          const search=r('src/lib/technicians.functions.ts');
+          const view=r('src/routes/tecnicos.index.tsx');
+          const ranking=r('src/lib/technician-local-ranking.ts');
+          for (const term of [
+            'data.prioridade === "regiao"',
+            'rankTechniciansByDeclaredArea',
+            '.eq("status", "aprovado")',
+            '.contains("service_slugs"',
+            'eut_online_published_ids',
+            'if (city && !regionalPriority)',
+            'if (bairro && !regionalPriority)'
+          ]) {
+            if (!search.includes(term)) throw Error('Regional search contract missing: '+term);
+          }
+          for (const term of [
+            'Priorizar minha região',
+            'prioridade: fallback',
+            'localMatchLabel',
+            'não é localização GPS'
+          ]) {
+            if (!view.includes(term)) throw Error('Transparent ranking UI missing: '+term);
+          }
+          if (!ranking.includes('b.locationLevel - a.locationLevel') ||
+              !ranking.includes('Number(b.technician.online_now)')) {
+            throw Error('Online must NOT outrank a nearby technician');
+          }
+          if (ranking.includes('geolocation')||ranking.includes('GPS coordinates')) {
+            throw Error('No location telemetry permitted');
+          }
+          console.log('Approved-only matching + declared location > online, no GPS claims');
+          NODE

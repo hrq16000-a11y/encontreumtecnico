@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
+import { rankTechniciansByDeclaredArea } from "@/lib/technician-local-ranking";
 
 export type PublicTechnician = {
   id: string;
@@ -72,9 +73,12 @@ const clean = (s: string) => s.replace(/[%,()*\\]/g, " ").trim().slice(0, 80);
 
 export const listApprovedTechnicians = createServerFn({ method: "GET" })
   .inputValidator((d) =>
-    z.object({ especialidade: z.string().max(80), cidade: z.string().max(80), regiao: z.string().max(80), servico: z.string().max(80).default(""), uf: z.string().max(2).default(""), bairro: z.string().max(80).default("") }).parse(d),
+    z.object({ especialidade: z.string().max(80), cidade: z.string().max(80), regiao: z.string().max(80), servico: z.string().max(80).default(""), uf: z.string().max(2).default(""), bairro: z.string().max(80).default(""), prioridade: z.string().max(12).default("") }).parse(d),
   )
   .handler(async ({ data }): Promise<PublicTechnician[]> => {
+    // "Priorizar minha região" is not a strict geography filter. It ranks
+    // among approved matching professionals so other regions remain options.
+    const regionalPriority = data.prioridade === "regiao" && Boolean(data.uf || data.cidade.trim());
     let q = publicClient()
       .from("technicians")
       .select(COLUMNS)
@@ -100,20 +104,24 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
     const uf = data.uf.toUpperCase();
     if (uf) {
       if (!/^(AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)$/.test(uf)) return [];
-      q = q.eq("state_uf", uf);
+      if (!regionalPriority) q = q.eq("state_uf", uf);
     }
     const bairro = clean(data.bairro);
-    if (bairro) q = q.ilike("neighborhood", `%${bairro}%`);
+    if (bairro && !regionalPriority) q = q.ilike("neighborhood", `%${bairro}%`);
     const city = clean(data.cidade);
-    if (city) q = q.ilike("city", `%${city}%`);
+    if (city && !regionalPriority) q = q.ilike("city", `%${city}%`);
     const region = clean(data.regiao);
-    if (region) q = q.ilike("region", `%${region}%`);
+    if (region && !regionalPriority) q = q.ilike("region", `%${region}%`);
     const { data: rows, error } = await q;
     if (error) {
       console.error("listApprovedTechnicians", error);
       throw new Error("Não foi possível carregar os técnicos.");
     }
-    return withOnlineStatus(rows ?? []);
+    const published = await withOnlineStatus(rows ?? []);
+    if (!regionalPriority) return published;
+    return rankTechniciansByDeclaredArea(published, {
+      uf, cidade: data.cidade, bairro: data.bairro,
+    });
   });
 
 export const getApprovedTechnician = createServerFn({ method: "GET" })
