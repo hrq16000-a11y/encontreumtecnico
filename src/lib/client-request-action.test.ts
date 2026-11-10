@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import { ownedRequestForAction } from "./client-request-action";
 
 const original = {
@@ -32,6 +33,16 @@ describe("ações de um cliente sobre o próprio pedido", () => {
     expect(ownedRequestForAction(rows, "client-a", "req-4", "cancel")).toBeNull();
     expect(ownedRequestForAction(rows, "client-b", "req-1", "cancel")).toBeNull();
   });
+  it("libera o envio pendente na troca de conta sem reaproveitar resposta antiga", () => {
+    const component = readFileSync("src/routes/area-cliente.tsx", "utf8");
+    const reset = component.match(/useEffect\\(\\(\\) => \\{\\s*\\/\\/ Never reuse[\\s\\S]*?\\}, \\[user\\?\\.id\\]\\);/);
+    expect(reset?.[0]).toContain("setSendingId(null)");
+    expect(reset?.[0]).toContain("setShareNow(false)");
+    expect(reset?.[0]).toContain("pendingSubmission.current = null");
+    expect(component).toContain("if (currentUserIdRef.current !== owner) return;");
+    expect(component).toContain("if (currentUserIdRef.current === owner) setSendingId(null);");
+  });
+
   it("não aceita um id semelhante, omisso ou estado incorreto", () => {
     expect(ownedRequestForAction(rows, "client-a", "req", "share")).toBeNull();
     expect(ownedRequestForAction(rows, "client-a", "", "cancel")).toBeNull();
