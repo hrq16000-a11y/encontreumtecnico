@@ -127,11 +127,17 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
 export const getApprovedTechnician = createServerFn({ method: "GET" })
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }): Promise<PublicTechnician | null> => {
-    const { data: row } = await publicClient()
+    const { data: row, error } = await publicClient()
       .from("technicians")
       .select(COLUMNS)
       .eq("status", "aprovado")
       .eq("id", data.id)
       .maybeSingle();
+    // Database outages and permission/configuration errors are not HTTP 404.
+    // Treat them as server errors; only an actual missing row is "not found".
+    if (error) {
+      console.error("getApprovedTechnician", error);
+      throw new Error("Não foi possível consultar o perfil profissional.");
+    }
     return row ? (await withOnlineStatus([row]))[0] ?? null : null;
   });
