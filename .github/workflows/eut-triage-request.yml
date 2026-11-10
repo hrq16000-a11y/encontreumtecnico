@@ -4,9 +4,12 @@ on:
   pull_request:
     paths:
       - 'src/lib/triage-draft.ts'
+      - 'src/lib/client-request-save.ts'
+      - 'src/lib/client-request-save.test.ts'
       - 'src/lib/triage-draft.test.ts'
       - 'src/components/problem-assistant.tsx'
       - 'src/routes/area-cliente.tsx'
+      - 'src/routes/tecnicos.index.tsx'
       - '.github/workflows/eut-triage-request.yml'
   workflow_dispatch:
 
@@ -26,6 +29,38 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: Unit tests
-        run: bun run test src/lib/triage-draft.test.ts src/lib/problem-triage-local.test.ts
+        run: bun run test src/lib/triage-draft.test.ts src/lib/problem-triage-local.test.ts src/lib/client-request-save.test.ts
+      - name: Verify first-client path when the approved directory is empty
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const directory = readFileSync('src/routes/tecnicos.index.tsx', 'utf8');
+          const client = readFileSync('src/routes/area-cliente.tsx', 'utf8');
+          const draft = readFileSync('src/lib/triage-draft.ts', 'utf8');
+          for (const phrase of [
+            'technicians.length === 0',
+            'to="/area-cliente"',
+            'Registrar minha necessidade',
+            'Esse registro é privado:',
+            'não envia mensagens a profissionais',
+          ]) {
+            if (!directory.includes(phrase)) throw Error('Missing honest no-results client CTA: '+phrase);
+          }
+          if (!client.includes('consumeTriageDraft()') || !client.includes('roles.includes("cliente")'))
+            throw Error('Client area must restore triage only after client login');
+          if (!draft.includes('window.sessionStorage') || !draft.includes('30 * 60 * 1000'))
+            throw Error('Triage draft must remain short-lived and same-tab');
+          for (const fragment of [
+            'persistClientRequest(', 'pendingSubmission.current',
+            'const fingerprint = JSON.stringify([owner, technicianTarget',
+            'result === "save_unconfirmed"', 'result === "share_unconfirmed"',
+            'finally {', 'setSaving(false)'
+          ]) if (!client.includes(fragment)) throw Error('Missing reliable request-save behavior: '+fragment);
+          if (directory.includes('contact_phone') || directory.includes('contact_email'))
+            throw Error('Search empty state must never expose contacts');
+          console.log('Empty directory → client private request, with no false dispatch: PASS');
+          NODE
       - name: Build
         run: bun run build
+      - name: TypeScript after TanStack route generation
+        run: bunx tsc --noEmit --pretty false

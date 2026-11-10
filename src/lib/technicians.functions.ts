@@ -127,11 +127,17 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
 export const getApprovedTechnician = createServerFn({ method: "GET" })
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }): Promise<PublicTechnician | null> => {
-    const { data: row } = await publicClient()
+    const { data: row, error } = await publicClient()
       .from("technicians")
       .select(COLUMNS)
       .eq("status", "aprovado")
       .eq("id", data.id)
       .maybeSingle();
+    // A failed database lookup must never be mistaken for an unpublished profile.
+    // A genuine no-match is { data: null, error: null } from maybeSingle().
+    if (error) {
+      console.error("getApprovedTechnician lookup failed", error.code ?? "unknown");
+      throw new Error("Não foi possível consultar o perfil do técnico.");
+    }
     return row ? (await withOnlineStatus([row]))[0] ?? null : null;
   });

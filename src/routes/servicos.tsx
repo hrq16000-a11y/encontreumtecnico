@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageShell } from "../components/page-placeholder";
+import { SponsoredPublicSlot } from "@/components/sponsored-public-slot";
 
 const SERVICES = [
   { name: "Ar-condicionado", description: "Instalação, manutenção preventiva e corretiva." },
@@ -36,6 +37,7 @@ function ServicesPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           Especialidades atendidas pelos técnicos da plataforma.
         </p>
+        <SponsoredPublicSlot slotKey="services.content_1" routePath="/servicos" />
         <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {SERVICES.map((service) => (
             <li key={service.name} className="rounded-lg border border-border bg-card p-5">

@@ -4,10 +4,15 @@ on:
   pull_request:
     paths:
       - 'src/components/legacy-account-activation.tsx'
+      - 'src/components/legacy-account-activation.test.tsx'
       - 'src/routes/area-cliente.tsx'
       - 'src/routes/area-tecnico.tsx'
       - 'src/components/legacy-profile-import.tsx'
+      - 'src/routes/reivindicar-cadastro.tsx'
+      - 'src/routes/reivindicar-cadastro.test.tsx'
+      - 'src/components/legacy-account-isolation.test.tsx'
       - '.github/workflows/eut-legacy-account-activation.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -25,8 +30,16 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - name: Install dependencies from lockfile
         run: bun install --frozen-lockfile
+      - name: Test WordPress lookup failure and retry
+        run: bunx vitest run src/components/legacy-account-activation.test.tsx
+      - name: Test account identity isolation of legacy claims
+        run: bunx vitest run src/components/legacy-account-isolation.test.tsx src/routes/reivindicar-cadastro.test.tsx
       - name: Build TanStack Start
         run: bun run build
+      - name: TypeScript after route generation
+        run: bunx tsc --noEmit --pretty false
+      - name: TypeScript after build
+        run: bunx tsc --noEmit --pretty false
       - name: Validate account-linking guardrails
         run: |
           node --input-type=module <<'NODE'

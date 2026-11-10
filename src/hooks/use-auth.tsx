@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
 
 export type Role = "admin" | "tecnico" | "cliente";
 
@@ -9,6 +10,8 @@ export function useAuth() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [rolesError, setRolesError] = useState(false);
+  const accountIdRef = useRef<string | null>(null);
+  const roleLookupVersion = useRef(0);
 
   useEffect(() => {
     let active = true;
@@ -19,7 +22,17 @@ export function useAuth() {
     // onAuthStateChange callback. Stale queries must never overwrite a later login.
     async function syncUser(nextUser: User | null) {
       const request = ++generation;
+      const roleVersion = ++roleLookupVersion.current;
       if (!active) return;
+      const nextId = nextUser?.id ?? null;
+      // Different identities must never inherit a previous user's roles,
+      // even for one render while Supabase is looking up the new account.
+      if (accountIdRef.current !== nextId) {
+        setRoles([]);
+        setRolesError(false);
+      }
+      accountIdRef.current = nextId;
+      setLoading(true);
       setUser(nextUser);
       if (!nextUser) {
         setRoles([]);
@@ -28,10 +41,12 @@ export function useAuth() {
         return;
       }
 
+      const current = () => active && request === generation &&
+        canAcceptAccountResult(nextUser.id, accountIdRef.current, roleVersion, roleLookupVersion.current);
       try {
         const { data, error } = await supabase.from("user_roles")
           .select("role").eq("user_id", nextUser.id);
-        if (!active || request !== generation) return;
+        if (!current()) return;
         if (error) {
           setRoles([]);
           setRolesError(true);
@@ -40,11 +55,11 @@ export function useAuth() {
           setRolesError(false);
         }
       } catch {
-        if (!active || request !== generation) return;
+        if (!current()) return;
         setRoles([]);
         setRolesError(true);
       } finally {
-        if (active && request === generation) setLoading(false);
+        if (current()) setLoading(false);
       }
     }
 
@@ -88,15 +103,29 @@ export function useAuth() {
   }, []);
 
   async function refreshRoles() {
-    if (!user) return;
-    const { data, error } = await supabase.from("user_roles")
-      .select("role").eq("user_id", user.id);
-    if (error) {
+    const owner = user?.id;
+    if (!owner || accountIdRef.current !== owner) return;
+    const version = ++roleLookupVersion.current;
+    const current = () => canAcceptAccountResult(owner, accountIdRef.current, version, roleLookupVersion.current);
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.from("user_roles")
+        .select("role").eq("user_id", owner);
+      if (!current()) return;
+      if (error) {
+        setRoles([]);
+        setRolesError(true);
+      } else {
+        setRoles((data ?? []).map((r) => r.role as Role));
+        setRolesError(false);
+      }
+    } catch {
+      if (!current()) return;
+      setRoles([]);
       setRolesError(true);
-      return;
+    } finally {
+      if (current()) setLoading(false);
     }
-    setRoles((data ?? []).map((r) => r.role as Role));
-    setRolesError(false);
   }
 
   return { user, roles, loading, rolesError, refreshRoles };

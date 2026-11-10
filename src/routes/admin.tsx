@@ -9,6 +9,8 @@ import { SearchMetrics } from "@/components/search-metrics";
 import { LegacyReviewQueue } from "@/components/legacy-review-queue";
 import { LegacyClaimReview } from "@/components/legacy-claim-review";
 import { EutAdminManager } from "@/components/eut-admin-manager";
+import { AdminControlHub } from "@/components/admin-control-hub";
+import { AdminAdvertisingManager } from "@/components/admin-advertising-manager";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -103,12 +105,15 @@ export function AdminPage() {
               ))}
             </dl>
 
-            <SearchMetrics />
-            <LegacyReviewQueue />
-            <LegacyClaimReview />
-            <EutAdminManager />
+            <p className="mt-3 text-sm text-muted-foreground">Os indicadores acima consideram os cadastros atuais. Os registros históricos ainda em revisão aparecem separadamente abaixo.</p>
+            <AdminControlHub />
+            <div id="admin-patrocinadores" className="scroll-mt-20"><AdminAdvertisingManager /></div>
+            <div id="admin-metricas" className="scroll-mt-20"><SearchMetrics /></div>
+            <div id="admin-legado" className="scroll-mt-20"><LegacyReviewQueue /></div>
+            <div id="admin-reivindicacoes" className="scroll-mt-20"><LegacyClaimReview /></div>
+            <div id="admin-catalogo" className="scroll-mt-20"><EutAdminManager /></div>
 
-            <h2 className="mt-10 text-lg font-semibold text-foreground">Técnicos</h2>
+            <h2 id="admin-tecnicos" className="mt-10 scroll-mt-20 text-lg font-semibold text-foreground">Técnicos</h2>
             <div role="tablist" className="mt-3 flex flex-wrap gap-2">
               {TABS.map((t) => (
                 <button key={t.key} role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)}
@@ -138,7 +143,7 @@ export function AdminPage() {
               </ul>
             )}
 
-            <h2 className="mt-10 text-lg font-semibold text-foreground">Mensagens de contato</h2>
+            <h2 id="admin-mensagens" className="mt-10 scroll-mt-20 text-lg font-semibold text-foreground">Mensagens de contato</h2>
             {msgs.length === 0 ? (
               <p className="mt-3 text-sm text-muted-foreground">Nenhuma mensagem recebida.</p>
             ) : (
@@ -160,7 +165,7 @@ export function AdminPage() {
               </ul>
             )}
 
-            <h2 className="mt-10 text-lg font-semibold text-foreground">Solicitações recentes</h2>
+            <h2 id="admin-solicitacoes" className="mt-10 scroll-mt-20 text-lg font-semibold text-foreground">Solicitações recentes</h2>
             {reqs.length === 0 ? (
               <p className="mt-3 text-sm text-muted-foreground">Nenhuma solicitação aberta ainda.</p>
             ) : (

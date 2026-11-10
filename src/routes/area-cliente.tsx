@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useContext, useEffect, useState, type FormEvent } from "react";
+import { useContext, useEffect, useRef, useState, type FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { zodValidator } from "@tanstack/zod-adapter";
@@ -12,6 +12,9 @@ import { LegacyAccountActivation } from "@/components/legacy-account-activation"
 import { consumeTriageDraft } from "@/lib/triage-draft";
 import { clearTechnicianTarget, recallTechnicianTarget, rememberTechnicianTarget } from "@/lib/selected-technician-target";
 import { containsObviousContact } from "@/lib/private-message-validation";
+import { accountScopedRows, canAcceptAccountResult } from "@/lib/account-scoped-queries";
+import { persistClientRequest } from "@/lib/client-request-save";
+import { ownedRequestForAction } from "@/lib/client-request-action";
 
 export const Route = createFileRoute("/area-cliente")({
   validateSearch: zodValidator(z.object({ tecnico: z.string().optional() })),
@@ -43,16 +46,34 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
   const lp2 = useContext(LP2EmbeddedContext);
   const { user, loading, roles } = useAuth();
   const [rows, setRows] = useState<Req[] | null>(null);
+  const [rowsOwnerId, setRowsOwnerId] = useState<string | null>(null);
+  const [rowsError, setRowsError] = useState(false);
+  const currentUserIdRef = useRef<string | null>(null);
+  currentUserIdRef.current = user?.id ?? null;
+  const loadVersion = useRef(0);
+  const ownRows = accountScopedRows(rows, rowsOwnerId, roles.includes("cliente") ? user?.id : null);
   const { categories, loading: catalogLoading, error: catalogError } = useActiveCategories();
   const [form, setForm] = useState({ title: "", description: "", category: "", city: "", region: "" });
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const pendingSubmission = useRef<{ fingerprint: string; id: string } | null>(null);
   const [shareNow, setShareNow] = useState(false);
   const [technicianTarget, setTechnicianTarget] = useState<string | null>(tecnico ?? null);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [sharedIds, setSharedIds] = useState<Set<string>>(new Set());
   const [replyByRequest, setReplyByRequest] = useState<Record<string, DirectReply>>({});
   const [replyLoadError, setReplyLoadError] = useState(false);
+
+  useEffect(() => {
+    // Never reuse a previous account's unsent form, confirmation or request ID.
+    // Does not erase the same-tab triage draft, which is recovered below
+    // only after a verified client role has loaded.
+    setForm({ title: "", description: "", category: "", city: "", region: "" });
+    setMsg(null);
+    setSaving(false);
+    setShareNow(false);
+    pendingSubmission.current = null;
+  }, [user?.id]);
 
   useEffect(() => {
     // Keep the selected public UUID across a Google/email login redirect.
@@ -83,99 +104,191 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
   }, [loading, user?.id, roles.join(",")]);
 
   async function load() {
-    if (!user) return;
-    const { data } = await supabase.from("service_requests").select("*").eq("client_id", user.id).order("created_at", { ascending: false });
-    setRows(data ?? []);
-    const shares = await directDb.from("eut_direct_request_consents")
-      .select("request_id").eq("client_id", user.id);
-    if (!shares.error) setSharedIds(new Set((shares.data ?? []).map((entry: { request_id: string }) => entry.request_id)));
+    if (!user || !roles.includes("cliente")) return;
+    const owner = user.id;
+    const version = ++loadVersion.current;
+    const current = () => canAcceptAccountResult(owner, currentUserIdRef.current, version, loadVersion.current);
+    setRows(null);
+    setRowsOwnerId(null);
+    setRowsError(false);
     setReplyLoadError(false);
-    const requestIds = (data ?? []).map((request) => request.id);
-    if (!requestIds.length) {
+    setSharedIds(new Set());
+    setReplyByRequest({});
+
+    try {
+      const { data, error } = await supabase.from("service_requests")
+        .select("*").eq("client_id", owner).order("created_at", { ascending: false });
+      if (!current()) return;
+      if (error) throw error;
+
+      const mine = data ?? [];
+      setRows(mine);
+      setRowsOwnerId(owner);
+      if (!mine.length) return;
+
+      const [shares, replies] = await Promise.all([
+        directDb.from("eut_direct_request_consents").select("request_id").eq("client_id", owner),
+        directDb.from("eut_direct_request_replies").select("request_id,body,created_at")
+          .in("request_id", mine.map((item) => item.id)),
+      ]);
+      if (!current()) return;
+      if (shares.error || replies.error) {
+        setReplyLoadError(true);
+      }
+      if (!shares.error) {
+        setSharedIds(new Set((shares.data ?? []).map((entry: { request_id: string }) => entry.request_id)));
+      }
+      if (!replies.error) {
+        setReplyByRequest(Object.fromEntries(((replies.data ?? []) as DirectReply[])
+          .map((entry) => [entry.request_id, entry])));
+      }
+    } catch {
+      if (!current()) return;
+      // Never turn a failed private query into "you have no requests".
+      setRowsError(true);
+      setRows(null);
+      setRowsOwnerId(null);
+      setSharedIds(new Set());
       setReplyByRequest({});
-      return;
-    }
-    const replies = await directDb.from("eut_direct_request_replies")
-      .select("request_id,body,created_at").in("request_id", requestIds);
-    if (replies.error) {
-      setReplyLoadError(true);
-      setReplyByRequest({});
-    } else {
-      setReplyByRequest(Object.fromEntries(((replies.data ?? []) as DirectReply[]).map((item) => [item.request_id, item])));
     }
   }
-  useEffect(() => { load(); }, [user]);
+  useEffect(() => {
+    void load();
+    // Invalidate in-flight account-owned queries when the component unmounts.
+    return () => { loadVersion.current++; };
+  }, [user?.id, roles.join(",")]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !roles.includes("cliente") || saving) return;
     if (catalogLoading || catalogError || !categories.some((entry) => entry.slug === form.category)) {
       return setMsg("Escolha uma categoria ativa antes de guardar sua solicitação.");
     }
-    setSaving(true);
-    setMsg(null);
-    if (shareNow && technicianTarget && containsObviousContact(`${form.title} ${form.description} ${form.city} ${form.region}`)) {
-      setSaving(false);
+    if (shareNow && technicianTarget &&
+        containsObviousContact(`${form.title} ${form.description} ${form.city} ${form.region}`)) {
       return setMsg("Remova telefone, e-mail, links e endereço completo antes de compartilhar. Nenhum técnico recebeu seus dados.");
     }
-    const requestId = crypto.randomUUID();
-    const { error } = await supabase.from("service_requests").insert({
-      id: requestId,
-      client_id: user.id,
-      technician_id: technicianTarget ?? null,
-      title: form.title.trim(),
-      description: form.description.trim(),
-      category: form.category,
-      city: form.city.trim(),
-      region: form.region.trim() || null,
-    });
-    if (error) {
-      setSaving(false);
-      return setMsg("Não foi possível guardar a solicitação. Tente novamente.");
+    // Reuse the same UUID if a network timeout made the first attempt
+    // inconclusive. Retrying must not silently create a duplicate request.
+    const owner = user.id;
+    const fingerprint = JSON.stringify([owner, technicianTarget,
+      form.title.trim(), form.description.trim(), form.category, form.city.trim(), form.region.trim()]);
+    const requestId = pendingSubmission.current?.fingerprint === fingerprint
+      ? pendingSubmission.current.id : crypto.randomUUID();
+    pendingSubmission.current = { fingerprint, id: requestId };
+    const shouldShare = Boolean(shareNow && technicianTarget);
+
+    setSaving(true);
+    setMsg(null);
+    try {
+      const result = await persistClientRequest(
+        async () => {
+          const { error } = await supabase.from("service_requests").insert({
+            id: requestId,
+            client_id: owner,
+            technician_id: technicianTarget ?? null,
+            title: form.title.trim(),
+            description: form.description.trim(),
+            category: form.category,
+            city: form.city.trim(),
+            region: form.region.trim() || null,
+          });
+          return { error };
+        },
+        shouldShare ? async () => {
+          const { data, error } = await directDb.rpc("eut_share_direct_request", {
+            _request_id: requestId,
+          });
+          return { data, error };
+        } : undefined,
+      );
+      if (currentUserIdRef.current !== owner) return;
+
+      if (result === "save_rejected") {
+        setMsg("O servidor não confirmou este pedido. Confira seu histórico antes de tentar novamente; nenhum compartilhamento foi confirmado.");
+        void load();
+        return;
+      }
+      if (result === "save_unconfirmed") {
+        setMsg("A conexão caiu antes da confirmação. O pedido pode ter sido salvo: atualize o histórico antes de tentar novamente. Seu texto foi preservado.");
+        void load();
+        return;
+      }
+
+      // The row is now confirmed saved, even when the separate share RPC
+      // failed or timed out. Never tell the customer the share was confirmed.
+      if (result === "shared") {
+        setMsg("Pedido compartilhado com o técnico escolhido. Ele poderá consultá-lo no painel. Nenhum telefone foi liberado.");
+      } else if (result === "share_unconfirmed") {
+        setMsg("O pedido foi salvo, mas o compartilhamento não foi confirmado. Confira o histórico antes de reenviar ao técnico escolhido.");
+      } else {
+        setMsg("Necessidade guardada somente na sua área privada. Nenhum técnico recebeu este registro.");
+      }
+      pendingSubmission.current = null;
+      window.__lovableEvents?.track?.("project.service_requested", {
+        category: form.category, direct_to_technician: shouldShare,
+      });
+      setShareNow(false);
+      clearTechnicianTarget();
+      setTechnicianTarget(null);
+      setForm((current) => ({ ...current, title: "", description: "" }));
+      void load();
+    } catch {
+      if (currentUserIdRef.current === owner) {
+        setMsg("Não foi possível confirmar o salvamento. Confira seus pedidos antes de repetir; o formulário foi preservado.");
+      }
+    } finally {
+      if (currentUserIdRef.current === owner) setSaving(false);
     }
-    window.__lovableEvents?.track?.("project.service_requested", { category: form.category, direct_to_technician: Boolean(technicianTarget) });
-    if (shareNow && technicianTarget) {
-      const shared = await directDb.rpc("eut_share_direct_request", { _request_id: requestId });
-      setMsg(shared.error || shared.data?.status !== "enviado"
-        ? "A solicitação foi salva como privada, mas o compartilhamento não foi concluído. Você pode reenviar na lista abaixo."
-        : "Pedido compartilhado com o técnico escolhido. Ele poderá consultá-lo no painel. Nenhum telefone foi liberado.");
-    } else {
-      setMsg("Necessidade guardada somente na sua área privada. Nenhum técnico recebeu este registro.");
-    }
-    setSaving(false);
-    setShareNow(false);
-    clearTechnicianTarget();
-    setTechnicianTarget(null);
-    setForm({ ...form, title: "", description: "" });
-    void load();
   }
 
   async function shareExisting(id: string) {
-    if (sendingId) return;
+    const owner = user?.id;
+    if (sendingId || !owner || !roles.includes("cliente")) return;
+    const request = ownedRequestForAction(ownRows, owner, id, "share");
+    if (!request) {
+      setMsg("Este pedido não está disponível nesta conta para compartilhamento.");
+      return;
+    }
+    if (containsObviousContact(`${request.title} ${request.description} ${request.city} ${request.region ?? ""}`)) {
+      setMsg("Antes de compartilhar, retire telefone, e-mail, links e endereço completo. O pedido permanece privado.");
+      return;
+    }
     setSendingId(id);
     setMsg(null);
     try {
-      const request = rows?.find((entry) => entry.id === id);
-      if (request && containsObviousContact(`${request.title} ${request.description} ${request.city} ${request.region ?? ""}`)) {
-        setMsg("Antes de compartilhar, retire telefone, e-mail, links e endereço completo. O pedido permanece privado.");
-        return;
-      }
       const { data, error } = await directDb.rpc("eut_share_direct_request", { _request_id: id });
+      if (currentUserIdRef.current !== owner) return;
       setMsg(error || data?.status !== "enviado"
         ? "Não foi possível compartilhar. Confira o perfil escolhido ou tente novamente."
         : "Pedido enviado somente ao profissional selecionado. Contatos privados continuam protegidos.");
       if (!error) void load();
     } catch {
-      setMsg("Falha de conexão ao compartilhar o pedido.");
+      if (currentUserIdRef.current === owner) {
+        setMsg("Falha de conexão ao compartilhar o pedido.");
+      }
     } finally {
-      setSendingId(null);
+      if (currentUserIdRef.current === owner) setSendingId(null);
     }
   }
 
   async function cancel(id: string) {
-    const { error } = await supabase.rpc("set_request_status", { _id: id, _status: "cancelada" });
-    if (error) setMsg("Não foi possível cancelar.");
-    else load();
+    const owner = user?.id;
+    if (!owner || !roles.includes("cliente") ||
+        !ownedRequestForAction(ownRows, owner, id, "cancel")) {
+      setMsg("Não é possível cancelar este pedido nesta conta.");
+      return;
+    }
+    try {
+      const { error } = await supabase.rpc("set_request_status", { _id: id, _status: "cancelada" });
+      if (currentUserIdRef.current !== owner) return;
+      if (error) setMsg("Não foi possível cancelar. Atualize o histórico antes de tentar novamente.");
+      else void load();
+    } catch {
+      if (currentUserIdRef.current === owner) {
+        setMsg("Falha de conexão ao cancelar. Confira o histórico antes de repetir.");
+      }
+    }
   }
 
   return (
@@ -184,9 +297,9 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Área do cliente</h1>
         {loading ? (
           <p className="mt-4 text-sm text-muted-foreground">Carregando…</p>
-        ) : !user ? (
+        ) : !user || !roles.includes("cliente") ? (
           <p className="mt-4 text-sm text-muted-foreground">
-            <Link to={lp2 ? "/lp2/entrar" : "/entrar"} className="font-medium text-primary underline">Entre</Link> para abrir e acompanhar suas solicitações.
+            <Link to={lp2 ? "/lp2/entrar" : "/entrar"} className="font-medium text-primary underline">Entre com uma conta de cliente</Link> para abrir e acompanhar suas solicitações.
           </p>
         ) : (
           <>
@@ -259,13 +372,17 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
             {replyLoadError && <p role="alert" className="mt-2 text-sm text-destructive">
               Não foi possível atualizar as respostas. Tente novamente.
             </p>}
-            {rows === null ? (
-              <p className="mt-3 text-sm text-muted-foreground">Carregando…</p>
-            ) : rows.length === 0 ? (
+            {rowsError ? (
+              <p role="alert" className="mt-3 text-sm text-destructive">
+                Não foi possível consultar seus pedidos. Use "Atualizar respostas" para tentar novamente.
+              </p>
+            ) : ownRows === null ? (
+              <p role="status" className="mt-3 text-sm text-muted-foreground">Carregando seus pedidos…</p>
+            ) : ownRows.length === 0 ? (
               <p className="mt-3 text-sm text-muted-foreground">Você ainda não abriu nenhuma solicitação.</p>
             ) : (
               <ul className="mt-3 grid gap-3">
-                {rows.map((r) => (
+                {ownRows.map((r) => (
                   <RequestCard key={r.id} r={r} shared={sharedIds.has(r.id)}>
                     {sharedIds.has(r.id) ? (
                       <span className="text-xs font-semibold text-primary">

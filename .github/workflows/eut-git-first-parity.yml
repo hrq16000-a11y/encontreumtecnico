@@ -1,0 +1,43 @@
+name: EUT Git-first parity and release preflight
+
+on:
+  pull_request:
+    paths:
+      - "vercel.json"
+      - "docs/migration/WORDPRESS-PARIDADE-E-RELEASE.md"
+      - "docs/sql/eut-wordpress-parity-readonly.sql"
+      - "docs/sql/eut-operational-readiness-readonly.sql"
+      - "scripts/eut-parity-preflight.mjs"
+      - "src/lib/legacy-archive-filters.ts"
+      - "src/lib/legacy-archive-filters.test.ts"
+      - ".github/workflows/eut-git-first-parity.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eut-git-first-parity-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install pinned dependencies
+        run: bun install --frozen-lockfile
+      - name: Verify no automatic Vercel deployments and parity contracts
+        run: node scripts/eut-parity-preflight.mjs
+      - name: WordPress archive filters and account isolation
+        run: bunx vitest run src/lib/legacy-archive-filters.test.ts src/hooks/use-auth.test.tsx src/lib/account-scoped-queries.test.ts
+      - name: Build TanStack and route tree
+        run: bun run build
+      - name: TypeScript strict
+        run: bunx tsc --noEmit --pretty false
+      - name: Explicitly not deploying
+        run: |
+          echo "GitHub checks complete. No Vercel or DNS action in this workflow."
+          echo "A human-reviewed, manual release is required after platform quota recovers."

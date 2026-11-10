@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { containsObviousContact } from "@/lib/private-message-validation";
+import { accountScopedRows, canAcceptAccountResult } from "@/lib/account-scoped-queries";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const replyDb = supabase as unknown as SupabaseClient;
@@ -19,6 +20,11 @@ type DirectRequest = {
 
 export function TechnicianDirectRequests({ userId }: { userId: string }) {
   const [requests, setRequests] = useState<DirectRequest[]>([]);
+  const [requestsOwnerId, setRequestsOwnerId] = useState<string | null>(null);
+  const currentUserIdRef = useRef(userId);
+  currentUserIdRef.current = userId;
+  const loadVersion = useRef(0);
+  const ownRequests = accountScopedRows(requests, requestsOwnerId, userId);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [replies, setReplies] = useState<Record<string, DirectReply>>({});
@@ -27,45 +33,73 @@ export function TechnicianDirectRequests({ userId }: { userId: string }) {
   const [notice, setNotice] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
+    const owner = userId;
+    const version = ++loadVersion.current;
+    const current = () => canAcceptAccountResult(owner, currentUserIdRef.current, version, loadVersion.current);
     setLoading(true);
     setError(false);
+    setRequestsOwnerId(null);
+    setRequests([]);
+    setReplies({});
+
     try {
       const profile = await supabase.from("technicians")
-        .select("id,status").eq("user_id", userId).maybeSingle();
+        .select("id,status").eq("user_id", owner).maybeSingle();
+      if (!current()) return;
       if (profile.error) throw profile.error;
       if (!profile.data || profile.data.status !== "aprovado") {
         setRequests([]);
-        setReplies({});
+        setRequestsOwnerId(owner);
         return;
       }
-      // SELECT is permitted by RLS only when the client has explicitly
-      // consented to share this one request with the owner of this profile.
+      // Server-side RLS exposes only requests with the client's explicit
+      // consent for this exact approved technician profile.
       const result = await supabase.from("service_requests")
         .select("id,title,description,category,city,region,created_at")
         .eq("technician_id", profile.data.id)
         .order("created_at", { ascending: false }).limit(30);
+      if (!current()) return;
       if (result.error) throw result.error;
       const rows = result.data ?? [];
-      setRequests(rows);
-      if (!rows.length) { setReplies({}); return; }
+      if (!rows.length) {
+        setRequests([]);
+        setRequestsOwnerId(owner);
+        return;
+      }
       const response = await replyDb.from("eut_direct_request_replies")
         .select("request_id,body,created_at")
         .in("request_id", rows.map((entry) => entry.id));
+      if (!current()) return;
       if (response.error) throw response.error;
-      setReplies(Object.fromEntries(((response.data ?? []) as DirectReply[]).map((entry) => [entry.request_id, entry])));
+      setRequests(rows);
+      setReplies(Object.fromEntries(((response.data ?? []) as DirectReply[])
+        .map((entry) => [entry.request_id, entry])));
+      setRequestsOwnerId(owner);
     } catch {
+      if (!current()) return;
       setError(true);
       setRequests([]);
       setReplies({});
+      setRequestsOwnerId(owner);
     } finally {
-      setLoading(false);
+      if (current()) setLoading(false);
     }
   }, [userId]);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => {
+    setNotice(null);
+    setDrafts({});
+    void refresh();
+    return () => { loadVersion.current++; };
+  }, [refresh]);
 
   async function submitReply(requestId: string) {
     if (sendingId) return;
+    if (!ownRequests?.some((request) => request.id === requestId)) {
+      setNotice("Pedido indisponível nesta sessão. Atualize para consultar novamente.");
+      return;
+    }
+    const owner = userId;
     const body = (drafts[requestId] ?? "").trim();
     if (body.length < 20 || body.length > 700) {
       setNotice("A resposta precisa ter de 20 a 700 caracteres.");
@@ -81,6 +115,7 @@ export function TechnicianDirectRequests({ userId }: { userId: string }) {
       const { data, error } = await replyDb.rpc("eut_respond_to_direct_request", {
         _request_id: requestId, _body: body,
       });
+      if (currentUserIdRef.current !== owner) return;
       if (error) {
         setNotice("Não foi possível responder. Verifique se o pedido continua ativo e remova dados pessoais do texto.");
       } else if (data?.status === "respondido" || data?.status === "ja_respondido") {
@@ -91,9 +126,9 @@ export function TechnicianDirectRequests({ userId }: { userId: string }) {
         setNotice("Não conseguimos confirmar o registro da resposta. Atualize o painel.");
       }
     } catch {
-      setNotice("Falha de conexão. Nenhuma confirmação de envio foi recebida.");
+      if (currentUserIdRef.current === owner) setNotice("Falha de conexão. Nenhuma confirmação de envio foi recebida.");
     } finally {
-      setSendingId(null);
+      if (currentUserIdRef.current === owner) setSendingId(null);
     }
   }
 
@@ -114,12 +149,12 @@ export function TechnicianDirectRequests({ userId }: { userId: string }) {
         Não há distribuição automática, contratação, reserva ou liberação de contatos.
       </p>
       {notice && <p role="status" className="mt-3 text-sm text-foreground">{notice}</p>}
-      {loading ? <p role="status" className="mt-4 text-sm text-muted-foreground">Carregando pedidos…</p>
+      {loading || ownRequests === null ? <p role="status" className="mt-4 text-sm text-muted-foreground">Carregando pedidos…</p>
         : error ? <p role="alert" className="mt-4 text-sm text-destructive">Não foi possível consultar os pedidos. Tente atualizar.</p>
-        : requests.length === 0 ? <p className="mt-4 text-sm text-muted-foreground">Nenhum pedido enviado diretamente a você.</p>
+        : ownRequests.length === 0 ? <p className="mt-4 text-sm text-muted-foreground">Nenhum pedido enviado diretamente a você.</p>
         : (
           <ul className="mt-4 grid gap-3">
-            {requests.map((request) => (
+            {ownRequests.map((request) => (
               <li key={request.id} className="rounded-lg border border-border bg-card p-4">
                 <h3 className="font-semibold text-card-foreground">{request.title}</h3>
                 <p className="mt-1 text-xs text-muted-foreground">

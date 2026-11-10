@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,31 +21,54 @@ export function LegacyAccountActivation({
   userId, role,
 }: { userId: string; role: "tecnico" | "cliente" }) {
   const [record, setRecord] = useState<LegacyAccount | null>(null);
+  const [loadedOwnerId, setLoadedOwnerId] = useState<string | null>(null);
+  // Synchronous render guard: never show another account's private legacy match.
+  const activeOwnerId = useRef(userId);
+  activeOwnerId.current = userId;
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [lookupFailed, setLookupFailed] = useState(false);
+  const [lookupAttempt, setLookupAttempt] = useState(0);
 
   useEffect(() => {
     let mounted = true;
     setLoading(true);
+    setRecord(null);
+    setLoadedOwnerId(null);
+    setFeedback(null);
+    setBusy(false);
+    setLookupFailed(false);
     void Promise.resolve(db.rpc("eut_my_legacy_account")).then(({ data, error }) => {
-      if (!mounted) return;
+      if (!mounted || activeOwnerId.current !== userId) return;
       if (!error && Array.isArray(data)) {
         setRecord((data[0] as LegacyAccount | undefined) ?? null);
       } else {
+        // A failed lookup is NOT evidence that the WordPress account is absent.
         setRecord(null);
+        setLookupFailed(true);
       }
+      setLoadedOwnerId(userId);
       setLoading(false);
-    }).catch(() => { if (mounted) setLoading(false); });
+    }).catch(() => {
+      if (!mounted || activeOwnerId.current !== userId) return;
+      setRecord(null);
+      setLookupFailed(true);
+      setLoadedOwnerId(userId);
+      setLoading(false);
+    });
     return () => { mounted = false; };
-  }, [userId]);
+  }, [userId, lookupAttempt]);
 
   async function linkAccount() {
-    if (busy || !record || record.intended_type !== role) return;
+    if (busy || !record || loadedOwnerId !== userId ||
+        activeOwnerId.current !== userId || record.intended_type !== role) return;
+    const requestedOwnerId = userId;
     setBusy(true);
     setFeedback(null);
     try {
       const { data, error } = await db.rpc("eut_confirm_my_legacy_account");
+      if (activeOwnerId.current !== requestedOwnerId) return;
       if (error) {
         setFeedback("Não foi possível verificar o vínculo. Confira a confirmação do e-mail ou solicite revisão pelo suporte.");
       } else if (data?.state === "vinculada") {
@@ -57,13 +80,31 @@ export function LegacyAccountActivation({
         setFeedback("Não encontramos uma correspondência segura. Confira o e-mail utilizado.");
       }
     } catch {
-      setFeedback("Não foi possível concluir agora. Tente novamente.");
+      if (activeOwnerId.current === requestedOwnerId) {
+        setFeedback("Não foi possível concluir agora. Tente novamente.");
+      }
     } finally {
-      setBusy(false);
+      if (activeOwnerId.current === requestedOwnerId) setBusy(false);
     }
   }
 
-  if (loading || !record) return null;
+  if (loading || loadedOwnerId !== userId) return null;
+  if (lookupFailed) return (
+    <section className="mt-5 rounded-lg border border-destructive/40 bg-card p-5" role="alert" aria-label="Consulta do WordPress indisponível">
+      <p className="text-sm text-foreground">
+        Não conseguimos consultar seu cadastro WordPress agora. Isso não significa que ele foi perdido.
+        Nenhuma associação foi feita.
+      </p>
+      <button
+        type="button"
+        onClick={() => setLookupAttempt((n) => n + 1)}
+        className="mt-3 min-h-11 rounded-md border border-primary px-4 py-2 text-sm font-semibold text-primary"
+      >
+        Tentar consultar novamente
+      </button>
+    </section>
+  );
+  if (!record) return null;
 
   const sameRole = record.intended_type === role;
   return (

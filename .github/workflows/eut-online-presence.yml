@@ -45,7 +45,9 @@ jobs:
             'Ficar online','Ficar offline']) {
             if(!presence.includes(term))throw Error('Online presence guard missing: '+term);
           }
-          if(!panel.includes('status === "aprovado" && <TechnicianPresence') ||
+          if(!panel.includes('currentStatus === "aprovado" && <TechnicianPresence') ||
+             !panel.includes('profileOwnerId === user?.id') ||
+             !panel.includes('roles.includes("tecnico")') ||
              panel.includes('A aprovação dependerá da conferência administrativa')) {
             throw Error('Presence must be restricted to published profiles without review claims');
           }

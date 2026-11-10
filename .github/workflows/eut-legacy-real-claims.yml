@@ -1,0 +1,60 @@
+name: EUT legacy identity and real-profile claim gate
+on:
+  pull_request:
+    paths:
+      - 'docs/sql/eut-legacy-claims-real-profiles-guard-20261110.sql'
+      - 'docs/sql/tests/eut-legacy-claims-real-profiles-rollback.sql'
+      - '.github/workflows/eut-legacy-real-claims.yml'
+permissions:
+  contents: read
+jobs:
+  recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Protect WordPress identity and exclude demos
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const sql=readFileSync('docs/sql/eut-legacy-claims-real-profiles-guard-20261110.sql','utf8');
+          const test=readFileSync('docs/sql/tests/eut-legacy-claims-real-profiles-rollback.sql','utf8');
+          for(const x of [
+            'public.eut_legacy_candidate_claimable',
+            'public.eut_my_legacy_candidate_profiles',
+            'eut_migration.confirmed_current_email()',
+            "v.demo_candidate=false", "d.kind='candidate'",
+            "d.source_status='publish'", 'd.source_approved=true',
+            "coalesce(m.record_state,'pendente')<>'excluido'",
+            "c.status='vinculado'",
+            'q.linked_auth_user_id IS NULL',
+            'a.auth_user_id IS NULL',
+            "'tecnico'::public.app_role",
+            'DROP POLICY IF EXISTS "Verified technician or Google submits own pending claim"',
+            'public.eut_legacy_candidate_claimable(source_key,wp_post_id)',
+            'REVOKE ALL ON FUNCTION public.eut_legacy_candidate_claimable',
+            'REVOKE ALL ON FUNCTION public.eut_my_legacy_candidate_profiles',
+            'TO authenticated',
+          ]) if(!sql.includes(x))throw Error('Missing legacy safety invariant: '+x);
+          for(const term of [
+            'ROLLBACK;', 'SET LOCAL ROLE authenticated', 'Ficha demo aceita',
+            'Reivindicação legítima não criou ticket pendente',
+            'RLS deixou reivindicar demo', 'Registro inexistente aceito',
+          ]) if(!test.includes(term))throw Error('Rollback coverage missing: '+term);
+          if(/\b(?:INSERT\s+INTO|UPDATE\s+eut_migration|DELETE\s+FROM)\b/i.test(sql)) {
+            throw Error('Migration must not seed or change WordPress identities');
+          }
+          const vercel=JSON.parse(readFileSync('vercel.json'));
+          if(vercel.git?.deploymentEnabled !== false)throw Error('Git-first policy regressed');
+          console.log('Legacy candidate privacy, non-demo and Git-first: PASS');
+          NODE
+      - name: Auth and claim validation unit tests
+        run: bunx vitest run src/lib/legacy-claim-validation.test.ts src/hooks/use-auth.test.tsx src/lib/account-scoped-queries.test.ts
+      - name: Build TanStack routes
+        run: bun run build
+      - name: TypeScript strict
+        run: bunx tsc --noEmit --pretty false
+      - name: No Vercel publication
+        run: echo 'Database migration and Preview are separate approved gates; this workflow never publishes.'

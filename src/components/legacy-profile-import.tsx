@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -22,6 +22,9 @@ export function LegacyProfileImport({
   onUse: (data: { display_name: string; bio: string }) => void;
 }) {
   const [profiles, setProfiles] = useState<ImportedProfile[]>([]);
+  const [loadedOwnerId, setLoadedOwnerId] = useState<string | null>(null);
+  const activeOwnerId = useRef(userId);
+  activeOwnerId.current = userId;
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
@@ -29,23 +32,32 @@ export function LegacyProfileImport({
   useEffect(() => {
     let active = true;
     setLoading(true);
+    setLoadedOwnerId(null);
+    setProfiles([]);
+    setSelected(null);
     setFailed(false);
     void Promise.resolve(db.rpc("eut_my_linked_legacy_candidate_details")).then(({ data, error }) => {
-      if (!active) return;
+      if (!active || activeOwnerId.current !== userId) return;
       if (error) {
         setFailed(true);
         setProfiles([]);
       } else {
         setProfiles((data ?? []) as ImportedProfile[]);
       }
+      setLoadedOwnerId(userId);
       setLoading(false);
     }).catch(() => {
-      if (active) { setFailed(true); setLoading(false); }
+      if (active && activeOwnerId.current === userId) {
+        setProfiles([]);
+        setFailed(true);
+        setLoadedOwnerId(userId);
+        setLoading(false);
+      }
     });
     return () => { active = false; };
   }, [userId]);
 
-  if (loading) return <p className="mt-3 text-xs text-muted-foreground">Consultando dados antigos associados…</p>;
+  if (loading || loadedOwnerId !== userId) return <p className="mt-3 text-xs text-muted-foreground">Consultando dados antigos associados…</p>;
   if (failed) return (
     <p className="mt-3 text-xs text-muted-foreground" role="status">
       Não foi possível recuperar os dados do perfil antigo agora. Você pode preencher o formulário normalmente.
@@ -80,6 +92,7 @@ export function LegacyProfileImport({
             </p>}
             <button type="button" className="mt-3 min-h-10 rounded-md border border-primary px-3 text-xs font-semibold text-primary"
               onClick={() => {
+                if (activeOwnerId.current !== userId || loadedOwnerId !== userId) return;
                 onUse({ display_name: profile.legacy_name, bio: profile.legacy_bio || "" });
                 setSelected(profile.wp_post_id);
               }}>

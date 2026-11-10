@@ -4,7 +4,7 @@ Data: 10/11/2026. Projeto de destino: `hrq16000-a11y/encontreumtecnico` + Vercel
 
 ## O que a automação já consegue testar sem criar pessoas fictícias
 
-O workflow `.github/workflows/eut-auth-preflight.yml` confirma ao vivo: cadastro por e-mail e provedor Google habilitados; início de OAuth para Vercel e domínio previsto; rotas públicas; categorias e serviços públicos retornam na API; busca de técnicos aprovados responde; tabelas privadas e RPCs de pedidos não aceitam acesso anônimo. Não cria usuário, pedido, cobrança ou liberação de telefone.
+O workflow `.github/workflows/eut-auth-preflight.yml` verifica na execução aprovada: cadastro por e-mail e provedor Google habilitados; início de OAuth para Vercel e domínio previsto; rotas públicas; categorias e serviços públicos retornam na API; busca de técnicos aprovados responde; tabelas privadas e RPCs de pedidos não aceitam acesso anônimo. Não cria usuário, pedido, cobrança ou liberação de telefone.
 
 > Um redirecionamento inicial para Google **não confirma** que a volta autenticada, a confirmação de e-mail, o painel e a recuperação do WordPress funcionam. Uma resposta HTTP 200 de página privada também não é teste de acesso com sessão.
 
@@ -32,7 +32,7 @@ O workflow `.github/workflows/eut-auth-preflight.yml` confirma ao vivo: cadastro
 
 ## Gate comercial separado: acesso remunerado a contatos
 
-- **Bloqueado até integrar provedor financeiro real.** Nem testes de cadastro nem troca de DNS exigem transação fictícia.
+- **Bloqueado até integrar provedor financeiro real.** Nem testes de cadastro nem troca de DNS exigem transação fictícia. Se a compra de contato for indispensável para inaugurar o modelo comercial, o cutover funcional continua **NO-GO** até homologar o PSP e o desbloqueio pós-pagamento; nunca apresentar compra ativa sem poder concluí-la.
 - Necessário selecionar PSP e cadastrar na Vercel produção credenciais **server-only** do beneficiário, sem `NEXT_PUBLIC_`; definir dados fiscais e responsáveis pelo atendimento/reembolso.
 - Criação de checkout só a partir do pré-pedido existente com preço e validade no servidor; webhook assinado e **consulta transacional ao PSP** antes de conceder `eut_contact_entitlements`.
 - Validar valor, moeda, identificador, idempotência, status, cancelamento/estorno, limite diário e consentimento atual do técnico. Testar em ambiente de homologação do PSP antes da produção.

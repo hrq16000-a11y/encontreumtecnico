@@ -82,6 +82,18 @@ describe("SEO global do Encontre um Técnico", () => {
     }
   });
 
+  it("retorna notFound para perfil inexistente sem esconder erro do banco", () => {
+    const profile = read("src/routes/tecnicos.$tecnicoId.tsx");
+    const query = read("src/lib/technicians.functions.ts");
+    expect(profile).toContain('if (!isValidTechnicianId(params.tecnicoId)) throw notFound()');
+    expect(profile).toContain('if (!technician) throw notFound()');
+    expect(query).toContain('if (error) {');
+    expect(query).toContain('throw new Error("Não foi possível consultar o perfil do técnico.")');
+    expect(read("src/routes/__root.tsx")).toContain('notFoundComponent: NotFoundComponent');
+    expect(read("scripts/eut-public-smoke.mjs"))
+      .toContain('["/tecnicos/00000000-0000-0000-0000-000000000000", 404]');
+  });
+
   it("preserva redirecionamentos legados 301/302 sem criar URLs duplicadas", () => {
     const gallery = read("src/routes/galeria.tsx");
     expect(gallery).toContain('to: "/tecnicos"');

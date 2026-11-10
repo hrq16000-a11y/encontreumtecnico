@@ -1,0 +1,73 @@
+name: EUT standalone onboarding and live cutover smoke
+on:
+  pull_request:
+    paths:
+      - 'src/routes/tecnicos.index.tsx'
+      - 'src/routes/entrar.tsx'
+      - 'src/lib/onboarding-legacy-fallback.ts'
+      - 'src/lib/onboarding-legacy-fallback.test.ts'
+      - 'scripts/eut-wordpress-runtime-boundary.mjs'
+      - 'scripts/eut-public-smoke.mjs'
+      - 'src/routes/tecnicos.$tecnicoId.tsx'
+      - 'src/lib/technician-id.ts'
+      - 'src/lib/technician-id.test.ts'
+      - 'src/lib/technicians.functions.ts'
+      - 'src/lib/technicians.functions.test.ts'
+      - 'src/lib/seo-public-pages.test.ts'
+      - '.github/workflows/eut-standalone-onboarding.yml'
+      - 'docs/migration/WORDPRESS-PARIDADE-E-RELEASE.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  standalone:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Ensure new onboarding does not require the old WordPress site
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const search=readFileSync('src/routes/tecnicos.index.tsx','utf8');
+          for(const term of [
+            'Nenhum técnico encontrado com estes filtros',
+            'Criar meu perfil profissional',
+            'Não precisa ter tido conta no site anterior',
+            'Registrar minha necessidade',
+            'canShowLegacyArchive(search)',
+            '<LegacyPublicArchive show={canShowLegacyArchive(search)} />',
+          ]) if (!search.includes(term)) throw Error('Independent onboarding regression: '+term);
+          if (!search.includes('to="/entrar"') || !search.includes('to="/area-cliente"')) {
+            throw Error('Real onboarding endpoints missing');
+          }
+          if (/\bfetch\s*\(\s*['"]https?:\/\/(?:www\.)?encontreumtecnico\.com/i.test(search)) {
+            throw Error('Client search cannot depend on the live WordPress hostname');
+          }
+          const config=JSON.parse(readFileSync('vercel.json','utf8'));
+          if(config.git?.deploymentEnabled !== false) throw Error('Do not reactivate automatic deployments');
+          console.log('Standalone onboarding: PASS (no WordPress runtime fetch in search page)');
+          NODE
+      - name: WordPress independence, safe new signup and historical-account recovery
+        run: |
+          node scripts/eut-wordpress-runtime-boundary.mjs
+          bunx vitest run src/lib/onboarding-legacy-fallback.test.ts src/components/legacy-account-activation.test.tsx src/components/historical-wordpress-profile.test.tsx src/components/legacy-account-isolation.test.tsx
+      - name: Existing search and identity regression tests
+        run: bunx vitest run src/lib/legacy-archive-filters.test.ts src/lib/account-scoped-queries.test.ts src/lib/legacy-claim-validation.test.ts
+      - name: Profile lookup, real 404 and SEO regression tests
+        run: bunx vitest run src/lib/technician-id.test.ts src/lib/technicians.functions.test.ts src/lib/seo-public-pages.test.ts
+      - name: Build TanStack and generate route types
+        run: bun run build
+      - name: TypeScript after route generation
+        run: bunx tsc --noEmit --pretty false
+      # O domínio Vercel ainda recebe o release anterior. O teste HTTP
+      # diferencia prontidão do Git de uma correção já publicada.
+      - name: Read-only HTTP smoke against last published Vercel release
+        continue-on-error: true
+        run: node scripts/eut-public-smoke.mjs
+      - name: State release limitation
+        run: |
+          echo "No deploy or DNS mutation in this workflow."
+          echo "PASS code tests are not cutover clearance; inspect HTTP smoke, real E2E, media and URL mappings."
