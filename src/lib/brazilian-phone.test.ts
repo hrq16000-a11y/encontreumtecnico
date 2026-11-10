@@ -50,6 +50,6 @@ describe("telefone brasileiro privado", () => {
   });
 
   it("rejeita excesso de caracteres antes de normalizar", () => {
-    expect(normalizeBrazilianPhone(" ".repeat(40) + "4133334444")).toBeNull();
+    expect(normalizeBrazilianPhone("41" + " ".repeat(45) + "33334444")).toBeNull();
   });
 });
