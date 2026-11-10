@@ -1,16 +1,16 @@
 import {createFileRoute,Link,useNavigate} from '@tanstack/react-router'
-import {createServerFn} from '@tanstack/react-start'
+import {listApprovedTechnicians} from '../../lib/technicians.functions'
 import {useEffect,useMemo,useState} from 'react'
 import type {FormEvent} from 'react'
 import {ServiceIcon} from '../../components/lp2/ServiceIcon'
-import {matchesService,profileRoute,regionStatus} from '../../components/lp2/directory'
+import {LegacyPublicArchive} from '../../components/legacy-public-archive'
+import {fromPublicTechnician,matchesService,profileRoute,regionStatus} from '../../components/lp2/directory'
 import type {DirectoryProfile as Tech} from '../../components/lp2/directory'
-/** Prévia LP2 sem acesso ao diretório operacional. */
-const getProfiles=createServerFn({method:'GET'}).handler(async()=>[] as Tech[])
+const getProfiles=async()=> (await listApprovedTechnicians({data:{especialidade:'Todas',cidade:'',regiao:'',servico:'',uf:'',bairro:''}})).map(fromPublicTechnician)
 const specialties=['Notebook','Computador','Redes','Wi-Fi','Impressora','Suporte remoto','Servidor','Celular']
 export const Route=createFileRoute('/lp2/galeria')({
  validateSearch:(search:Record<string,unknown>)=>({q:typeof search['q']==='string'?search['q'].slice(0,90):'',city:typeof search['city']==='string'?search['city'].slice(0,90):''}),
- loader:()=>getProfiles(),component:Gallery
+ loader:()=>getProfiles(),head:()=>({meta:[{title:'Buscar técnicos — LP2 Encontre um Técnico'},{name:'description',content:'Busque técnicos aprovados por especialidade, cidade e estado na plataforma Encontre um Técnico.'},{property:'og:url',content:'https://www.encontreumtecnico.com/lp2/galeria'}],links:[{rel:'canonical',href:'https://www.encontreumtecnico.com/lp2/galeria'}]}),component:Gallery
 })
 function Gallery(){
  const profiles=Route.useLoaderData(),search=Route.useSearch(),navigate=useNavigate()
@@ -38,9 +38,10 @@ function Gallery(){
   {hasRegion&&matching.unknown.length>0?<div className="directory-region-hint" role="status"><ServiceIcon name="location" size={19}/><div><strong>{matching.verified.length} perfil(is) com região correspondente.</strong><p>Outros {matching.unknown.length} perfil(is) não informam a localidade no cadastro público. Isso <strong>não significa</strong> que atendam sua cidade.</p></div><button type="button" className="btn secondary" aria-pressed={showUnlocated} onClick={()=>{setShowUnlocated(v=>!v);setLimit(24)}}>{showUnlocated?'Ocultar perfis sem região':'Mostrar perfis sem região'}</button></div>:null}
   <div className="directory-results-bar"><div><strong>{results.length} resultado(s)</strong><span>{query||city||uf?' para os filtros informados':' no diretório público'}</span></div><div className="results-tools">{query||city||uf?<button className="clear-filters" onClick={clear}>Limpar filtros</button>:null}<label>Ordenar <select value={sort} onChange={e=>setSort(e.target.value)}><option value="name">Nome (A–Z)</option><option value="complete">Dados mais completos</option></select></label></div></div>
   <div className="directory-list">{results.slice(0,limit).map(p=><article key={p.id} className="directory-card"><div className="directory-avatar">{p.imagem?<img loading="lazy" src={p.imagem} alt={'Imagem pública de '+p.nome}/>:<ServiceIcon name="user" size={42}/>}</div><div className="directory-details"><div className="directory-meta"><span>{p.url?'Perfil público do WordPress':'Novo cadastro aprovado'}</span>{p.cidade?<span><ServiceIcon name="location" size={13}/>{p.cidade}{p.uf?'/'+p.uf:''}</span>:null}</div><h2>{p.nome}</h2>{p.nomeInferido?<p className="directory-warning">Nome derivado do endereço original; confirme os dados no perfil.</p>:null}{hasRegion&&regionStatus(p,city,uf)==='unknown'?<p className="directory-warning">Localidade não informada — atendimento na região não confirmado</p>:null}<p className="directory-specialty">{p.especialidade||p.servico||'Especialidade no cadastro original'}</p><p className="directory-description">{p.descricao||'Consulte o perfil para conhecer detalhes e formas de contato.'}</p></div><div className="directory-action">{profileRoute(p)?<Link to="/lp2/tecnico/$slug" params={{slug:profileRoute(p)!}} className="btn">Ver perfil <ServiceIcon name="arrow" size={16}/></Link>:<span className="small">Confira as informações públicas na plataforma</span>}</div></article>)}</div>
-  {!results.length?<div className="info-empty directory-empty"><ServiceIcon name="search" size={34}/><h2>Nenhum perfil encontrado com esses filtros</h2><p>Alguns perfis da origem ainda não têm cidade ou especialidade estruturadas na nova plataforma. Remova os filtros ou publique uma solicitação de serviço.</p><div className="actions"><button type="button" className="btn" onClick={clear}>Ver todos</button><Link to="/lp2/cliente" className="btn secondary">Publicar solicitação</Link></div></div>:null}
+  {!results.length?<div className="info-empty directory-empty"><ServiceIcon name="search" size={34}/><h2>Nenhum perfil encontrado com esses filtros</h2><p>Não há técnicos aprovados para os filtros selecionados. Tente outra especialidade ou cidade, ou publique uma solicitação após entrar.</p><div className="actions"><button type="button" className="btn" onClick={clear}>Ver todos</button><Link to="/lp2/cliente" className="btn secondary">Publicar solicitação</Link></div></div>:null}
   {limit<results.length?<div className="directory-more"><span>Mostrando {Math.min(limit,results.length)} de {results.length}</span><button className="btn" onClick={()=>setLimit(n=>n+24)}>Carregar mais técnicos <ServiceIcon name="chevron" size={15}/></button></div>:null}
-  <aside className="directory-info"><ServiceIcon name="shield" size={22}/><div><strong>Diretório com informações transparentes</strong><p>Os perfis históricos do WordPress ainda estão em migração. Só exibimos os dados públicos disponíveis, sem inventar avaliações, cidades, preços ou certificações.</p></div></aside>
+  <aside className="directory-info"><ServiceIcon name="shield" size={22}/><div><strong>Diretório com informações transparentes</strong><p>Os dados vêm do mesmo cadastro oficial. Só exibimos técnicos aprovados, sem expor contatos privados nem inventar avaliações ou certificações.</p></div></aside>
+  <LegacyPublicArchive show={!query.trim()&&!city.trim()&&!uf}/>
   <section className="directory-join"><div><p className="section-eyebrow">SOU TÉCNICO</p><h2>Seu trabalho merece visibilidade.</h2><p>Cadastre seu perfil gratuitamente e faça parte do diretório.</p></div><Link className="btn" to="/lp2/cadastro">Quero me cadastrar <ServiceIcon name="arrow" size={16}/></Link></section>
  </div></main>
 }

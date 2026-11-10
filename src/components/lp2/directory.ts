@@ -30,3 +30,17 @@ export function profileRoute(profile:DirectoryProfile):string|null{
  if(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(profile.id))return profile.id
  return null
 }
+
+/** Adapter visual: a única fonte de perfis é a consulta pública aprovada da plataforma oficial. */
+export function fromPublicTechnician(p: import('../../lib/technicians.functions').PublicTechnician):DirectoryProfile{
+ return {
+  id:p.id,
+  nome:p.display_name,
+  cidade:p.city,
+  ...(p.state_uf?{uf:p.state_uf}:{}),
+  especialidade:p.specialties.join(', '),
+  servico:p.service_slugs.join(', '),
+  ...(p.bio?{descricao:p.bio}:{}),
+  nomeInferido:false
+ }
+}

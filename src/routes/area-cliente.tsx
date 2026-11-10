@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState, type FormEvent } from "react";
+import { useContext, useEffect, useState, type FormEvent } from "react";
 import { z } from "zod";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { PageShell } from "../components/page-placeholder";
+import { PageShell, LP2EmbeddedContext } from "../components/page-placeholder";
 import { RequestCard, type Req } from "../components/request-list";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,14 +22,19 @@ export const Route = createFileRoute("/area-cliente")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: ClientAreaPage,
+  component: CanonicalClientAreaPage,
 });
 
 const input = "mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-base text-foreground focus-visible:ring-2 focus-visible:ring-ring";
 
-function ClientAreaPage() {
-  const { user, loading } = useAuth();
+function CanonicalClientAreaPage() {
   const { tecnico } = Route.useSearch();
+  return <ClientAreaPage tecnico={tecnico} />;
+}
+
+export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
+  const lp2 = useContext(LP2EmbeddedContext);
+  const { user, loading } = useAuth();
   const [rows, setRows] = useState<Req[] | null>(null);
   const [form, setForm] = useState({ title: "", description: "", category: CATEGORIES[0] as string, city: "", region: "" });
   const [msg, setMsg] = useState<string | null>(null);
@@ -78,7 +83,7 @@ function ClientAreaPage() {
           <p className="mt-4 text-sm text-muted-foreground">Carregando…</p>
         ) : !user ? (
           <p className="mt-4 text-sm text-muted-foreground">
-            <Link to="/entrar" className="font-medium text-primary underline">Entre</Link> para abrir e acompanhar suas solicitações.
+            <Link to={lp2 ? "/lp2/entrar" : "/entrar"} className="font-medium text-primary underline">Entre</Link> para abrir e acompanhar suas solicitações.
           </p>
         ) : (
           <>

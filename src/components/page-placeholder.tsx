@@ -1,9 +1,13 @@
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { SiteHeader } from "./site-header";
 import { SiteFooter } from "./site-footer";
 import { CookieNotice } from "./cookie-notice";
 
+export const LP2EmbeddedContext = createContext(false);
+
 export function PageShell({ children }: { children: ReactNode }) {
+  const embedded = useContext(LP2EmbeddedContext);
+  if (embedded) return <main className="lp2-embedded-page">{children}</main>;
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <SiteHeader />
