@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Subscription, User } from "@supabase/supabase-js";
+import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
 export type Role = "admin" | "tecnico" | "cliente";
@@ -13,7 +13,7 @@ export function useAuth() {
   useEffect(() => {
     let active = true;
     let generation = 0;
-    let subscription: Subscription | undefined;
+    let subscription: { unsubscribe: () => void } | undefined;
 
     // Role queries run after auth initialization and outside the synchronous
     // onAuthStateChange callback. Stale queries must never overwrite a later login.
