@@ -65,7 +65,16 @@ describe("SEO global do Encontre um Técnico", () => {
     }
     expect(read("src/routes/tecnicos.$tecnicoId.tsx")).toContain("...(!loaderData ?");
     expect(read("src/routes/lp2/tecnico.$slug.tsx")).toContain("!loaderData");
-    expect(read("src/routes/__root.tsx")).not.toContain('name: "robots", content: "noindex, nofollow"');
+    const root = read("src/routes/__root.tsx");
+    expect(root).not.toContain('name: "robots", content: "noindex, nofollow"');
+    expect(root).toContain('<html lang="pt-BR"');
+    for (const file of [
+      "src/routes/index.tsx", "src/routes/tecnicos.index.tsx",
+      "src/routes/tecnicos.$tecnicoId.tsx", "src/routes/sitemap[.]xml.ts",
+      "public/robots.txt",
+    ]) {
+      expect(read(file), file).not.toContain("find-your-trusted-technician.lovable.app");
+    }
   });
 
   it("preserva redirecionamentos legados 301/302 sem criar URLs duplicadas", () => {
