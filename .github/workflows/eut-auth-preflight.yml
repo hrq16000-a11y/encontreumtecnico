@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'src/routes/entrar.tsx'
+      - 'src/lib/onboarding-legacy-fallback.ts'
+      - 'src/lib/onboarding-legacy-fallback.test.ts'
       - 'src/hooks/use-auth.tsx'
       - 'src/hooks/use-auth.test.tsx'
       - 'docs/sql/eut-project-owner-bootstrap.sql'
@@ -31,7 +33,7 @@ jobs:
         run: bun run build
       - name: TypeScript after TanStack route generation
         run: bunx tsc --noEmit --pretty false
-      - name: Verify fail-closed WordPress lookup and existing Google login
+      - name: Verify server-authorized roles and optional legacy discovery
         run: |
           node --input-type=module <<'NODE'
           import { readFileSync } from 'node:fs';
@@ -41,7 +43,10 @@ jobs:
             'eut_my_legacy_account', 'eut_confirm_my_legacy_account',
             'legacyLookupError', 'setLegacyChecked(false)',
             'Tentar consultar novamente',
-            'disabled={busy || !legacyChecked || !termsAccepted || rolesError || ownerCheckPending || ownerCheckError}',
+            'disabled={busy || !canAttemptRole || !termsAccepted || rolesError || ownerCheckPending || ownerCheckError}',
+            'canAttemptNewAccountRole({ legacyChecked, legacyLookupError, legacyRole })',
+            'supabase.rpc("choose_account_type", { _role: role })',
+            'role !== legacyRole',
           ]) {
             if (!ui.includes(term)) throw Error('Missing safe first-login step: '+term);
           }
@@ -51,7 +56,11 @@ jobs:
           }
           if (ui.includes('service_role')||ui.includes('auth.admin.createUser'))
             throw Error('Privileged account creation in browser');
-          console.log('Confirmed-account WordPress lookup: fail closed, explicit retry, no privileged browser APIs');
+          const newRoleGuard=readFileSync('src/lib/onboarding-legacy-fallback.ts','utf8');
+          if (!newRoleGuard.includes('state.legacyRole === null') ||
+              !newRoleGuard.includes('state.legacyLookupError'))
+            throw Error('Known legacy role must not be overridable on lookup failure');
+          console.log('Verified Google/session and server-only role authority; optional legacy lookup failures do not block new registration');
           NODE
       - name: Verify one-time project-owner bootstrap contract
         run: |
