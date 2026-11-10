@@ -7,6 +7,7 @@ on:
       - 'src/routes/tecnicos.$tecnicoId.tsx'
       - 'src/routes/area-cliente.tsx'
       - 'src/routes/area-tecnico.tsx'
+      - 'src/components/technician-private-contact.tsx'
       - 'src/components/request-list.tsx'
       - '.github/workflows/eut-paid-contact-privacy.yml'
 
@@ -59,6 +60,35 @@ jobs:
             throw Error('Client may believe the request was sent to technician');
           if(quote.includes('.select("phone")') || quote.includes('service_role'))
             throw Error('Quote page must not expose contact or use privileged keys');
+          const privateUi=read('src/components/technician-private-contact.tsx');
+          for(const term of [
+            'eut_my_private_contact',
+            'eut_save_my_private_contact',
+            'eut_remove_my_private_contact',
+            'Autorizo que meu número seja fornecido'
+          ]) {
+            if(!privateUi.includes(term))throw Error('Missing private phone operation: '+term);
+          }
+          if(!tech.includes('<TechnicianPrivateContact userId={user.id} />')) {
+            throw Error('Technician does not have private contact preferences');
+          }
+          for(const term of [
+            'eut_reveal_paid_technician_contact',
+            'contact_ready', 'Verificar contato já adquirido',
+            'data?.status === "liberado"',
+            'payment_available === false',
+            'contact_released === false'
+          ]) {
+            if(!quote.includes(term))throw Error('Paid-only reveal UI contract missing: '+term);
+          }
+          const publicSearch=read('src/lib/technicians.functions.ts');
+          if(publicSearch.includes('phone_e164') || publicSearch.includes('eut_technician_private_contacts')) {
+            throw Error('Private contacts must not appear in SSR technician search');
+          }
+          if(privateUi.includes('.from("eut_technician_private_contacts")') ||
+             quote.includes('.from("eut_technician_private_contacts")')) {
+            throw Error('Client must not query private table directly');
+          }
           console.log('Private customer triage, closed technician inbox and no unpaid contact claims: OK');
           NODE
       - name: Public RPC must not allow anonymous quote
@@ -77,4 +107,17 @@ jobs:
           });
           if(response.ok)throw Error('Anonymous quote RPC unexpectedly permitted');
           console.log('Anonymous quote denied: HTTP '+response.status);
+          for (const [fn,payload] of [
+            ['eut_my_private_contact',{}],
+            ['eut_save_my_private_contact',{_phone:'+5541999999999',_allow_paid_contact:true}],
+            ['eut_remove_my_private_contact',{}],
+            ['eut_reveal_paid_technician_contact',{_technician_id:'00000000-0000-4000-8000-000000000000'}]
+          ]) {
+            const denied=await fetch(url+'/rest/v1/rpc/'+fn,{
+              method:'POST', headers:{apikey:key,'Content-Type':'application/json'},
+              body:JSON.stringify(payload),signal:AbortSignal.timeout(12000)
+            });
+            if(denied.ok)throw Error('Anonymous API gained unauthorized access to '+fn);
+            console.log(fn+': anonymous denied HTTP '+denied.status);
+          }
           NODE
