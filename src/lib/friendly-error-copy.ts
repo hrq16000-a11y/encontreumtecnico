@@ -11,9 +11,9 @@ export const FRIENDLY_ERROR_COPY = {
   },
   404: {
     label: "Página não encontrada",
-    title: "Ops! Esta página não está por aqui.",
-    description: "O endereço pode ter mudado ou não existir mais. Mas encontrar ajuda continua fácil.",
-    suggestion: "Encontre profissionais cadastrados na sua região ou volte ao início.",
+    title: "Opa! Página não encontrada!",
+    description: "Não encontramos o endereço que você procurou. Pode ser que essa página tenha mudado de lugar.",
+    suggestion: "Pesquise sua cidade para encontrar um técnico ou continue explorando o portal.",
     actionLabel: "Encontrar um técnico",
     actionHref: "/tecnicos",
   },
