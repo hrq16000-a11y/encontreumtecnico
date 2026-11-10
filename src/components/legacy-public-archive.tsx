@@ -81,7 +81,7 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
                     <TechnicianAvatar
                       name={profile.display_name}
                       originalPhotoUrl={legacyAvatarUrl(profile.wp_post_id)}
-                    />}
+                    />
                     <div className="min-w-0 flex-1">
                       <h3 className="font-semibold text-card-foreground">{profile.display_name}</h3>
                       <span className="mt-1 inline-flex rounded bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
