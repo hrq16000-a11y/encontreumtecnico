@@ -4,6 +4,7 @@ on:
     paths:
       - 'src/routes/admin.tsx'
       - 'src/components/admin-control-hub.tsx'
+      - 'src/components/admin-advertising-manager.tsx'
       - 'docs/admin/PLANO-MESTRE-GESTAO-PATROCINIOS.md'
       - '.github/workflows/eut-admin-control-center.yml'
 permissions:
@@ -28,7 +29,7 @@ jobs:
           const hub = readFileSync('src/components/admin-control-hub.tsx', 'utf8');
           const spec = readFileSync('docs/admin/PLANO-MESTRE-GESTAO-PATROCINIOS.md', 'utf8');
           const anchors = [
-            'admin-catalogo', 'admin-legado', 'admin-reivindicacoes',
+            'admin-patrocinadores', 'admin-catalogo', 'admin-legado', 'admin-reivindicacoes',
             'admin-tecnicos', 'admin-solicitacoes',
             'admin-mensagens', 'admin-metricas',
           ];
@@ -38,7 +39,7 @@ jobs:
           }
           for (const term of [
             'roles.includes("admin")', 'noindex, nofollow',
-            '<AdminControlHub />', '<EutAdminManager />',
+            '<AdminControlHub />', '<AdminAdvertisingManager />', '<EutAdminManager />',
             '<LegacyReviewQueue />', '<LegacyClaimReview />',
           ]) if (!page.includes(term)) throw Error('Admin access/feature regression: ' + term);
           for (const term of [
@@ -46,8 +47,8 @@ jobs:
             'eut_ad_campaigns', 'eut_admin_audit_log',
             'RLS', 'rollback', 'Publicidade',
           ]) if (!spec.includes(term)) throw Error('Sponsor architecture missing: ' + term);
-          if (!hub.includes('ainda não há anúncios para gerenciar aqui')) {
-            throw Error('Unimplemented ads must not be advertised as operational');
+          if (!hub.includes('exibição de banners') || !hub.includes('ainda dependem das próximas rodadas')) {
+            throw Error('Ads must not be advertised as publicly delivered before R4');
           }
           console.log('Admin navigation and roadmap contract: OK');
           NODE
