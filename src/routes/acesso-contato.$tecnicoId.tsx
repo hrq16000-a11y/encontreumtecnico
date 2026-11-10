@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const db = supabase as unknown as SupabaseClient;
 type Quote = {
-  status: "aguardando_integracao_pagamento" | "limite_diario_atingido";
+  status: "aguardando_integracao_pagamento" | "limite_diario_atingido" | "contato_indisponivel";
   price_cents: number;
   currency: "BRL";
   timezone: "America/Sao_Paulo";
@@ -20,16 +20,18 @@ type Quote = {
   contacts_remaining_today: number;
   payment_available: false;
   contact_released: false;
+  contact_ready: boolean;
 };
 
 function isQuote(input: unknown): input is Quote {
   if (!input || typeof input !== "object") return false;
   const value = input as Partial<Quote>;
-  return (value.status === "aguardando_integracao_pagamento" || value.status === "limite_diario_atingido")
+  return (value.status === "aguardando_integracao_pagamento" || value.status === "limite_diario_atingido" || value.status === "contato_indisponivel")
     && (value.price_cents === 999 || value.price_cents === 2999)
     && value.currency === "BRL" && value.payment_available === false
     && value.contact_released === false
     && value.contacts_per_purchase === 1
+    && typeof value.contact_ready === "boolean"
     && value.daily_max_contacts === 2
     && typeof value.contacts_remaining_today === "number";
 }
@@ -53,8 +55,40 @@ function ContactAccessPage() {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [fetching, setFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paidPhone, setPaidPhone] = useState<string | null>(null);
+  const [paidMessage, setPaidMessage] = useState<string | null>(null);
+  const [checkingPurchase, setCheckingPurchase] = useState(false);
+
+  async function checkPurchasedContact() {
+    if (!technician || !user || !roles.includes("cliente") || checkingPurchase) return;
+    setCheckingPurchase(true);
+    setPaidPhone(null);
+    setPaidMessage(null);
+    try {
+      // The backend independently checks the caller and a real paid entitlement.
+      const { data, error } = await db.rpc("eut_reveal_paid_technician_contact", {
+        _technician_id: technician.id,
+      });
+      if (error) {
+        setPaidMessage("Não foi possível consultar seu acesso. Tente novamente.");
+      } else if (data?.status === "liberado" && typeof data.phone === "string" && data.phone.startsWith("+55") && /^[+][0-9]{12,13}$/.test(data.phone)) {
+        setPaidPhone(data.phone);
+        setPaidMessage("Acesso pago confirmado. Número disponível exclusivamente nesta área autenticada.");
+      } else if (data?.status === "contato_indisponivel") {
+        setPaidMessage("Este contato deixou de estar disponível. Se houve cobrança, consulte nossa política de reembolso.");
+      } else {
+        setPaidMessage("Não encontramos pagamento confirmado para o contato deste profissional.");
+      }
+    } catch {
+      setPaidMessage("Não foi possível confirmar o acesso agora.");
+    } finally {
+      setCheckingPurchase(false);
+    }
+  }
 
   useEffect(() => {
+    setPaidPhone(null);
+    setPaidMessage(null);
     if (!technician || authLoading || !user || !roles.includes("cliente")) {
       setQuote(null);
       return;
@@ -141,6 +175,17 @@ function ContactAccessPage() {
                       {quote.contacts_remaining_today} contato(s) restante(s) no limite diário.
                       A cotação não garante o preço de uma futura transação.
                     </p>
+                    {!quote.contact_ready && (
+                      <p role="status" className="mt-3 text-sm font-semibold text-foreground">
+                        Este técnico ainda não cadastrou ou autorizou um WhatsApp para acesso pago.
+                        Não existe compra disponível nem cobrança por um número ausente.
+                      </p>
+                    )}
+                    {quote.status === "limite_diario_atingido" && (
+                      <p role="status" className="mt-3 text-sm text-foreground">
+                        O limite diário de dois contatos foi atingido.
+                      </p>
+                    )}
                   </>
                 )}
                 <p className="mt-3 text-sm font-semibold text-foreground">
@@ -150,6 +195,22 @@ function ContactAccessPage() {
                   O número privado deste profissional permanece protegido e só poderá ser liberado
                   após confirmação real de pagamento por um provedor financeiro integrado.
                 </p>
+                <button type="button" onClick={() => void checkPurchasedContact()}
+                  disabled={checkingPurchase || fetching || !technician}
+                  className="mt-4 min-h-11 rounded-md border border-input px-4 py-2 text-sm font-semibold text-foreground disabled:opacity-60">
+                  {checkingPurchase ? "Consultando compra…" : "Verificar contato já adquirido"}
+                </button>
+                {paidMessage && <p role="status" className="mt-3 text-sm text-foreground">{paidMessage}</p>}
+                {paidPhone && (
+                  <div className="mt-3 rounded-lg border border-border bg-background p-4">
+                    <p className="text-xs text-muted-foreground">Contato liberado por pagamento confirmado</p>
+                    <p className="mt-1 font-mono text-lg font-semibold text-foreground">{paidPhone}</p>
+                    <button type="button" onClick={() => void navigator.clipboard.writeText(paidPhone)}
+                      className="mt-2 min-h-10 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground">
+                      Copiar número
+                    </button>
+                  </div>
+                )}
               </div>
             )}
             <p className="mt-6 text-xs leading-relaxed text-muted-foreground">
