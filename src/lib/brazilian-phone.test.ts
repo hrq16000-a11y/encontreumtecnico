@@ -26,6 +26,12 @@ describe("telefone brasileiro privado", () => {
     }
   });
 
+  it("preserva o DDD 55 sem confundir com código de país", () => {
+    expect(normalizeBrazilianPhone("(55) 3333-4444")).toBe("+555533334444");
+    expect(normalizeBrazilianPhone("(55) 99999-8888")).toBe("+5555999998888");
+    expect(normalizeBrazilianPhone("+55 (55) 99999-8888")).toBe("+5555999998888");
+  });
+
   it("não aceita sem DDD, números truncados, letras ou injeção", () => {
     for (const input of [
       "",
