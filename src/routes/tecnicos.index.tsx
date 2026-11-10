@@ -6,6 +6,7 @@ import { PageShell, EmptyState } from "../components/page-placeholder";
 import { useActiveCategories, categoryLabel } from "@/hooks/use-active-categories";
 import { useActiveServices, serviceLabel } from "@/hooks/use-active-services";
 import { BRAZIL_STATES } from "@/lib/service-taxonomy";
+import { localMatchLabel } from "@/lib/technician-local-ranking";
 import { LegacyPublicArchive } from "../components/legacy-public-archive";
 import { canShowLegacyArchive } from "../lib/legacy-archive-filters";
 import { useEffect, useRef, useState } from "react";
@@ -18,6 +19,7 @@ const searchSchema = z.object({
   servico: fallback(z.string(), "").default(""),
   uf: fallback(z.string(), "").default(""),
   bairro: fallback(z.string(), "").default(""),
+  prioridade: fallback(z.string(), "").default(""),
 });
 
 export const Route = createFileRoute("/tecnicos/")({
@@ -69,7 +71,9 @@ function TechniciansPage() {
       void recordSearch({ ...search, resultCount: technicians.length });
     }, 800);
     return () => clearTimeout(timer);
-  }, [search.especialidade, search.cidade, search.regiao, search.servico, search.uf, search.bairro, technicians.length, consentRevision]);
+  }, [search.especialidade, search.cidade, search.regiao, search.servico, search.uf, search.bairro, search.prioridade, technicians.length, consentRevision]);
+  const prioritizeRegion = search.prioridade === "regiao" && Boolean(search.uf || search.cidade.trim());
+  const hasDeclaredLocation = Boolean(search.uf || search.cidade.trim());
   const specialty = categories.some((c) => c.slug === search.especialidade)
     ? search.especialidade
     : "Todas";
@@ -161,6 +165,32 @@ function TechniciansPage() {
           </div>
         </div>
 
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 p-4">
+          <label className="flex cursor-pointer items-start gap-3 text-sm text-foreground">
+            <input
+              type="checkbox" checked={prioritizeRegion}
+              disabled={!hasDeclaredLocation}
+              onChange={(event) => update({ prioridade: event.target.checked ? "regiao" : "" })}
+              className="mt-0.5 h-4 w-4 shrink-0"
+            />
+            <span>
+              <strong>Priorizar minha região</strong>
+              <span className="mt-1 block text-xs text-muted-foreground">
+                Mostra primeiro profissionais com bairro, município e UF correspondentes aos dados
+                informados e, depois, alternativas de outras regiões. A presença online desempata
+                profissionais na mesma faixa de localização.
+              </span>
+            </span>
+          </label>
+          {!hasDeclaredLocation && (
+            <p className="text-xs text-muted-foreground">Informe o estado (UF) ou município para ativar.</p>
+          )}
+          {prioritizeRegion && (
+            <p role="status" className="text-xs text-muted-foreground">
+              Afinidade por endereço declarado; não é localização GPS ou distância em quilômetros.
+            </p>
+          )}
+        </div>
         <div className="mt-6">
           {technicians.length === 0 ? (
             <EmptyState
@@ -184,6 +214,13 @@ function TechniciansPage() {
                         <span className="shrink-0 rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">Perfil público</span>
                       )}
                     </div>
+                    {prioritizeRegion && localMatchLabel(t, {
+                      uf: search.uf, cidade: search.cidade, bairro: search.bairro,
+                    }) && (
+                      <p className="mt-2 text-xs font-semibold text-primary">
+                        {localMatchLabel(t, { uf: search.uf, cidade: search.cidade, bairro: search.bairro })}
+                      </p>
+                    )}
                     <p className="mt-1 text-sm text-muted-foreground">
                       {t.city}{t.state_uf ? `/${t.state_uf}` : ""}{t.neighborhood ? ` · ${t.neighborhood}` : ""}{t.region ? ` · ${t.region}` : ""}
                     </p>

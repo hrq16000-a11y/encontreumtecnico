@@ -10,6 +10,7 @@ import { BRAZIL_STATES, validMunicipality } from "@/lib/service-taxonomy";
 import { LegacyAccountActivation } from "@/components/legacy-account-activation";
 import { LegacyProfileImport } from "@/components/legacy-profile-import";
 import { TechnicianPresence } from "@/components/technician-presence";
+import { TechnicianMissions } from "@/components/technician-missions";
 import { RequestCard, type Req } from "../components/request-list";
 
 export const Route = createFileRoute("/area-tecnico")({
@@ -153,6 +154,7 @@ export function TechnicianAreaPage() {
               Seu cadastro é gratuito. Ao confirmar sua cidade, especialidades e serviços, seu perfil é publicado automaticamente, sem avaliação da sua capacidade técnica pelo portal.
             </p>
             {status === "aprovado" && <TechnicianPresence userId={user.id} />}
+            <TechnicianMissions userId={user.id} />
             <LegacyAccountActivation userId={user.id} role="tecnico" />
             <LegacyProfileImport userId={user.id}
               onUse={(data) => setForm((current) => ({
