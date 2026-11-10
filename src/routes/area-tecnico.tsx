@@ -12,6 +12,7 @@ import { LegacyProfileImport } from "@/components/legacy-profile-import";
 import { TechnicianPresence } from "@/components/technician-presence";
 import { TechnicianMissions } from "@/components/technician-missions";
 import { TechnicianPrivateContact } from "@/components/technician-private-contact";
+import { PioneerPhoneVerification } from "@/components/pioneer-phone-verification";
 import { TechnicianDirectRequests } from "@/components/technician-direct-requests";
 import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
 
@@ -205,6 +206,7 @@ export function TechnicianAreaPage() {
             )}
             {currentStatus === "aprovado" && <TechnicianPresence userId={user.id} />}
             <TechnicianPrivateContact userId={user.id} />
+            <PioneerPhoneVerification userId={user.id} />
             {currentStatus === "aprovado" && <TechnicianDirectRequests userId={user.id} />}
             <TechnicianMissions userId={user.id} />
             <LegacyAccountActivation userId={user.id} role="tecnico" />
