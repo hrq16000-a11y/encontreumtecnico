@@ -18,6 +18,7 @@ export type PublicTechnician = {
   bio: string | null;
   online_now: boolean;
   pioneer_bronze?: boolean;
+  referral_highlight?: boolean;
 };
 
 const COLUMNS = "id, public_slug, display_name, specialties, service_slugs, city, state_uf, neighborhood, region, bio";
@@ -87,6 +88,24 @@ async function withPioneerBadges(rows: PublicTechnician[]): Promise<PublicTechni
   }
 }
 
+/** Anonymous lookup returns only public approved IDs; never referral identities. */
+async function withReferralHighlights(rows: PublicTechnician[]): Promise<PublicTechnician[]> {
+  if (!rows.length) return [];
+  try {
+    const { data, error } = await (publicClient() as unknown as SupabaseClient)
+      .rpc("eut_public_referral_highlights", {
+        _technician_ids: rows.map((row) => row.id),
+      });
+    if (error) throw error;
+    const highlighted = new Set((Array.isArray(data) ? data : [])
+      .map((record: { technician_id: string }) => record.technician_id));
+    return rows.map((row) => ({ ...row, referral_highlight: highlighted.has(row.id) }));
+  } catch {
+    // A backend outage never grants an unverified spotlight.
+    return rows.map((row) => ({ ...row, referral_highlight: false }));
+  }
+}
+
 // Strip characters that would break PostgREST ilike filters.
 const clean = (s: string) => s.replace(/[%,()*\\]/g, " ").trim().slice(0, 80);
 
@@ -136,8 +155,8 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
       console.error("listApprovedTechnicians", error);
       throw new Error("Não foi possível carregar os técnicos.");
     }
-    const published = await withPioneerBadges(await withOnlineStatus(rows ?? []));
-    if (!regionalPriority) return published.sort((a,b) => Number(b.online_now)-Number(a.online_now) || Number(Boolean(b.pioneer_bronze))-Number(Boolean(a.pioneer_bronze)));
+    const published = await withReferralHighlights(await withPioneerBadges(await withOnlineStatus(rows ?? [])));
+    if (!regionalPriority) return published.sort((a,b) => Number(b.online_now)-Number(a.online_now) || Number(Boolean(b.referral_highlight))-Number(Boolean(a.referral_highlight)) || Number(Boolean(b.pioneer_bronze))-Number(Boolean(a.pioneer_bronze)));
     return rankTechniciansByDeclaredArea(published, {
       uf, cidade: data.cidade, bairro: data.bairro,
     });
@@ -161,5 +180,5 @@ export const getApprovedTechnician = createServerFn({ method: "GET" })
       console.error("getApprovedTechnician lookup failed", error.code ?? "unknown");
       throw new Error("Não foi possível consultar o perfil do técnico.");
     }
-    return row ? (await withPioneerBadges(await withOnlineStatus([row])))[0] ?? null : null;
+    return row ? (await withReferralHighlights(await withPioneerBadges(await withOnlineStatus([row]))))[0] ?? null : null;
   });
