@@ -1,0 +1,71 @@
+name: EUT private request reply gate
+
+on:
+  pull_request:
+    paths:
+      - 'src/lib/private-message-validation.ts'
+      - 'src/lib/private-message-validation.test.ts'
+      - 'src/components/technician-direct-requests.tsx'
+      - 'src/components/request-list.tsx'
+      - 'src/routes/area-cliente.tsx'
+      - 'docs/sql/eut-direct-request-replies-20261109.md'
+      - '.github/workflows/eut-private-replies.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eut-private-replies-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  privacy-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Private message validations
+        run: bun run test src/lib/private-message-validation.test.ts
+      - name: Verify consent and confidential data boundaries
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          const read=(file)=>readFileSync(file,'utf8');
+          const sql=read('docs/sql/eut-direct-request-replies-20261109.md');
+          const technician=read('src/components/technician-direct-requests.tsx');
+          const client=read('src/routes/area-cliente.tsx');
+          const history=read('src/components/request-list.tsx');
+          for(const term of [
+            'eut_migration.has_sensitive_direct_contact',
+            'create policy "Client reads reply only to their voluntarily shared request"',
+            'create policy "Technician reads only their own reply"',
+            'revoke all on table public.eut_direct_request_replies',
+            'grant select (request_id, body, created_at)',
+            'verified technician session required',
+            "r.status='aberta'",
+            'for update of r',
+            'eut_respond_to_direct_request',
+            "v_request.title || ' ' || v_request.description"
+          ]) if(!sql.includes(term)) throw Error('Missing server-side reply gate: '+term);
+          for(const term of ['eut_respond_to_direct_request',
+              '.select("request_id,body,created_at")',
+              '.select("id,title,description,category,city,region,created_at")',
+              'containsObviousContact',
+              'Nenhum pedido enviado diretamente a você']) {
+            if(!technician.includes(term)) throw Error('Missing secure technician reply: '+term);
+          }
+          for(const term of ['eut_direct_request_replies','Atualizar respostas','Resposta privada do técnico','containsObviousContact']) {
+            if(!client.includes(term)) throw Error('Missing customer tracking: '+term);
+          }
+          if(!history.includes('Compartilhada com o técnico')) throw Error('Status can misrepresent a shared request');
+          if(technician.includes('.select("phone")') || technician.includes('service_role')
+              || client.includes('.select("phone")')) {
+            throw Error('Private contacts must not be queried in text response');
+          }
+          NODE
+      - name: Production build (generates TanStack route tree)
+        run: bun run build
+      - name: TypeScript after route generation
+        run: bunx tsc --noEmit --pretty false
