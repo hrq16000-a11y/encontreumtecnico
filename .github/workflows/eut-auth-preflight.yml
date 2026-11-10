@@ -32,7 +32,7 @@ jobs:
             'eut_my_legacy_account', 'eut_confirm_my_legacy_account',
             'legacyLookupError', 'setLegacyChecked(false)',
             'Tentar consultar novamente',
-            'disabled={busy || !legacyChecked || !termsAccepted || rolesError}',
+            'disabled={busy || !legacyChecked || !termsAccepted || rolesError || ownerCheckPending || ownerCheckError}',
           ]) {
             if (!ui.includes(term)) throw Error('Missing safe first-login step: '+term);
           }
