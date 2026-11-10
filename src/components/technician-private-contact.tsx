@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { Link } from "@tanstack/react-router";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { normalizeBrazilianPhone } from "@/lib/brazilian-phone";
@@ -72,7 +73,7 @@ export function TechnicianPrivateContact({ userId }: { userId: string }) {
         _allow_paid_contact: allowPaidContact,
       });
       if (error || data?.saved !== true) {
-        setMessage("Não foi possível salvar o número. Confira o DDD e tente novamente.");
+        setMessage("Não foi possível concluir o cadastro do telefone. Confira os dados ou consulte o suporte.");
       } else {
         setHasNumber(true);
         setMessage(allowPaidContact
@@ -144,7 +145,11 @@ export function TechnicianPrivateContact({ userId }: { userId: string }) {
             </button>
           )}
         </div>
-        {message && <p role="status" className="text-sm text-foreground">{message}</p>}
+        {message && <p role="status" className="text-sm text-foreground">{message}{" "}
+          {message.startsWith("Não foi possível") && (
+            <Link to="/ajuda-acesso" className="font-semibold text-primary underline-offset-4 hover:underline">Falar com suporte</Link>
+          )}
+        </p>}
       </form>
       <p className="mt-3 text-xs text-muted-foreground">
         Cadastrar o telefone não gera cobrança ou mensalidade para o prestador. Não significa que o
