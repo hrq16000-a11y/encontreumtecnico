@@ -18,7 +18,7 @@ describe("SEO global do Encontre um Técnico", () => {
       ["src/routes/tecnicos.index.tsx", site + "/tecnicos"],
       ["src/routes/lp2/index.tsx", site + "/lp2"],
       ["src/routes/lp2/galeria.tsx", site + "/lp2/galeria"],
-    ]) {
+    ] as const) {
       const code = read(name);
       expect(code, name).toContain("canonical");
       if (name === "src/routes/index.tsx") {
@@ -93,7 +93,7 @@ describe("SEO global do Encontre um Técnico", () => {
       ["src/routes/termos-de-uso.tsx", "/termos"],
       ["src/routes/politica-de-privacidade.tsx", "/privacidade"],
       ["src/routes/politica-de-cookies.tsx", "/cookies"],
-    ]) {
+    ] as const) {
       const source = read(path);
       expect(source).toContain('to: "' + to + '"');
       expect(source).toContain("statusCode: 301");
