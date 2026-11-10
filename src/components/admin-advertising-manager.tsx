@@ -214,6 +214,9 @@ export function AdminAdvertisingManager() {
       }
       if (tab === "creatives") {
         const isImage = draft.creative_type === "image";
+        if (isImage && (draft.image_alt || "").trim().length < 5) {
+          throw new Error("Descreva a imagem para acessibilidade antes de enviar.");
+        }
         let key = draft.media_storage_key || null;
         if (isImage && image) {
           const extByMime: Record<string, string> = {
@@ -230,7 +233,6 @@ export function AdminAdvertisingManager() {
           key = path; setDraft(current => ({ ...current, media_storage_key: path })); setImage(null);
         }
         if (isImage && !key) throw new Error("Selecione a imagem antes de salvar.");
-        if (isImage && (draft.image_alt || "").trim().length < 5) throw new Error("Descreva a imagem para acessibilidade.");
         payload.media_storage_key = isImage ? key : null;
       }
       const kind = tab === "sponsors" ? "sponsor" : tab === "placements" ? "placement" :
