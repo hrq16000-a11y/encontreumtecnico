@@ -20,8 +20,10 @@ jobs:
           node --input-type=module <<'NODE'
           import { readFileSync } from 'node:fs';
           const s=readFileSync('src/routes/area-tecnico.tsx','utf8');
-          for(const v of ['BRAZIL_STATES','validMunicipality(form.state_uf, form.city)','state_uf: form.state_uf','neighborhood: form.neighborhood.trim()','Regiões e outros bairros atendidos','status: "pendente" as const']) {
+          for(const v of ['BRAZIL_STATES','validMunicipality(form.state_uf, form.city)','state_uf: form.state_uf','_neighborhood: form.neighborhood.trim()','Regiões e outros bairros atendidos','eut_publish_my_technician']) {
             if(!s.includes(v))throw Error('Missing location/approval guard: '+v);
           }
-          console.log('Technician location fields and review policy preserved');
+          if (!s.includes('data?.state === "publicado"')) throw Error('Server-confirmed automatic publication missing');
+          if (s.includes('status: "aprovado" as const') || s.includes('from("technicians").insert(')) throw Error('Client attempted to approve directly instead of secure RPC');
+          console.log('Server-only auto-publication + category and location guards: OK');
           NODE

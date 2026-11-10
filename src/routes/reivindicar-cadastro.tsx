@@ -35,7 +35,7 @@ const labels: Record<ClaimSummary["status"], string> = {
   pendente: "Aguardando análise",
   em_analise: "Em verificação",
   rejeitado: "Pedido não aprovado",
-  vinculado: "Vínculo confirmado — perfil aguardando aprovação",
+  vinculado: "Titularidade associada — atualize seu perfil para publicar",
 };
 
 function LegacyClaimPage() {
@@ -128,8 +128,7 @@ function LegacyClaimPage() {
       <section className="mx-auto max-w-2xl px-4 py-10">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Recuperar meu cadastro antigo</h1>
         <p className="mt-3 text-sm text-muted-foreground">
-          Já era técnico no WordPress? Solicite o vínculo usando sua conta Google ou conta de técnico com e-mail confirmado. A referência não é prova de titularidade:
-          a equipe precisa conferir sua identidade antes de liberar o perfil.
+          Já tinha conta WordPress? O primeiro login com o mesmo e-mail confirmado procura e associa automaticamente os perfis da sua autoria. Caso o cadastro não apareça, use abaixo o pedido de recuperação manual.
         </p>
         {loading ? (
           <p className="mt-5 text-sm text-muted-foreground">Verificando sua conta…</p>
@@ -139,7 +138,7 @@ function LegacyClaimPage() {
           </p>
         ) : !eligibleToClaim ? (
           <p className="mt-5 text-sm text-muted-foreground">
-            Para solicitar o vínculo, entre com Google ou confirme seu e-mail e escolha o tipo de conta técnico. O vínculo depende de revisão administrativa.
+            Para solicitar recuperação, confirme seu e-mail e escolha o tipo de conta técnico. Correspondências seguras são associadas automaticamente.
           </p>
         ) : (
           <>
@@ -150,7 +149,7 @@ function LegacyClaimPage() {
               <section className="mt-5 rounded-lg border border-primary/30 bg-primary/5 p-4" aria-label="Cadastros antigos encontrados">
                 <h2 className="font-semibold text-foreground">Cadastros antigos encontrados para sua conta</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Identificamos referências associadas ao e-mail confirmado. Selecione seu cadastro para solicitar análise; nenhum perfil é liberado automaticamente.
+                  Identificamos perfis associados ao e-mail confirmado. A recuperação direta ocorre no primeiro login; se ela falhar, você pode solicitar ajuda pelo número do registro.
                 </p>
                 <ul className="mt-3 grid gap-2">
                   {suggested.map((profile) => (
@@ -202,7 +201,7 @@ function LegacyClaimPage() {
               </ul>
             )}
             <p className="mt-5 text-xs text-muted-foreground">
-              Mesmo após a confirmação de titularidade, o perfil profissional ficará pendente até a moderação final.
+              A titularidade do perfil WordPress não certifica capacidade técnica. Para aparecer nas buscas, confira e complete cidade, especialidade e serviços na área do técnico.
             </p>
           </>
         )}

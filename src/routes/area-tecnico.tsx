@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { PageShell } from "../components/page-placeholder";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,6 +8,7 @@ import { useActiveCategories } from "@/hooks/use-active-categories";
 import { useActiveServices } from "@/hooks/use-active-services";
 import { BRAZIL_STATES, validMunicipality } from "@/lib/service-taxonomy";
 import { LegacyAccountActivation } from "@/components/legacy-account-activation";
+import { LegacyProfileImport } from "@/components/legacy-profile-import";
 import { RequestCard, type Req } from "../components/request-list";
 
 export const Route = createFileRoute("/area-tecnico")({
@@ -14,9 +16,9 @@ export const Route = createFileRoute("/area-tecnico")({
     meta: [
       { name: "robots", content: "noindex, nofollow" },
       { title: "Área do técnico — Encontre um Técnico" },
-      { name: "description", content: "Painel do técnico: perfil profissional, especialidades, regiões atendidas e aprovação cadastral." },
+      { name: "description", content: "Painel do técnico: cadastro gratuito, confirmação dos dados WordPress e especialidades atendidas." },
       { property: "og:title", content: "Área do técnico — Encontre um Técnico" },
-      { property: "og:description", content: "Painel do técnico: perfil profissional, especialidades, regiões atendidas e aprovação cadastral." },
+      { property: "og:description", content: "Painel do técnico: cadastro gratuito, confirmação dos dados WordPress e especialidades atendidas." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -24,7 +26,8 @@ export const Route = createFileRoute("/area-tecnico")({
   component: TechnicianAreaPage,
 });
 
-const STATUS_LABEL = { pendente: "Aguardando publicação", aprovado: "Publicado — visível na busca", rejeitado: "Oculto", suspenso: "Visibilidade suspensa" };
+const STATUS_LABEL = { pendente: "Complete seus dados para publicar", aprovado: "Publicado — visível na busca", rejeitado: "Oculto", suspenso: "Visibilidade suspensa" };
+const activationDb = supabase as unknown as SupabaseClient;
 
 function TechnicianRequests() {
   const [rows, setRows] = useState<Req[] | null>(null);
@@ -95,26 +98,32 @@ function TechnicianAreaPage() {
     if (form.service_slugs.some((slug) => !services.some((service) => service.slug === slug && form.specialties.includes(service.category_slug)))) return setMsg("Os serviços precisam pertencer às categorias selecionadas e estar ativos.");
     setSaving(true);
     setMsg(null);
-    const row = {
-      user_id: user.id,
-      display_name: form.display_name.trim(),
-      city: form.city.trim(),
-      state_uf: form.state_uf,
-      neighborhood: form.neighborhood.trim() || null,
-      region: form.region.trim() || null,
-      bio: form.bio.trim() || null,
-      specialties: form.specialties,
-      service_slugs: form.service_slugs,
-      status: "pendente" as const,
-    };
-    const { error } = status
-      ? await supabase.from("technicians").update(row).eq("user_id", user.id)
-      : await supabase.from("technicians").insert(row);
-    setSaving(false);
-    if (error) setMsg("Não foi possível salvar. Confira os campos e tente novamente.");
-    else {
-      setStatus("pendente");
-      setMsg("Cadastro enviado para análise.");
+    try {
+      // Só a RPC do servidor define o status público; a tela não pode aprovar um perfil incompleto.
+      const { data, error } = await activationDb.rpc("eut_publish_my_technician", {
+        _display_name: form.display_name.trim(),
+        _state_uf: form.state_uf,
+        _city: form.city.trim(),
+        _neighborhood: form.neighborhood.trim() || null,
+        _region: form.region.trim() || null,
+        _bio: form.bio.trim() || null,
+        _specialties: form.specialties,
+        _service_slugs: form.service_slugs,
+      });
+      if (error) {
+        setMsg("Não foi possível publicar. Confira cidade, categorias e serviços e tente novamente.");
+      } else if (data?.state === "bloqueado_por_seguranca") {
+        setMsg("Seu perfil tem uma restrição de segurança e não pode ser reativado automaticamente. Entre em contato.");
+      } else if (data?.state === "publicado") {
+        setStatus("aprovado");
+        setMsg("Perfil publicado automaticamente. Os dados profissionais são declarados por você; não há avaliação técnica do portal.");
+      } else {
+        setMsg("A publicação não foi concluída. Tente novamente.");
+      }
+    } catch {
+      setMsg("Falha de conexão ao publicar. Tente novamente.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -139,13 +148,20 @@ function TechnicianAreaPage() {
               </p>
             )}
             <p className="mt-2 text-sm text-muted-foreground">
-              Seu cadastro é gratuito. A publicação depende dos requisitos operacionais de visibilidade; o portal não avalia sua capacidade técnica.
+              Seu cadastro é gratuito. Ao confirmar sua cidade, especialidades e serviços, seu perfil é publicado automaticamente, sem avaliação da sua capacidade técnica pelo portal.
             </p>
             <LegacyAccountActivation userId={user.id} role="tecnico" />
+            <LegacyProfileImport userId={user.id}
+              onUse={(data) => setForm((current) => ({
+                ...current,
+                display_name: data.display_name || current.display_name,
+                bio: data.bio || current.bio,
+              }))}
+            />
             <p className="mt-4 text-sm text-muted-foreground">
-              Já tinha perfil no portal antigo?{" "}
+              Não encontrou o cadastro que era seu?{" "}
               <Link to="/reivindicar-cadastro" className="font-medium text-primary underline">
-                Solicitar vínculo com meu cadastro WordPress
+                Informar um perfil antigo manualmente
               </Link>
             </p>
             <form onSubmit={save} className="mt-6 grid gap-4">

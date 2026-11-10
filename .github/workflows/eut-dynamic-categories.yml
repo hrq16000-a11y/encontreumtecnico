@@ -43,7 +43,7 @@ jobs:
           const server=read('src/lib/technicians.functions.ts');
           for (const [file, body, terms] of [
             ['catalog hook',catalog,['eut_service_categories','.eq("active", true)','display_order']],
-            ['tech profile',tech,['useActiveCategories()','c.slug','state_uf: form.state_uf','status: "pendente" as const']],
+            ['tech profile',tech,['useActiveCategories()','c.slug','_state_uf: form.state_uf','eut_publish_my_technician']],
             ['search',results,['useActiveCategories()','value={c.slug}','{c.label}']],
             ['home1 categories',home1,['useActiveCategories()','category.slug','category.label']],
             ['home2 categories',home2,['useActiveCategories()','categoryHref(cat.slug)','value={c.slug}']],
@@ -52,7 +52,9 @@ jobs:
             for (const term of terms) if (!body.includes(term)) throw Error(file+' missing '+term);
           }
           if (tech.includes('CATEGORIES.map(') || home2.includes('CATEGORIES.map(')) throw Error('Static category UI remains');
-          console.log('Dynamic catalog + protected technician approval + legacy link contract: OK');
+          if (!tech.includes('data?.state === "publicado"')) throw Error('Server-confirmed automatic publication missing');
+          if (tech.includes('status: "aprovado" as const') || tech.includes('from("technicians").insert(')) throw Error('Client attempted to approve directly instead of secure RPC');
+          console.log('Server-only auto-publication + category and location guards: OK');
           NODE
       - name: Public Supabase catalog smoke (read only, no login)
         run: |
