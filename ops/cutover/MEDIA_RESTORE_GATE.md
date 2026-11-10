@@ -72,3 +72,21 @@ Even `possible_zip_exact_upload_path_matches` is **not proof of who owns the
 image**: it only prioritizes which originals need manual ID-level review.
 No archive member name, image, client information or attachment URL is printed
 in the aggregate JSON output. The actual restoration is a separate step.
+
+## Inventário privado de mídias por ID (não publica avatares)
+
+Depois de validar os backups originais, execute num computador autorizado:
+
+```bash
+python3 ops/cutover/build_private_media_manifest.py --wxr '/private/wordpress.xml' --media '/private/midias.zip' --private-out '/private/EUT_PRIVATE_MEDIA.json'
+```
+
+O arquivo JSON privado contém IDs de anexos WP, eventuais post_parent,
+caminhos de ZIP e CRC. Deve ficar **fora do Git** e não ser compartilhado
+publicamente. A ferramenta exclui caminhos ausentes ou ambíguos e não
+confirma titularidade, consentimento ou licença da foto.
+Todos os itens ficam com approved_for_publication=false.
+Não extrai ZIP, não executa SQL, não acessa serviços e não altera DNS.
+Apenas contagens agregadas aparecem no terminal; nunca os caminhos das fotos.
+Para publicar qualquer avatar ainda são necessários revisão da fonte,
+verificação do titular e upload controlado para hospedagem independente.
