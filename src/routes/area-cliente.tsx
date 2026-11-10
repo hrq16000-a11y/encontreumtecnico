@@ -337,7 +337,6 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
           </p>
         ) : (
           <>
-            <LegacyAccountActivation userId={user.id} role="cliente" />
             <h2 className="mt-6 text-lg font-semibold text-foreground">Registrar minha necessidade</h2>
             <p className="mt-2 text-sm text-muted-foreground">
               Em quatro passos, você descreve o serviço, informa apenas sua região
@@ -510,6 +509,15 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
                 )}
               </div>
             </form>
+
+            <details className="mt-5 rounded-xl border border-border bg-card p-4">
+              <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-primary">
+                Já tinha uma conta no site antigo? Recuperar cadastro
+              </summary>
+              <div className="mt-4">
+                <LegacyAccountActivation userId={user.id} role="cliente" />
+              </div>
+            </details>
 
             <div className="mt-10 flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-lg font-semibold text-foreground">Meus pedidos e respostas</h2>
