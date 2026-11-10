@@ -65,7 +65,7 @@ jobs:
             throw Error('Private contacts must not be queried in text response');
           }
           NODE
-      - name: TypeScript
-        run: bunx tsc --noEmit --pretty false
-      - name: Production build
+      - name: Production build (generates TanStack route tree)
         run: bun run build
+      - name: TypeScript after route generation
+        run: bunx tsc --noEmit --pretty false
