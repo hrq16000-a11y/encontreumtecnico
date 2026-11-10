@@ -5,6 +5,7 @@ export type TechnicianRegistrationForm = {
   display_name: string;
   state_uf: string;
   city: string;
+  base_city_ibge_id?: number | null;
   specialties: string[];
   service_slugs: string[];
 };
@@ -29,7 +30,14 @@ export function registrationStepError(
       return "Informe seu nome público (entre 2 e 80 caracteres).";
     }
     if (!validMunicipality(form.state_uf, form.city)) {
-      return "Selecione a UF e informe uma cidade válida onde você realmente atende.";
+      return "Selecione a UF e uma cidade válida do catálogo de municípios onde você atende.";
+    }
+    // The guided live form must contain a chosen official IBGE municipality ID.
+    // Older unit-test fixtures may omit this optional field, but DB validation
+    // always enforces an official municipality name before publication.
+    if ("base_city_ibge_id" in form && (!Number.isInteger(form.base_city_ibge_id)
+        || (form.base_city_ibge_id ?? 0) < 1000000)) {
+      return "Selecione sua cidade-base na lista oficial de municípios.";
     }
     return null;
   }

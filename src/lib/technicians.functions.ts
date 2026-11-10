@@ -16,12 +16,16 @@ export type PublicTechnician = {
   city: string;
   region: string | null;
   bio: string | null;
+  avatar_path: string | null;
+  service_radius_km: number | null;
+  coverage_city_ids: number[];
+  coverage_cities?: Array<{ id: number; name: string; uf: string }>;
   online_now: boolean;
   pioneer_bronze?: boolean;
   referral_highlight?: boolean;
 };
 
-const COLUMNS = "id, public_slug, display_name, specialties, service_slugs, city, state_uf, neighborhood, region, bio";
+const COLUMNS = "id, public_slug, display_name, specialties, service_slugs, city, state_uf, neighborhood, region, bio, avatar_path, service_radius_km, coverage_city_ids";
 
 // Links e classificação por IA anteriores usavam rótulos, não identificadores.
 const LEGACY_CATEGORY_ALIASES: Record<string, string> = {
@@ -106,6 +110,30 @@ async function withReferralHighlights(rows: PublicTechnician[]): Promise<PublicT
   }
 }
 
+/** Expand only catalog-backed municipality labels, never private addresses or GPS. */
+async function withCoverageCities(rows: PublicTechnician[]): Promise<PublicTechnician[]> {
+  const codes = [...new Set(rows.flatMap((t) => t.coverage_city_ids ?? []))];
+  if (!codes.length) return rows.map((row) => ({ ...row, coverage_cities: [] }));
+  try {
+    const { data, error } = await (publicClient() as unknown as SupabaseClient)
+      .from("eut_ibge_municipalities").select("id,name,uf").in("id", codes.slice(0, 1000));
+    if (error) throw error;
+    const byCode = new Map((Array.isArray(data) ? data : []).map(
+      (city: { id: number; name: string; uf: string }) => [city.id, city],
+    ));
+    return rows.map((row) => ({
+      ...row,
+      coverage_cities: (row.coverage_city_ids ?? []).flatMap((id) => {
+        const city = byCode.get(id);
+        return city ? [city] : [];
+      }),
+    }));
+  } catch {
+    // No guesswork when the official catalog is inaccessible.
+    return rows.map((row) => ({ ...row, coverage_cities: [] }));
+  }
+}
+
 // Strip characters that would break PostgREST ilike filters.
 const clean = (s: string) => s.replace(/[%,()*\\]/g, " ").trim().slice(0, 80);
 
@@ -155,7 +183,7 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
       console.error("listApprovedTechnicians", error);
       throw new Error("Não foi possível carregar os técnicos.");
     }
-    const published = await withReferralHighlights(await withPioneerBadges(await withOnlineStatus(rows ?? [])));
+    const published = await withCoverageCities(await withReferralHighlights(await withPioneerBadges(await withOnlineStatus(rows ?? []))));
     if (!regionalPriority) return published.sort((a,b) => Number(b.online_now)-Number(a.online_now) || Number(Boolean(b.referral_highlight))-Number(Boolean(a.referral_highlight)) || Number(Boolean(b.pioneer_bronze))-Number(Boolean(a.pioneer_bronze)));
     return rankTechniciansByDeclaredArea(published, {
       uf, cidade: data.cidade, bairro: data.bairro,
@@ -180,5 +208,5 @@ export const getApprovedTechnician = createServerFn({ method: "GET" })
       console.error("getApprovedTechnician lookup failed", error.code ?? "unknown");
       throw new Error("Não foi possível consultar o perfil do técnico.");
     }
-    return row ? (await withReferralHighlights(await withPioneerBadges(await withOnlineStatus([row]))))[0] ?? null : null;
+    return row ? (await withCoverageCities(await withReferralHighlights(await withPioneerBadges(await withOnlineStatus([row])))))[0] ?? null : null;
   });
