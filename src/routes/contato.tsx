@@ -17,6 +17,13 @@ export const Route = createFileRoute("/contato")({
           <Link to="/politicas" className="font-medium text-primary underline">central de políticas</Link>.
         </p>
       </TextSection>
+      <TextSection title="Erro ao entrar ou se cadastrar">
+        <p>
+          Está com dificuldade para fazer login, criar conta ou recuperar seu cadastro?
+          Use o <Link to="/ajuda-acesso" className="font-medium text-primary underline">formulário de suporte ao acesso</Link>,
+          disponível mesmo sem estar conectado à plataforma.
+        </p>
+      </TextSection>
       <TextSection title="Ajuda na busca por prestadores">
         <p>
           Se não encontrar um prestador em sua região, você pode solicitar ajuda gratuita nesta primeira fase
