@@ -35,10 +35,14 @@ describe("ações de um cliente sobre o próprio pedido", () => {
   });
   it("libera o envio pendente na troca de conta sem reaproveitar resposta antiga", () => {
     const component = readFileSync("src/routes/area-cliente.tsx", "utf8");
-    const reset = component.match(/useEffect\\(\\(\\) => \\{\\s*\\/\\/ Never reuse[\\s\\S]*?\\}, \\[user\\?\\.id\\]\\);/);
-    expect(reset?.[0]).toContain("setSendingId(null)");
-    expect(reset?.[0]).toContain("setShareNow(false)");
-    expect(reset?.[0]).toContain("pendingSubmission.current = null");
+    const start = component.indexOf("// Never reuse a previous account's unsent form");
+    const finish = component.indexOf("}, [user?.id]);", start);
+    expect(start).toBeGreaterThan(-1);
+    expect(finish).toBeGreaterThan(start);
+    const reset = component.slice(start, finish);
+    expect(reset).toContain("setSendingId(null)");
+    expect(reset).toContain("setShareNow(false)");
+    expect(reset).toContain("pendingSubmission.current = null");
     expect(component).toContain("if (currentUserIdRef.current !== owner) return;");
     expect(component).toContain("if (currentUserIdRef.current === owner) setSendingId(null);");
   });
