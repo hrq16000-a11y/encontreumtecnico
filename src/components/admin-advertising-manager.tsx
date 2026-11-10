@@ -156,6 +156,8 @@ export function AdminAdvertisingManager() {
   const [approvalCreativeId, setApprovalCreativeId] = useState("");
   const [approvalPlacementId, setApprovalPlacementId] = useState("");
   const [approvalNote, setApprovalNote] = useState("");
+  const [approvalFormat, setApprovalFormat] = useState<"sponsored_card" | "image">("sponsored_card");
+  const [selectedImagePreviewUrl, setSelectedImagePreviewUrl] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -262,37 +264,99 @@ export function AdminAdvertisingManager() {
     finally { setBusy(false); }
   }
 
-  async function approvePublicCard() {
-    if (busy || !approvalCampaignId || !approvalCreativeId ||
-        !approvalPlacementId || approvalNote.trim().length < 16) return;
-    if (!window.confirm("Ativar este anúncio patrocinado no portal público? Confira o contrato, o período e o conteúdo. A publicação será imediata.")) return;
+  // A prévia é privada e assinada por pouco tempo. Nunca entra na projeção pública.
+  useEffect(() => {
+    let alive = true;
+    setSelectedImagePreviewUrl("");
+    const creative = data?.creatives.find(row => row["id"] === approvalCreativeId);
+    const privatePath = typeof creative?.["media_storage_key"] === "string"
+      ? creative["media_storage_key"] : "";
+    if (approvalFormat !== "image" || !/^ads\/[0-9a-f-]{36}\.(png|jpg|webp|avif)$/.test(privatePath)) {
+      return () => { alive = false; };
+    }
+    void supabase.storage.from("eut-ad-assets").createSignedUrl(privatePath, 120)
+      .then(({ data: signed, error: signedError }) => {
+        if (alive && !signedError && signed?.signedUrl) setSelectedImagePreviewUrl(signed.signedUrl);
+      }).catch(() => {});
+    return () => { alive = false; };
+  }, [approvalFormat, approvalCreativeId, data]);
+
+  async function copyApprovedImage(privatePath: string, publicPath: string) {
+    if (!/^ads\/[0-9a-f-]{36}\.(png|jpg|webp|avif)$/.test(privatePath) ||
+        !/^approved\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(png|jpg|webp|avif)$/.test(publicPath)) {
+      throw new Error("Referência de imagem inválida; nenhuma cópia foi executada.");
+    }
+    const { error: copyError } = await supabase.storage.from("eut-ad-assets")
+      .copy(privatePath, publicPath, { destinationBucket: "eut-ad-delivery" });
+    if (copyError) {
+      throw new Error("Aprovado, mas falhou a cópia pública. O banner está oculto. Use Retomar cópia na biblioteca de criativos.");
+    }
+  }
+
+  async function resumeImageCopy(row: Row) {
+    if (busy || !window.confirm("Retomar a cópia pública de uma imagem já aprovada?")) return;
     setBusy(true); setError(""); setNotice("");
     try {
-      const response = await db.rpc("eut_ads_admin_activate_card", {
-        _campaign_id: approvalCampaignId,
-        _creative_id: approvalCreativeId,
-        _placement_id: approvalPlacementId,
-        _approval_note: approvalNote.trim(),
-      });
-      if (response.error || response.data?.activated !== true) {
-        throw new Error("Não foi possível ativar. Confira contrato, valor positivo, período vigente, card aprovado e espaço disponível.");
+      await copyApprovedImage(text(row["media_storage_key"]), text(row["public_media_key"]));
+      await refresh();
+      setNotice("Imagem aprovada copiada para entrega pública. A campanha pode ser pausada no painel.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Falha ao copiar a imagem.");
+    } finally { setBusy(false); }
+  }
+
+  async function approvePublicCard() {
+    if (busy || !approvalCampaignId || !approvalCreativeId ||
+        !approvalPlacementId || approvalNote.trim().length < 16 ||
+        (approvalFormat === "image" && !selectedImagePreviewUrl)) return;
+    const isImage = approvalFormat === "image";
+    if (!window.confirm(isImage
+      ? "Autorizar comercialmente esta imagem e copiar o arquivo aprovado para a biblioteca pública? O original continuará privado."
+      : "Ativar este card patrocinado no portal público? Confira contrato, período e conteúdo.")) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const creative = data?.creatives.find(row => row["id"] === approvalCreativeId);
+      const originalPath = text(creative?.["media_storage_key"]);
+      if (isImage && (creative?.["creative_type"] !== "image" ||
+          !/^ads\/[0-9a-f-]{36}\.(png|jpg|webp|avif)$/.test(originalPath))) {
+        throw new Error("Escolha uma imagem privada existente antes de aprovar.");
+      }
+      const response = await db.rpc(isImage
+        ? "eut_ads_admin_activate_image" : "eut_ads_admin_activate_card", {
+          _campaign_id: approvalCampaignId,
+          _creative_id: approvalCreativeId,
+          _placement_id: approvalPlacementId,
+          _approval_note: approvalNote.trim(),
+        });
+      if (response.error ||
+          (isImage ? response.data?.approved !== true : response.data?.activated !== true)) {
+        throw new Error("Aprovação rejeitada. Revise contrato, período, preço, imagem, destino e espaço.");
+      }
+      if (isImage) {
+        // O backend aprova o caminho; a projeção pública permanece vazia
+        // até a cópia existir fisicamente em eut-ad-delivery.
+        await refresh();
+        await copyApprovedImage(originalPath, text(response.data?.public_media_key));
       }
       await refresh();
       setApprovalCampaignId(""); setApprovalCreativeId(""); setApprovalPlacementId(""); setApprovalNote("");
-      setNotice("Card patrocinado aprovado e ativado no slot autorizado. Use Pausar para interromper a veiculação.");
+      setSelectedImagePreviewUrl("");
+      setNotice(isImage
+        ? "Banner de imagem aprovado e copiado para entrega pública. Use Pausar para interromper a exibição."
+        : "Card aprovado e ativado no slot autorizado. Use Pausar para interromper a exibição.");
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Falha ao ativar campanha.");
+      setError(reason instanceof Error ? reason.message : "Falha ao aprovar campanha.");
     } finally { setBusy(false); }
   }
 
   const eligibleApprovalCreatives = data?.creatives.filter(row =>
     row["campaign_id"] === approvalCampaignId &&
     row["review_state"] === "draft" &&
-    row["creative_type"] === "sponsored_card") ?? [];
+    row["creative_type"] === approvalFormat) ?? [];
   const eligibleApprovalAssignments = data?.assignments.filter(row =>
     row["campaign_id"] === approvalCampaignId && row["enabled"] !== true &&
     data.placements.some(p => p["id"] === row["placement_id"] &&
-      p["state"] === "available" && p["format"] === "sponsored_card" &&
+      p["state"] === "available" && p["format"] === approvalFormat &&
       p["device_scope"] === "all" &&
       ["home.content_1", "search.top", "services.content_1"].includes(String(p["slot_key"])))) ?? [];
 
