@@ -33,6 +33,7 @@ export function SiteHeader() {
   }, [open]);
 
   return (
+    <>
     <header className={"sticky top-0 z-40 border-b border-border/70 bg-background/95 backdrop-blur-xl transition-shadow duration-300 " + (scrolled ? "shadow-md" : "shadow-sm")}>
       <a href="#conteudo-principal" className={"sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground " + FOCUS}>
         Ir para o conteúdo
@@ -125,5 +126,24 @@ export function SiteHeader() {
         </nav>
       )}
     </header>
+    <nav aria-label="Acesso rápido no celular"
+      className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-3 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-6px_22px_rgba(0,0,0,0.08)] backdrop-blur md:hidden">
+      <Link to="/" activeOptions={{ exact: true }}
+        className={"flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg py-2 text-xs font-medium text-muted-foreground " + FOCUS}
+        activeProps={{ className: "flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg bg-primary/10 py-2 text-xs font-semibold text-primary" }}>
+        <House className="h-5 w-5" aria-hidden="true" /> Início
+      </Link>
+      <Link to="/tecnicos"
+        className={"flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg py-2 text-xs font-medium text-muted-foreground " + FOCUS}
+        activeProps={{ className: "flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg bg-primary/10 py-2 text-xs font-semibold text-primary" }}>
+        <Search className="h-5 w-5" aria-hidden="true" /> Buscar
+      </Link>
+      <Link to="/entrar"
+        className={"flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg py-2 text-xs font-medium text-muted-foreground " + FOCUS}
+        activeProps={{ className: "flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg bg-primary/10 py-2 text-xs font-semibold text-primary" }}>
+        <LogIn className="h-5 w-5" aria-hidden="true" /> Minha área
+      </Link>
+    </nav>
+    </>
   );
 }

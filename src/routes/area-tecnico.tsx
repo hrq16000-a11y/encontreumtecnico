@@ -17,6 +17,7 @@ import { TechnicianDirectRequests } from "@/components/technician-direct-request
 import { CustomerLocationButton } from "@/components/customer-location-button";
 import { suggestTechnicianArea } from "@/lib/customer-location";
 import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
+import { registrationStepError, type RegistrationStep } from "@/lib/technician-registration-wizard";
 
 export const Route = createFileRoute("/area-tecnico")({
   head: () => ({
@@ -54,6 +55,8 @@ export function TechnicianAreaPage() {
   const [reloadCounter, setReloadCounter] = useState(0);
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [step, setStep] = useState<RegistrationStep>(1);
+  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
   const loadVersion = useRef(0);
   const currentUserRef = useRef<string | null>(null);
   currentUserRef.current = user?.id ?? null;
@@ -77,6 +80,7 @@ export function TechnicianAreaPage() {
     setProfileError(false);
     setMsg(null);
     setSaving(false);
+    setStep(1);
     if (!user || !roles.includes("tecnico")) {
       setProfileLoading(false);
       return () => { loadVersion.current++; };
@@ -120,9 +124,29 @@ export function TechnicianAreaPage() {
     };
   }, [user?.id, roleKey, reloadCounter]);
 
+  const catalog = { categories, services, catalogLoading, catalogError: Boolean(catalogError),
+    servicesLoading, servicesError: Boolean(servicesError) };
+  function moveToStep(next: RegistrationStep) {
+    setMsg(null);
+    setStep(next);
+    // Focus the heading rather than jumping the viewport unexpectedly while typing.
+    if (typeof window !== "undefined") {
+      window.requestAnimationFrame(() => stepHeadingRef.current?.focus());
+    }
+  }
+  function advance() {
+    const validation = registrationStepError(step, form, catalog);
+    if (validation) { setMsg(validation); return; }
+    if (step < 3) moveToStep((step + 1) as RegistrationStep);
+  }
+
   async function save(e: FormEvent) {
     e.preventDefault();
     if (!user || !profileReady || saving) return;
+    if (step < 3) { advance(); return; }
+    const firstError = registrationStepError(1, form, catalog);
+    const serviceError = registrationStepError(2, form, catalog);
+    if (firstError || serviceError) { setMsg(firstError || serviceError); return; }
     const savingOwner = user.id;
     if (!validMunicipality(form.state_uf, form.city)) return setMsg("Selecione a UF e informe uma cidade válida para sua área de atendimento.");
     if (catalogLoading || catalogError || !categories.length) return setMsg("O catálogo está indisponível. Não é possível validar especialidades agora.");
@@ -217,11 +241,11 @@ export function TechnicianAreaPage() {
                 Conferir meu perfil publicado
               </Link>
             )}
-            {currentStatus === "aprovado" && <TechnicianPresence userId={user.id} />}
-            <TechnicianPrivateContact userId={user.id} />
-            <PioneerPhoneVerification userId={user.id} />
-            {currentStatus === "aprovado" && <TechnicianDirectRequests userId={user.id} />}
-            <TechnicianMissions userId={user.id} />
+            <details className="mt-4 rounded-xl border border-border bg-muted/20 p-4">
+              <summary className="cursor-pointer py-2 text-sm font-semibold text-primary">
+                Já tinha cadastro no portal antigo? Recuperar meus dados
+              </summary>
+              <div className="mt-4 space-y-4">
             <LegacyAccountActivation userId={user.id} role="tecnico" />
             <LegacyProfileImport userId={user.id}
               onUse={(data) => setForm((current) => ({
@@ -236,7 +260,32 @@ export function TechnicianAreaPage() {
                 Informar um perfil antigo manualmente
               </Link>
             </p>
-            <form onSubmit={save} className="mt-6 grid gap-4">
+
+              </div>
+            </details>
+            <form onSubmit={save} className="mt-6 grid gap-4" noValidate>
+              <div className="rounded-2xl border border-primary/20 bg-card p-4 shadow-sm sm:p-5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary">Cadastro guiado · Passo {step} de 3</p>
+                <div className="mt-3 grid grid-cols-3 gap-2" role="progressbar"
+                  aria-label="Progresso do cadastro profissional" aria-valuemin={1} aria-valuemax={3} aria-valuenow={step}>
+                  {(["Seus dados", "Serviços", "Revisão"] as const).map((label, index) => (
+                    <div key={label} className="min-w-0">
+                      <div className={`h-1.5 rounded-full ${index + 1 <= step ? "bg-primary" : "bg-muted"}`} />
+                      <span className={`mt-2 block text-center text-xs ${index + 1 === step ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{label}</span>
+                    </div>
+                  ))}
+                </div>
+                <h2 ref={stepHeadingRef} tabIndex={-1} className="mt-5 text-xl font-bold text-foreground outline-none sm:text-2xl">
+                  {step === 1 ? "Seu nome e onde você atende" : step === 2 ? "Quais serviços você realiza?" : "Revise e publique seu perfil"}
+                </h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {step === 1 ? "Informe apenas a região de atendimento. Você pode usar o GPS para sugerir cidade e bairro, sem publicar sua posição exata."
+                    : step === 2 ? "Selecione categorias e pelo menos um serviço que você realmente executa. Sem certificação automática."
+                    : "Confira tudo antes de publicar. Somente o servidor pode autorizar seu perfil público."}
+                </p>
+              </div>
+              {step === 1 && (
+                <div className="grid gap-4">
               <label className="text-sm font-medium text-foreground">Nome público
                 <input required minLength={2} maxLength={80} className={input} value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} />
               </label>
@@ -270,6 +319,10 @@ export function TechnicianAreaPage() {
                   <input maxLength={120} className={input} value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} />
                 </label>
               </div>
+                </div>
+              )}
+              {step === 2 && (
+                <div className="grid gap-4">
               <fieldset>
                 <legend className="text-sm font-medium text-foreground">Especialidades</legend>
                 {catalogLoading && <p className="mt-2 text-sm text-muted-foreground">Carregando categorias…</p>}
@@ -302,14 +355,70 @@ export function TechnicianAreaPage() {
                   ))}
                 </div>
               </fieldset>
+                </div>
+              )}
+              {step === 3 && (
+                <div className="grid gap-4">
+                  <div className="rounded-xl border border-border bg-muted/25 p-4 text-sm">
+                    <p className="font-semibold text-foreground">{form.display_name.trim()}</p>
+                    <p className="mt-1 text-muted-foreground">
+                      {form.city.trim()}/{form.state_uf}
+                      {form.neighborhood.trim() ? ` · ${form.neighborhood.trim()}` : ""}
+                    </p>
+                    <p className="mt-3 font-semibold text-foreground">Especialidades escolhidas</p>
+                    <p className="mt-1 text-muted-foreground">
+                      {categories.filter((category) => form.specialties.includes(category.slug))
+                        .map((category) => category.label).join(", ")}
+                    </p>
+                    <p className="mt-3 font-semibold text-foreground">Serviços que você realiza</p>
+                    <p className="mt-1 text-muted-foreground">
+                      {services.filter((service) => form.service_slugs.includes(service.slug))
+                        .map((service) => service.label).join(", ")}
+                    </p>
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      Ao publicar, estas especialidades e sua região de atendimento
+                      poderão aparecer no perfil público. Nenhum contato privado é divulgado.
+                    </p>
+                  </div>
               <label className="text-sm font-medium text-foreground">Apresentação
                 <textarea maxLength={1000} rows={4} className={input} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} />
               </label>
-              <button disabled={saving || !profileReady || catalogLoading || catalogError || servicesLoading || servicesError || categories.length === 0} className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
-                {saving ? "Publicando…" : currentStatus === "aprovado" ? "Atualizar meu perfil público" : "Publicar meu perfil gratuitamente"}
-              </button>
-              {msg && <p role="status" className="text-sm text-foreground">{msg}</p>}
+                </div>
+              )}
+              {msg && <p role="alert" className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm text-foreground">{msg}</p>}
+              <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 -mx-4 flex items-center gap-2 border-t border-border bg-background/95 px-4 py-3 pb-[calc(12px+env(safe-area-inset-bottom))] shadow-lg backdrop-blur sm:static sm:mx-0 sm:rounded-xl sm:border sm:shadow-none">
+                {step > 1 && (
+                  <button type="button" onClick={() => moveToStep((step - 1) as RegistrationStep)}
+                    className="min-h-12 shrink-0 rounded-xl border border-border px-5 text-sm font-semibold text-foreground">
+                    Voltar
+                  </button>
+                )}
+                {step < 3 ? (
+                  <button type="button" onClick={advance} disabled={saving || !profileReady}
+                    className="min-h-12 flex-1 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+                    Continuar <span aria-hidden="true">→</span>
+                  </button>
+                ) : (
+                  <button type="submit" disabled={saving || !profileReady || catalogLoading || catalogError || servicesLoading || servicesError || categories.length === 0}
+                    className="min-h-12 flex-1 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+                    {saving ? "Publicando…" : currentStatus === "aprovado" ? "Atualizar meu perfil público" : "Publicar meu perfil gratuitamente"}
+                  </button>
+                )}
+              </div>
             </form>
+            <details className="mt-6 rounded-xl border border-border p-4">
+              <summary className="cursor-pointer py-2 text-sm font-semibold text-primary">
+                Gerenciar contatos, presença, pedidos e oportunidades
+              </summary>
+              <div className="mt-4 space-y-5">
+            {currentStatus === "aprovado" && <TechnicianPresence userId={user.id} />}
+            <TechnicianPrivateContact userId={user.id} />
+            <PioneerPhoneVerification userId={user.id} />
+            {currentStatus === "aprovado" && <TechnicianDirectRequests userId={user.id} />}
+            <TechnicianMissions userId={user.id} />
+
+              </div>
+            </details>
             {currentStatus === "aprovado" && (
               <div className="mt-8 rounded-lg border border-border bg-muted/20 p-5">
                 <h2 className="text-base font-semibold text-foreground">Contato direto, sem intermediação</h2>
