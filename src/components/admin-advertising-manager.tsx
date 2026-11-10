@@ -95,7 +95,7 @@ function asSnapshot(value: unknown): value is Snapshot {
   if (!value || typeof value !== "object") return false;
   const item = value as Record<string, unknown>;
   return sections.every(({ key }) => Array.isArray(item[key])) &&
-    typeof item.totals === "object" && item.totals !== null;
+    typeof item["totals"] === "object" && item["totals"] !== null;
 }
 function toLocal(value: unknown): string {
   if (typeof value !== "string") return "";
@@ -121,25 +121,25 @@ function fromCents(value: unknown): string {
 }
 function text(value: unknown): string { return value === null || value === undefined ? "" : String(value); }
 function rowLabel(tab: Tab, row: Row, all: Snapshot): string {
-  if (tab === "sponsors") return text(row.brand_name);
-  if (tab === "placements") return text(row.position_label);
-  if (tab === "campaigns" || tab === "creatives") return text(row.title);
-  return text(all.campaigns.find(c => c.id === row.campaign_id)?.title) +
-    " · " + text(all.placements.find(p => p.id === row.placement_id)?.slot_key);
+  if (tab === "sponsors") return text(row["brand_name"]);
+  if (tab === "placements") return text(row["position_label"]);
+  if (tab === "campaigns" || tab === "creatives") return text(row["title"]);
+  return text(all.campaigns.find(c => c["id"] === row["campaign_id"])?.title) +
+    " · " + text(all.placements.find(p => p["id"] === row["placement_id"])?.slot_key);
 }
 function rowStatus(tab: Tab, row: Row): string {
-  if (tab === "sponsors" || tab === "campaigns") return text(row.status);
-  if (tab === "placements") return text(row.state);
-  if (tab === "creatives") return text(row.review_state);
-  return row.enabled === true ? "Ativo" : "Desativado";
+  if (tab === "sponsors" || tab === "campaigns") return text(row["status"]);
+  if (tab === "placements") return text(row["state"]);
+  if (tab === "creatives") return text(row["review_state"]);
+  return row["enabled"] === true ? "Ativo" : "Desativado";
 }
 function optionsFor(field: Field, data: Snapshot): Option[] {
-  if (field.key === "sponsor_id") return data.sponsors.filter(row => row.status !== "archived")
-    .map(row => ({ value: text(row.id), label: text(row.brand_name) }));
-  if (field.key === "campaign_id") return data.campaigns.filter(row => row.status === "draft")
-    .map(row => ({ value: text(row.id), label: text(row.title) }));
-  if (field.key === "placement_id") return data.placements.filter(row => row.state !== "retired")
-    .map(row => ({ value: text(row.id), label: text(row.slot_key) + " — " + text(row.position_label) }));
+  if (field.key === "sponsor_id") return data.sponsors.filter(row => row["status"] !== "archived")
+    .map(row => ({ value: text(row["id"]), label: text(row["brand_name"]) }));
+  if (field.key === "campaign_id") return data.campaigns.filter(row => row["status"] === "draft")
+    .map(row => ({ value: text(row["id"]), label: text(row["title"]) }));
+  if (field.key === "placement_id") return data.placements.filter(row => row["state"] !== "retired")
+    .map(row => ({ value: text(row["id"]), label: text(row["slot_key"]) + " — " + text(row["position_label"]) }));
   return field.options ?? [];
 }
 
@@ -155,7 +155,7 @@ export function AdminAdvertisingManager() {
 
   useEffect(() => {
     let alive = true;
-    void db.rpc("eut_ads_admin_snapshot").then(({ data: result, error: err }) => {
+    void Promise.resolve(db.rpc("eut_ads_admin_snapshot")).then(({ data: result, error: err }) => {
       if (!alive) return;
       if (err || !asSnapshot(result)) setError("Não foi possível consultar publicidade. Confira o acesso administrativo.");
       else setData(result);
@@ -173,14 +173,14 @@ export function AdminAdvertisingManager() {
     setTab(value); setDraft({ ...defaults[value] }); setImage(null); setError(""); setNotice("");
   }
   function edit(row: Row) {
-    const edited: Record<string, string> = { id: text(row.id) };
+    const edited: Record<string, string> = { id: text(row["id"]) };
     for (const f of fields[tab]) {
-      if (f.key === "price_brl") edited[f.key] = fromCents(row.price_cents);
-      else if (f.key === "budget_brl") edited[f.key] = fromCents(row.budget_limit_cents);
+      if (f.key === "price_brl") edited[f.key] = fromCents(row["price_cents"]);
+      else if (f.key === "budget_brl") edited[f.key] = fromCents(row["budget_limit_cents"]);
       else if (f.type === "datetime-local") edited[f.key] = toLocal(row[f.key]);
       else edited[f.key] = text(row[f.key]);
     }
-    edited.media_storage_key = text(row.media_storage_key);
+    edited.media_storage_key = text(row["media_storage_key"]);
     setDraft(edited); setImage(null); setError(""); setNotice("");
   }
 
@@ -189,35 +189,35 @@ export function AdminAdvertisingManager() {
     if (busy || !data) return;
     setError(""); setNotice(""); setBusy(true);
     try {
-      const payload: Record<string, unknown> = { ...draft, id: draft.id || null };
+      const payload: Record<string, unknown> = { ...draft, id: draft["id"] || null };
       if (tab === "sponsors") {
-        const phone = draft.contact_phone_e164?.trim() || "";
+        const phone = draft["contact_phone_e164"]?.trim() || "";
         const normalized = phone ? normalizeBrazilianPhone(phone) : null;
         if (phone && !normalized) throw new Error("Telefone: informe DDD + 10 ou 11 dígitos.");
-        payload.contact_phone_e164 = normalized;
-        payload.tax_id_digits = (draft.tax_id_digits || "").replace(/\D/g, "") || null;
+        payload["contact_phone_e164"] = normalized;
+        payload["tax_id_digits"] = (draft["tax_id_digits"] || "").replace(/\D/g, "") || null;
       }
       if (tab === "campaigns") {
-        payload.starts_at = toUtc(draft.starts_at || "");
-        payload.ends_at = toUtc(draft.ends_at || "");
-        payload.price_cents = toCents(draft.price_brl || "");
-        payload.budget_limit_cents = toCents(draft.budget_brl || "");
-        delete payload.price_brl; delete payload.budget_brl;
+        payload["starts_at"] = toUtc(draft["starts_at"] || "");
+        payload["ends_at"] = toUtc(draft["ends_at"] || "");
+        payload["price_cents"] = toCents(draft["price_brl"] || "");
+        payload["budget_limit_cents"] = toCents(draft["budget_brl"] || "");
+        delete payload["price_brl"]; delete payload["budget_brl"];
       }
       if (tab === "placements") {
-        payload.width_px = draft.width_px || null;
-        payload.height_px = draft.height_px || null;
+        payload["width_px"] = draft["width_px"] || null;
+        payload["height_px"] = draft["height_px"] || null;
       }
       if (tab === "assignments") {
-        delete payload.id;
-        payload.priority = Number(draft.priority || "100");
+        delete payload["id"];
+        payload["priority"] = Number(draft["priority"] || "100");
       }
       if (tab === "creatives") {
-        const isImage = draft.creative_type === "image";
-        if (isImage && (draft.image_alt || "").trim().length < 5) {
+        const isImage = draft["creative_type"] === "image";
+        if (isImage && (draft["image_alt"] || "").trim().length < 5) {
           throw new Error("Descreva a imagem para acessibilidade antes de enviar.");
         }
-        let key = draft.media_storage_key || null;
+        let key = draft["media_storage_key"] || null;
         if (isImage && image) {
           const extByMime: Record<string, string> = {
             "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/avif": "avif",
@@ -233,7 +233,7 @@ export function AdminAdvertisingManager() {
           key = path; setDraft(current => ({ ...current, media_storage_key: path })); setImage(null);
         }
         if (isImage && !key) throw new Error("Selecione a imagem antes de salvar.");
-        payload.media_storage_key = isImage ? key : null;
+        payload["media_storage_key"] = isImage ? key : null;
       }
       const kind = tab === "sponsors" ? "sponsor" : tab === "placements" ? "placement" :
         tab === "campaigns" ? "campaign" : tab === "creatives" ? "creative" : "assignment";
@@ -300,7 +300,7 @@ export function AdminAdvertisingManager() {
           </div>
           <div className="mt-5 grid gap-8 lg:grid-cols-[1fr_1.1fr]">
             <form onSubmit={(event) => void save(event)} className="grid content-start gap-3">
-              <h3 className="font-semibold">{draft.id ? "Editar" : "Novo cadastro"} — {sections.find(s => s.key === tab)?.label}</h3>
+              <h3 className="font-semibold">{draft["id"] ? "Editar" : "Novo cadastro"} — {sections.find(s => s.key === tab)?.label}</h3>
               {fields[tab].map(field => (
                 <label key={field.key} className="text-sm font-medium text-foreground">
                   {field.label}{field.required ? " *" : ""}
@@ -317,22 +317,22 @@ export function AdminAdvertisingManager() {
                   ) : (
                     <input className={input} type={field.type || "text"}
                       required={field.required} maxLength={field.max}
-                      readOnly={tab === "placements" && field.key === "slot_key" && Boolean(draft.id)}
+                      readOnly={tab === "placements" && field.key === "slot_key" && Boolean(draft["id"])}
                       disabled={busy} placeholder={field.placeholder}
                       value={draft[field.key] || ""}
                       onChange={(e) => setDraft({ ...draft, [field.key]: e.target.value })}/>
                   )}
                 </label>
               ))}
-              {tab === "creatives" && draft.creative_type === "image" && (
+              {tab === "creatives" && draft["creative_type"] === "image" && (
                 <div className="rounded-lg border border-border p-3">
                   <label className="text-sm font-medium">Imagem do banner (JPG, PNG, WebP ou AVIF, até 5 MB)
                     <input type="file" accept="image/jpeg,image/png,image/webp,image/avif"
                       className={input} disabled={busy}
                       onChange={(e) => setImage(e.target.files?.[0] ?? null)}/>
                   </label>
-                  {(image || draft.media_storage_key) && <p className="mt-2 break-all text-xs text-muted-foreground">
-                    {image ? "Arquivo escolhido: " + image.name : "Imagem privada: " + draft.media_storage_key}
+                  {(image || draft["media_storage_key"]) && <p className="mt-2 break-all text-xs text-muted-foreground">
+                    {image ? "Arquivo escolhido: " + image.name : "Imagem privada: " + draft["media_storage_key"]}
                   </p>}
                 </div>
               )}
@@ -341,7 +341,7 @@ export function AdminAdvertisingManager() {
               </p>}
               <div className="flex flex-wrap gap-2">
                 <button type="submit" className={primary} disabled={busy}>{busy ? "Salvando…" : "Salvar no banco"}</button>
-                {draft.id && <button type="button" className={btn} disabled={busy}
+                {draft["id"] && <button type="button" className={btn} disabled={busy}
                   onClick={() => { setDraft({ ...defaults[tab] }); setImage(null); }}>Novo registro</button>}
               </div>
             </form>
@@ -350,23 +350,23 @@ export function AdminAdvertisingManager() {
               {activeRows.length === 0 && <p className="mt-3 text-sm text-muted-foreground">Nenhum registro neste módulo.</p>}
               <ul className="mt-3 grid gap-2">
                 {activeRows.map(row => (
-                  <li key={text(row.id)} className="rounded-lg border border-border p-3">
+                  <li key={text(row["id"])} className="rounded-lg border border-border p-3">
                     <p className="text-sm font-semibold text-card-foreground">{rowLabel(tab, row, data)}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {rowStatus(tab,row)}
-                      {tab === "placements" ? " · " + text(row.slot_key) + " · " + text(row.route_pattern) : ""}
-                      {tab === "sponsors" ? " · " + (text(row.contact_email) || "Sem e-mail comercial") : ""}
-                      {tab === "creatives" ? " · " + text(row.creative_type) : ""}
+                      {tab === "placements" ? " · " + text(row["slot_key"]) + " · " + text(row["route_pattern"]) : ""}
+                      {tab === "sponsors" ? " · " + (text(row["contact_email"]) || "Sem e-mail comercial") : ""}
+                      {tab === "creatives" ? " · " + text(row["creative_type"]) : ""}
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      {(tab !== "campaigns" || row.status === "draft" || row.status === "paused") &&
-                       (tab !== "creatives" || row.review_state === "draft") &&
+                      {(tab !== "campaigns" || row["status"] === "draft" || row["status"] === "paused") &&
+                       (tab !== "creatives" || row["review_state"] === "draft") &&
                         <button type="button" className={btn} disabled={busy} onClick={() => edit(row)}>
                           {tab === "assignments" ? "Editar prioridade" : "Editar"}
                         </button>}
-                      {tab === "campaigns" && !["paused","expired","archived"].includes(text(row.status)) &&
+                      {tab === "campaigns" && !["paused","expired","archived"].includes(text(row["status"])) &&
                         <button type="button" className={btn} disabled={busy}
-                          onClick={() => void pauseCampaign(text(row.id))}>Pausar</button>}
+                          onClick={() => void pauseCampaign(text(row["id"]))}>Pausar</button>}
                     </div>
                   </li>
                 ))}
