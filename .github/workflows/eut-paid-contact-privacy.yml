@@ -1,0 +1,80 @@
+name: EUT paid-contact privacy gate
+
+on:
+  pull_request:
+    paths:
+      - 'src/routes/acesso-contato.$tecnicoId.tsx'
+      - 'src/routes/tecnicos.$tecnicoId.tsx'
+      - 'src/routes/area-cliente.tsx'
+      - 'src/routes/area-tecnico.tsx'
+      - 'src/components/request-list.tsx'
+      - '.github/workflows/eut-paid-contact-privacy.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eut-paid-contacts-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  privacy-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+      - name: Build TanStack
+        run: bun run build
+      - name: TypeScript
+        run: bunx tsc --noEmit --pretty false
+      - name: No unpaid contact release or technician dispatch
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          const read=path=>readFileSync(path,'utf8');
+          const quote=read('src/routes/acesso-contato.$tecnicoId.tsx');
+          const profile=read('src/routes/tecnicos.$tecnicoId.tsx');
+          const client=read('src/routes/area-cliente.tsx');
+          const tech=read('src/routes/area-tecnico.tsx');
+          const history=read('src/components/request-list.tsx');
+          for(const term of [
+            'eut_contact_access_quote', 'contact_released === false',
+            'payment_available === false','R$ 9,99','R$ 29,99',
+            'noindex, nofollow','nenhum pagamento será cobrado'
+          ]) {
+            if(!(quote.toLocaleLowerCase('pt-BR')).includes(term.toLocaleLowerCase('pt-BR')))
+              throw Error('Missing truth about payment and no contact release: '+term);
+          }
+          if(!profile.includes('to="/acesso-contato/$tecnicoId"'))
+            throw Error('Technician profile still bypasses contact pricing route');
+          if(tech.includes('TechnicianRequests')||tech.includes('from("service_requests")')||
+             tech.includes('set_request_status')) throw Error('Technician can still browse or accept unpaid requests');
+          if(!client.includes('useActiveCategories') || !client.includes('Guard') && !client.includes('categories.some'))
+            throw Error('Private triage needs official categories');
+          if(!client.includes('Nada foi enviado aos técnicos')||
+             !history.includes('Registrada — privada'))
+            throw Error('Client may believe the request was sent to technician');
+          if(quote.includes('.select("phone")') || quote.includes('service_role'))
+            throw Error('Quote page must not expose contact or use privileged keys');
+          console.log('Private customer triage, closed technician inbox and no unpaid contact claims: OK');
+          NODE
+      - name: Public RPC must not allow anonymous quote
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          const file=readFileSync('src/integrations/supabase/client.ts','utf8');
+          const url=file.match(/const SUPABASE_URL = "([^"]+)"/)?.[1];
+          const key=file.match(/const SUPABASE_PUBLISHABLE_KEY = "([^"]+)"/)?.[1];
+          if(!url||!key)throw Error('Missing Supabase publishable client settings');
+          const response=await fetch(url+'/rest/v1/rpc/eut_contact_access_quote',{
+            method:'POST',
+            headers:{apikey:key,'Content-Type':'application/json'},
+            body:JSON.stringify({_technician_id:'00000000-0000-4000-8000-000000000000'}),
+            signal:AbortSignal.timeout(12000)
+          });
+          if(response.ok)throw Error('Anonymous quote RPC unexpectedly permitted');
+          console.log('Anonymous quote denied: HTTP '+response.status);
+          NODE
