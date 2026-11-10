@@ -5,6 +5,7 @@ import { PageShell } from "../components/page-placeholder";
 import { signInWithGoogle, useAuth, type Role } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { safeLegacyClaimReturnPath } from "@/lib/legacy-claim-validation";
+import { canAttemptNewAccountRole } from "@/lib/onboarding-legacy-fallback";
 
 export const Route = createFileRoute("/entrar")({
   head: () => ({
@@ -123,6 +124,7 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
   const [legacyName, setLegacyName] = useState<string | null>(null);
   const [legacyProfileCount, setLegacyProfileCount] = useState(0);
   const roleKey = roles.join(",");
+  const canAttemptRole = canAttemptNewAccountRole({ legacyChecked, legacyLookupError, legacyRole });
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -307,7 +309,7 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
   }
 
   async function choose(role: Role) {
-    if (busy || !legacyChecked || (role !== "tecnico" && role !== "cliente")) return;
+    if (busy || !canAttemptRole || (role !== "tecnico" && role !== "cliente")) return;
     if (!termsAccepted) return setError("Leia e aceite os Termos de Uso antes de escolher o tipo de conta.");
     if (legacyRole && role !== legacyRole) {
       setError("Seu cadastro WordPress já tem um tipo definido. Selecione o tipo indicado para associar sua conta.");
@@ -318,7 +320,7 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
     try {
       const { error } = await supabase.rpc("choose_account_type", { _role: role });
       if (error) {
-        setError("Não foi possível definir este tipo. Contas antigas devem manter o papel original e usar uma identidade confirmada.");
+        setError("O servidor recusou esta escolha. Sua identidade precisa estar confirmada e, se existir uma conta anterior, o tipo original deverá ser preservado. Tente recuperar seu cadastro antigo.");
       } else {
         await refreshRoles();
       }
@@ -372,7 +374,7 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
             {legacyLookupError && (
               <div role="alert" className="mt-4 rounded-md border border-destructive/40 bg-muted/40 p-4 text-left">
                 <p className="text-sm text-foreground">
-                  Não conseguimos consultar seu cadastro WordPress agora. Nenhum tipo de conta foi escolhido nem dados foram alterados.
+                  Não foi possível consultar seus dados históricos neste momento. Se esta é sua primeira conta, você pode tentar o cadastro abaixo: o servidor verificará identidade, papel anterior e titularidade antes de autorizar. Se você já tinha cadastro, tente consultar novamente para recuperá-lo sem duplicação.
                 </p>
                 <button type="button" onClick={() => setLegacyLookupRetry((n) => n + 1)}
                   className="mt-3 min-h-10 rounded-md border border-primary px-3 text-sm font-semibold text-primary">
@@ -414,10 +416,10 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
                 </button>
               ) : (
                 <>
-                  <button disabled={busy || !legacyChecked || !termsAccepted || rolesError || ownerCheckPending || ownerCheckError} onClick={() => choose("tecnico")} className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
+                  <button disabled={busy || !canAttemptRole || !termsAccepted || rolesError || ownerCheckPending || ownerCheckError} onClick={() => choose("tecnico")} className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
                     Sou técnico — quero oferecer serviços
                   </button>
-                  <button disabled={busy || !legacyChecked || !termsAccepted || rolesError || ownerCheckPending || ownerCheckError} onClick={() => choose("cliente")} className="min-h-11 rounded-md border border-input px-4 py-2.5 text-sm font-medium text-foreground disabled:opacity-60">
+                  <button disabled={busy || !canAttemptRole || !termsAccepted || rolesError || ownerCheckPending || ownerCheckError} onClick={() => choose("cliente")} className="min-h-11 rounded-md border border-input px-4 py-2.5 text-sm font-medium text-foreground disabled:opacity-60">
                     Sou cliente — quero contratar
                   </button>
                 </>
