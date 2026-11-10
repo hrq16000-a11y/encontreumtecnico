@@ -1,0 +1,6 @@
+import {useState} from 'react'
+export const ufs='AC AL AM AP BA CE DF ES GO MA MG MS MT PA PB PE PI PR RJ RN RO RR RS SC SE SP TO'.split(' ')
+export function Uf(){return <label className="field">UF *<select name="uf" defaultValue="" required><option value="">Selecione</option>{ufs.map(s=><option value={s} key={s}>{s}</option>)}</select></label>}
+export function Notice({message,error=false}:{message:string,error?:boolean}){return message?<div role="status" className={'notice'+(error?' error':'')}>{message}</div>:null}
+export async function api(url:string,method:string='GET',data?:unknown,key?:string){const res=await fetch(url,{method,headers:{Accept:'application/json',...(data!==undefined?{'Content-Type':'application/json'}:{}),...(key?{Authorization:'Bearer '+key}:{})},...(data!==undefined?{body:JSON.stringify(data)}:{})});let json:any;try{json=await res.json()}catch{throw Error('Resposta inválida do servidor')};if(!res.ok)throw Error(json.erro||'Operação indisponível');return json}
+export function useFeedback(){const [message,setMessage]=useState('');const [error,setError]=useState(false);return {message,error,ok:(s:string)=>{setMessage(s);setError(false)},fail:(e:unknown)=>{setMessage(e instanceof Error?e.message:'Erro desconhecido');setError(true)},clear:()=>{setMessage('');setError(false)}}}

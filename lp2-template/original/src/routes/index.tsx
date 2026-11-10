@@ -1,0 +1,78 @@
+import {createFileRoute,Link,useNavigate} from '@tanstack/react-router'
+import {useEffect,useState} from 'react'
+import type {FormEvent} from 'react'
+import {ServiceIcon} from '../components/ServiceIcon'
+import {profileRoute} from '../lib/directory'
+
+export const Route=createFileRoute('/')({component:Home})
+
+type IconName=Parameters<typeof ServiceIcon>[0]['name']
+const categories:{name:string;hint:string;icon:IconName;className:string;search:string}[]=[
+ {name:'Notebook e laptop',hint:'Diagnóstico e manutenção',icon:'laptop',className:'sky',search:'notebook'},
+ {name:'Computador e PC',hint:'Hardware e software',icon:'desktop',className:'indigo',search:'computador'},
+ {name:'Redes e Wi-Fi',hint:'Configuração e conexão',icon:'wifi',className:'mint',search:'redes'},
+ {name:'Impressoras',hint:'Instalação e suporte',icon:'printer',className:'amber',search:'impressora'},
+ {name:'Segurança digital',hint:'Proteção de sistemas',icon:'shield',className:'purple',search:'segurança'},
+ {name:'Servidores',hint:'Infraestrutura e TI',icon:'server',className:'sky',search:'servidor'},
+ {name:'Celulares e tablets',hint:'Suporte especializado',icon:'smartphone',className:'pink',search:'celular'},
+ {name:'Suporte remoto',hint:'Atendimento a distância',icon:'support',className:'mint',search:'suporte remoto'}
+]
+type Technician={id:string;nome:string;cidade?:string;uf?:string;especialidade?:string;servico?:string;descricao?:string;url?:string;imagem?:string;nomeInferido?:boolean}
+type Activity={id:string;titulo:string;especialidade:string;cidade:string;uf:string;descricao:string}
+function Home(){
+ const navigate=useNavigate()
+ const [service,setService]=useState('')
+ const [city,setCity]=useState('')
+ const [profiles,setProfiles]=useState<Technician[]>([])
+ const [requests,setRequests]=useState<Activity[]>([])
+ const [loading,setLoading]=useState(true)
+ const search=(event:FormEvent<HTMLFormElement>)=>{event.preventDefault();void navigate({to:'/galeria',search:{q:service.trim(),city:city.trim()}})}
+ useEffect(()=>{
+  let active=true
+  const load=async()=>{
+   const results=await Promise.allSettled([
+    fetch('/api/profissionais',{signal:AbortSignal.timeout(8500)}).then(r=>r.ok?r.json():Promise.reject()),
+    fetch('/api/tecnicos',{signal:AbortSignal.timeout(8500)}).then(r=>r.ok?r.json():Promise.reject()),
+    fetch('/api/solicitacoes',{signal:AbortSignal.timeout(8500)}).then(r=>r.ok?r.json():Promise.reject())
+   ])
+   if(!active)return
+   const seen=new Map<string,Technician>()
+   if(results[0].status==='fulfilled')for(const item of results[0].value.profissionais||[])if(item?.id&&item?.url)seen.set(item.id,{...item,especialidade:item.servico})
+   if(results[1].status==='fulfilled')for(const item of results[1].value.tecnicos||[])if(item?.id)seen.set(item.id,item)
+   const all=[...seen.values()]
+   setProfiles([...all.filter(p=>!p.nomeInferido),...all.filter(p=>p.nomeInferido)].slice(0,4))
+   if(results[2].status==='fulfilled')setRequests((results[2].value.solicitacoes||[]).slice(0,3))
+   setLoading(false)
+  }
+  void load();return()=>{active=false}
+ },[])
+ return <>
+ <section className="market-hero">
+  <div className="market-hero-grid container">
+   <div className="market-hero-content">
+    <div className="hero-kicker"><span className="tiny-star">✦</span> CONECTANDO PESSOAS E TÉCNICOS EM TODO O BRASIL</div>
+    <h1>Precisa de um técnico? <span>Encontre o profissional certo.</span></h1>
+    <p>Pesquise por especialidade e região, conheça profissionais independentes e combine o atendimento diretamente com quem realiza o serviço.</p>
+    <form className="hero-search" onSubmit={search} role="search" aria-label="Buscar técnicos">
+     <label className="search-entry"><ServiceIcon name="search" size={23}/><span><small>Qual serviço você precisa?</small><input name="q" value={service} onChange={e=>setService(e.target.value)} placeholder="Notebook, redes, impressora..." autoComplete="off"/></span></label>
+     <label className="search-entry city-entry"><ServiceIcon name="location" size={22}/><span><small>Onde será o atendimento?</small><input name="city" value={city} onChange={e=>setCity(e.target.value)} placeholder="Cidade (opcional)" autoComplete="address-level2"/></span></label>
+     <button className="hero-search-button" type="submit"><ServiceIcon name="search" size={19}/> Buscar técnicos</button>
+    </form>
+    <div className="hero-popular"><span>Buscas populares:</span>{categories.slice(0,4).map(c=><Link key={c.name} to="/galeria" search={{q:c.search,city:''}}>{c.name}</Link>)}</div>
+    <div className="hero-footnotes"><span><ServiceIcon name="check" size={15}/> Cadastro gratuito para técnicos</span><span><ServiceIcon name="check" size={15}/> Negociação direta</span></div>
+   </div>
+   <div className="hero-visual"><div className="hero-visual-ring"/><img src="/illustrations/hero-tech.svg" alt="Ilustração de notebook e ferramentas para conexão com técnicos" width="960" height="760" fetchPriority="high"/><div className="visual-callout one"><span className="callout-icon"><ServiceIcon name="wifi" size={20}/></span><span><strong>Encontre por especialidade</strong><small>Busca simples e direta</small></span></div><div className="visual-callout two"><span className="callout-icon"><ServiceIcon name="check" size={20}/></span><span><strong>Escolha o profissional</strong><small>Veja os perfis disponíveis</small></span></div></div>
+  </div>
+ </section>
+ <div className="value-strip"><div className="container value-strip-grid"><span><ServiceIcon name="search" size={19}/> Busque técnicos em um só lugar</span><span><ServiceIcon name="user" size={19}/> Profissionais independentes</span><span><ServiceIcon name="briefcase" size={19}/> Negociação direta com o cliente</span></div></div>
+ <main className="market-home">
+  <section className="section container" id="especialidades"><div className="section-header"><div><p className="section-eyebrow">ESCOLHA POR ESPECIALIDADE</p><h2>Como podemos ajudar você?</h2><p>Comece pelo tipo de atendimento. Você pode refinar sua busca por nome e cidade depois.</p></div><Link to="/galeria" search={{q:'',city:''}} className="text-link">Explorar o diretório <ServiceIcon name="arrow" size={17}/></Link></div><div className="category-grid">{categories.map(cat=><Link className={'category-card '+cat.className} to="/galeria" search={{q:cat.search,city:''}} key={cat.name}><div className="category-illustration"><ServiceIcon name={cat.icon} size={36}/></div><div><h3>{cat.name}</h3><p>{cat.hint}</p></div><span className="category-arrow"><ServiceIcon name="arrow" size={18}/></span></Link>)}</div></section>
+  <section className="section how-section"><div className="container"><div className="section-header centered"><div><p className="section-eyebrow">É SIMPLES ASSIM</p><h2>Seu próximo atendimento começa aqui</h2><p>Sem complicações: encontre, conheça e converse com o profissional de sua escolha.</p></div></div><div className="steps-grid"><div className="step-card"><div className="step-illustration step-first"><ServiceIcon name="search" size={42}/></div><span className="step-counter">PASSO 01</span><h3>Conte o que você precisa</h3><p>Pesquise por serviço, cidade ou profissional no diretório de técnicos.</p></div><div className="step-card"><div className="step-illustration step-second"><ServiceIcon name="user" size={42}/></div><span className="step-counter">PASSO 02</span><h3>Conheça os perfis</h3><p>Confira informações públicas e consulte o perfil completo antes de escolher.</p></div><div className="step-card"><div className="step-illustration step-third"><ServiceIcon name="support" size={42}/></div><span className="step-counter">PASSO 03</span><h3>Converse diretamente</h3><p>Combine disponibilidade, condições e atendimento com o técnico escolhido.</p></div></div></div></section>
+  <section className="section container"><div className="section-header"><div><p className="section-eyebrow">DIRETÓRIO DE PROFISSIONAIS</p><h2>Técnicos no Encontre um Técnico</h2><p>Conheça uma amostra de perfis públicos reais. Dados incompletos do WordPress serão atualizados após a migração.</p></div><Link to="/galeria" search={{q:'',city:''}} className="text-link">Ver todos os perfis <ServiceIcon name="arrow" size={17}/></Link></div><div className="showcase-grid">{loading?[1,2,3,4].map(i=><div key={i} className="market-card loading-card" aria-label="Carregando perfis"/>) : profiles.length?profiles.map(p=><article className="market-card" key={p.id}><div className="profile-top"><div className="profile-avatar">{p.imagem?<img loading="lazy" src={p.imagem} alt={'Foto pública do perfil de '+p.nome}/>:<ServiceIcon name="user" size={30}/>}</div><div className="profile-type">Perfil público</div></div><h3>{p.nome}</h3><p className="profile-sub">{[p.especialidade||p.servico,p.cidade,p.uf].filter(Boolean).join(' • ')||'Detalhes disponíveis no perfil original'}</p><p className="profile-description">{p.descricao||'Veja o cadastro original para conhecer os serviços e formas de contato.'}</p>{profileRoute(p)?<Link to="/tecnico/$slug" params={{slug:profileRoute(p)!}} className="profile-action">Ver perfil <ServiceIcon name="arrow" size={16}/></Link>:<Link to="/galeria" search={{q:p.nome,city:''}} className="profile-action">Encontrar no diretório <ServiceIcon name="arrow" size={16}/></Link>}</article>):<div className="info-empty"><ServiceIcon name="user" size={31}/><h3>Diretório em atualização</h3><p>Os perfis públicos estão sendo sincronizados. A busca completa permanece disponível.</p><Link to="/galeria" search={{q:'',city:''}} className="btn">Abrir galeria</Link></div>}</div></section>
+  <section className="section requests-section"><div className="container"><div className="section-header"><div><p className="section-eyebrow">OPORTUNIDADES DE ATENDIMENTO</p><h2>Solicitações de serviço</h2><p>Pedidos publicados por clientes cadastrados e aprovados na plataforma.</p></div><Link to="/atividades" className="text-link">Ver solicitações <ServiceIcon name="arrow" size={17}/></Link></div>{loading?<div className="info-empty">Verificando solicitações publicadas…</div>:requests.length?<div className="request-grid">{requests.map(r=><article className="request-card" key={r.id}><div className="request-icon"><ServiceIcon name="briefcase" size={21}/></div><p className="request-category">{r.especialidade}</p><h3>{r.titulo}</h3><p className="request-location"><ServiceIcon name="location" size={15}/>{r.cidade} / {r.uf}</p><p>{r.descricao}</p><Link to="/atividades" className="text-link">Ver solicitações <ServiceIcon name="arrow" size={16}/></Link></article>)}</div>:<div className="request-empty"><div className="request-empty-icon"><ServiceIcon name="briefcase" size={33}/></div><div><h3>Faça sua primeira solicitação</h3><p>Quando um cliente publicar um pedido aprovado, ele aparecerá aqui. Seu pedido pode ser o próximo.</p></div><Link to="/cliente" className="btn">Publicar solicitação</Link></div>}</div></section>
+  <section className="section container"><div className="split-benefits"><div className="benefit-visual"><div className="benefit-emblem"><ServiceIcon name="support" size={66}/></div><div className="benefit-stamp"><ServiceIcon name="check" size={17}/> Pessoas conectadas diretamente</div></div><div className="benefit-copy"><p className="section-eyebrow">MAIS LIBERDADE PARA ESCOLHER</p><h2>Uma plataforma feita para aproximar quem precisa de quem sabe resolver.</h2><p>Nosso papel é facilitar o encontro entre clientes e técnicos independentes. A escolha do profissional e a negociação das condições acontecem entre vocês.</p><div className="benefit-list"><div><span><ServiceIcon name="check" size={18}/></span><div><strong>Contato sem intermediários no atendimento</strong><p>Converse com o profissional e alinhe diretamente o serviço.</p></div></div><div><span><ServiceIcon name="check" size={18}/></span><div><strong>Mais visibilidade para técnicos independentes</strong><p>Apresente sua especialidade e receba consultas de potenciais clientes.</p></div></div><div><span><ServiceIcon name="check" size={18}/></span><div><strong>Informações sem promessas artificiais</strong><p>Mostramos os dados realmente disponíveis, sem inventar avaliações ou certificações.</p></div></div></div><Link to="/galeria" search={{q:'',city:''}} className="btn">Conhecer profissionais <ServiceIcon name="arrow" size={17}/></Link></div></div></section>
+  <section className="section container"><div className="join-banner"><div><p className="section-eyebrow">PARA QUEM É PROFISSIONAL DE VERDADE</p><h2>Seu trabalho merece ser encontrado.</h2><p>Cadastre seu perfil gratuitamente, mostre sua especialidade e amplie suas oportunidades de negociação com clientes finais.</p><Link to="/cadastro" className="btn join-cta">Quero me cadastrar <ServiceIcon name="arrow" size={17}/></Link></div><div className="join-art"><ServiceIcon name="laptop" size={106}/><span className="join-art-mini"><ServiceIcon name="spark" size={27}/></span></div></div></section>
+  <section className="section faq-section"><div className="container faq-grid"><div><p className="section-eyebrow">DÚVIDAS FREQUENTES</p><h2>Tudo o que você precisa saber</h2><p>Respostas claras para começar a utilizar o Encontre um Técnico.</p><Link to="/cliente" className="text-link">Acessar área do cliente <ServiceIcon name="arrow" size={16}/></Link></div><div className="faq-list"><details><summary>Como encontro um técnico na minha cidade?</summary><p>Digite o serviço e a cidade na busca. Observe que alguns perfis antigos ainda não possuem localização estruturada na nova versão; é possível consultá-los pelo perfil original.</p></details><details><summary>O cadastro de técnico é gratuito?</summary><p>Sim. Você pode criar seu cadastro sem mensalidade nesta plataforma. A publicação do perfil depende de aprovação administrativa.</p></details><details><summary>Quem define o preço e as condições do serviço?</summary><p>Os profissionais são independentes. Cliente e técnico conversam diretamente para definir disponibilidade, valores e condições do atendimento.</p></details><details><summary>Posso publicar uma solicitação de serviço?</summary><p>Sim. Cadastre-se na área do cliente, envie os detalhes do atendimento e acompanhe a revisão da sua solicitação.</p></details><details><summary>Meu cadastro antigo do WordPress já funciona aqui?</summary><p>A migração das contas antigas ainda está em andamento. Enquanto isso, utilize o portal original para acessar seus dados históricos.</p></details></div></div></section>
+ </main>
+ </>
+}

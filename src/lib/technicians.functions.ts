@@ -13,6 +13,7 @@ export type PublicTechnician = {
   city: string;
   region: string | null;
   bio: string | null;
+  online_now: boolean;
 };
 
 const COLUMNS = "id, display_name, specialties, service_slugs, city, state_uf, neighborhood, region, bio";
@@ -42,6 +43,28 @@ function publicClient() {
       },
     },
   });
+}
+
+async function withOnlineStatus(
+  rows: Array<Omit<PublicTechnician, "online_now">>,
+): Promise<PublicTechnician[]> {
+  if (!rows.length) return [];
+  try {
+    // Anonymous access is limited to online signals for these already-public IDs.
+    const { data, error } = await (publicClient() as unknown as SupabaseClient)
+      .rpc("eut_online_published_ids", { _technician_ids: rows.map((row) => row.id) });
+    if (error) throw error;
+    const onlineIds = new Set(
+      (Array.isArray(data) ? data : []).map((row: { technician_id: string }) => row.technician_id),
+    );
+    return rows.map((row) => ({
+      ...row,
+      online_now: onlineIds.has(row.id),
+    })).sort((a, b) => Number(b.online_now) - Number(a.online_now));
+  } catch {
+    // Never claim a technician is online if a presence lookup fails.
+    return rows.map((row) => ({ ...row, online_now: false }));
+  }
 }
 
 // Strip characters that would break PostgREST ilike filters.
@@ -90,7 +113,7 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
       console.error("listApprovedTechnicians", error);
       throw new Error("Não foi possível carregar os técnicos.");
     }
-    return rows ?? [];
+    return withOnlineStatus(rows ?? []);
   });
 
 export const getApprovedTechnician = createServerFn({ method: "GET" })
@@ -102,5 +125,5 @@ export const getApprovedTechnician = createServerFn({ method: "GET" })
       .eq("status", "aprovado")
       .eq("id", data.id)
       .maybeSingle();
-    return row ?? null;
+    return row ? (await withOnlineStatus([row]))[0] ?? null : null;
   });

@@ -48,6 +48,9 @@ function TechnicianProfilePage() {
         ) : (
           <div className="mt-4 rounded-lg border border-border bg-card p-6">
             <h1 className="text-2xl font-bold tracking-tight text-card-foreground">{t.display_name}</h1>
+            {t.online_now && <p className="mt-2 inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+              Online recentemente — disponibilidade de atendimento não garantida
+            </p>}
             <p className="mt-1 text-sm text-muted-foreground">
               {t.city}{t.state_uf ? `/${t.state_uf}` : ""}{t.neighborhood ? ` · ${t.neighborhood}` : ""}{t.region ? ` · ${t.region}` : ""}
             </p>

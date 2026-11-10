@@ -1,0 +1,34 @@
+name: LP2 isolation and build gate
+
+on:
+  pull_request:
+    paths:
+      - 'src/routes/lp2/**'
+      - 'src/components/lp2/**'
+      - 'public/lp2-assets/**'
+      - 'src/test/lp2-isolation.test.ts'
+      - '.github/workflows/lp2-isolation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lp2-gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: oven-sh/setup-bun@v2
+      - name: Install (locked)
+        run: bun install --frozen-lockfile
+      - name: LP2 isolation tests
+        run: bunx vitest run src/test/lp2-isolation.test.ts
+      - name: TanStack build
+        run: bun run build
+      - name: TypeScript check
+        run: bunx tsc --noEmit --pretty false
