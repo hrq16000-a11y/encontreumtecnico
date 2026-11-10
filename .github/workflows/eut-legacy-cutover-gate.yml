@@ -29,7 +29,7 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Historic URL and privacy regression tests
         run: bunx vitest run src/lib/legacy-cutover.test.ts src/lib/legacy-navigation.test.ts
-      - name: TypeScript
-        run: bunx tsc --noEmit --pretty false
       - name: Build TanStack Start
         run: bun run build
+      - name: TypeScript (after route tree generation)
+        run: bunx tsc --noEmit --pretty false
