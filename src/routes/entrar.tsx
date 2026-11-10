@@ -111,6 +111,10 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [canRecoverAdmin, setCanRecoverAdmin] = useState(false);
+  const [canBootstrapOwner, setCanBootstrapOwner] = useState(false);
+  const [ownerCheckPending, setOwnerCheckPending] = useState(false);
+  const [ownerCheckError, setOwnerCheckError] = useState(false);
+  const [ownerLookupRetry, setOwnerLookupRetry] = useState(0);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [legacyRole, setLegacyRole] = useState<"tecnico" | "cliente" | null>(null);
   const [legacyChecked, setLegacyChecked] = useState(false);
@@ -141,6 +145,31 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
     }).catch(() => { if (active) setCanRecoverAdmin(false); });
     return () => { active = false; };
   }, [loading, user?.id, roles.length]);
+
+  // This is a separate, one-time project-owner path. Eligibility is checked
+  // inside a guarded RPC against a private allowlist and verified Google ID.
+  useEffect(() => {
+    if (loading || !user || roles.length > 0) {
+      setCanBootstrapOwner(false);
+      setOwnerCheckPending(false);
+      setOwnerCheckError(false);
+      return;
+    }
+    let active = true;
+    setOwnerCheckPending(true);
+    setOwnerCheckError(false);
+    setCanBootstrapOwner(false);
+    const client = supabase as unknown as SupabaseClient;
+    void Promise.resolve(client.rpc("eut_can_bootstrap_project_owner")).then(({ data, error }) => {
+      if (!active) return;
+      setCanBootstrapOwner(!error && data === true);
+      setOwnerCheckError(Boolean(error));
+      setOwnerCheckPending(false);
+    }).catch(() => {
+      if (active) { setCanBootstrapOwner(false); setOwnerCheckError(true); setOwnerCheckPending(false); }
+    });
+    return () => { active = false; };
+  }, [loading, user?.id, roles.length, ownerLookupRetry]);
 
   // Only the authenticated owner can query the imported WordPress role;
   // the server also checks it before granting access, regardless of UI.
@@ -235,6 +264,25 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
     }
   }
 
+  async function bootstrapOwner() {
+    if (busy || !canBootstrapOwner || !termsAccepted) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const client = supabase as unknown as SupabaseClient;
+      const { data, error } = await client.rpc("eut_bootstrap_project_owner");
+      if (error || data !== "admin_ativado") {
+        setError("Não foi possível ativar a administração com esta identidade Google. Nenhum perfil foi transferido.");
+      } else {
+        await refreshRoles();
+      }
+    } catch {
+      setError("Falha de conexão na ativação administrativa. Tente novamente.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function confirmLegacy() {
     if (busy || !user || !legacyRole || !legacyChecked) return;
     if (!termsAccepted) {
@@ -304,6 +352,7 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
               Cadastre-se com o mesmo e-mail ou entre com Google. A senha antiga não foi transferida.
               Após confirmar o e-mail, o sistema identifica o tipo da sua conta antiga e permite recuperá-la, junto com os perfis da sua autoria, sem digitar IDs.
             </p>
+            <p className="mt-3 text-xs text-muted-foreground">Responsável pelo portal? Entre com sua conta Google autorizada e confirme a administração na próxima tela.</p>
             <EmailPasswordForm onError={setError} />
           </>
         ) : (
@@ -331,7 +380,19 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
                 </button>
               </div>
             )}
-            {legacyRole && <p className="mt-4 rounded-md border border-border bg-muted/40 p-3 text-left text-sm text-foreground" role="status">
+            {ownerCheckPending && <p className="mt-4 text-sm text-muted-foreground">Conferindo se esta conta possui autorização administrativa…</p>}
+            {ownerCheckError && (
+              <div role="alert" className="mt-4 rounded-md border border-border bg-muted/40 p-3 text-sm">
+                Não foi possível conferir a recuperação administrativa. Nenhum tipo de conta foi escolhido.
+                <button type="button" className="mt-2 block text-primary underline" onClick={() => setOwnerLookupRetry(n => n + 1)}>
+                  Tentar verificação novamente
+                </button>
+              </div>
+            )}
+            {canBootstrapOwner && <p className="mt-4 rounded-md border border-primary/30 bg-primary/5 p-3 text-left text-sm text-foreground" role="status">
+              Administração do novo portal disponível para esta conta Google verificada. A conta histórica permanece preservada e poderá ser conciliada separadamente.
+            </p>}
+            {legacyRole && !canBootstrapOwner && !ownerCheckPending && !ownerCheckError && <p className="mt-4 rounded-md border border-border bg-muted/40 p-3 text-left text-sm text-foreground" role="status">
               Encontramos a conta antiga <strong>{legacyName || "WordPress"}</strong>, do tipo <strong>{legacyRole === "tecnico" ? "técnico/prestador" : "cliente/contratante"}</strong>, associada ao seu e-mail confirmado.
               {legacyRole === "tecnico" && <span> Há {legacyProfileCount} ficha(s) profissional(is) no histórico. Ao confirmar, vamos associar automaticamente as fichas da sua autoria, sem divulgar contatos privados. Depois você confere cidade e serviços.</span>}
             </p>}
@@ -340,18 +401,23 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
               <span>Li e aceito os <Link to="/termos" className="font-medium text-primary underline">Termos e condições</Link> e tomei conhecimento da <Link to="/privacidade" className="font-medium text-primary underline">Política de privacidade</Link>.</span>
             </label>
             <div className="mt-5 grid w-full gap-3">
-              {legacyRole ? (
-                <button type="button" disabled={busy || !termsAccepted || !legacyChecked || rolesError}
+              {canBootstrapOwner ? (
+                <button type="button" disabled={busy || !termsAccepted || rolesError} onClick={() => void bootstrapOwner()}
+                  className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+                  {busy ? "Ativando acesso…" : "Ativar administração do novo portal"}
+                </button>
+              ) : legacyRole ? (
+                <button type="button" disabled={busy || !termsAccepted || !legacyChecked || rolesError || ownerCheckPending || ownerCheckError}
                   onClick={() => void confirmLegacy()}
                   className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60">
                   {busy ? "Associando cadastro anterior…" : "Confirmo meus dados — recuperar conta e perfis"}
                 </button>
               ) : (
                 <>
-                  <button disabled={busy || !legacyChecked || !termsAccepted || rolesError} onClick={() => choose("tecnico")} className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
+                  <button disabled={busy || !legacyChecked || !termsAccepted || rolesError || ownerCheckPending || ownerCheckError} onClick={() => choose("tecnico")} className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
                     Sou técnico — quero oferecer serviços
                   </button>
-                  <button disabled={busy || !legacyChecked || !termsAccepted || rolesError} onClick={() => choose("cliente")} className="min-h-11 rounded-md border border-input px-4 py-2.5 text-sm font-medium text-foreground disabled:opacity-60">
+                  <button disabled={busy || !legacyChecked || !termsAccepted || rolesError || ownerCheckPending || ownerCheckError} onClick={() => choose("cliente")} className="min-h-11 rounded-md border border-input px-4 py-2.5 text-sm font-medium text-foreground disabled:opacity-60">
                     Sou cliente — quero contratar
                   </button>
                 </>
