@@ -1,0 +1,31 @@
+name: EUT deterministic triage gate
+
+on:
+  pull_request:
+    paths:
+      - 'src/lib/problem-triage.functions.ts'
+      - 'src/lib/problem-triage-local.ts'
+      - 'src/lib/problem-triage-local.test.ts'
+      - '.github/workflows/eut-triage-fallback.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eut-triage-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+      - name: Unit tests for fallback triage
+        run: bun run test src/lib/problem-triage-local.test.ts
+      - name: Production build
+        run: bun run build
