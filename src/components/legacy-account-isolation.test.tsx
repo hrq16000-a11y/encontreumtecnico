@@ -63,11 +63,12 @@ describe("isolamento de dados WordPress após troca de conta", () => {
         return Promise.resolve(oldAccount(mocks.rpc.mock.calls.filter(([key]) => key === name).length === 1 ? "Titular A" : "Titular B"));
       }
       if (name === "eut_confirm_my_legacy_account") return pendingLink.promise;
-      throw new Error("RPC inesperada");
+      return pendingLink.promise;
     });
     const view = render(<LegacyAccountActivation userId="usuario-a" role="tecnico" />);
     expect(await screen.findByText("Titular A")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Associar minha conta antiga" }));
+    expect(mocks.rpc).toHaveBeenCalledWith("eut_confirm_my_legacy_account");
 
     view.rerender(<LegacyAccountActivation userId="usuario-b" role="tecnico" />);
     expect(screen.queryByText("Titular A")).toBeNull();
