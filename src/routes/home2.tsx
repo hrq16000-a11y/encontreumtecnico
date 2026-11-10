@@ -15,7 +15,7 @@ export const Route = createFileRoute("/home2")({
       { name: "description", content: "Encontre profissionais e serviços por especialidade e cidade." },
       { name: "robots", content: "noindex, nofollow" },
     ],
-    links: [{ rel: "canonical", href: "https://encontreumtecnico.com/home2" }],
+    links: [{ rel: "canonical", href: "https://www.encontreumtecnico.com/home2" }],
   }),
   component: Home2Landing,
 });

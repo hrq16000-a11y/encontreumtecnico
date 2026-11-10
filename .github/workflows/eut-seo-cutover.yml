@@ -7,6 +7,12 @@ on:
       - 'src/routes/tecnicos.index.tsx'
       - 'src/routes/tecnicos.$tecnicoId.tsx'
       - 'src/routes/sitemap[.]xml.ts'
+      - 'src/routes/home2.tsx'
+      - 'src/routes/faq.tsx'
+      - 'src/routes/contato.tsx'
+      - 'src/routes/servicos.tsx'
+      - 'src/routes/como-funciona.tsx'
+      - 'src/lib/seo-public-pages.test.ts'
       - 'public/robots.txt'
       - '.github/workflows/eut-seo-cutover.yml'
 permissions:
@@ -20,6 +26,10 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bun run build
+      - name: Test public SEO, sitemap, redirects and noindex boundaries
+        run: bunx vitest run src/lib/seo-public-pages.test.ts
+      - name: TypeScript check
+        run: bunx tsc --noEmit --pretty false
       - name: Check SEO and private page boundaries
         run: |
           node --input-type=module <<'NODE'
