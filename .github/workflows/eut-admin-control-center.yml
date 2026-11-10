@@ -1,0 +1,53 @@
+name: EUT admin control center gate
+on:
+  pull_request:
+    paths:
+      - 'src/routes/admin.tsx'
+      - 'src/components/admin-control-hub.tsx'
+      - 'docs/admin/PLANO-MESTRE-GESTAO-PATROCINIOS.md'
+      - '.github/workflows/eut-admin-control-center.yml'
+permissions:
+  contents: read
+jobs:
+  admin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Build TanStack
+        run: bun run build
+      - name: TypeScript check
+        run: bunx tsc --noEmit --pretty false
+      - name: Verify admin navigation and sponsorship roadmap
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const page = readFileSync('src/routes/admin.tsx', 'utf8');
+          const hub = readFileSync('src/components/admin-control-hub.tsx', 'utf8');
+          const spec = readFileSync('docs/admin/PLANO-MESTRE-GESTAO-PATROCINIOS.md', 'utf8');
+          const anchors = [
+            'admin-catalogo', 'admin-legado', 'admin-reivindicacoes',
+            'admin-tecnicos', 'admin-solicitacoes',
+            'admin-mensagens', 'admin-metricas',
+          ];
+          for (const anchor of anchors) {
+            if (!hub.includes('anchor: "' + anchor + '"')) throw Error('Module shortcut missing: ' + anchor);
+            if (!page.includes('id="' + anchor + '"')) throw Error('Broken admin anchor: ' + anchor);
+          }
+          for (const term of [
+            'roles.includes("admin")', 'noindex, nofollow',
+            '<AdminControlHub />', '<EutAdminManager />',
+            '<LegacyReviewQueue />', '<LegacyClaimReview />',
+          ]) if (!page.includes(term)) throw Error('Admin access/feature regression: ' + term);
+          for (const term of [
+            'Patrocinadores', 'eut_sponsors', 'eut_ad_placements',
+            'eut_ad_campaigns', 'eut_admin_audit_log',
+            'RLS', 'rollback', 'Publicidade',
+          ]) if (!spec.includes(term)) throw Error('Sponsor architecture missing: ' + term);
+          if (!hub.includes('ainda não há anúncios para gerenciar aqui')) {
+            throw Error('Unimplemented ads must not be advertised as operational');
+          }
+          console.log('Admin navigation and roadmap contract: OK');
+          NODE
