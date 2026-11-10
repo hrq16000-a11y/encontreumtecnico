@@ -14,6 +14,9 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { FriendlyErrorState } from "../components/friendly-error-state";
 
+// One stable, public, WordPress-independent image for every route's social preview.
+const SOCIAL_IMAGE = "https://www.encontreumtecnico.com/social-preview.jpg";
+
 function NotFoundComponent() {
   return <FriendlyErrorState status={404} />;
 }
@@ -56,7 +59,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: "Encontre um Técnico" },
       { property: "og:description", content: "Encontre e contrate técnicos de tecnologia perto de você." },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
+      // Root metadata applies to all matched routes, including deep links.
+      // A public default avoids leaking profile photos or private account data.
+      { property: "og:image", content: SOCIAL_IMAGE },
+      { property: "og:image:secure_url", content: SOCIAL_IMAGE },
+      { property: "og:image:type", content: "image/jpeg" },
+      { property: "og:image:alt", content: "Técnico de segurança em atendimento — Encontre um Técnico" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: SOCIAL_IMAGE },
+      { name: "twitter:image:alt", content: "Encontre um Técnico — profissionais de tecnologia em todo o Brasil" },
     ],
     links: [
       {
