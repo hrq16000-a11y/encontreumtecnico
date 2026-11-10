@@ -71,7 +71,7 @@ function ContactAccessPage() {
       });
       if (error) {
         setPaidMessage("Não foi possível consultar seu acesso. Tente novamente.");
-      } else if (data?.status === "liberado" && typeof data.phone === "string" && /^\\+55[0-9]{10,11}$/.test(data.phone)) {
+      } else if (data?.status === "liberado" && typeof data.phone === "string" && data.phone.startsWith("+55") && /^[+][0-9]{12,13}$/.test(data.phone)) {
         setPaidPhone(data.phone);
         setPaidMessage("Acesso pago confirmado. Número disponível exclusivamente nesta área autenticada.");
       } else if (data?.status === "contato_indisponivel") {
