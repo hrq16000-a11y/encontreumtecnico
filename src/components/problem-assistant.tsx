@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { triageProblem, type TriageResult } from "../lib/problem-triage.functions";
+import { saveTriageDraft } from "../lib/triage-draft";
 
 export function ProblemAssistant() {
   const navigate = useNavigate();
@@ -31,6 +32,7 @@ export function ProblemAssistant() {
 
   function applyFilters() {
     if (!result?.ok) return;
+    saveTriageDraft({ description, category: result.category, city: result.city, region: result.region });
     navigate({
       to: "/tecnicos",
       search: { especialidade: result.category, cidade: result.city, regiao: result.region },
