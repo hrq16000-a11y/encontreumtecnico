@@ -9,6 +9,7 @@ const SHORTCUTS: AdminShortcut[] = [
   { anchor: "admin-catalogo", name: "Categorias e serviços", description: "Criar, revisar e organizar especialidades" },
   { anchor: "admin-legado", name: "Acervo WordPress", description: "Conferir registros importados sem publicá-los" },
   { anchor: "admin-reivindicacoes", name: "Reivindicações", description: "Analisar pedidos de titularidade" },
+  { anchor: "admin-contatos", name: "Central de contatos e banidos", description: "Gerenciar telefones, restrições, mensagens e auditoria" },
   { anchor: "admin-tecnicos", name: "Técnicos cadastrados", description: "Aprovar, suspender e revisar perfis ativos" },
   { anchor: "admin-solicitacoes", name: "Solicitações", description: "Acompanhar demandas dos clientes" },
   { anchor: "admin-mensagens", name: "Mensagens", description: "Responder e arquivar contatos" },
