@@ -88,7 +88,7 @@ describe("SEO global do Encontre um Técnico", () => {
     expect(profile).toContain('if (!isValidTechnicianId(params.tecnicoId)) throw notFound()');
     expect(profile).toContain('if (!technician) throw notFound()');
     expect(query).toContain('if (error) {');
-    expect(query).toContain('throw new Error("Não foi possível consultar o perfil profissional.")');
+    expect(query).toContain('throw new Error("Não foi possível consultar o perfil do técnico.")');
     expect(read("src/routes/__root.tsx")).toContain('notFoundComponent: NotFoundComponent');
     expect(read("scripts/eut-public-smoke.mjs"))
       .toContain('["/tecnicos/00000000-0000-0000-0000-000000000000", 404]');
