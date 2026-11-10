@@ -17,18 +17,18 @@ describe('LP2 isolada - proteção contra regressões',()=>{
  it('proíbe rede direta e APIs antigas em páginas LP2',()=>{
   for(const file of pages){
    const code=read('src/routes/lp2/'+file)
-   expect(code,file).not.toMatch(/\\bfetch\\s*\\(/)
+   expect(code,file).not.toMatch(/\bfetch\s*\(/)
    expect(code,file).not.toContain('encontreumtecnico-migracao-git-')
   }
   const api=read('src/components/lp2/common.tsx')
   expect(api).toContain('throw new Error(')
-  expect(api).not.toMatch(/\\bfetch\\s*\\(/)
-  expect(read('src/components/lp2/api-guard.ts')).not.toMatch(/\\bfetch\\s*\\(/)
+  expect(api).not.toMatch(/\bfetch\s*\(/)
+  expect(read('src/components/lp2/api-guard.ts')).not.toMatch(/\bfetch\s*\(/)
  })
  it('mantém estilos originais confinados à LP2',()=>{
   const css=read('src/components/lp2/theme.css')
   expect(css).toContain('@scope (.lp2-theme)')
-  expect(css).not.toMatch(/:root\\s*\\{/)
+  expect(css).not.toMatch(/:root\s*\{/)
   expect(read('src/routes/lp2/route.tsx')).toContain('className="lp2-theme"')
   expect(read('src/routes/lp2/route.tsx')).toContain("content:'noindex,nofollow'")
  })

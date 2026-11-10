@@ -34,4 +34,4 @@ Nenhuma rota ou API original foi sobrescrita. O código-fonte arquivado não dev
 4. Durante a homologação, adicionar `noindex,nofollow` e não colocar LP2 em sitemap.
 5. Gate de regressão: build, rotas atuais preservadas, login oficial intacto, sem novos segredos e sem modificar DNS.
 
-**Status:** snapshot completo salvo na branch isolada. As rotas /lp2 ainda não foram implementadas/publicadas.
+**Status:** snapshot salvo e 11 páginas LP2 implementadas na branch isolada (rodada 3). Aguardam validação de build/preview; nenhuma publicação em produção.
