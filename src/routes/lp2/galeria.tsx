@@ -3,6 +3,7 @@ import {listApprovedTechnicians} from '../../lib/technicians.functions'
 import {useEffect,useMemo,useState} from 'react'
 import type {FormEvent} from 'react'
 import {ServiceIcon} from '../../components/lp2/ServiceIcon'
+import {LegacyPublicArchive} from '../../components/legacy-public-archive'
 import {fromPublicTechnician,matchesService,profileRoute,regionStatus} from '../../components/lp2/directory'
 import type {DirectoryProfile as Tech} from '../../components/lp2/directory'
 const getProfiles=async()=> (await listApprovedTechnicians({data:{especialidade:'Todas',cidade:'',regiao:'',servico:'',uf:'',bairro:''}})).map(fromPublicTechnician)
@@ -40,6 +41,7 @@ function Gallery(){
   {!results.length?<div className="info-empty directory-empty"><ServiceIcon name="search" size={34}/><h2>Nenhum perfil encontrado com esses filtros</h2><p>Não há técnicos aprovados para os filtros selecionados. Tente outra especialidade ou cidade, ou publique uma solicitação após entrar.</p><div className="actions"><button type="button" className="btn" onClick={clear}>Ver todos</button><Link to="/lp2/cliente" className="btn secondary">Publicar solicitação</Link></div></div>:null}
   {limit<results.length?<div className="directory-more"><span>Mostrando {Math.min(limit,results.length)} de {results.length}</span><button className="btn" onClick={()=>setLimit(n=>n+24)}>Carregar mais técnicos <ServiceIcon name="chevron" size={15}/></button></div>:null}
   <aside className="directory-info"><ServiceIcon name="shield" size={22}/><div><strong>Diretório com informações transparentes</strong><p>Os dados vêm do mesmo cadastro oficial. Só exibimos técnicos aprovados, sem expor contatos privados nem inventar avaliações ou certificações.</p></div></aside>
+  <LegacyPublicArchive show={!query.trim()&&!city.trim()&&!uf}/>
   <section className="directory-join"><div><p className="section-eyebrow">SOU TÉCNICO</p><h2>Seu trabalho merece visibilidade.</h2><p>Cadastre seu perfil gratuitamente e faça parte do diretório.</p></div><Link className="btn" to="/lp2/cadastro">Quero me cadastrar <ServiceIcon name="arrow" size={16}/></Link></section>
  </div></main>
 }

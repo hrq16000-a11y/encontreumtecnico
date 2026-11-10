@@ -2,6 +2,7 @@ import {createFileRoute,Link,Outlet} from '@tanstack/react-router'
 import {useState} from 'react'
 import {LP2EmbeddedContext} from '../../components/page-placeholder'
 import {ServiceIcon} from '../../components/lp2/ServiceIcon'
+import {CookieNotice} from '../../components/cookie-notice'
 import '../../components/lp2/theme.css'
 
 const logo='/lp2-assets/logo-original.webp'
@@ -31,5 +32,6 @@ function Lp2Layout(){
    <div id="lp2-main" tabIndex={-1}><LP2EmbeddedContext.Provider value={true}><Outlet/></LP2EmbeddedContext.Provider></div>
    <footer className="footer"><div className="container footer-main"><div><Link to="/lp2" aria-label="Encontre um Técnico LP2" className="footer-logo"><img width={220} height={33} src={logo} alt="Encontre um Técnico"/></Link><p>Conectamos pessoas e técnicos independentes de informática e tecnologia, com liberdade para negociar diretamente.</p></div><div><h3>Encontre</h3><Link to="/lp2/galeria" search={{q:'',city:''}}>Buscar profissionais</Link><Link to="/lp2/atividades">Solicitações</Link><Link to="/lp2/cliente">Área do cliente</Link></div><div><h3>Sou técnico</h3><Link to="/lp2/cadastro">Cadastrar gratuitamente</Link><Link to="/lp2/acompanhar">Acompanhar cadastro</Link><Link to="/lp2/meu-perfil">Gerenciar perfil</Link></div><div><h3>Portal</h3><Link to="/lp2/admin">Administração</Link><a href="/">Portal principal</a><span>Mesma base de técnicos e clientes do portal</span></div></div><div className="container footer-bottom"><span>© {new Date().getFullYear()} Encontre um Técnico. Tema LP2 isolado.</span><span>Outra interface, mesmas contas e solicitações</span></div></footer>
   </div>
+  <CookieNotice/>
  </div>
 }
