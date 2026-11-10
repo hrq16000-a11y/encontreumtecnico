@@ -105,3 +105,26 @@ O domínio WordPress antigo segue separado do Preview/produção Vercel.
 O deploy da aplicação é manual por política Git-first; um commit verde em
 `main` não significa publicação. Exigir o SHA exato no Vercel e smoke HTTP
 antes de liberar tráfego.
+
+
+## 6. Novos cadastros independentes do WordPress — decisão de DNS
+
+**O portal novo NÃO consulta o WordPress ao vivo** para publicar um perfil: conta com identidade Supabase confirmada e papel \`tecnico\`, cadastro com UF, município, especialidade e serviço ativos, e RPC \`eut_publish_my_technician\`. Cliente usa login Supabase e demanda privada. O acervo migrado fica somente como camada opcional de recuperação/consulta; não deve ser apagado nem apresentado como técnico ativo.
+
+**Validação técnica em 10/11/2026:**
+- Vercel projeto \`prj_VaqJJAu3HfqcsRtUqZmeD8LCOaIy\`: domínio apex \`encontreumtecnico.com\` e \`www.encontreumtecnico.com\` já **cadastrados e verificados**. Apex configurado com redirecionamento 308 para \`www\`.
+- Produção Vercel consultada: READY no commit \`080bef14180e5c5107b93d505d6728aed3b5154b\` — **não** é o HEAD GitHub em evolução. Ativação de \`git.deploymentEnabled=false\` exige release manual SHA-alvo.
+- Supabase: **1** conta Auth; **0** técnicos ativos; **0** pedidos; **0** vínculos reais WordPress; **615** URLs antigas ainda em validação; **434** mídias sem SHA verificado.
+- Sem comprovação E2E de Google para cliente + técnico, aprovação do primeiro cadastro e contato privado; portanto **NO-GO para DNS** no estado medido.
+- Independência de *operação futura* não autoriza descarte do *backup histórico*: originais WordPress, XML/ZIP e mapeamentos precisam ficar preservados para recuperação e SEO.
+
+**Smoke real sem gastar Vercel:** \`node scripts/eut-public-smoke.mjs\` consulta \`https://encontreumtecnico.vercel.app\` por GET em \`/\`, \`/entrar\`, \`/tecnicos\`, \`/area-tecnico\`, \`/area-cliente\`, \`/reivindicar-cadastro\`, \`/sitemap.xml\` e URL falsa (404). Executado por GitHub Actions como *informativo* e registrado no resumo do workflow; erro de rede NÃO implica automaticamente que a rota falha em navegador, mas **não dá liberação DNS**.
+
+**Critérios antes de orientar alteração DNS:**
+1. Consolidar código revisado em SHA publicado manualmente, Preview homologado e produção READY no **mesmo SHA**.
+2. HTTP 200/404 reais; canonicals, sitemap, robots, verificação GSC, TLS e redirect apex → www corretos; páginas inexistentes não retornam 200.
+3. Login Google de técnico e cliente independentes; publicação de profissional real (com telefone privado, DDD nacional 10 ou 11 dígitos); pesquisa e triagem até pedido seguro registrado, sem contato exposto.
+4. Dados históricos preservados em armazenamento independente; políticas de reivindicação e 20 demos intactas; plano explícito para 615 URLs e 118 imagens potencialmente legítimas.
+5. Backup, restauração e rollback comprovados. Confirmação humana explícita para mudar DNS **somente depois** desses gates.
+
+**Alternativa segura até o cutover:** divulgue o endereço temporário \`https://encontreumtecnico.vercel.app\` para testes controlados e convide técnicos reais para criar perfis novos; mantenha o domínio oficial atendendo o WordPress até a validação completa.
