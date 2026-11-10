@@ -5,6 +5,18 @@ import { BRAZIL_STATES } from "@/lib/service-taxonomy";
 // explicitly confirmed by the customer may enter search/request fields.
 export type CustomerArea = { city: string; uf: string; neighborhood: string };
 
+/** Suggest a service locality, never overwrite a professional's manually
+ * selected fields after a previously granted permission auto-detects GPS.
+ * Manual clicking allows correction; publishing still requires submit + RPC.
+ */
+export function suggestTechnicianArea<T extends {
+  state_uf: string; city: string; neighborhood: string;
+}>(form: T, area: CustomerArea, source: "manual" | "automatic"): T {
+  if (source === "automatic" &&
+      (form.state_uf || form.city.trim() || form.neighborhood.trim())) return form;
+  return { ...form, state_uf: area.uf, city: area.city, neighborhood: area.neighborhood };
+}
+
 export function parseBrazilianDeviceLocation(value: unknown): CustomerArea | null {
   if (!value || typeof value !== "object") return null;
   const item = value as Record<string, unknown>;

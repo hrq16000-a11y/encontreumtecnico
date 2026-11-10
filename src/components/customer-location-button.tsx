@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { locateCustomerFromDevice, type CustomerArea } from "@/lib/customer-location";
 
 export function CustomerLocationButton({
-  onLocated, autoIfGranted = true,
+  onLocated, autoIfGranted = true, purpose = "customer",
 }: {
   onLocated: (area: CustomerArea, source: "manual" | "automatic") => void;
   autoIfGranted?: boolean;
+  /** Technician suggestions are public only if the professional explicitly publishes. */
+  purpose?: "customer" | "technician";
 }) {
   const callback = useRef(onLocated);
   callback.current = onLocated;
@@ -24,7 +26,9 @@ export function CustomerLocationButton({
       if (!mounted.current) return;
       callback.current(area, source);
       setFound(area);
-      setFeedback("Região aproximada preenchida. Confira cidade e bairro antes de continuar.");
+      setFeedback(purpose === "technician"
+        ? "Localidade sugerida. Confira sua cidade e bairro antes de publicar o perfil profissional."
+        : "Região aproximada preenchida. Confira cidade e bairro antes de continuar.");
     } catch {
       if (mounted.current) setFeedback("Localização indisponível ou não autorizada. Você pode informar ou corrigir sua cidade manualmente.");
     } finally {
@@ -52,7 +56,8 @@ export function CustomerLocationButton({
         <button type="button" disabled={loading} onClick={() => void detect("manual")}
           className="inline-flex min-h-10 items-center gap-2 rounded-md border border-primary px-4 py-2 font-semibold text-primary disabled:opacity-60">
           <span aria-hidden="true">⌖</span>
-          {loading ? "Identificando sua região…" : "Usar minha localização"}
+          {loading ? "Identificando sua região…" :
+            purpose === "technician" ? "Preencher cidade e bairro pelo GPS" : "Usar minha localização"}
         </button>
         {found && <span className="font-medium text-foreground">
           {found.city}/{found.uf}{found.neighborhood ? " · " + found.neighborhood : ""}
@@ -61,8 +66,14 @@ export function CustomerLocationButton({
       <p className="mt-2 text-xs text-muted-foreground">
         Com sua permissão, o GPS identifica a região. A consulta é feita diretamente
         pelo seu dispositivo à BigDataCloud, que recebe suas coordenadas e IP.
-        O portal utiliza apenas cidade, UF e bairro aproximado para busca;
-        não grava o GPS nem envia seu endereço exato ao técnico.
+        {purpose === "technician" ? (
+          <> Revise os dados sugeridos: se você publicar seu cadastro, cidade, UF e
+            bairro informados poderão aparecer no perfil público. O GPS exato não
+            é armazenado pelo portal.</>
+        ) : (
+          <> O portal utiliza apenas cidade, UF e bairro aproximado para busca;
+            não grava o GPS nem envia seu endereço exato ao técnico.</>
+        )}
       </p>
       {feedback && <p className="mt-2 text-xs text-foreground" role="status">{feedback}</p>}
     </div>

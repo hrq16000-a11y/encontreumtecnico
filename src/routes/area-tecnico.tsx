@@ -14,6 +14,8 @@ import { TechnicianMissions } from "@/components/technician-missions";
 import { TechnicianPrivateContact } from "@/components/technician-private-contact";
 import { PioneerPhoneVerification } from "@/components/pioneer-phone-verification";
 import { TechnicianDirectRequests } from "@/components/technician-direct-requests";
+import { CustomerLocationButton } from "@/components/customer-location-button";
+import { suggestTechnicianArea } from "@/lib/customer-location";
 import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
 
 export const Route = createFileRoute("/area-tecnico")({
@@ -238,6 +240,17 @@ export function TechnicianAreaPage() {
               <label className="text-sm font-medium text-foreground">Nome público
                 <input required minLength={2} maxLength={80} className={input} value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} />
               </label>
+              <CustomerLocationButton
+                purpose="technician"
+                autoIfGranted={!profileId && !form.state_uf && !form.city.trim() && !form.neighborhood.trim()}
+                onLocated={(area, source) => {
+                  setForm((current) => suggestTechnicianArea(current, area, source));
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                O GPS é apenas uma sugestão da sua localização atual. Confira a cidade
+                e informe as regiões onde você realmente atende antes de publicar.
+              </p>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="text-sm font-medium text-foreground">Estado (UF)
                   <select required className={input} value={form.state_uf} onChange={(e) => setForm({ ...form, state_uf: e.target.value })}>

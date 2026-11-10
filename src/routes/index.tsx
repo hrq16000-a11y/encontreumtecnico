@@ -164,6 +164,20 @@ function HomePage() {
                 setLocationUf(area.uf);
                 setLocationNeighborhood(area.neighborhood);
               }} />
+              {locationUf && city.trim() && (
+                <Link
+                  to="/tecnicos"
+                  search={{
+                    especialidade: specialty.trim() || "Todas",
+                    cidade: city.trim(), regiao: "",
+                    uf: locationUf, bairro: locationNeighborhood, prioridade: "regiao",
+                  }}
+                  className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-md border border-primary bg-card px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/5"
+                >
+                  <Search className="h-4 w-4" aria-hidden />
+                  Buscar técnicos em {city}/{locationUf}
+                </Link>
+              )}
             </div>
             <ul className="mt-5 flex flex-wrap gap-2 text-xs text-muted-foreground">
               {CHIPS.map(({ i: I, t }) => (
