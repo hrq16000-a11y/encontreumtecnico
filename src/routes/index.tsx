@@ -7,6 +7,7 @@ import techImg from "@/assets/tecnica-informatica.jpg";
 import { PageShell } from "../components/page-placeholder";
 import { SponsoredPublicSlot } from "@/components/sponsored-public-slot";
 import { ProblemAssistant } from "../components/problem-assistant";
+import { CustomerLocationButton } from "@/components/customer-location-button";
 import { Reveal } from "../components/motion";
 import {
   CategoryGrid,
@@ -93,6 +94,8 @@ function HomePage() {
   const navigate = useNavigate();
   const [specialty, setSpecialty] = useState("");
   const [city, setCity] = useState("");
+  const [locationUf, setLocationUf] = useState("");
+  const [locationNeighborhood, setLocationNeighborhood] = useState("");
 
   return (
     <PageShell>
@@ -124,7 +127,8 @@ function HomePage() {
                 });
                 navigate({
                   to: "/tecnicos",
-                  search: { especialidade: specialty.trim() || "Todas", cidade: city.trim(), regiao: "" },
+                  search: { especialidade: specialty.trim() || "Todas", cidade: city.trim(), regiao: "",
+                    uf: locationUf, bairro: locationNeighborhood, prioridade: locationUf ? "regiao" : "" },
                 });
               }}
             >
@@ -142,7 +146,7 @@ function HomePage() {
                 id="busca-cidade"
                 type="text"
                 value={city}
-                onChange={(e) => setCity(e.target.value)}
+                onChange={(e) => { setCity(e.target.value); setLocationUf(""); setLocationNeighborhood(""); }}
                 placeholder="Cidade ou região"
                 className="h-11 min-h-11 w-full shrink-0 sm:w-auto sm:flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
@@ -153,6 +157,14 @@ function HomePage() {
                 Buscar
               </button>
             </form>
+            <div className="mt-3 max-w-xl">
+              <CustomerLocationButton onLocated={(area, source) => {
+                if (source === "automatic" && city.trim()) return;
+                setCity(area.city);
+                setLocationUf(area.uf);
+                setLocationNeighborhood(area.neighborhood);
+              }} />
+            </div>
             <ul className="mt-5 flex flex-wrap gap-2 text-xs text-muted-foreground">
               {CHIPS.map(({ i: I, t }) => (
                 <li key={t} className="inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-1.5 font-medium text-foreground shadow-sm">
