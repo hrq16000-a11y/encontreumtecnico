@@ -3,8 +3,8 @@ import type { Tables } from "@/integrations/supabase/types";
 export type Req = Tables<"service_requests">;
 
 export const REQUEST_STATUS: Record<Req["status"], string> = {
-  aberta: "Aberta",
-  aceita: "Aceita pelo técnico",
+  aberta: "Registrada — privada",
+  aceita: "Aceita — registro antigo",
   recusada: "Recusada",
   concluida: "Concluída",
   cancelada: "Cancelada",
