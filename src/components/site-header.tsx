@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import logo from "@/assets/logo-marinho.png";
 
@@ -11,9 +11,18 @@ const NAV_ITEMS = [
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const update = () => setScrolled(window.scrollY > 35);
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    return () => window.removeEventListener("scroll", update);
+  }, []);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
+    <header className={`sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur transition-shadow duration-300 ${scrolled ? "shadow-md" : ""}`}>
+      <a href="#conteudo-principal" className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-2 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground">Ir para o conteúdo</a>
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
         <Link to="/" className="flex items-center" aria-label="Encontre um Técnico — página inicial">
           <img src={logo} alt="Encontre um Técnico" width={324} height={60} className="h-9 w-auto" />
@@ -63,7 +72,7 @@ export function SiteHeader() {
       </div>
 
       {open && (
-        <nav className="border-t border-border bg-background px-4 py-3 md:hidden" aria-label="Navegação móvel">
+        <nav className="eut-menu-enter border-t border-border bg-background px-4 py-3 md:hidden" aria-label="Navegação móvel">
           <ul className="flex flex-col gap-1">
             {NAV_ITEMS.map((item) => (
               <li key={item.to}>

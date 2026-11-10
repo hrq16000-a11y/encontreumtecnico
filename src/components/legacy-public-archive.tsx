@@ -75,7 +75,7 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
             <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {profiles.map((profile) => (
                 <li key={profile.wp_post_id}
-                  className="rounded-lg border border-amber-700/25 bg-card p-5">
+                  className="eut-card-lift rounded-lg border border-amber-700/25 bg-card p-5">
                   <div className="flex items-start gap-3">
                     {legacyAvatarUrl(profile.wp_post_id) ? (
                       <img src={legacyAvatarUrl(profile.wp_post_id)!}

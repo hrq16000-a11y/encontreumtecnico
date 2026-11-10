@@ -236,7 +236,7 @@ function TechniciansPage() {
                   <Link
                     to="/tecnicos/$tecnicoId"
                     params={{ tecnicoId: t.id }}
-                    className="block h-full rounded-lg border border-border bg-card p-5 transition-colors hover:border-primary"
+                    className="eut-card-lift block h-full rounded-lg border border-border bg-card p-5 hover:border-primary"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div><h2 className="font-semibold text-card-foreground">{t.display_name}</h2>{t.pioneer_bronze && <span className="mt-1 inline-flex rounded-full border border-amber-700/30 bg-amber-800/10 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:text-amber-300">Pioneiro Bronze</span>}</div>
