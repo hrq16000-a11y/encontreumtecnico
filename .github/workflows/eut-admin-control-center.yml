@@ -47,10 +47,11 @@ jobs:
             'eut_ad_campaigns', 'eut_admin_audit_log',
             'RLS', 'rollback', 'Publicidade',
           ]) if (!spec.includes(term)) throw Error('Sponsor architecture missing: ' + term);
-          if (!hub.includes('Cards patrocinados podem ser aprovados') ||
-              !hub.includes('Banners de imagem, segmentação e relatórios') ||
+          if (!hub.includes('Cards patrocinados e banners de imagem podem ser aprovados') ||
+              !hub.includes('A imagem original continua') ||
+              !hub.includes('Segmentação e relatórios') ||
               !hub.includes('ainda dependem das próximas rodadas')) {
-            throw Error('Admin hub must distinguish text card delivery from pending image banners');
+            throw Error('Admin hub must distinguish approved image delivery from pending reports');
           }
           console.log('Admin navigation and roadmap contract: OK');
           NODE
