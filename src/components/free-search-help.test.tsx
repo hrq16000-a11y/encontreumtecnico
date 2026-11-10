@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { FreeSearchHelp } from "./free-search-help";
 import { freeHelpCopy, openFreeHelp } from "@/lib/free-search-help";
 
@@ -24,7 +24,7 @@ describe("Ajuda gratuita para área não encontrada", () => {
 
   it("recebe a região informada e abre formulário privado predefinido", () => {
     render(<FreeSearchHelp />);
-    openFreeHelp({ city: "Curitiba", uf: "PR", service: "redes" });
+    act(() => openFreeHelp({ city: "Curitiba", uf: "PR", service: "redes" }));
     expect(screen.getByRole("dialog")).toBeTruthy();
     expect(screen.getByText(/Busca em Curitiba · PR/)).toBeTruthy();
     expect(screen.getByTestId("safe-contact").textContent).toContain("Curitiba · PR");
