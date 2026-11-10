@@ -11,7 +11,6 @@ import { LegacyAccountActivation } from "@/components/legacy-account-activation"
 import { LegacyProfileImport } from "@/components/legacy-profile-import";
 import { TechnicianPresence } from "@/components/technician-presence";
 import { TechnicianMissions } from "@/components/technician-missions";
-import { RequestCard, type Req } from "../components/request-list";
 
 export const Route = createFileRoute("/area-tecnico")({
   head: () => ({
@@ -30,42 +29,6 @@ export const Route = createFileRoute("/area-tecnico")({
 
 const STATUS_LABEL = { pendente: "Complete seus dados para publicar", aprovado: "Publicado — visível na busca", rejeitado: "Oculto", suspenso: "Visibilidade suspensa" };
 const activationDb = supabase as unknown as SupabaseClient;
-
-function TechnicianRequests() {
-  const [rows, setRows] = useState<Req[] | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  async function load() {
-    const { data } = await supabase.from("service_requests").select("*").order("created_at", { ascending: false });
-    setRows(data ?? []);
-  }
-  useEffect(() => { load(); }, []);
-  async function act(r: Req, s: "aceita" | "recusada" | "concluida") {
-    const { error } = await supabase.rpc("set_request_status", { _id: r.id, _status: s });
-    if (error) return setErr("Não foi possível atualizar a solicitação.");
-    if (s === "aceita") window.__lovableEvents?.track?.("project.service_accepted", { category: r.category });
-    load();
-  }
-  const btn = "min-h-11 rounded-md px-4 text-sm font-medium";
-  return (
-    <section className="mt-10">
-      <h2 className="text-lg font-semibold text-foreground">Solicitações</h2>
-      {err && <p role="alert" className="mt-2 text-sm text-destructive">{err}</p>}
-      {rows === null ? <p className="mt-3 text-sm text-muted-foreground">Carregando…</p>
-        : rows.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">Nenhuma solicitação disponível no momento.</p>
-        : (
-          <ul className="mt-3 grid gap-3">
-            {rows.map((r) => (
-              <RequestCard key={r.id} r={r}>
-                {r.status === "aberta" && <button onClick={() => act(r, "aceita")} className={`${btn} bg-primary text-primary-foreground`}>Aceitar</button>}
-                {r.status === "aberta" && r.technician_id && <button onClick={() => act(r, "recusada")} className={`${btn} border border-input text-foreground`}>Recusar</button>}
-                {r.status === "aceita" && <button onClick={() => act(r, "concluida")} className={`${btn} bg-primary text-primary-foreground`}>Marcar como concluída</button>}
-              </RequestCard>
-            ))}
-          </ul>
-        )}
-    </section>
-  );
-}
 
 function TechnicianAreaPage() {
   const { user, roles, loading } = useAuth();
@@ -231,7 +194,21 @@ function TechnicianAreaPage() {
               </button>
               {msg && <p role="status" className="text-sm text-foreground">{msg}</p>}
             </form>
-            {status === "aprovado" && <TechnicianRequests />}
+            {status === "aprovado" && (
+              <div className="mt-8 rounded-lg border border-border bg-muted/20 p-5">
+                <h2 className="text-base font-semibold text-foreground">Contato direto, sem intermediação</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Seu perfil aparece na busca conforme seus serviços e sua região.
+                  O número privado não é exibido livremente: clientes terão acesso controlado
+                  somente após a liberação do pagamento de conveniência.
+                  O portal não encaminha solicitações abertas indiscriminadamente aos profissionais.
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  O pagamento por contato ainda está em integração. Não haverá contatos adquiridos
+                  ou cobranças fictícias durante esta etapa.
+                </p>
+              </div>
+            )}
           </>
         )}
       </section>
