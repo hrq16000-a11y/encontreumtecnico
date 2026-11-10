@@ -10,6 +10,7 @@ export type AreaTechnician = {
   neighborhood: string | null;
   online_now: boolean;
   pioneer_bronze?: boolean;
+  referral_highlight?: boolean;
 };
 
 function normalized(value: string | null | undefined): string {
@@ -56,6 +57,8 @@ export function rankTechniciansByDeclaredArea<T extends AreaTechnician>(
   })).sort((a, b) =>
     b.locationLevel - a.locationLevel ||
     Number(b.technician.online_now) - Number(a.technician.online_now) ||
+    // Nearby services and online availability always outrank referral rewards.
+    Number(Boolean(b.technician.referral_highlight)) - Number(Boolean(a.technician.referral_highlight)) ||
     Number(Boolean(b.technician.pioneer_bronze)) - Number(Boolean(a.technician.pioneer_bronze)) ||
     a.index - b.index
   ).map((item) => item.technician);
