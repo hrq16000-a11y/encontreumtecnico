@@ -32,7 +32,7 @@ jobs:
         run: bun run build
       - name: SEO public pages, redirects and privacy tests
         run: bunx vitest run src/lib/seo-public-pages.test.ts
-      - name: Regression: deterministic triage fallback
+      - name: Regression triage fallback
         run: bunx vitest run src/lib/problem-triage-local.test.ts
       - name: TypeScript check
         run: bunx tsc --noEmit --pretty false
