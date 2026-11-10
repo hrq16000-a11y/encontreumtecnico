@@ -1,0 +1,87 @@
+name: EUT ads R5 approved image delivery gate
+on:
+  pull_request:
+    paths:
+      - 'docs/sql/eut-ads-r5-approved-image-delivery.sql'
+      - 'docs/sql/tests/eut-ads-r5-image-rollback.sql'
+      - 'src/components/sponsored-public-slot.tsx'
+      - 'src/components/sponsored-public-slot.test.ts'
+      - 'src/components/admin-advertising-manager.tsx'
+      - 'src/components/admin-control-hub.tsx'
+      - '.github/workflows/eut-ads-r5.yml'
+permissions:
+  contents: read
+jobs:
+  safe-images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Build
+        run: bun run build
+      - name: TypeScript strict
+        run: bunx tsc --noEmit --pretty false
+      - name: Public ad validation
+        run: bunx vitest run src/components/sponsored-public-slot.test.ts
+      - name: Check private-to-public approval contract
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const sql=readFileSync('docs/sql/eut-ads-r5-approved-image-delivery.sql','utf8');
+          const test=readFileSync('docs/sql/tests/eut-ads-r5-image-rollback.sql','utf8');
+          const ui=readFileSync('src/components/admin-advertising-manager.tsx','utf8');
+          const publicUI=readFileSync('src/components/sponsored-public-slot.tsx','utf8');
+          const files=[
+            ['schema',[ 'ALTER TABLE eut_ads.creatives','ADD COLUMN public_media_key',
+              'CREATE POLICY eut_ad_delivery_admin_copy',
+              "bucket_id='eut-ad-delivery'",
+              'public.eut_ads_can_copy_approved_asset',
+              'eut_ads.require_admin()',
+              'public.eut_ads_admin_activate_image',
+              "review_state='approved'",
+              "c.status='active'",
+              "p.format='image'",
+              "public_media_key IS NOT NULL",
+              "o.bucket_id='eut-ad-delivery'",
+              "o.bucket_id='eut-ad-assets'",
+              "s.status='contracted'",
+              "cp.enabled=true",
+              "statement_timestamp()",
+              "cr.creative_type='image'",
+              "cr.creative_type='sponsored_card'",
+              'REVOKE ALL ON FUNCTION public.eut_ads_admin_activate_image',
+              'GRANT EXECUTE ON FUNCTION public.eut_ads_public_slot',
+              "public_media_delivered",
+              "EXISTS(",
+            ],sql],
+            ['rollback',['BEGIN;','ROLLBACK;','Imagem rascunho visível',
+              'Não-admin pôde aprovar imagem','Imagem visível ANTES da cópia',
+              'Projeção pública revelou dados privados','Imagem não removida pela pausa'
+            ],test],
+            ['admin',['eut_ads_admin_activate_image',
+              'createSignedUrl(privatePath, 120)',
+              '.copy(privatePath, publicPath, { destinationBucket: "eut-ad-delivery" })',
+              'Retomar cópia da imagem aprovada',
+              'Aprovar imagem e publicar cópia'
+            ],ui],
+            ['public',['DELIVERY_KEY','eut-ad-delivery','getPublicUrl',
+              'rel="sponsored noopener noreferrer"',
+              'loading="lazy"','decoding="async"',
+              'Não representa certificação',
+              'min-h-[264px]',
+            ],publicUI]
+          ];
+          for(const [label,terms,s] of files) for(const term of terms) {
+            if(!s.includes(term)) throw Error('Missing R5 '+label+': '+term);
+          }
+          if(publicUI.includes('service_role') || publicUI.includes('media_storage_key') ||
+              publicUI.includes('navigator.geolocation') || publicUI.includes('createSignedUrl')) {
+            throw Error('Private asset or tracking leaked into the public image slot');
+          }
+          if(/INSERT\s+INTO\s+eut_ads\.(sponsors|campaigns|creatives|placements)\b/i.test(sql)) {
+            throw Error('R5 migration must never seed commercial records');
+          }
+          console.log('R5 approved images and private media gate: PASS');
+          NODE
