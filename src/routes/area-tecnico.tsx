@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useContext, useEffect, useState, type FormEvent } from "react";
+import { useContext, useEffect, useRef, useState, type FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { PageShell, LP2EmbeddedContext } from "../components/page-placeholder";
 import { useAuth } from "@/hooks/use-auth";
@@ -13,6 +13,7 @@ import { TechnicianPresence } from "@/components/technician-presence";
 import { TechnicianMissions } from "@/components/technician-missions";
 import { TechnicianPrivateContact } from "@/components/technician-private-contact";
 import { TechnicianDirectRequests } from "@/components/technician-direct-requests";
+import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
 
 export const Route = createFileRoute("/area-tecnico")({
   head: () => ({
@@ -37,26 +38,86 @@ export function TechnicianAreaPage() {
   const { user, roles, loading } = useAuth();
   const { categories, loading: catalogLoading, error: catalogError } = useActiveCategories();
   const { services, loading: servicesLoading, error: servicesError } = useActiveServices();
-  const [form, setForm] = useState({ display_name: "", state_uf: "", city: "", neighborhood: "", region: "", bio: "", specialties: [] as string[], service_slugs: [] as string[] });
+  const [form, setForm] = useState({
+    display_name: "", state_uf: "", city: "", neighborhood: "", region: "", bio: "",
+    specialties: [] as string[], service_slugs: [] as string[],
+  });
   const [status, setStatus] = useState<keyof typeof STATUS_LABEL | null>(null);
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [profileOwnerId, setProfileOwnerId] = useState<string | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState(false);
+  const [reloadCounter, setReloadCounter] = useState(0);
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const loadVersion = useRef(0);
+  const currentUserRef = useRef<string | null>(null);
+  currentUserRef.current = user?.id ?? null;
+  const roleKey = roles.join(",");
+  const currentStatus = roles.includes("tecnico") && profileOwnerId === user?.id ? status : null;
+  const profileReady = Boolean(user && roles.includes("tecnico")
+    && profileOwnerId === user.id && !profileLoading && !profileError);
 
   useEffect(() => {
-    if (!user) return;
-    supabase.from("technicians").select("*").eq("user_id", user.id).maybeSingle().then(({ data }) => {
-      if (data) {
-        setForm({ display_name: data.display_name, state_uf: data.state_uf ?? "", city: data.city, neighborhood: data.neighborhood ?? "", region: data.region ?? "", bio: data.bio ?? "", specialties: data.specialties, service_slugs: data.service_slugs ?? [] });
-        setStatus(data.status);
-      } else {
-        setForm((f) => ({ ...f, display_name: (user.user_metadata?.["full_name"] as string) ?? "" }));
-      }
+    const version = ++loadVersion.current;
+    setForm({
+      display_name: typeof user?.user_metadata?.["full_name"] === "string"
+        ? user.user_metadata["full_name"].slice(0, 80) : "",
+      state_uf: "", city: "", neighborhood: "", region: "", bio: "",
+      specialties: [], service_slugs: [],
     });
-  }, [user]);
+    setStatus(null);
+    setProfileId(null);
+    setProfileOwnerId(null);
+    setProfileError(false);
+    setMsg(null);
+    setSaving(false);
+    if (!user || !roles.includes("tecnico")) {
+      setProfileLoading(false);
+      return () => { loadVersion.current++; };
+    }
+
+    const owner = user.id;
+    setProfileLoading(true);
+    let active = true;
+    void Promise.resolve(supabase.from("technicians").select("*")
+      .eq("user_id", owner).maybeSingle())
+      .then(({ data, error }) => {
+        if (!active || !canAcceptAccountResult(owner, currentUserRef.current, version, loadVersion.current)) return;
+        if (error) {
+          setProfileError(true);
+        } else if (data) {
+          setForm({
+            display_name: data.display_name,
+            state_uf: data.state_uf ?? "",
+            city: data.city,
+            neighborhood: data.neighborhood ?? "",
+            region: data.region ?? "",
+            bio: data.bio ?? "",
+            specialties: data.specialties ?? [],
+            service_slugs: data.service_slugs ?? [],
+          });
+          setStatus(data.status);
+          setProfileId(data.id);
+        }
+        setProfileOwnerId(owner);
+        setProfileLoading(false);
+      }).catch(() => {
+        if (!active || !canAcceptAccountResult(owner, currentUserRef.current, version, loadVersion.current)) return;
+        setProfileError(true);
+        setProfileOwnerId(owner);
+        setProfileLoading(false);
+      });
+    return () => {
+      active = false;
+      loadVersion.current++;
+    };
+  }, [user?.id, roleKey, reloadCounter]);
 
   async function save(e: FormEvent) {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !profileReady || saving) return;
+    const savingOwner = user.id;
     if (!validMunicipality(form.state_uf, form.city)) return setMsg("Selecione a UF e informe uma cidade válida para sua área de atendimento.");
     if (catalogLoading || catalogError || !categories.length) return setMsg("O catálogo está indisponível. Não é possível validar especialidades agora.");
     if (form.specialties.length === 0) return setMsg("Escolha pelo menos uma especialidade.");
@@ -78,20 +139,22 @@ export function TechnicianAreaPage() {
         _specialties: form.specialties,
         _service_slugs: form.service_slugs,
       });
+      if (currentUserRef.current !== savingOwner) return;
       if (error) {
         setMsg("Não foi possível publicar. Confira cidade, categorias e serviços e tente novamente.");
       } else if (data?.state === "bloqueado_por_seguranca") {
         setMsg("Seu perfil tem uma restrição de segurança e não pode ser reativado automaticamente. Entre em contato.");
       } else if (data?.state === "publicado") {
         setStatus("aprovado");
+        if (typeof data.technician_id === "string") setProfileId(data.technician_id);
         setMsg("Perfil publicado automaticamente. Os dados profissionais são declarados por você; não há avaliação técnica do portal.");
       } else {
         setMsg("A publicação não foi concluída. Tente novamente.");
       }
     } catch {
-      setMsg("Falha de conexão ao publicar. Tente novamente.");
+      if (currentUserRef.current === savingOwner) setMsg("Falha de conexão ao publicar. Tente novamente.");
     } finally {
-      setSaving(false);
+      if (currentUserRef.current === savingOwner) setSaving(false);
     }
   }
 
@@ -108,19 +171,41 @@ export function TechnicianAreaPage() {
             Entre com uma conta de técnico para editar seu cadastro.{" "}
             <Link to={lp2 ? "/lp2/entrar" : "/entrar"} className="font-medium text-primary underline">Entrar</Link>
           </p>
+        ) : !profileReady ? (
+          <div className="mt-4 rounded-lg border border-border p-4">
+            {profileError ? (
+              <>
+                <p role="alert" className="text-sm text-destructive">
+                  Não conseguimos consultar seu cadastro. Nenhuma alteração foi feita.
+                </p>
+                <button type="button" onClick={() => setReloadCounter((value) => value + 1)}
+                  className="mt-3 min-h-11 rounded-md border border-primary px-4 text-sm font-semibold text-primary">
+                  Tentar carregar novamente
+                </button>
+              </>
+            ) : (
+              <p role="status" className="text-sm text-muted-foreground">Carregando seu cadastro…</p>
+            )}
+          </div>
         ) : (
           <>
-            {status && (
+            {currentStatus && (
               <p className="mt-3 inline-block rounded-md bg-muted px-3 py-1 text-sm text-foreground">
-                Situação: <strong>{STATUS_LABEL[status]}</strong>
+                Situação: <strong>{STATUS_LABEL[currentStatus]}</strong>
               </p>
             )}
             <p className="mt-2 text-sm text-muted-foreground">
-              Seu cadastro é gratuito. Ao confirmar sua cidade, especialidades e serviços, seu perfil é publicado automaticamente, sem avaliação da sua capacidade técnica pelo portal.
+              Cadastro gratuito: informe nome, cidade, especialidades e pelo menos um serviço executado. Ao publicar, seu perfil entra na busca automaticamente, sem certificação de capacidade técnica pelo portal.
             </p>
-            {status === "aprovado" && <TechnicianPresence userId={user.id} />}
+            {currentStatus === "aprovado" && profileId && (
+              <Link to="/tecnicos/$tecnicoId" params={{ tecnicoId: profileId }}
+                className="mt-3 inline-flex min-h-11 items-center rounded-md border border-primary px-4 text-sm font-semibold text-primary">
+                Conferir meu perfil publicado
+              </Link>
+            )}
+            {currentStatus === "aprovado" && <TechnicianPresence userId={user.id} />}
             <TechnicianPrivateContact userId={user.id} />
-            {status === "aprovado" && <TechnicianDirectRequests userId={user.id} />}
+            {currentStatus === "aprovado" && <TechnicianDirectRequests userId={user.id} />}
             <TechnicianMissions userId={user.id} />
             <LegacyAccountActivation userId={user.id} role="tecnico" />
             <LegacyProfileImport userId={user.id}
@@ -194,12 +279,12 @@ export function TechnicianAreaPage() {
               <label className="text-sm font-medium text-foreground">Apresentação
                 <textarea maxLength={1000} rows={4} className={input} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} />
               </label>
-              <button disabled={saving || catalogLoading || catalogError || servicesLoading || servicesError || categories.length === 0} className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
-                {saving ? "Enviando…" : "Enviar para análise"}
+              <button disabled={saving || !profileReady || catalogLoading || catalogError || servicesLoading || servicesError || categories.length === 0} className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
+                {saving ? "Publicando…" : currentStatus === "aprovado" ? "Atualizar meu perfil público" : "Publicar meu perfil gratuitamente"}
               </button>
               {msg && <p role="status" className="text-sm text-foreground">{msg}</p>}
             </form>
-            {status === "aprovado" && (
+            {currentStatus === "aprovado" && (
               <div className="mt-8 rounded-lg border border-border bg-muted/20 p-5">
                 <h2 className="text-base font-semibold text-foreground">Contato direto, sem intermediação</h2>
                 <p className="mt-2 text-sm text-muted-foreground">
