@@ -31,8 +31,12 @@ export function asApprovedSponsoredCard(raw: unknown, expectedSlot: string): Pub
     if (typeof value[key] !== "string") return null;
   }
   const destination = value["destination_url"] as string;
-  if (destination.length > 2048 ||
-      !/^https:\/\/[^\s]+$/i.test(destination)) return null;
+  if (destination.length > 2048 || !/^https:\/\/[^\s]+$/i.test(destination)) return null;
+  try {
+    const url = new URL(destination);
+    if (url.protocol !== "https:" || !url.hostname.includes(".") ||
+        url.username || url.password) return null;
+  } catch { return null; }
   const brand = value["brand_name"] as string;
   const headline = value["headline"] as string;
   const description = value["description"] as string;
