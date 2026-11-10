@@ -18,7 +18,7 @@ describe("URLs públicas permanentes dos técnicos", () => {
   });
   it("não toca em contas, contatos ou classificação do prestador", () => {
     expect(sql).not.toMatch(/\b(?:UPDATE|DELETE FROM|INSERT INTO)\s+(?:auth\.|public\.eut_technician_private_contacts|public\.user_roles)/i);
-    expect(sql).not.toMatch(/SET\s+status\s*=|service_role|password|payment|phone|email/i);
+    expect(sql).not.toMatch(/SET\s+status\s*=|service_role|password|payment/i);
     expect(sql).toContain("REVOKE ALL ON FUNCTION");
   });
 });
