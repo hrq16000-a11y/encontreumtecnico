@@ -37,11 +37,10 @@ export function fromPublicTechnician(p: import('../../lib/technicians.functions'
   id:p.id,
   nome:p.display_name,
   cidade:p.city,
-  uf:p.state_uf??undefined,
+  ...(p.state_uf?{uf:p.state_uf}:{}),
   especialidade:p.specialties.join(', '),
   servico:p.service_slugs.join(', '),
-  descricao:p.bio??undefined,
-  imagem:undefined,
+  ...(p.bio?{descricao:p.bio}:{}),
   nomeInferido:false
  }
 }

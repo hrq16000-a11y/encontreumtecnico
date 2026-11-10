@@ -32,7 +32,7 @@ function CanonicalClientAreaPage() {
   return <ClientAreaPage tecnico={tecnico} />;
 }
 
-export function ClientAreaPage({ tecnico }: { tecnico?: string }) {
+export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
   const lp2 = useContext(LP2EmbeddedContext);
   const { user, loading } = useAuth();
   const [rows, setRows] = useState<Req[] | null>(null);
