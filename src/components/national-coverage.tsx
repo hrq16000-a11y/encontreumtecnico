@@ -14,7 +14,7 @@ function CitySearchLink({ cidade, uf }: { cidade: string; uf: string }) {
   return (
     <Link
       to="/tecnicos"
-      search={{ especialidade: "Todas", cidade, regiao: "" }}
+      search={{ especialidade: "Todas", cidade, regiao: "", uf }}
       title={"Buscar técnicos em " + cidade + " (" + uf + ")"}
       className="group inline-flex min-h-10 items-center gap-1.5 rounded-full border border-border bg-card px-3 py-2 text-sm text-foreground transition-colors hover:border-primary hover:bg-primary/5 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
     >
