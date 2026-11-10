@@ -77,3 +77,31 @@ As 20 demos não são técnicos reais nem devem receber contato ou indexação. 
 Executar, somente para leitura, `docs/sql/eut-wordpress-parity-readonly.sql`. Os resultados não contêm e-mails, telefones, URLs privadas nem dados individuais. O arquivo deve ser reexecutado após cada importação/aprovação real. Gates do GitHub verificam o contrato do código, **não** substituem o teste com usuários e o Preview Vercel.
 
 **Fontes técnicas do controle de deployment:** configuração oficial Vercel `git.deploymentEnabled`, e regra de branches/autorização da equipe. Nenhum fluxo de Lovable Max foi usado.
+
+## 6. Gatilhos de prontidão operacional (dados reais)
+
+Execute `docs/sql/eut-operational-readiness-readonly.sql` no Supabase EUT para
+obter **somente contagens agregadas**, sem nomes, telefones, emails ou IDs de usuário.
+
+A consulta separa **paridade de URLs** (meta: URLs legítimas do WordPress,
+excluindo demos) de **paridade funcional**. Para avançar com o MVP, exigimos
+pelo menos 1 técnico real com papel e perfil aprovado, 1 cliente autenticado,
+1 solicitação real com consentimento quando houver compartilhamento e a
+verificação manual do fluxo cliente → técnico. Dados antigos sem confirmação
+continuam ocultos das buscas por cidade, bairro e serviço.
+
+**Não há porcentagem automática de “100%”**. O SQL mantém explicitamente como
+`FALSE` três gates que só podem ser comprovados fora do banco: OAuth real de
+duas contas, restauração de um backup isolado e autorização do corte de DNS.
+Mesmo com todas as contagens positivas, esses gates não são liberados por CI.
+
+Contagem pontual nesta auditoria (10/11/2026): 913 contas WP preservadas,
+913 não reivindicadas, 655 perfis, 615/616 rotas históricas legítimas,
+10 categorias e 25 serviços ativos no catálogo, 1 usuário Auth e 0 papéis de
+cliente/técnico, 0 técnicos aprovados, 0 pedidos novos e 0 mídias verificadas
+na fila. São instantâneos sujeitos a mudança, não metas fixas no código.
+
+O domínio WordPress antigo segue separado do Preview/produção Vercel.
+O deploy da aplicação é manual por política Git-first; um commit verde em
+`main` não significa publicação. Exigir o SHA exato no Vercel e smoke HTTP
+antes de liberar tráfego.
