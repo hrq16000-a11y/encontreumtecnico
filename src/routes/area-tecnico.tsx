@@ -7,6 +7,7 @@ import { useActiveCategories } from "@/hooks/use-active-categories";
 import { useActiveServices } from "@/hooks/use-active-services";
 import { BRAZIL_STATES, validMunicipality } from "@/lib/service-taxonomy";
 import { LegacyAccountActivation } from "@/components/legacy-account-activation";
+import { LegacyProfileImport } from "@/components/legacy-profile-import";
 import { RequestCard, type Req } from "../components/request-list";
 
 export const Route = createFileRoute("/area-tecnico")({
@@ -14,9 +15,9 @@ export const Route = createFileRoute("/area-tecnico")({
     meta: [
       { name: "robots", content: "noindex, nofollow" },
       { title: "Área do técnico — Encontre um Técnico" },
-      { name: "description", content: "Painel do técnico: perfil profissional, especialidades, regiões atendidas e aprovação cadastral." },
+      { name: "description", content: "Painel do técnico: cadastro gratuito, confirmação dos dados WordPress e especialidades atendidas." },
       { property: "og:title", content: "Área do técnico — Encontre um Técnico" },
-      { property: "og:description", content: "Painel do técnico: perfil profissional, especialidades, regiões atendidas e aprovação cadastral." },
+      { property: "og:description", content: "Painel do técnico: cadastro gratuito, confirmação dos dados WordPress e especialidades atendidas." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -142,10 +143,17 @@ function TechnicianAreaPage() {
               Seu cadastro é gratuito. A publicação depende dos requisitos operacionais de visibilidade; o portal não avalia sua capacidade técnica.
             </p>
             <LegacyAccountActivation userId={user.id} role="tecnico" />
+            <LegacyProfileImport userId={user.id}
+              onUse={(data) => setForm((current) => ({
+                ...current,
+                display_name: data.display_name || current.display_name,
+                bio: data.bio || current.bio,
+              }))}
+            />
             <p className="mt-4 text-sm text-muted-foreground">
-              Já tinha perfil no portal antigo?{" "}
+              Não encontrou o cadastro que era seu?{" "}
               <Link to="/reivindicar-cadastro" className="font-medium text-primary underline">
-                Solicitar vínculo com meu cadastro WordPress
+                Informar um perfil antigo manualmente
               </Link>
             </p>
             <form onSubmit={save} className="mt-6 grid gap-4">
