@@ -130,9 +130,9 @@ export function TechnicianDirectRequests({ userId }: { userId: string }) {
                 {replies[request.id] ? (
                   <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 p-3">
                     <p className="text-xs font-semibold text-primary">Sua resposta foi registrada</p>
-                    <p className="mt-2 whitespace-pre-line break-words text-sm text-foreground">{replies[request.id].body}</p>
+                    <p className="mt-2 whitespace-pre-line break-words text-sm text-foreground">{replies[request.id]!.body}</p>
                     <p className="mt-2 text-xs text-muted-foreground">
-                      {new Date(replies[request.id].created_at).toLocaleDateString("pt-BR")}
+                      {new Date(replies[request.id]!.created_at).toLocaleDateString("pt-BR")}
                     </p>
                   </div>
                 ) : (
