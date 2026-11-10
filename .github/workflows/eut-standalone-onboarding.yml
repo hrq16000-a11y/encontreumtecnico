@@ -12,6 +12,11 @@ on:
       - 'src/lib/technician-id.ts'
       - 'src/lib/technician-id.test.ts'
       - 'src/lib/technician-slug-migration.test.ts'
+      - 'src/lib/customer-location.ts'
+      - 'src/lib/customer-location.test.ts'
+      - 'src/components/customer-location-button.tsx'
+      - 'src/routes/area-cliente.tsx'
+      - 'src/routes/index.tsx'
       - 'docs/sql/eut-technician-public-slugs-20261110.sql'
       - 'src/lib/technicians.functions.ts'
       - 'src/lib/technicians.functions.test.ts'
@@ -61,7 +66,7 @@ jobs:
       - name: Existing search and identity regression tests
         run: bunx vitest run src/lib/legacy-archive-filters.test.ts src/lib/account-scoped-queries.test.ts src/lib/legacy-claim-validation.test.ts
       - name: Profile lookup, real 404 and SEO regression tests
-        run: bunx vitest run src/lib/technician-id.test.ts src/lib/technicians.functions.test.ts src/lib/seo-public-pages.test.ts src/lib/social-preview.test.ts src/lib/technician-slug-migration.test.ts
+        run: bunx vitest run src/lib/technician-id.test.ts src/lib/technicians.functions.test.ts src/lib/seo-public-pages.test.ts src/lib/social-preview.test.ts src/lib/technician-slug-migration.test.ts src/lib/customer-location.test.ts
       - name: Build TanStack and generate route types
         run: bun run build
       - name: TypeScript after route generation
