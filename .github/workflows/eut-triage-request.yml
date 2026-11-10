@@ -1,0 +1,31 @@
+name: EUT triage to client request
+
+on:
+  pull_request:
+    paths:
+      - 'src/lib/triage-draft.ts'
+      - 'src/lib/triage-draft.test.ts'
+      - 'src/components/problem-assistant.tsx'
+      - 'src/routes/area-cliente.tsx'
+      - '.github/workflows/eut-triage-request.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eut-triage-request-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Unit tests
+        run: bun run test src/lib/triage-draft.test.ts src/lib/problem-triage-local.test.ts
+      - name: Build
+        run: bun run build
