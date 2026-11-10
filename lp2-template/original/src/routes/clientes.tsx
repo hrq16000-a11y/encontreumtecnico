@@ -1,0 +1,7 @@
+import {createFileRoute,Link} from '@tanstack/react-router'
+import {createServerFn} from '@tanstack/react-start'
+import {useState} from 'react'
+type Client={id:string;nome:string;setor:string;cidade:string;uf:string;descricao?:string}
+const getClients=createServerFn({method:'GET'}).handler(async()=>{try{const r=await fetch('https://encontreumtecnico-migracao-git-feat-encontreumtec-211d15-msolus.vercel.app/api/clientes',{signal:AbortSignal.timeout(8000)});const d=await r.json();return (d.clientes||[]) as Client[]}catch{return [] as Client[]}})
+export const Route=createFileRoute('/clientes')({loader:()=>getClients(),component:Clientes})
+function Clientes(){const items=Route.useLoaderData();const [query,setQuery]=useState('');const visible=items.filter(x=>[x.nome,x.setor,x.cidade].join(' ').toLocaleLowerCase('pt-BR').includes(query.toLocaleLowerCase('pt-BR')));return <main className="container"><h1>Clientes cadastrados</h1><p className="subtle">Perfis de clientes aprovados na nova plataforma. O histórico WordPress será incorporado após importação dos registros.</p><div className="panel"><label className="field">Nome, setor ou cidade<input value={query} onChange={e=>setQuery(e.target.value)}/></label></div><div className="grid">{visible.map(x=><article className="card" key={x.id}><h2>{x.nome}</h2><p className="small">{x.setor} · {x.cidade}/{x.uf}</p><p>{x.descricao||'Sem apresentação pública.'}</p></article>)}</div><div className="actions"><Link to="/cliente" className="btn">Cadastrar cliente</Link></div></main>}
