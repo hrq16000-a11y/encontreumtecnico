@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import { clientRequestStepError, type ClientRequestDraft } from "./client-request-wizard";
 
 const draft: ClientRequestDraft = {
@@ -24,6 +25,27 @@ describe("Pedido guiado no celular", () => {
     expect(clientRequestStepError(3, draft, options, false, false, null)).toBeNull();
     expect(clientRequestStepError(4, draft, options, false, false, null)).toBeNull();
   });
+  it("preserva a gravação privada e a confirmação final no formulário mobile", () => {
+    const src = readFileSync("src/routes/area-cliente.tsx", "utf8");
+    expect(src).toContain("Solicitação guiada · Passo {step} de 4");
+    expect(src).toContain('aria-valuenow={step}');
+    expect(src).toContain("step === 1 && (");
+    expect(src).toContain("step === 2 && (");
+    expect(src).toContain("step === 3 && (");
+    expect(src).toContain("step === 4 && (");
+    expect(src).toContain("if (step < 4) { advance(); return; }");
+    expect(src).toContain('clientRequestStepError(1, form, availableCategories');
+    expect(src).toContain('clientRequestStepError(2, form, availableCategories');
+    expect(src).toContain('clientRequestStepError(3, form, availableCategories');
+    expect(src).toContain('persistClientRequest(');
+    expect(src).toContain('eut_share_direct_request');
+    expect(src).toContain('checked={shareNow}');
+    expect(src).toContain("Nenhuma mensagem é enviada automaticamente");
+    expect(src).toContain("Nenhum técnico será avisado.");
+    expect(src).toContain("setStep(1)");
+    expect(src).toContain("bottom-[calc(3.5rem+env(safe-area-inset-bottom))]");
+  });
+
   it("impede compartilhar sem destinatário ou com contato pessoal no texto", () => {
     expect(clientRequestStepError(3, draft, options, false, true, null)).toMatch(/Escolha um técnico/);
     expect(clientRequestStepError(4, { ...draft, description: "Ligue no meu celular 41999990000 para explicar tudo." },
