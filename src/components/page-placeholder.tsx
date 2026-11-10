@@ -10,7 +10,7 @@ export function PageShell({ children }: { children: ReactNode }) {
   const embedded = useContext(LP2EmbeddedContext);
   if (embedded) return <main className="lp2-embedded-page">{children}</main>;
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-background pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0">
       <SiteHeader />
       <main id="conteudo-principal" tabIndex={-1} className="flex-1">{children}</main>
       <SiteFooter />
