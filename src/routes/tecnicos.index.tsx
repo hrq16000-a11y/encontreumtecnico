@@ -3,6 +3,7 @@ import { listApprovedTechnicians } from "../lib/technicians.functions";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { PageShell, EmptyState } from "../components/page-placeholder";
+import { SponsoredPublicSlot } from "@/components/sponsored-public-slot";
 import { useActiveCategories, categoryLabel } from "@/hooks/use-active-categories";
 import { useActiveServices, serviceLabel } from "@/hooks/use-active-services";
 import { BRAZIL_STATES } from "@/lib/service-taxonomy";
@@ -191,6 +192,7 @@ function TechniciansPage() {
             </p>
           )}
         </div>
+        <SponsoredPublicSlot slotKey="search.top" routePath="/tecnicos" />
         <div className="mt-6">
           {technicians.length === 0 ? (
             <div className="space-y-4">

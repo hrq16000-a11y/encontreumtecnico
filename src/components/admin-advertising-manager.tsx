@@ -152,6 +152,10 @@ export function AdminAdvertisingManager() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [approvalCampaignId, setApprovalCampaignId] = useState("");
+  const [approvalCreativeId, setApprovalCreativeId] = useState("");
+  const [approvalPlacementId, setApprovalPlacementId] = useState("");
+  const [approvalNote, setApprovalNote] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -258,6 +262,40 @@ export function AdminAdvertisingManager() {
     finally { setBusy(false); }
   }
 
+  async function approvePublicCard() {
+    if (busy || !approvalCampaignId || !approvalCreativeId ||
+        !approvalPlacementId || approvalNote.trim().length < 16) return;
+    if (!window.confirm("Ativar este anúncio patrocinado no portal público? Confira o contrato, o período e o conteúdo. A publicação será imediata.")) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const response = await db.rpc("eut_ads_admin_activate_card", {
+        _campaign_id: approvalCampaignId,
+        _creative_id: approvalCreativeId,
+        _placement_id: approvalPlacementId,
+        _approval_note: approvalNote.trim(),
+      });
+      if (response.error || response.data?.activated !== true) {
+        throw new Error("Não foi possível ativar. Confira contrato, valor positivo, período vigente, card aprovado e espaço disponível.");
+      }
+      await refresh();
+      setApprovalCampaignId(""); setApprovalCreativeId(""); setApprovalPlacementId(""); setApprovalNote("");
+      setNotice("Card patrocinado aprovado e ativado no slot autorizado. Use Pausar para interromper a veiculação.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Falha ao ativar campanha.");
+    } finally { setBusy(false); }
+  }
+
+  const eligibleApprovalCreatives = data?.creatives.filter(row =>
+    row["campaign_id"] === approvalCampaignId &&
+    row["review_state"] === "draft" &&
+    row["creative_type"] === "sponsored_card") ?? [];
+  const eligibleApprovalAssignments = data?.assignments.filter(row =>
+    row["campaign_id"] === approvalCampaignId && row["enabled"] !== true &&
+    data.placements.some(p => p["id"] === row["placement_id"] &&
+      p["state"] === "available" && p["format"] === "sponsored_card" &&
+      p["device_scope"] === "all" &&
+      ["home.content_1", "search.top", "services.content_1"].includes(String(p["slot_key"])))) ?? [];
+
   const activeRows: Row[] = data ? data[tab] : [];
   return (
     <section className="mt-8 rounded-xl border border-border bg-card p-5 sm:p-6" aria-label="Gestão de patrocinadores e publicidade">
@@ -268,11 +306,12 @@ export function AdminAdvertisingManager() {
             Gestão real e privada de anunciantes, espaços, campanhas, criativos e vinculações.
           </p>
         </div>
-        <span className="rounded-full border border-primary/30 px-3 py-1 text-xs text-primary">Módulo comercial · R3</span>
+        <span className="rounded-full border border-primary/30 px-3 py-1 text-xs text-primary">Módulo comercial · R4</span>
       </div>
       <p className="mt-4 rounded-lg border border-border bg-muted/30 p-3 text-sm text-foreground">
-        Nenhum anúncio é exibido publicamente nesta etapa. Campanhas não podem ser aprovadas
-        ou ativadas neste painel; imagens ficam em biblioteca privada até a fase de publicação.
+        Apenas cards patrocinados com contrato, valor comercial, período vigente e
+        aprovação administrativa podem ser exibidos em três espaços públicos. Imagens
+        permanecem privadas e não são publicadas nesta etapa.
       </p>
       {loading && <p className="mt-4 text-sm text-muted-foreground">Carregando área comercial…</p>}
       {error && <p role="alert" className="mt-4 rounded-md border border-destructive/40 p-3 text-sm text-destructive">{error}</p>}
@@ -371,8 +410,63 @@ export function AdminAdvertisingManager() {
                   </li>
                 ))}
               </ul>
+              {tab === "campaigns" && (
+                <section className="mt-6 rounded-xl border border-primary/30 bg-primary/5 p-4" aria-label="Aprovação de campanhas">
+                  <h4 className="font-semibold">Aprovar e ativar card patrocinado</h4>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Disponível somente para patrocinador contratado, campanha em rascunho com
+                    preço positivo, início e fim válidos, criativo textual revisado e vínculo
+                    com espaço público disponível. Dados do contrato ficam privados.
+                    Não ativa imagens ou campanhas segmentadas.
+                  </p>
+                  <div className="mt-3 grid gap-3">
+                    <label className="text-sm">Campanha para revisão
+                      <select className={input} value={approvalCampaignId} disabled={busy}
+                        onChange={(e) => { setApprovalCampaignId(e.target.value); setApprovalCreativeId(""); setApprovalPlacementId(""); }}>
+                        <option value="">Selecione campanha em rascunho</option>
+                        {data.campaigns.filter(row => row["status"] === "draft").map(row =>
+                          <option key={text(row["id"])} value={text(row["id"])}>{text(row["title"])}</option>
+                        )}
+                      </select>
+                    </label>
+                    <label className="text-sm">Criativo textual
+                      <select className={input} disabled={busy || !approvalCampaignId}
+                        value={approvalCreativeId} onChange={e => setApprovalCreativeId(e.target.value)}>
+                        <option value="">Selecione card para aprovação</option>
+                        {eligibleApprovalCreatives.map(row =>
+                          <option key={text(row["id"])} value={text(row["id"])}>{text(row["title"])} — {text(row["headline"])}</option>
+                        )}
+                      </select>
+                    </label>
+                    <label className="text-sm">Posição pública cadastrada
+                      <select className={input} disabled={busy || !approvalCampaignId}
+                        value={approvalPlacementId} onChange={e => setApprovalPlacementId(e.target.value)}>
+                        <option value="">Selecione espaço compatível</option>
+                        {eligibleApprovalAssignments.map(row => {
+                          const placement = data.placements.find(p => p["id"] === row["placement_id"]);
+                          return <option key={text(row["id"])} value={text(row["placement_id"])}>
+                            {text(placement?.["slot_key"])} — {text(placement?.["position_label"])}
+                          </option>;
+                        })}
+                      </select>
+                    </label>
+                    <label className="text-sm">Referência da autorização comercial (privada)
+                      <textarea minLength={16} maxLength={500} rows={3} className={input} disabled={busy}
+                        placeholder="Ex.: Contrato assinado em...; destino e texto revisados"
+                        value={approvalNote} onChange={e => setApprovalNote(e.target.value)}/>
+                    </label>
+                    <button type="button" className={primary} disabled={
+                      busy || !approvalCampaignId || !approvalCreativeId || !approvalPlacementId ||
+                      approvalNote.trim().length < 16
+                    } onClick={() => void approvePublicCard()}>
+                      {busy ? "Validando…" : "Confirmar revisão e ativar card público"}
+                    </button>
+                  </div>
+                </section>
+              )}
               <p className="mt-4 text-xs text-muted-foreground">
-                Até 100 itens por módulo; os totais são reais. Não há campanhas demonstrativas, entrega pública ou receita simulada.
+                Até 100 itens por módulo. Não há campanhas fictícias nem receita simulada;
+                a veiculação exige aprovação e pode ser pausada pelo administrador.
               </p>
             </div>
           </div>
