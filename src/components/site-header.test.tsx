@@ -24,6 +24,18 @@ describe("Cabeçalho do novo portal", () => {
     expect(menu.querySelector('a[href="/entrar"]')).toBeTruthy();
   });
 
+  it("oferece três atalhos móveis sem substituir o menu completo", () => {
+    render(<SiteHeader />);
+    const quick = screen.getByRole("navigation", { name: "Acesso rápido no celular" });
+    for (const path of ["/", "/tecnicos", "/entrar"]) {
+      expect(quick.querySelector(`a[href="${path}"]`)).toBeTruthy();
+    }
+    expect(quick.textContent).toContain("Minha área");
+    expect(quick.textContent).toContain("Buscar");
+    expect(quick.className).toContain("md:hidden");
+    expect(screen.getByRole("button", { name: "Abrir menu" })).toBeTruthy();
+  });
+
   it("fecha com Escape e após tocar em um link", () => {
     render(<SiteHeader />);
     fireEvent.click(screen.getByRole("button", { name: "Abrir menu" }));
