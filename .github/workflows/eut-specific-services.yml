@@ -6,6 +6,7 @@ on:
       - 'src/routes/area-tecnico.tsx'
       - 'src/routes/tecnicos.index.tsx'
       - 'src/routes/tecnicos.$tecnicoId.tsx'
+      - 'src/components/public-technician-profile.tsx'
       - 'src/lib/technicians.functions.ts'
       - 'src/hooks/use-active-services.ts'
       - 'src/integrations/supabase/types.ts'
@@ -40,7 +41,9 @@ jobs:
           const filter=read('src/routes/tecnicos.index.tsx');
           const server=read('src/lib/technicians.functions.ts');
           const catalog=read('src/hooks/use-active-services.ts');
-          const profile=read('src/routes/tecnicos.$tecnicoId.tsx');
+          const profileRoute=read('src/routes/tecnicos.$tecnicoId.tsx');
+          const profile=read('src/components/public-technician-profile.tsx');
+          if(!profileRoute.includes('PublicTechnicianProfile'))throw Error('Profile route no longer renders the approved public layout');
           for (const item of ['form.service_slugs.length === 0','_service_slugs: form.service_slugs','eut_publish_my_technician']) {
             if (!tech.includes(item)) throw Error('Technician form contract absent: '+item);
           }

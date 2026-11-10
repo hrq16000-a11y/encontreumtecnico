@@ -7,6 +7,7 @@ on:
       - 'src/routes/area-tecnico.tsx'
       - 'src/routes/tecnicos.index.tsx'
       - 'src/routes/tecnicos.$tecnicoId.tsx'
+      - 'src/components/public-technician-profile.tsx'
       - 'src/lib/technicians.functions.ts'
       - '.github/workflows/eut-online-presence.yml'
 
@@ -39,7 +40,9 @@ jobs:
           const panel=r('src/routes/area-tecnico.tsx');
           const server=r('src/lib/technicians.functions.ts');
           const list=r('src/routes/tecnicos.index.tsx');
-          const detail=r('src/routes/tecnicos.$tecnicoId.tsx');
+          const detailRoute=r('src/routes/tecnicos.$tecnicoId.tsx');
+          const detail=r('src/components/public-technician-profile.tsx');
+          if(!detailRoute.includes('PublicTechnicianProfile'))throw Error('Approved-only profile route no longer renders presentation');
           for(const term of ['eut_set_my_presence','eut_my_presence_is_online',
             'HEARTBEAT_MS = 120_000','document.visibilityState','setInterval',
             'Ficar online','Ficar offline']) {
