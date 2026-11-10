@@ -6,7 +6,7 @@ import { PageShell } from "../components/page-placeholder";
 import { RequestCard, type Req } from "../components/request-list";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
-import { CATEGORIES } from "@/lib/categories";
+import { useActiveCategories } from "@/hooks/use-active-categories";
 import { LegacyAccountActivation } from "@/components/legacy-account-activation";
 
 export const Route = createFileRoute("/area-cliente")({
@@ -31,7 +31,8 @@ function ClientAreaPage() {
   const { user, loading } = useAuth();
   const { tecnico } = Route.useSearch();
   const [rows, setRows] = useState<Req[] | null>(null);
-  const [form, setForm] = useState({ title: "", description: "", category: CATEGORIES[0] as string, city: "", region: "" });
+  const { categories, loading: catalogLoading, error: catalogError } = useActiveCategories();
+  const [form, setForm] = useState({ title: "", description: "", category: "", city: "", region: "" });
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -45,6 +46,9 @@ function ClientAreaPage() {
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!user) return;
+    if (catalogLoading || catalogError || !categories.some((entry) => entry.slug === form.category)) {
+      return setMsg("Escolha uma categoria ativa antes de guardar sua solicitação.");
+    }
     setSaving(true);
     setMsg(null);
     const { error } = await supabase.from("service_requests").insert({
@@ -59,7 +63,7 @@ function ClientAreaPage() {
     setSaving(false);
     if (error) return setMsg("Não foi possível enviar a solicitação. Tente novamente.");
     window.__lovableEvents?.track?.("project.service_requested", { category: form.category, direct_to_technician: Boolean(tecnico) });
-    setMsg("Solicitação enviada. Você verá aqui quando um técnico aceitar.");
+    setMsg("Necessidade registrada apenas na sua área privada. Nada foi enviado aos técnicos. A compra de acesso ao contato será liberada após integração do pagamento real.");
     setForm({ ...form, title: "", description: "" });
     load();
   }
@@ -83,8 +87,19 @@ function ClientAreaPage() {
         ) : (
           <>
             <LegacyAccountActivation userId={user.id} role="cliente" />
-            <h2 className="mt-6 text-lg font-semibold text-foreground">Nova solicitação</h2>
-            {tecnico && <p className="mt-1 text-sm text-muted-foreground">Esta solicitação será enviada ao técnico escolhido.</p>}
+            <h2 className="mt-6 text-lg font-semibold text-foreground">Registrar minha necessidade</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Este registro é privado e serve para organizar sua necessidade; não constitui envio ao técnico,
+              contratação ou aquisição de contato. Evite inserir telefone e endereço completo na descrição.
+            </p>
+            {tecnico && (
+              <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3 text-sm text-foreground">
+                Sua necessidade pode fazer referência ao perfil escolhido, mas não será enviada ao
+                profissional nem liberará seu telefone.
+                {" "}<Link to="/acesso-contato/$tecnicoId" params={{ tecnicoId: tecnico }}
+                  className="font-semibold text-primary underline">Consultar condições de acesso ao contato</Link>
+              </div>
+            )}
             <form onSubmit={submit} className="mt-4 grid gap-4">
               <label className="text-sm font-medium text-foreground">Resumo do problema
                 <input required minLength={5} maxLength={120} className={input} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
@@ -94,9 +109,14 @@ function ClientAreaPage() {
               </label>
               <div className="grid gap-4 sm:grid-cols-3">
                 <label className="text-sm font-medium text-foreground">Categoria
-                  <select className={input} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
-                    {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+                  <select required className={input} value={form.category} disabled={catalogLoading || Boolean(catalogError)}
+                    onChange={(e) => setForm({ ...form, category: e.target.value })}>
+                    <option value="">Selecione uma categoria</option>
+                    {categories.map((category) => <option key={category.slug} value={category.slug}>{category.label}</option>)}
                   </select>
+                  {catalogError && <span role="alert" className="mt-1 block text-xs text-destructive">
+                    Catálogo de serviços indisponível. Recarregue a página.
+                  </span>}
                 </label>
                 <label className="text-sm font-medium text-foreground">Cidade
                   <input required maxLength={80} className={input} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
@@ -105,13 +125,13 @@ function ClientAreaPage() {
                   <input maxLength={120} className={input} value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} />
                 </label>
               </div>
-              <button disabled={saving} className="min-h-11 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-60">
-                {saving ? "Enviando…" : "Enviar solicitação"}
+              <button disabled={saving || catalogLoading || Boolean(catalogError) || categories.length === 0} className="min-h-11 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-60">
+                {saving ? "Salvando…" : "Guardar necessidade na minha área"}
               </button>
               {msg && <p role="status" className="text-sm text-foreground">{msg}</p>}
             </form>
 
-            <h2 className="mt-10 text-lg font-semibold text-foreground">Histórico</h2>
+            <h2 className="mt-10 text-lg font-semibold text-foreground">Meus registros privados</h2>
             {rows === null ? (
               <p className="mt-3 text-sm text-muted-foreground">Carregando…</p>
             ) : rows.length === 0 ? (
