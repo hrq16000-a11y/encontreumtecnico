@@ -11,6 +11,7 @@ import { LegacyAccountActivation } from "@/components/legacy-account-activation"
 import { LegacyProfileImport } from "@/components/legacy-profile-import";
 import { TechnicianPresence } from "@/components/technician-presence";
 import { TechnicianMissions } from "@/components/technician-missions";
+import { TechnicianPrivateContact } from "@/components/technician-private-contact";
 
 export const Route = createFileRoute("/area-tecnico")({
   head: () => ({
@@ -117,6 +118,7 @@ export function TechnicianAreaPage() {
               Seu cadastro é gratuito. Ao confirmar sua cidade, especialidades e serviços, seu perfil é publicado automaticamente, sem avaliação da sua capacidade técnica pelo portal.
             </p>
             {status === "aprovado" && <TechnicianPresence userId={user.id} />}
+            <TechnicianPrivateContact userId={user.id} />
             <TechnicianMissions userId={user.id} />
             <LegacyAccountActivation userId={user.id} role="tecnico" />
             <LegacyProfileImport userId={user.id}
