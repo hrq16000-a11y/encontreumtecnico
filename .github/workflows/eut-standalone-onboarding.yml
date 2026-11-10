@@ -14,6 +14,8 @@ on:
       - 'src/lib/technicians.functions.ts'
       - 'src/lib/technicians.functions.test.ts'
       - 'src/lib/seo-public-pages.test.ts'
+      - 'src/lib/social-preview.test.ts'
+      - 'public/social-preview.jpg'
       - '.github/workflows/eut-standalone-onboarding.yml'
       - 'docs/migration/WORDPRESS-PARIDADE-E-RELEASE.md'
   workflow_dispatch:
@@ -57,7 +59,7 @@ jobs:
       - name: Existing search and identity regression tests
         run: bunx vitest run src/lib/legacy-archive-filters.test.ts src/lib/account-scoped-queries.test.ts src/lib/legacy-claim-validation.test.ts
       - name: Profile lookup, real 404 and SEO regression tests
-        run: bunx vitest run src/lib/technician-id.test.ts src/lib/technicians.functions.test.ts src/lib/seo-public-pages.test.ts
+        run: bunx vitest run src/lib/technician-id.test.ts src/lib/technicians.functions.test.ts src/lib/seo-public-pages.test.ts src/lib/social-preview.test.ts
       - name: Build TanStack and generate route types
         run: bun run build
       - name: TypeScript after route generation
