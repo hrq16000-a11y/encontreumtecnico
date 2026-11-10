@@ -38,3 +38,25 @@ Never assume the current WordPress's `wp-content/uploads` assets remain availabl
 - The one missing non-demo public candidate URL has an exactly verified, status `em_validacao` mapping.
 - For unknown /tecnico/slug and /cliente/slug, SSR returns real HTTP 404 and friendly branded 404 page (no 200 soft-404).
 - A user-approved DNS window and verified rollback plan are separate later actions.
+
+## Automated offline integrity verifier (not a restoration)
+
+On a private workstation with the **original** archives available, run:
+
+```bash
+python3 ops/cutover/verify_backup_integrity.py \
+  --wxr '/private/backups/wordpress-export.xml' \
+  --media '/private/backups/wordpress-media.zip' \
+  --sql '/private/backups/wordpress-database.sql'
+```
+
+The command reads only local bytes and reports SHA-256 and sizes for all three
+files, verifies ZIP member paths and CRC without extracting, rejects obvious
+ZIP bombs/symlinks/duplicate names, counts WordPress WXR attachment IDs and
+potential *basename-only* ZIP matches. It NEVER prints file contents or names
+from WordPress or SQL, executes SQL, uploads media, modifies DNS or changes
+the database. Run only on a trusted machine; never attach SQL to public CI.
+
+**A successful integrity check is not a restore test**, does not prove that a
+basename match is the right person's photo, and does not approve cutover.
+A controlled isolated restore, ID-level mapping and privacy checks remain required.
