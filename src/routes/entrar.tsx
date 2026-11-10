@@ -113,6 +113,9 @@ function SignInPage() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [legacyRole, setLegacyRole] = useState<"tecnico" | "cliente" | null>(null);
   const [legacyChecked, setLegacyChecked] = useState(false);
+  const [legacyName, setLegacyName] = useState<string | null>(null);
+  const [legacyProfileCount, setLegacyProfileCount] = useState(0);
+  const roleKey = roles.join(",");
 
   useEffect(() => {
     if (loading || !user || roles.length > 0) { setCanRecoverAdmin(false); return; }
@@ -130,17 +133,23 @@ function SignInPage() {
     if (loading || !user || roles.length > 0) {
       setLegacyChecked(false);
       setLegacyRole(null);
+      setLegacyName(null);
+      setLegacyProfileCount(0);
       return;
     }
     let active = true;
     setLegacyChecked(false);
     setLegacyRole(null);
+    setLegacyName(null);
+    setLegacyProfileCount(0);
     const client = supabase as unknown as SupabaseClient;
     void Promise.resolve(client.rpc("eut_my_legacy_account")).then(({ data, error }) => {
       if (!active) return;
       const record = !error && Array.isArray(data) ? data[0] : null;
       const originalType = record?.intended_type;
       setLegacyRole(originalType === "tecnico" || originalType === "cliente" ? originalType : null);
+      setLegacyName(typeof record?.legacy_name === "string" ? record.legacy_name : null);
+      setLegacyProfileCount(Number.isFinite(record?.directory_profiles) ? record.directory_profiles : 0);
       setLegacyChecked(true);
     }).catch(() => { if (active) { setLegacyRole(null); setLegacyChecked(true); } });
     return () => { active = false; };
@@ -148,13 +157,30 @@ function SignInPage() {
 
   useEffect(() => {
     if (loading || !user || roles.length === 0) return;
-    const stored = sessionStorage.getItem("eut-after-login");
-    sessionStorage.removeItem("eut-after-login");
-    if (stored && stored !== "/entrar") navigate({ to: stored as "/" });
-    else if (roles.includes("admin")) navigate({ to: "/admin" });
-    else if (roles.includes("tecnico")) navigate({ to: "/area-tecnico" });
-    else navigate({ to: "/area-cliente" });
-  }, [loading, user, roles, navigate]);
+    let active = true;
+    async function continueLogin() {
+      // Reentrar com conta antiga já ativada também reconcilia o vínculo.
+      // O servidor exige e-mail confirmado, papel idêntico e autoria original.
+      if (!roles.includes("admin")) {
+        try {
+          const client = supabase as unknown as SupabaseClient;
+          const { error } = await client.rpc("eut_confirm_my_legacy_account");
+          if (error && active) setError("A associação do WordPress ainda não pôde ser concluída. Sua área permanece acessível para tentar novamente.");
+        } catch {
+          if (active) setError("A reconciliação da conta antiga está indisponível; tente novamente no painel.");
+        }
+      }
+      if (!active) return;
+      const stored = sessionStorage.getItem("eut-after-login");
+      sessionStorage.removeItem("eut-after-login");
+      if (stored && stored !== "/entrar") navigate({ to: stored as "/" });
+      else if (roles.includes("admin")) navigate({ to: "/admin" });
+      else if (roles.includes("tecnico")) navigate({ to: "/area-tecnico" });
+      else navigate({ to: "/area-cliente" });
+    }
+    void continueLogin();
+    return () => { active = false; };
+  }, [loading, user?.id, roleKey, navigate]);
 
   async function google() {
     setError(null);
@@ -173,6 +199,29 @@ function SignInPage() {
       else await refreshRoles();
     } catch {
       setError("Falha de conexão. Tente novamente.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmLegacy() {
+    if (busy || !user || !legacyRole || !legacyChecked) return;
+    if (!termsAccepted) {
+      setError("Aceite os Termos e condições antes de recuperar a conta.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const client = supabase as unknown as SupabaseClient;
+      const { data, error } = await client.rpc("eut_confirm_my_legacy_account");
+      if (error || !data || data.state !== "vinculada" || data.intended_type !== legacyRole) {
+        setError("Não foi possível concluir o vínculo automático. Confira o e-mail confirmado ou solicite ajuda.");
+        return;
+      }
+      await refreshRoles();
+    } catch {
+      setError("Ocorreu uma falha na associação. Tente novamente sem criar outro cadastro.");
     } finally {
       setBusy(false);
     }
@@ -232,19 +281,30 @@ function SignInPage() {
             <p className="mt-2 text-sm text-muted-foreground">Escolha uma vez; isso define sua área.</p>
             {!legacyChecked && <p className="mt-4 text-sm text-muted-foreground">Verificando seu cadastro anterior…</p>}
             {legacyRole && <p className="mt-4 rounded-md border border-border bg-muted/40 p-3 text-left text-sm text-foreground" role="status">
-              Identificamos um cadastro WordPress do tipo <strong>{legacyRole === "tecnico" ? "técnico/prestador" : "cliente/contratante"}</strong> associado à sua identidade verificada. Mantenha esse tipo para recuperar sua conta; a publicação do perfil profissional é uma etapa separada.
+              Encontramos a conta antiga <strong>{legacyName || "WordPress"}</strong>, do tipo <strong>{legacyRole === "tecnico" ? "técnico/prestador" : "cliente/contratante"}</strong>, associada ao seu e-mail confirmado.
+              {legacyRole === "tecnico" && <span> Há {legacyProfileCount} ficha(s) profissional(is) no histórico. Ao confirmar, vamos associar automaticamente as fichas da sua autoria, sem divulgar contatos privados. Depois você confere cidade e serviços.</span>}
             </p>}
             <label className="mt-6 flex items-start gap-2 rounded-md border border-border bg-card p-3 text-left text-xs leading-relaxed text-muted-foreground">
               <input type="checkbox" required checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0" />
               <span>Li e aceito os <Link to="/termos" className="font-medium text-primary underline">Termos e condições</Link> e tomei conhecimento da <Link to="/privacidade" className="font-medium text-primary underline">Política de privacidade</Link>.</span>
             </label>
             <div className="mt-5 grid w-full gap-3">
-              <button disabled={busy || !legacyChecked || !termsAccepted || legacyRole === "cliente"} onClick={() => choose("tecnico")} className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
-                Sou técnico — quero oferecer serviços
-              </button>
-              <button disabled={busy || !legacyChecked || !termsAccepted || legacyRole === "tecnico"} onClick={() => choose("cliente")} className="min-h-11 rounded-md border border-input px-4 py-2.5 text-sm font-medium text-foreground disabled:opacity-60">
-                Sou cliente — quero contratar
-              </button>
+              {legacyRole ? (
+                <button type="button" disabled={busy || !termsAccepted || !legacyChecked}
+                  onClick={() => void confirmLegacy()}
+                  className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+                  {busy ? "Associando cadastro anterior…" : "Confirmo meus dados — recuperar conta e perfis"}
+                </button>
+              ) : (
+                <>
+                  <button disabled={busy || !legacyChecked || !termsAccepted} onClick={() => choose("tecnico")} className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
+                    Sou técnico — quero oferecer serviços
+                  </button>
+                  <button disabled={busy || !legacyChecked || !termsAccepted} onClick={() => choose("cliente")} className="min-h-11 rounded-md border border-input px-4 py-2.5 text-sm font-medium text-foreground disabled:opacity-60">
+                    Sou cliente — quero contratar
+                  </button>
+                </>
+              )}
               {canRecoverAdmin && (
                 <button type="button" disabled={busy || !termsAccepted} onClick={() => void recoverAdmin()}
                   className="min-h-11 rounded-md border border-primary px-4 py-2.5 text-sm font-medium text-primary disabled:opacity-60">
