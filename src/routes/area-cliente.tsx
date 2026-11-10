@@ -14,6 +14,7 @@ import { clearTechnicianTarget, recallTechnicianTarget, rememberTechnicianTarget
 import { containsObviousContact } from "@/lib/private-message-validation";
 import { accountScopedRows, canAcceptAccountResult } from "@/lib/account-scoped-queries";
 import { persistClientRequest } from "@/lib/client-request-save";
+import { ownedRequestForAction } from "@/lib/client-request-action";
 
 export const Route = createFileRoute("/area-cliente")({
   validateSearch: zodValidator(z.object({ tecnico: z.string().optional() })),
@@ -242,31 +243,52 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
   }
 
   async function shareExisting(id: string) {
-    if (sendingId) return;
+    const owner = user?.id;
+    if (sendingId || !owner || !roles.includes("cliente")) return;
+    const request = ownedRequestForAction(ownRows, owner, id, "share");
+    if (!request) {
+      setMsg("Este pedido não está disponível nesta conta para compartilhamento.");
+      return;
+    }
+    if (containsObviousContact(`${request.title} ${request.description} ${request.city} ${request.region ?? ""}`)) {
+      setMsg("Antes de compartilhar, retire telefone, e-mail, links e endereço completo. O pedido permanece privado.");
+      return;
+    }
     setSendingId(id);
     setMsg(null);
     try {
-      const request = ownRows?.find((entry) => entry.id === id);
-      if (request && containsObviousContact(`${request.title} ${request.description} ${request.city} ${request.region ?? ""}`)) {
-        setMsg("Antes de compartilhar, retire telefone, e-mail, links e endereço completo. O pedido permanece privado.");
-        return;
-      }
       const { data, error } = await directDb.rpc("eut_share_direct_request", { _request_id: id });
+      if (currentUserIdRef.current !== owner) return;
       setMsg(error || data?.status !== "enviado"
         ? "Não foi possível compartilhar. Confira o perfil escolhido ou tente novamente."
         : "Pedido enviado somente ao profissional selecionado. Contatos privados continuam protegidos.");
       if (!error) void load();
     } catch {
-      setMsg("Falha de conexão ao compartilhar o pedido.");
+      if (currentUserIdRef.current === owner) {
+        setMsg("Falha de conexão ao compartilhar o pedido.");
+      }
     } finally {
-      setSendingId(null);
+      if (currentUserIdRef.current === owner) setSendingId(null);
     }
   }
 
   async function cancel(id: string) {
-    const { error } = await supabase.rpc("set_request_status", { _id: id, _status: "cancelada" });
-    if (error) setMsg("Não foi possível cancelar.");
-    else load();
+    const owner = user?.id;
+    if (!owner || !roles.includes("cliente") ||
+        !ownedRequestForAction(ownRows, owner, id, "cancel")) {
+      setMsg("Não é possível cancelar este pedido nesta conta.");
+      return;
+    }
+    try {
+      const { error } = await supabase.rpc("set_request_status", { _id: id, _status: "cancelada" });
+      if (currentUserIdRef.current !== owner) return;
+      if (error) setMsg("Não foi possível cancelar. Atualize o histórico antes de tentar novamente.");
+      else void load();
+    } catch {
+      if (currentUserIdRef.current === owner) {
+        setMsg("Falha de conexão ao cancelar. Confira o histórico antes de repetir.");
+      }
+    }
   }
 
   return (

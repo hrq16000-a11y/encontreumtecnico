@@ -6,6 +6,9 @@ on:
       - 'src/components/technician-direct-requests.tsx'
       - 'src/lib/account-scoped-queries.ts'
       - 'src/lib/account-scoped-queries.test.ts'
+      - 'src/lib/client-request-action.ts'
+      - 'src/lib/client-request-action.test.ts'
+      - 'docs/sql/eut-direct-flow-readiness-readonly.sql'
       - 'src/routes/area-tecnico.tsx'
       - 'src/routes/area-cliente.tsx'
       - 'src/routes/tecnicos.$tecnicoId.tsx'
@@ -29,7 +32,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: Test isolation between accounts and stale queries
-        run: bun run test src/lib/account-scoped-queries.test.ts
+        run: bun run test src/lib/account-scoped-queries.test.ts src/lib/client-request-action.test.ts
       - name: Verify opt-in contract and no private contacts
         run: |
           node --input-type=module <<'NODE'
@@ -56,7 +59,27 @@ jobs:
           for(const fragment of ['create policy "Technician reads only explicitly shared direct requests"','daily direct-request limit reached','revoke all on public.eut_direct_request_consents']) {
             if(!sql.includes(fragment)) throw Error('Missing DB restriction: '+fragment);
           }
-          console.log('Opt-in direct requests: static safety contract PASS');
+          const guard=read('src/lib/client-request-action.ts');
+          const audit=read('docs/sql/eut-direct-flow-readiness-readonly.sql');
+          for(const phrase of ['ownedRequestForAction(ownRows, owner, id, "share")',
+                                'ownedRequestForAction(ownRows, owner, id, "cancel")',
+                                'currentUserIdRef.current !== owner']) {
+            if(!client.includes(phrase)) throw Error('Account switching guard missing: '+phrase);
+          }
+          if (!guard.includes('row.client_id === ownerId') ||
+              !guard.includes('row.status === "cancelada"') && !guard.includes('row.status === "aberta"')) {
+            throw Error('Ownership/state validation regressed');
+          }
+          for(const flag of ['rls_tecnico_exige_consentimento',
+                             'rls_pedido_somente_pelo_cliente',
+                             'anon_impedido_de_compartilhar',
+                             'oauth_duas_contas_homologado']) {
+            if(!audit.includes(flag)) throw Error('Read-only audit lost: '+flag);
+          }
+          if(/\b(?:INSERT\s+INTO|UPDATE\s+public|DELETE\s+FROM|CREATE\s+TABLE|ALTER\s+TABLE|DROP\s+TABLE)\b/i.test(audit)) {
+            throw Error('Operational audit must never write data');
+          }
+          console.log('Opt-in direct requests and account switching safety: PASS');
           NODE
       - name: Build TanStack
         run: bun run build
