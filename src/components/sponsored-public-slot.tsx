@@ -7,25 +7,33 @@ type AdPlacement =
   | { slotKey: "search.top"; routePath: "/tecnicos" }
   | { slotKey: "services.content_1"; routePath: "/servicos" };
 
-type PublicCard = {
+type PublicBase = {
   label: "Publicidade";
   brand_name: string;
   headline: string;
   description: string;
   destination_url: string;
-  creative_type: "sponsored_card";
   slot_key: string;
 };
+type PublicCard = PublicBase & { creative_type: "sponsored_card" };
+type PublicImage = PublicBase & {
+  creative_type: "image";
+  public_media_key: string;
+  image_alt: string;
+};
+type PublicAd = PublicCard | PublicImage;
+
+const DELIVERY_KEY = /^approved\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(?:png|jpg|webp|avif)$/;
 
 const db = supabase as unknown as SupabaseClient;
 
 // The public RPC projects only approved fields; validate them again in-browser
 // so no unexpected payload can become a click destination.
-export function asApprovedSponsoredCard(raw: unknown, expectedSlot: string): PublicCard | null {
+export function asApprovedSponsoredCard(raw: unknown, expectedSlot: string): PublicAd | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const value = raw as Record<string, unknown>;
   if (value["label"] !== "Publicidade" ||
-      value["creative_type"] !== "sponsored_card" ||
+      !["sponsored_card","image"].includes(String(value["creative_type"])) ||
       value["slot_key"] !== expectedSlot) return null;
   for (const key of ["brand_name", "headline", "description", "destination_url"]) {
     if (typeof value[key] !== "string") return null;
@@ -42,19 +50,26 @@ export function asApprovedSponsoredCard(raw: unknown, expectedSlot: string): Pub
   const description = value["description"] as string;
   if (!brand.trim() || brand.length > 120 || !headline.trim() ||
       headline.length > 150 || description.length > 400) return null;
-  return {
+  const base: PublicBase = {
     label: "Publicidade",
     brand_name: brand,
     headline,
     description,
     destination_url: destination,
-    creative_type: "sponsored_card",
     slot_key: expectedSlot,
   };
+  if (value["creative_type"] === "image") {
+    const publicKey = value["public_media_key"];
+    const alt = value["image_alt"];
+    if (typeof publicKey !== "string" || !DELIVERY_KEY.test(publicKey) ||
+        typeof alt !== "string" || alt.trim().length < 5 || alt.length > 240) return null;
+    return { ...base, creative_type: "image", public_media_key: publicKey, image_alt: alt };
+  }
+  return { ...base, creative_type: "sponsored_card" };
 }
 
 export function SponsoredPublicSlot({ slotKey, routePath }: AdPlacement) {
-  const [card, setCard] = useState<PublicCard | null>(null);
+  const [card, setCard] = useState<PublicAd | null>(null);
   useEffect(() => {
     let active = true;
     const getAd = () => {
@@ -72,17 +87,26 @@ export function SponsoredPublicSlot({ slotKey, routePath }: AdPlacement) {
     return () => { active = false; document.removeEventListener("visibilitychange", visibility); };
   }, [slotKey, routePath]);
 
+  const imageSrc = card?.creative_type === "image"
+    ? supabase.storage.from("eut-ad-delivery").getPublicUrl(card.public_media_key).data.publicUrl
+    : null;
+
   return (
     <aside data-ad-slot={slotKey}
       aria-label="Espaço de publicidade"
       className="mx-auto w-full max-w-6xl px-4 py-4">
-      <div className="flex min-h-[156px] flex-col justify-center rounded-xl border border-border bg-muted/30 px-5 py-4 sm:px-7">
+      <div className="flex min-h-[264px] flex-col justify-center rounded-xl border border-border bg-muted/30 px-5 py-4 sm:px-7">
         <span className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
           Publicidade
         </span>
         {card ? (
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="max-w-2xl">
+              {card.creative_type === "image" && imageSrc && (
+                <img src={imageSrc} alt={card.image_alt} width={960} height={250}
+                  loading="lazy" decoding="async"
+                  className="mb-3 h-32 w-full max-w-2xl rounded-md object-contain sm:h-36" />
+              )}
               <p className="text-xs font-medium text-muted-foreground">{card.brand_name}</p>
               <h2 className="mt-1 text-lg font-bold text-foreground">{card.headline}</h2>
               {card.description && <p className="mt-1 text-sm text-muted-foreground">{card.description}</p>}
