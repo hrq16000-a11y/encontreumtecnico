@@ -3,7 +3,7 @@ import { ContactForm } from "@/components/contact-form";
 import { TextPage, TextSection, pageHead } from "@/components/text-page";
 
 export const Route = createFileRoute("/contato")({
-  head: () => pageHead("Contato e atendimento", "Canais para dúvidas sobre o portal, privacidade, cobrança e suporte ao acesso."),
+  head: () => pageHead("Contato e atendimento", "Canais para dúvidas sobre o portal, privacidade, cobrança e suporte ao acesso.", "/contato"),
   component: () => (
     <TextPage title="Contato e atendimento" intro="Atendimento sobre a plataforma, seus dados e seus direitos.">
       <TextSection title="Dúvidas e pedidos de privacidade">

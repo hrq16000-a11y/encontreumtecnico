@@ -54,7 +54,7 @@ export const triageProblem = createServerFn({ method: "POST" })
         }
       }
       const parsed = JSON.parse(output) as Record<string, unknown>;
-      const category = parsed.category === "Todas" ? "Todas" : categorySlug(parsed.category);
+      const category = parsed["category"] === "Todas" ? "Todas" : categorySlug(parsed["category"]);
       if (!category) return fallback;
       // Never trust model-generated geography; only explicit statements may
       // populate location filters. The local extractor enforces this rule.
@@ -62,11 +62,11 @@ export const triageProblem = createServerFn({ method: "POST" })
       return {
         ok: true,
         category,
-        reason: typeof parsed.reason === "string" ? parsed.reason.slice(0, 180) : fallback.reason,
+        reason: typeof parsed["reason"] === "string" ? parsed["reason"].slice(0, 180) : fallback.reason,
         city: declared.city,
         region: declared.region,
-        keywords: Array.isArray(parsed.keywords)
-          ? parsed.keywords.filter((k): k is string => typeof k === "string").slice(0, 4).map((k) => k.slice(0, 40))
+        keywords: Array.isArray(parsed["keywords"])
+          ? parsed["keywords"].filter((k): k is string => typeof k === "string").slice(0, 4).map((k) => k.slice(0, 40))
           : fallback.keywords,
       };
     } catch (error) {

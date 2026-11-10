@@ -7,37 +7,35 @@ on:
       - 'src/routes/tecnicos.index.tsx'
       - 'src/routes/tecnicos.$tecnicoId.tsx'
       - 'src/routes/sitemap[.]xml.ts'
+      - 'src/routes/home2.tsx'
+      - 'src/routes/faq.tsx'
+      - 'src/routes/contato.tsx'
+      - 'src/routes/servicos.tsx'
+      - 'src/routes/como-funciona.tsx'
+      - 'src/lib/seo-public-pages.test.ts'
       - 'public/robots.txt'
       - '.github/workflows/eut-seo-cutover.yml'
+  workflow_dispatch:
+
 permissions:
   contents: read
+
+concurrency:
+  group: seo-cutover-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build:
+  validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 14
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
-      - run: bun run build
-      - name: Check SEO and private page boundaries
-        run: |
-          node --input-type=module <<'NODE'
-          import { readFileSync } from 'node:fs';
-          const read = (p) => readFileSync(p, 'utf8');
-          const root = read('src/routes/__root.tsx');
-          if (root.includes('name: "robots", content: "noindex, nofollow"')) throw Error('Global noindex remains');
-          if (!root.includes('<html lang="pt-BR"')) throw Error('Incorrect document language');
-          const publicFiles = ['src/routes/index.tsx','src/routes/tecnicos.index.tsx','src/routes/tecnicos.$tecnicoId.tsx','src/routes/sitemap[.]xml.ts','public/robots.txt'];
-          for (const file of publicFiles) {
-            const code = read(file);
-            if (code.includes('find-your-trusted-technician.lovable.app')) throw Error('Legacy canonical: ' + file);
-            if (!code.includes('https://www.encontreumtecnico.com')) throw Error('Official origin missing: ' + file);
-          }
-          const privateFiles = ['src/routes/entrar.tsx','src/routes/redefinir-senha.tsx','src/routes/reivindicar-cadastro.tsx','src/routes/area-cliente.tsx','src/routes/area-tecnico.tsx','src/routes/admin.tsx','src/routes/home2.tsx'];
-          for (const file of privateFiles) {
-            if (!read(file).includes('name: "robots", content: "noindex, nofollow"')) throw Error('Noindex missing on private/LP route: '+file);
-          }
-          if (!read('src/routes/tecnicos.$tecnicoId.tsx').includes('...(!loaderData ?')) throw Error('Missing noindex for unavailable profile');
-          console.log('SEO cutover gate: public canonical, private noindex and sitemap OK');
-          NODE
+      - name: Install dependencies (locked)
+        run: bun install --frozen-lockfile
+      - name: SEO regression tests
+        run: bunx vitest run src/lib/seo-public-pages.test.ts
+      - name: Build TanStack
+        run: bun run build
+      - name: TypeScript check
+        run: bunx tsc --noEmit --pretty false
