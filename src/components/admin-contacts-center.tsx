@@ -352,7 +352,7 @@ export function AdminContactsCenter() {
                   <p className="mt-2 whitespace-pre-line text-xs text-muted-foreground">{block.reason}</p>
                   <button type="button" className={`${buttonStyle} mt-3`} disabled={busy}
                     onClick={()=>void act(block.kind==="conta"?"unblock_account":"unblock_phone",
-                      block.kind==="conta"?{userId:block.user_id??undefined}:{blockId:block.ref_id})}>
+                      block.kind==="conta"?(block.user_id?{userId:block.user_id}:{}):{blockId:block.ref_id})}>
                     Retirar restrição {block.kind==="conta"?"da conta":"do telefone"}
                   </button>
                 </li>
