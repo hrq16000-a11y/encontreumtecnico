@@ -33,6 +33,7 @@ describe("recuperação iniciada por página histórica", () => {
     const actualId = new URL(link.getAttribute("href")!, "https://example.test").searchParams.get("wp");
     expect(normalizeWpPostId(actualId ?? "")).toBe(4415);
     expect(screen.getByText(/O contato não está habilitado/)).toBeTruthy();
+    expect(screen.getByText(/Pioneiro Bronze · pré-cadastro, não ativado/)).toBeTruthy();
   });
 
   it("não oferece reivindicação de profissional no perfil antigo do cliente", () => {

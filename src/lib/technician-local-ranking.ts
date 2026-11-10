@@ -9,6 +9,7 @@ export type AreaTechnician = {
   city: string;
   neighborhood: string | null;
   online_now: boolean;
+  pioneer_bronze?: boolean;
 };
 
 function normalized(value: string | null | undefined): string {
@@ -55,6 +56,7 @@ export function rankTechniciansByDeclaredArea<T extends AreaTechnician>(
   })).sort((a, b) =>
     b.locationLevel - a.locationLevel ||
     Number(b.technician.online_now) - Number(a.technician.online_now) ||
+    Number(Boolean(b.technician.pioneer_bronze)) - Number(Boolean(a.technician.pioneer_bronze)) ||
     a.index - b.index
   ).map((item) => item.technician);
 }

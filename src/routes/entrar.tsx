@@ -226,7 +226,10 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
         try {
           const client = supabase as unknown as SupabaseClient;
           const { error } = await client.rpc("eut_confirm_my_legacy_account");
-          if (error && active) setError("A associação do WordPress ainda não pôde ser concluída. Sua área permanece acessível para tentar novamente.");
+          if (error && active) setError("A associação do cadastro anterior ainda não pôde ser concluída. Sua área permanece acessível para tentar novamente.");
+          // Pré-cadastros nativos: só email confirmado ou telefone validado por OTP.
+          // Nunca bloqueia o login quando a associação opcional está indisponível.
+          await client.rpc("eut_claim_my_pioneer_pre_registration");
         } catch {
           if (active) setError("A reconciliação da conta antiga está indisponível; tente novamente no painel.");
         }

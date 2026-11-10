@@ -51,9 +51,9 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
 
   return (
     <section className="mt-12 border-t border-border pt-8" aria-label="Acervo de cadastros históricos">
-      <h2 className="text-xl font-semibold tracking-tight text-foreground">Cadastros do portal anterior</h2>
+      <div className="flex flex-wrap items-center gap-3"><h2 className="text-xl font-semibold tracking-tight text-foreground">Pioneiros da comunidade — pré-cadastros</h2><span className="rounded-full border border-amber-700/35 bg-amber-800/10 px-3 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300">Bronze · origem histórica</span></div>
       <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-        Perfis que estavam publicados no WordPress e foram recuperados para conferência.
+        Perfis históricos preservados como pré-cadastros pioneiros, aguardando confirmação do titular.
         A identidade do titular, o município e a disponibilidade ainda precisam ser atualizados.
         Cadastro histórico não significa avaliação técnica ou indicação pelo portal. Não há contato nem
         solicitação de serviço habilitados para esses registros.
@@ -75,7 +75,7 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
             <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {profiles.map((profile) => (
                 <li key={profile.wp_post_id}
-                  className="rounded-lg border border-border bg-card p-5">
+                  className="rounded-lg border border-amber-700/25 bg-card p-5">
                   <div className="flex items-start gap-3">
                     {legacyAvatarUrl(profile.wp_post_id) ? (
                       <img src={legacyAvatarUrl(profile.wp_post_id)!}
@@ -89,8 +89,8 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
                     )}
                     <div className="min-w-0 flex-1">
                       <h3 className="font-semibold text-card-foreground">{profile.display_name}</h3>
-                      <span className="mt-1 inline-flex rounded bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
-                        Cadastro histórico
+                      <span className="mt-1 inline-flex rounded border border-amber-700/30 bg-amber-800/10 px-2 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300">
+                        Pioneiro Bronze · pré-cadastro
                       </span>
                     </div>
                   </div>
