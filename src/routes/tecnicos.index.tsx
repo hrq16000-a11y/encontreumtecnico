@@ -7,6 +7,7 @@ import { SponsoredPublicSlot } from "@/components/sponsored-public-slot";
 import { useActiveCategories, categoryLabel } from "@/hooks/use-active-categories";
 import { useActiveServices, serviceLabel } from "@/hooks/use-active-services";
 import { DebouncedTextFilter } from "@/components/debounced-text-filter";
+import { CustomerLocationButton } from "@/components/customer-location-button";
 import { BRAZIL_STATES } from "@/lib/service-taxonomy";
 import { localMatchLabel } from "@/lib/technician-local-ranking";
 import { LegacyPublicArchive } from "../components/legacy-public-archive";
@@ -91,6 +92,13 @@ function TechniciansPage() {
           Perfis publicados são declarados pelos próprios profissionais. A plataforma não certifica habilidades nem garante atendimento.
         </p>
 
+        <div className="mt-4">
+          <CustomerLocationButton onLocated={(area, source) => {
+            if (source === "automatic" && (search.cidade.trim() || search.uf || search.bairro.trim())) return;
+            void update({ uf: area.uf, cidade: area.city, bairro: area.neighborhood,
+              regiao: "", prioridade: "regiao" });
+          }} />
+        </div>
         <div className="mt-6 grid gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-3">
           <div>
             <label htmlFor="filtro-especialidade" className="text-xs font-medium text-muted-foreground">
