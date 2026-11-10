@@ -133,11 +133,11 @@ export const getApprovedTechnician = createServerFn({ method: "GET" })
       .eq("status", "aprovado")
       .eq("id", data.id)
       .maybeSingle();
-    // Database outages and permission/configuration errors are not HTTP 404.
-    // Treat them as server errors; only an actual missing row is "not found".
+    // A failed database lookup must never be mistaken for an unpublished profile.
+    // A genuine no-match is { data: null, error: null } from maybeSingle().
     if (error) {
-      console.error("getApprovedTechnician", error);
-      throw new Error("Não foi possível consultar o perfil profissional.");
+      console.error("getApprovedTechnician lookup failed", error.code ?? "unknown");
+      throw new Error("Não foi possível consultar o perfil do técnico.");
     }
     return row ? (await withOnlineStatus([row]))[0] ?? null : null;
   });
