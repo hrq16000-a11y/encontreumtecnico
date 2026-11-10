@@ -54,6 +54,7 @@ function TechnicianProfilePage() {
         <Link to="/tecnicos" className="text-sm text-primary hover:underline">← Voltar para técnicos</Link>
           <div className="mt-4 rounded-lg border border-border bg-card p-6">
             <h1 className="text-2xl font-bold tracking-tight text-card-foreground">{t.display_name}</h1>
+            {t.referral_highlight && <p className="mt-2 inline-flex rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">Destaque por indicações · profissionais convidados com perfis públicos</p>}
             {t.pioneer_bronze && <p className="mt-2 inline-flex rounded-full border border-amber-700/30 bg-amber-800/10 px-3 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300">Pioneiro Bronze · registro histórico confirmado</p>}
             {t.online_now && <p className="mt-2 inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
               Online recentemente — disponibilidade de atendimento não garantida
