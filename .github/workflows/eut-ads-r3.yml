@@ -53,7 +53,7 @@ jobs:
           ]) if (!test.includes(term)) throw Error('Missing rollback security test: '+term);
           for (const term of [
             "eut_ads_admin_snapshot", "eut_ads_admin_save", "eut-ad-assets",
-            "Apenas cards patrocinados", "upload(path, image",
+            "Cards e banners com imagem", "upload(path, image",
           ]) if (!ui.includes(term)) throw Error('Admin form integration missing: '+term);
           if (ui.includes('service_role') || ui.includes('.from("eut_ads.') || ui.includes('auth.admin.')) {
             throw Error('Browser must never access private tables or privileged auth');
