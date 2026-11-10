@@ -12,9 +12,9 @@ export function normalizeBrazilianPhone(value: string): string | null {
   if (!raw || raw.length > 40 || !/^\+?[0-9\s().-]+$/.test(raw)) return null;
 
   const digits = raw.replace(/\D/g, "");
-  // +55 e "55 " identificam explicitamente o país: não podem
-  // ser reinterpretados como DDD 55 se o telefone estiver truncado.
-  const explicitCountryCode = raw.startsWith("+") || /^55[\s().-]/.test(raw);
+  // Somente + marca o país de forma inequívoca: "55 " pode ser
+  // um telefone nacional do DDD 55 e deve continuar aceito.
+  const explicitCountryCode = raw.startsWith("+");
   if (explicitCountryCode && !digits.startsWith("55")) return null;
   const national = explicitCountryCode
     ? digits.slice(2)
