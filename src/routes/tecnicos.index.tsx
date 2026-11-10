@@ -14,6 +14,8 @@ import { LegacyPublicArchive } from "../components/legacy-public-archive";
 import { canShowLegacyArchive } from "../lib/legacy-archive-filters";
 import { useEffect, useRef, useState } from "react";
 import { analyticsAllowed, recordSearch } from "@/lib/search-analytics";
+import { openFreeHelp } from "@/lib/free-search-help";
+import { MapPin, ShieldCheck, UserRoundCheck, LifeBuoy } from "lucide-react";
 
 const searchSchema = z.object({
   especialidade: fallback(z.string(), "Todas").default("Todas"),
@@ -77,6 +79,24 @@ function TechniciansPage() {
   }, [search.especialidade, search.cidade, search.regiao, search.servico, search.uf, search.bairro, search.prioridade, technicians.length, consentRevision]);
   const prioritizeRegion = search.prioridade === "regiao" && Boolean(search.uf || search.cidade.trim());
   const hasDeclaredLocation = Boolean(search.uf || search.cidade.trim());
+
+  const searchArea = [search.bairro, search.cidade, search.uf].filter(Boolean).join(" · ");
+  const helpContext = { city: search.cidade, uf: search.uf, neighborhood: search.bairro,
+    service: services.find((s) => s.slug === search.servico)?.label || search.servico || (search.especialidade !== "Todas" ? search.especialidade : "") };
+
+  useEffect(() => {
+    if (technicians.length > 0 || !searchArea) return;
+    // One contextual invitation per browser tab; never nag on every filter.
+    const popup = window.setTimeout(() => {
+      try {
+        if (sessionStorage.getItem("eut-free-help-invite") === "seen") return;
+        sessionStorage.setItem("eut-free-help-invite", "seen");
+      } catch { /* Session storage unavailable: the button remains available. */ }
+      openFreeHelp({ city: search.cidade, uf: search.uf, neighborhood: search.bairro, service: search.servico });
+    }, 850);
+    return () => window.clearTimeout(popup);
+  }, [technicians.length, searchArea, search.cidade, search.uf, search.bairro, search.servico]);
+
   const specialty = categories.some((c) => c.slug === search.especialidade)
     ? search.especialidade
     : "Todas";
@@ -192,6 +212,11 @@ function TechniciansPage() {
           )}
         </div>
         <SponsoredPublicSlot slotKey="search.top" routePath="/tecnicos" />
+        <section aria-label="Transparência e confiança na busca" className="mt-6 grid gap-3 rounded-2xl border border-primary/15 bg-accent/50 p-4 sm:grid-cols-3">
+          <div className="flex items-start gap-3"><UserRoundCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" /><p className="text-sm text-foreground"><strong className="block">{technicians.length} perfil{technicians.length === 1 ? "" : "s"} nesta busca</strong><span className="text-xs text-muted-foreground">Somente perfis publicados; resultados conforme os filtros aplicados.</span></p></div>
+          <div className="flex items-start gap-3"><MapPin className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" /><p className="text-sm text-foreground"><strong className="block">Localidade informada</strong><span className="text-xs text-muted-foreground">Regiões declaradas pelos profissionais, sem localização inventada.</span></p></div>
+          <div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" /><p className="text-sm text-foreground"><strong className="block">Contato protegido</strong><span className="text-xs text-muted-foreground">Telefones particulares não aparecem na busca pública.</span></p></div>
+        </section>
         <div className="mt-6">
           {technicians.length === 0 ? (
             <div className="space-y-4">
@@ -199,6 +224,19 @@ function TechniciansPage() {
                 title="Nenhum técnico encontrado com estes filtros"
                 description="Ainda não encontramos um profissional com perfil ativo para esta pesquisa. Você pode registrar sua necessidade ou, se é profissional, criar seu perfil no portal novo. Cadastros antigos em conferência não são apresentados como técnicos disponíveis."
               />
+              <div className="rounded-2xl border border-primary/25 bg-gradient-to-r from-brand-navy to-primary p-6 text-white shadow-sm">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white/75"><LifeBuoy className="h-4 w-4" aria-hidden="true" /> Ajuda da equipe · gratuita nesta fase</p>
+                    <h2 className="mt-2 text-xl font-bold text-white">Não encontrou técnico{searchArea ? " em " + searchArea : " para sua necessidade"}?</h2>
+                    <p className="mt-2 max-w-xl text-sm text-white/85">Conte o que você precisa. Recebemos seu pedido de ajuda sem cobrar. Não há promessa de disponibilidade nem liberação de contato privado.</p>
+                  </div>
+                  <button type="button" onClick={() => openFreeHelp(helpContext)}
+                    className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-bold text-brand-navy shadow-sm transition-colors hover:bg-white/90">
+                    <LifeBuoy className="h-4 w-4" aria-hidden="true" /> Pedir ajuda grátis
+                  </button>
+                </div>
+              </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="rounded-lg border border-border bg-card p-5">
                   <h2 className="text-base font-semibold text-card-foreground">

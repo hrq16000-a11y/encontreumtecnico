@@ -19,9 +19,10 @@ export const Route = createFileRoute("/contato")({
       </TextSection>
       <TextSection title="Ajuda na busca por prestadores">
         <p>
-          Se não encontrar um prestador em sua região, o auxílio específico para localizar alternativas está
-          vinculado à aquisição de acesso oferecida na plataforma, quando a funcionalidade de pagamento estiver ativa.
-          Esse apoio não garante disponibilidade nem substitui a negociação direta entre as partes.
+          Se não encontrar um prestador em sua região, você pode solicitar ajuda gratuita nesta primeira fase
+          pelo formulário desta página ou pelo botão flutuante “Ajuda grátis”. A equipe receberá sua mensagem
+          para orientar a busca. Isso não garante que exista um técnico disponível, nem libera números particulares
+          ou substitui a negociação direta entre cliente e profissional.
         </p>
       </TextSection>
       <TextSection title="Fale com a equipe">

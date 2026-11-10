@@ -35,7 +35,7 @@ function HowItWorksPage() {
               <li>Consulte os dados públicos declarados pelo profissional; não há certificação técnica do portal.</li>
               <li>Quando o acesso pago estiver operacional, confira o valor e as condições antes de adquirir um contato privado.</li>
               <li>Fale com o profissional e negocie diretamente orçamento, prazo e execução.</li>
-              <li>Se não houver prestador, poderá solicitar apoio na localização de alternativas após adquirir a conveniência oferecida.</li>
+              <li>Se não houver prestador em sua região, solicite orientação gratuita nesta primeira fase pelo botão de ajuda ou pela página de contato. Esse auxílio não equivale à aquisição de número privado.</li>
             </ol>
             <Link to="/tecnicos" className="mt-6 inline-flex min-h-11 items-center rounded-md bg-primary px-5 text-sm font-semibold text-primary-foreground">
               Buscar técnico

@@ -3,8 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 
 const input = "mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-base text-foreground focus-visible:ring-2 focus-visible:ring-ring";
 
-export function ContactForm() {
-  const [f, setF] = useState({ name: "", email: "", subject: "", message: "" });
+export function ContactForm({ initialSubject = "", initialMessage = "", submitLabel = "Enviar mensagem" }: {
+  initialSubject?: string;
+  initialMessage?: string;
+  submitLabel?: string;
+} = {}) {
+  const [f, setF] = useState({ name: "", email: "", subject: initialSubject, message: initialMessage });
   const [state, setState] = useState<"idle" | "sending" | "ok" | "error">("idle");
 
   async function submit(e: FormEvent) {
@@ -35,7 +39,7 @@ export function ContactForm() {
         <textarea required minLength={10} maxLength={3000} rows={5} className={input} value={f.message} onChange={(e) => setF({ ...f, message: e.target.value })} />
       </label>
       <button disabled={state === "sending"} className="min-h-11 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-60">
-        {state === "sending" ? "Enviando…" : "Enviar mensagem"}
+        {state === "sending" ? "Enviando…" : submitLabel}
       </button>
       {state === "ok" && <p role="status" className="text-sm text-foreground">Mensagem recebida. Responderemos pelo e-mail informado.</p>}
       {state === "error" && <p role="alert" className="text-sm text-destructive">Não foi possível enviar. Confira os campos e tente novamente.</p>}
