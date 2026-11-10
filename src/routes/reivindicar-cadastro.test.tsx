@@ -108,6 +108,7 @@ describe("reivindicação WordPress não atravessa sessões de usuário", () => 
     expect(screen.queryByDisplayValue("4415")).toBeNull();
     await act(async () => pendingInsert.resolve({ error: null }));
     expect(screen.queryByText(/Pedido registrado/)).toBeNull();
+    expect(mock.selectClaims).toHaveBeenCalledTimes(2);
     expect(screen.getByRole("button", { name: "Solicitar análise do meu cadastro" })).toBeTruthy();
   });
 });

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { PageShell } from "@/components/page-placeholder";
 import { useAuth } from "@/hooks/use-auth";
@@ -38,8 +38,21 @@ const labels: Record<ClaimSummary["status"], string> = {
   vinculado: "Titularidade associada — atualize seu perfil para publicar",
 };
 
-function LegacyClaimPage() {
+// One component instance per authenticated identity: private claims, notes,
+// suggestions, loading state and in-flight responses cannot cross logins.
+export function LegacyClaimPage() {
   const { user, roles, loading } = useAuth();
+  return <LegacyClaimContent key={user?.id ?? "guest"} user={user} roles={roles} loading={loading} />;
+}
+
+function LegacyClaimContent({
+  user, roles, loading,
+}: Pick<ReturnType<typeof useAuth>, "user" | "roles" | "loading">) {
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
   const [reference, setReference] = useState("");
   // O ID da URL apenas preenche o formulário; nunca comprova titularidade.
   useEffect(() => {
@@ -91,7 +104,7 @@ function LegacyClaimPage() {
       .eq("claimant_id", userId)
       .order("created_at", { ascending: false })
       .limit(25);
-    if (!error) setRows((data ?? []) as ClaimSummary[]);
+    if (mounted.current && !error) setRows((data ?? []) as ClaimSummary[]);
   }
   useEffect(() => {
     if (user?.id) void loadClaims(user.id);
@@ -115,6 +128,8 @@ function LegacyClaimPage() {
       claimant_note: normalizeClaimantNote(note),
       status: "pendente",
     });
+    // Do not update or requery an old identity after logout/account switch.
+    if (!mounted.current) return;
     setSaving(false);
     if (error) {
       setFeedback(error.code === "23505"
