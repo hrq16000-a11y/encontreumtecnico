@@ -247,6 +247,10 @@ export function TechnicianAreaPage() {
                   setForm((current) => suggestTechnicianArea(current, area, source));
                 }}
               />
+              <p className="text-xs text-muted-foreground">
+                O GPS é apenas uma sugestão da sua localização atual. Confira a cidade
+                e informe as regiões onde você realmente atende antes de publicar.
+              </p>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="text-sm font-medium text-foreground">Estado (UF)
                   <select required className={input} value={form.state_uf} onChange={(e) => setForm({ ...form, state_uf: e.target.value })}>
