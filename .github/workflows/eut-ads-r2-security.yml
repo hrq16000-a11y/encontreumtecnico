@@ -1,0 +1,61 @@
+name: EUT sponsored inventory R2 security gate
+on:
+  pull_request:
+    paths:
+      - 'docs/sql/eut-ads-r2-private-foundation.sql'
+      - 'docs/sql/tests/eut-ads-r2-verify.sql'
+      - '.github/workflows/eut-ads-r2-security.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  r2-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify no public ads and strict data boundaries
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const sql = readFileSync('docs/sql/eut-ads-r2-private-foundation.sql', 'utf8');
+          const tests = readFileSync('docs/sql/tests/eut-ads-r2-verify.sql', 'utf8');
+          const tables = [
+            'sponsors','placements','campaigns','creatives',
+            'campaign_placements','staff_roles','audit_events'
+          ];
+          for (const table of tables) {
+            for (const pattern of [
+              'CREATE TABLE eut_ads.'+table,
+              'ALTER TABLE eut_ads.'+table+' ENABLE ROW LEVEL SECURITY',
+              'ALTER TABLE eut_ads.'+table+' FORCE ROW LEVEL SECURITY',
+              "'"+table+"'",
+            ]) {
+              const text = pattern.startsWith("'") ? tests : sql;
+              if (!text.includes(pattern)) throw Error('Missing private table or RLS requirement: '+pattern);
+            }
+          }
+          for (const required of [
+            'REVOKE ALL ON SCHEMA eut_ads FROM PUBLIC, anon, authenticated',
+            'REVOKE ALL ON ALL TABLES IN SCHEMA eut_ads FROM PUBLIC,anon,authenticated',
+            'REVOKE ALL ON ALL FUNCTIONS IN SCHEMA eut_ads FROM PUBLIC,anon,authenticated',
+            'REVOKE ALL ON FUNCTION eut_ads.capture_change() FROM PUBLIC, anon, authenticated',
+            "approved_by IS NOT NULL AND approved_at IS NOT NULL",
+            'CREATE TRIGGER audit_sponsors',
+            'CREATE TRIGGER audit_staff_roles',
+            'TG_TABLE_NAME',
+            'status NOT IN',
+          ]) if (!sql.includes(required)) throw Error('Missing security guard: '+required);
+          if (/INSERT\s+INTO\s+eut_ads\.(?:sponsors|placements|campaigns|creatives|campaign_placements|staff_roles)\b/i.test(sql)) {
+            throw Error('R2 must not seed sponsored campaigns or users');
+          }
+          if (/\b(?:GRANT\s+(?:ALL|SELECT|INSERT|UPDATE|DELETE|USAGE))\b/i.test(sql)) {
+            throw Error('R2 must not grant data access before R3');
+          }
+          for (const token of ['has_schema_privilege','has_table_privilege','relforcerowsecurity',
+            'audit_%','Expected 6 audit triggers','zero ads records']) {
+            if (!tests.includes(token)) throw Error('Missing real database verification: '+token);
+          }
+          console.log('R2 private advertising schema contract: PASS');
+          NODE
