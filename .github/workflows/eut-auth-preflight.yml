@@ -1,0 +1,94 @@
+name: EUT Auth and WordPress recovery preflight
+
+on:
+  pull_request:
+    paths:
+      - 'src/routes/entrar.tsx'
+      - 'src/hooks/use-auth.tsx'
+      - '.github/workflows/eut-auth-preflight.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eut-auth-preflight-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify fail-closed WordPress lookup and existing Google login
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const ui=readFileSync('src/routes/entrar.tsx','utf8');
+          const auth=readFileSync('src/hooks/use-auth.tsx','utf8');
+          for (const term of [
+            'eut_my_legacy_account', 'eut_confirm_my_legacy_account',
+            'legacyLookupError', 'setLegacyChecked(false)',
+            'Tentar consultar novamente',
+            'disabled={busy || !legacyChecked || !termsAccepted}',
+          ]) {
+            if (!ui.includes(term)) throw Error('Missing safe first-login step: '+term);
+          }
+          if (!auth.includes('provider: "google"')) throw Error('No Google login configured');
+          if (ui.includes('service_role')||ui.includes('auth.admin.createUser'))
+            throw Error('Privileged account creation in browser');
+          console.log('Confirmed-account WordPress lookup: fail closed, explicit retry, no privileged browser APIs');
+          NODE
+      - name: Check live Supabase Auth provider (no account creation)
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const client=readFileSync('src/integrations/supabase/client.ts','utf8');
+          const base=client.match(/const SUPABASE_URL = "([^"]+)"/)?.[1];
+          const apikey=client.match(/const SUPABASE_PUBLISHABLE_KEY = "([^"]+)"/)?.[1];
+          if (!base||!apikey||!base.endsWith('.supabase.co'))throw Error('Supabase public project config missing');
+          const settingsResponse=await fetch(base+'/auth/v1/settings',{
+            headers:{apikey},
+            signal:AbortSignal.timeout(12000)
+          });
+          if (!settingsResponse.ok)throw Error('Auth settings returned HTTP '+settingsResponse.status);
+          const settings=await settingsResponse.json();
+          if (settings.disable_signup === true || settings.external?.email===false)throw Error('Email signup disabled');
+          if (settings.external?.google !== true)throw Error('Google provider disabled; cannot validate login cutover');
+          console.log('Auth settings reachable; signups and Google provider enabled');
+          for (const host of [
+            'https://encontreumtecnico.vercel.app',
+            'https://www.encontreumtecnico.com'
+          ]) {
+            const url=base+'/auth/v1/authorize?provider=google&redirect_to='+encodeURIComponent(host+'/entrar');
+            const r=await fetch(url,{
+              headers:{apikey},
+              redirect:'manual',
+              signal:AbortSignal.timeout(12000)
+            });
+            const location=r.headers.get('location');
+            if (r.status<300||r.status>=400||!location) {
+              throw Error('Google OAuth authorization start failed (HTTP '+r.status+') for '+new URL(host).host);
+            }
+            const target=new URL(location,base);
+            if (target.protocol!=='https:' || !(target.hostname==='accounts.google.com'||target.hostname.endsWith('.google.com'))) {
+              throw Error('OAuth did not redirect to the Google identity provider');
+            }
+            // Do not print tokens, authorization state, Location header or user information.
+            console.log('Google OAuth start accepted for '+new URL(host).host+': redirect to Google');
+          }
+          console.log('NOTE: callback, final verified login and SMTP still require an owner session; these were not simulated');
+          NODE
+      - name: Check preview access screens without authenticating
+        run: |
+          node --input-type=module <<'NODE'
+          for (const path of ['/entrar','/redefinir-senha','/area-tecnico','/area-cliente','/reivindicar-cadastro']) {
+            const res=await fetch('https://encontreumtecnico.vercel.app'+path,{
+              redirect:'follow',
+              signal:AbortSignal.timeout(15000)
+            });
+            if (!res.ok)throw Error('Preview route '+path+' unavailable: HTTP '+res.status);
+            console.log(path+': HTTP '+res.status);
+          }
+          NODE

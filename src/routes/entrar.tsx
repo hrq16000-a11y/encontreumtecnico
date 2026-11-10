@@ -113,6 +113,8 @@ function SignInPage() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [legacyRole, setLegacyRole] = useState<"tecnico" | "cliente" | null>(null);
   const [legacyChecked, setLegacyChecked] = useState(false);
+  const [legacyLookupError, setLegacyLookupError] = useState(false);
+  const [legacyLookupRetry, setLegacyLookupRetry] = useState(0);
   const [legacyName, setLegacyName] = useState<string | null>(null);
   const [legacyProfileCount, setLegacyProfileCount] = useState(0);
   const roleKey = roles.join(",");
@@ -132,6 +134,7 @@ function SignInPage() {
   useEffect(() => {
     if (loading || !user || roles.length > 0) {
       setLegacyChecked(false);
+      setLegacyLookupError(false);
       setLegacyRole(null);
       setLegacyName(null);
       setLegacyProfileCount(0);
@@ -139,21 +142,35 @@ function SignInPage() {
     }
     let active = true;
     setLegacyChecked(false);
+    setLegacyLookupError(false);
     setLegacyRole(null);
     setLegacyName(null);
     setLegacyProfileCount(0);
     const client = supabase as unknown as SupabaseClient;
     void Promise.resolve(client.rpc("eut_my_legacy_account")).then(({ data, error }) => {
       if (!active) return;
-      const record = !error && Array.isArray(data) ? data[0] : null;
+      if (error || !Array.isArray(data)) {
+        // Fail closed: an unavailable WordPress lookup is NOT a new account.
+        // Never offer the wrong role until the original type is known.
+        setLegacyLookupError(true);
+        setLegacyChecked(false);
+        return;
+      }
+      const record = data[0] ?? null;
       const originalType = record?.intended_type;
       setLegacyRole(originalType === "tecnico" || originalType === "cliente" ? originalType : null);
       setLegacyName(typeof record?.legacy_name === "string" ? record.legacy_name : null);
       setLegacyProfileCount(Number.isFinite(record?.directory_profiles) ? record.directory_profiles : 0);
       setLegacyChecked(true);
-    }).catch(() => { if (active) { setLegacyRole(null); setLegacyChecked(true); } });
+    }).catch(() => {
+      if (active) {
+        setLegacyRole(null);
+        setLegacyLookupError(true);
+        setLegacyChecked(false);
+      }
+    });
     return () => { active = false; };
-  }, [loading, user?.id, roles.length]);
+  }, [loading, user?.id, roles.length, legacyLookupRetry]);
 
   useEffect(() => {
     if (loading || !user || roles.length === 0) return;
@@ -271,7 +288,7 @@ function SignInPage() {
             <p className="mt-4 rounded-md border border-border bg-muted/30 p-3 text-left text-sm text-muted-foreground">
               <strong className="text-foreground">Já tinha conta no WordPress?</strong>{" "}
               Cadastre-se com o mesmo e-mail ou entre com Google. A senha antiga não foi transferida.
-              Após confirmar seu e-mail, escolha seu tipo de conta. Técnicos podem solicitar a recuperação do perfil anterior.
+              Após confirmar o e-mail, o sistema identifica o tipo da sua conta antiga e permite recuperá-la, junto com os perfis da sua autoria, sem digitar IDs.
             </p>
             <EmailPasswordForm onError={setError} />
           </>
@@ -279,7 +296,18 @@ function SignInPage() {
           <>
             <h1 className="text-2xl font-bold tracking-tight text-foreground">Como você vai usar o portal?</h1>
             <p className="mt-2 text-sm text-muted-foreground">Escolha uma vez; isso define sua área.</p>
-            {!legacyChecked && <p className="mt-4 text-sm text-muted-foreground">Verificando seu cadastro anterior…</p>}
+            {!legacyChecked && !legacyLookupError && <p className="mt-4 text-sm text-muted-foreground">Verificando seu cadastro anterior…</p>}
+            {legacyLookupError && (
+              <div role="alert" className="mt-4 rounded-md border border-destructive/40 bg-muted/40 p-4 text-left">
+                <p className="text-sm text-foreground">
+                  Não conseguimos consultar seu cadastro WordPress agora. Nenhum tipo de conta foi escolhido nem dados foram alterados.
+                </p>
+                <button type="button" onClick={() => setLegacyLookupRetry((n) => n + 1)}
+                  className="mt-3 min-h-10 rounded-md border border-primary px-3 text-sm font-semibold text-primary">
+                  Tentar consultar novamente
+                </button>
+              </div>
+            )}
             {legacyRole && <p className="mt-4 rounded-md border border-border bg-muted/40 p-3 text-left text-sm text-foreground" role="status">
               Encontramos a conta antiga <strong>{legacyName || "WordPress"}</strong>, do tipo <strong>{legacyRole === "tecnico" ? "técnico/prestador" : "cliente/contratante"}</strong>, associada ao seu e-mail confirmado.
               {legacyRole === "tecnico" && <span> Há {legacyProfileCount} ficha(s) profissional(is) no histórico. Ao confirmar, vamos associar automaticamente as fichas da sua autoria, sem divulgar contatos privados. Depois você confere cidade e serviços.</span>}
