@@ -370,12 +370,12 @@ export function AdminAdvertisingManager() {
             Gestão real e privada de anunciantes, espaços, campanhas, criativos e vinculações.
           </p>
         </div>
-        <span className="rounded-full border border-primary/30 px-3 py-1 text-xs text-primary">Módulo comercial · R4</span>
+        <span className="rounded-full border border-primary/30 px-3 py-1 text-xs text-primary">Módulo comercial · R5</span>
       </div>
       <p className="mt-4 rounded-lg border border-border bg-muted/30 p-3 text-sm text-foreground">
-        Apenas cards patrocinados com contrato, valor comercial, período vigente e
-        aprovação administrativa podem ser exibidos em três espaços públicos. Imagens
-        permanecem privadas e não são publicadas nesta etapa.
+        Cards e banners com imagem exigem patrocinador contratado, período vigente
+        e aprovação explícita. O original fica privado; somente a cópia aprovada
+        pode ser exibida. Segmentação avançada e relatórios ainda estão pendentes.
       </p>
       {loading && <p className="mt-4 text-sm text-muted-foreground">Carregando área comercial…</p>}
       {error && <p role="alert" className="mt-4 rounded-md border border-destructive/40 p-3 text-sm text-destructive">{error}</p>}
@@ -467,6 +467,15 @@ export function AdminAdvertisingManager() {
                         <button type="button" className={btn} disabled={busy} onClick={() => edit(row)}>
                           {tab === "assignments" ? "Editar prioridade" : "Editar"}
                         </button>}
+                      {tab === "creatives" && row["creative_type"] === "image" &&
+                       row["review_state"] === "approved" &&
+                       typeof row["public_media_key"] === "string" &&
+                       row["public_media_delivered"] !== true &&
+                       data.campaigns.some(c => c["id"] === row["campaign_id"] && c["status"] === "active") &&
+                        <button type="button" className={btn} disabled={busy}
+                          onClick={() => void resumeImageCopy(row)}>
+                          Retomar cópia da imagem aprovada
+                        </button>}
                       {tab === "campaigns" && !["paused","expired","archived"].includes(text(row["status"])) &&
                         <button type="button" className={btn} disabled={busy}
                           onClick={() => void pauseCampaign(text(row["id"]))}>Pausar</button>}
@@ -476,14 +485,23 @@ export function AdminAdvertisingManager() {
               </ul>
               {tab === "campaigns" && (
                 <section className="mt-6 rounded-xl border border-primary/30 bg-primary/5 p-4" aria-label="Aprovação de campanhas">
-                  <h4 className="font-semibold">Aprovar e ativar card patrocinado</h4>
+                  <h4 className="font-semibold">Revisão e publicação de publicidade</h4>
                   <p className="mt-2 text-xs text-muted-foreground">
                     Disponível somente para patrocinador contratado, campanha em rascunho com
-                    preço positivo, início e fim válidos, criativo textual revisado e vínculo
-                    com espaço público disponível. Dados do contrato ficam privados.
-                    Não ativa imagens ou campanhas segmentadas.
+                    preço positivo, início e fim válidos, criativo revisado e vínculo
+                    com espaço público disponível. Para imagens, confira a prévia privada.
+                    A cópia pública é realizada somente após a aprovação. Não ativa
+                    vídeos, carrosséis ou campanhas segmentadas.
                   </p>
                   <div className="mt-3 grid gap-3">
+                    <label className="text-sm">Formato publicitário
+                      <select className={input} value={approvalFormat} disabled={busy}
+                        onChange={(event) => { setApprovalFormat(event.target.value === "image" ? "image" : "sponsored_card");
+                          setApprovalCreativeId(""); setApprovalPlacementId(""); }}>
+                        <option value="sponsored_card">Card patrocinado</option>
+                        <option value="image">Banner de imagem</option>
+                      </select>
+                    </label>
                     <label className="text-sm">Campanha para revisão
                       <select className={input} value={approvalCampaignId} disabled={busy}
                         onChange={(e) => { setApprovalCampaignId(e.target.value); setApprovalCreativeId(""); setApprovalPlacementId(""); }}>
@@ -493,7 +511,7 @@ export function AdminAdvertisingManager() {
                         )}
                       </select>
                     </label>
-                    <label className="text-sm">Criativo textual
+                    <label className="text-sm">Criativo para revisão
                       <select className={input} disabled={busy || !approvalCampaignId}
                         value={approvalCreativeId} onChange={e => setApprovalCreativeId(e.target.value)}>
                         <option value="">Selecione card para aprovação</option>
@@ -502,6 +520,21 @@ export function AdminAdvertisingManager() {
                         )}
                       </select>
                     </label>
+                    {approvalFormat === "image" && (
+                      <div className="rounded-lg border border-border p-3">
+                        <p className="text-xs font-medium text-foreground">Prévia privada da imagem</p>
+                        {selectedImagePreviewUrl ? (
+                          <img src={selectedImagePreviewUrl}
+                            alt="Prévia privada da imagem publicitária selecionada"
+                            width={960} height={250}
+                            className="mt-2 h-40 w-full rounded-lg object-contain" />
+                        ) : (
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            Escolha um criativo com arquivo privado. Sem prévia, a aprovação fica bloqueada.
+                          </p>
+                        )}
+                      </div>
+                    )}
                     <label className="text-sm">Posição pública cadastrada
                       <select className={input} disabled={busy || !approvalCampaignId}
                         value={approvalPlacementId} onChange={e => setApprovalPlacementId(e.target.value)}>
@@ -521,9 +554,12 @@ export function AdminAdvertisingManager() {
                     </label>
                     <button type="button" className={primary} disabled={
                       busy || !approvalCampaignId || !approvalCreativeId || !approvalPlacementId ||
-                      approvalNote.trim().length < 16
+                      approvalNote.trim().length < 16 ||
+                      (approvalFormat === "image" && !selectedImagePreviewUrl)
                     } onClick={() => void approvePublicCard()}>
-                      {busy ? "Validando…" : "Confirmar revisão e ativar card público"}
+                      {busy ? "Validando…" : approvalFormat === "image"
+                        ? "Aprovar imagem e publicar cópia"
+                        : "Confirmar revisão e ativar card público"}
                     </button>
                   </div>
                 </section>
