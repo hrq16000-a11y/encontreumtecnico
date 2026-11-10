@@ -5,6 +5,7 @@ on:
       - 'src/lib/legacy-route.functions.ts'
       - 'src/components/historical-wordpress-profile.tsx'
       - 'src/components/historical-wordpress-profile.test.tsx'
+      - 'src/lib/legacy-route-loaders.test.ts'
       - 'src/routes/tecnico.$slug.tsx'
       - 'src/routes/cliente.$slug.tsx'
       - '.github/workflows/eut-legacy-routes.yml'
@@ -18,8 +19,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
-      - name: Verify profile-to-claim link and non-public records
-        run: bunx vitest run src/components/historical-wordpress-profile.test.tsx src/lib/legacy-claim-validation.test.ts
+      - name: Test historical profile claim links, real 404 and privacy
+        run: bunx vitest run src/components/historical-wordpress-profile.test.tsx src/lib/legacy-route-loaders.test.ts src/lib/legacy-claim-validation.test.ts
       - run: bun run build
       - name: TypeScript check after route generation
         run: bunx tsc --noEmit --pretty false
