@@ -15,6 +15,7 @@ import { TechnicianPrivateContact } from "@/components/technician-private-contac
 import { PioneerPhoneVerification } from "@/components/pioneer-phone-verification";
 import { TechnicianDirectRequests } from "@/components/technician-direct-requests";
 import { CustomerLocationButton } from "@/components/customer-location-button";
+import { suggestTechnicianArea } from "@/lib/customer-location";
 import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
 
 export const Route = createFileRoute("/area-tecnico")({
@@ -243,18 +244,7 @@ export function TechnicianAreaPage() {
                 purpose="technician"
                 autoIfGranted={!profileId && !form.state_uf && !form.city.trim() && !form.neighborhood.trim()}
                 onLocated={(area, source) => {
-                  setForm((current) => {
-                    // Never overwrite an existing profile or already edited fields
-                    // on automatic geolocation. Manual use is an explicit suggestion.
-                    if (source === "automatic" &&
-                        (current.state_uf || current.city.trim() || current.neighborhood.trim())) {
-                      return current;
-                    }
-                    return {
-                      ...current,
-                      state_uf: area.uf, city: area.city, neighborhood: area.neighborhood,
-                    };
-                  });
+                  setForm((current) => suggestTechnicianArea(current, area, source));
                 }}
               />
               <div className="grid gap-4 sm:grid-cols-2">
