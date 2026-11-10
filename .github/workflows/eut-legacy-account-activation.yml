@@ -6,6 +6,7 @@ on:
       - 'src/components/legacy-account-activation.tsx'
       - 'src/routes/area-cliente.tsx'
       - 'src/routes/area-tecnico.tsx'
+      - 'src/components/legacy-profile-import.tsx'
       - '.github/workflows/eut-legacy-account-activation.yml'
 
 permissions:
@@ -33,7 +34,7 @@ jobs:
           const source = readFileSync('src/components/legacy-account-activation.tsx','utf8');
           const tech = readFileSync('src/routes/area-tecnico.tsx','utf8');
           const client = readFileSync('src/routes/area-cliente.tsx','utf8');
-          for (const key of ['eut_my_legacy_account','eut_link_my_legacy_account','record.intended_type !== role','reivindicar-cadastro']) {
+          for (const key of ['eut_my_legacy_account','eut_confirm_my_legacy_account','record.intended_type !== role','reivindicar-cadastro']) {
             if (!source.includes(key)) throw Error('Activation UI missing: '+key);
           }
           if (source.includes('service_role') || source.includes('auth.admin')) throw Error('Privileged client-side auth operation');

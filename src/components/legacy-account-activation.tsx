@@ -45,13 +45,13 @@ export function LegacyAccountActivation({
     setBusy(true);
     setFeedback(null);
     try {
-      const { data, error } = await db.rpc("eut_link_my_legacy_account");
+      const { data, error } = await db.rpc("eut_confirm_my_legacy_account");
       if (error) {
         setFeedback("Não foi possível verificar o vínculo. Confira a confirmação do e-mail ou solicite revisão pelo suporte.");
-      } else if (data === "vinculada" || data === "ja_vinculada") {
+      } else if (data?.state === "vinculada") {
         setRecord((previous) => previous ? { ...previous, activation_state: "vinculada" } : previous);
-        setFeedback("Conta antiga associada à sua conta atual. Perfis profissionais ainda dependem de análise.");
-      } else if (data === "papel_divergente") {
+        setFeedback(`Conta antiga associada. ${data.profiles_linked ?? 0} perfil(is) profissional(is) recuperado(s) automaticamente. Confira seus dados abaixo.`);
+      } else if (data?.state === "papel_divergente") {
         setFeedback("O tipo de conta atual não corresponde ao cadastro antigo. Solicite revisão administrativa.");
       } else {
         setFeedback("Não encontramos uma correspondência segura. Confira o e-mail utilizado.");
@@ -92,9 +92,9 @@ export function LegacyAccountActivation({
       )}
       {sameRole && role === "tecnico" && record.directory_profiles > 0 && (
         <p className="mt-3 text-sm text-muted-foreground">
-          Seu perfil de técnico antigo exige aprovação separada.{" "}
+          Os perfis antigos da sua autoria são associados pelo e-mail confirmado. Confirme a região e os serviços para publicar seu perfil atual.{" "}
           <Link to="/reivindicar-cadastro" className="font-medium text-primary underline">
-            Solicitar conferência do perfil WordPress
+            Conferir os perfis WordPress
           </Link>
         </p>
       )}
