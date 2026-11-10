@@ -14,6 +14,7 @@ import { clearTechnicianTarget, recallTechnicianTarget, rememberTechnicianTarget
 import { containsObviousContact } from "@/lib/private-message-validation";
 import { accountScopedRows, canAcceptAccountResult } from "@/lib/account-scoped-queries";
 import { persistClientRequest } from "@/lib/client-request-save";
+import { ownedRequestForAction } from "@/lib/client-request-action";
 
 export const Route = createFileRoute("/area-cliente")({
   validateSearch: zodValidator(z.object({ tecnico: z.string().optional() })),
@@ -244,9 +245,7 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
   async function shareExisting(id: string) {
     const owner = user?.id;
     if (sendingId || !owner || !roles.includes("cliente")) return;
-    const request = ownRows?.find((entry) =>
-      entry.id === id && entry.client_id === owner &&
-      entry.status === "aberta" && Boolean(entry.technician_id));
+    const request = ownedRequestForAction(ownRows, owner, id, "share");
     if (!request) {
       setMsg("Este pedido não está disponível nesta conta para compartilhamento.");
       return;
@@ -275,9 +274,8 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
 
   async function cancel(id: string) {
     const owner = user?.id;
-    if (!owner || !roles.includes("cliente") || !ownRows?.some((entry) =>
-      entry.id === id && entry.client_id === owner &&
-      (entry.status === "aberta" || entry.status === "aceita"))) {
+    if (!owner || !roles.includes("cliente") ||
+        !ownedRequestForAction(ownRows, owner, id, "cancel")) {
       setMsg("Não é possível cancelar este pedido nesta conta.");
       return;
     }
