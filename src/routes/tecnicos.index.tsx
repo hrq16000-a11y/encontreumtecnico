@@ -197,25 +197,45 @@ function TechniciansPage() {
           {technicians.length === 0 ? (
             <div className="space-y-4">
               <EmptyState
-                title="Nenhum técnico encontrado"
-                description="Ainda não há perfis públicos que correspondam aos filtros. Cadastros WordPress em migração podem aparecer abaixo como registros históricos, sem contato disponível."
+                title="Nenhum técnico encontrado com estes filtros"
+                description="Ainda não encontramos um profissional com perfil ativo para esta pesquisa. Você pode registrar sua necessidade ou, se é profissional, criar seu perfil no portal novo. Cadastros antigos em conferência não são apresentados como técnicos disponíveis."
               />
-              <div className="rounded-lg border border-border bg-card p-5">
-                <h2 className="text-base font-semibold text-card-foreground">
-                  Precisa de ajuda mesmo sem um técnico listado?
-                </h2>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Você pode registrar sua necessidade na área do cliente. Se veio da triagem,
-                  sua descrição será recuperada após o login. Esse registro é privado:
-                  não envia mensagens a profissionais, não reserva atendimento
-                  e não libera contatos.
-                </p>
-                <Link
-                  to="/area-cliente"
-                  className="mt-4 inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-                >
-                  Registrar minha necessidade
-                </Link>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-lg border border-border bg-card p-5">
+                  <h2 className="text-base font-semibold text-card-foreground">
+                    Precisa de atendimento?
+                  </h2>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Registre sua necessidade na área do cliente. Se você já usou a triagem,
+                    sua descrição poderá ser recuperada após o login.
+                    Esse registro é privado: não envia mensagens a profissionais,
+                    não reserva atendimento e não libera contatos.
+                    A solicitação só é compartilhada quando o cliente escolher
+                    um técnico e autorizar explicitamente.
+                  </p>
+                  <Link
+                    to="/area-cliente"
+                    className="mt-4 inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                  >
+                    Registrar minha necessidade
+                  </Link>
+                </div>
+                <div className="rounded-lg border border-border bg-card p-5">
+                  <h2 className="text-base font-semibold text-card-foreground">
+                    Você é técnico e quer ser encontrado?
+                  </h2>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Cadastre-se gratuitamente no novo portal. Escolha os serviços que
+                    realmente executa, sua cidade e regiões atendidas.
+                    Não precisa ter tido conta no site anterior.
+                  </p>
+                  <Link
+                    to="/entrar"
+                    className="mt-4 inline-flex min-h-11 items-center justify-center rounded-md border border-primary px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/5"
+                  >
+                    Criar meu perfil profissional
+                  </Link>
+                </div>
               </div>
             </div>
           ) : (
