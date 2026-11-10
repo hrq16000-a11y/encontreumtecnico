@@ -65,16 +65,15 @@ jobs:
             "'price_cents'", "'tax_id_digits'", "'internal_notes'",
           ]) if(sql.slice(0,2300).includes(forbidden)) throw Error('PII leaked in public projection: '+forbidden);
           for(const required of [
-            'ROLLBACK;', 'Anonymous snapshot', 'Pessoa sem papel admin',
+            'ROLLBACK;', 'Ativação acessível para anônimos', 'Pessoa sem papel admin',
             'Campanha em rascunho vazou', 'Campos inesperados expostos',
             'Pausa não interrompeu exibição',
           ]) if(!test.includes(required)) throw Error('R4 real database test missing '+required);
           for(const required of [
             'Publicidade', 'rel="sponsored noopener noreferrer"', 'min-h-[156px]',
             'Não representa certificação', 'asApprovedSponsoredCard',
-            'eut_ads_public_slot', 'Sem',
+            'eut_ads_public_slot',
           ]) {
-            if(required==='Sem') continue;
             if(!component.includes(required)) throw Error('Public card label/privacy/CLS missing '+required);
           }
           if(component.includes('service_role') || component.includes('contact_phone') ||
