@@ -30,7 +30,7 @@ export function registrationStepError(
       return "Informe seu nome público (entre 2 e 80 caracteres).";
     }
     if (!validMunicipality(form.state_uf, form.city)) {
-      return "Selecione a UF e um município válido onde você realmente atende.";
+      return "Selecione a UF e uma cidade válida do catálogo de municípios onde você atende.";
     }
     // The guided live form must contain a chosen official IBGE municipality ID.
     // Older unit-test fixtures may omit this optional field, but DB validation
