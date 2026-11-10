@@ -283,9 +283,9 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
                     {replyByRequest[r.id] ? (
                       <div className="w-full rounded-lg border border-primary/20 bg-primary/5 p-3">
                         <p className="text-xs font-semibold text-primary">Resposta privada do técnico</p>
-                        <p className="mt-2 whitespace-pre-line break-words text-sm text-foreground">{replyByRequest[r.id].body}</p>
+                        <p className="mt-2 whitespace-pre-line break-words text-sm text-foreground">{replyByRequest[r.id]!.body}</p>
                         <p className="mt-2 text-xs text-muted-foreground">
-                          {new Date(replyByRequest[r.id].created_at).toLocaleDateString("pt-BR")}
+                          {new Date(replyByRequest[r.id]!.created_at).toLocaleDateString("pt-BR")}
                         </p>
                       </div>
                     ) : sharedIds.has(r.id) && r.status === "aberta" ? (
