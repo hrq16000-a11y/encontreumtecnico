@@ -314,16 +314,12 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
   async function choose(role: Role) {
     if (busy || !canAttemptRole || (role !== "tecnico" && role !== "cliente")) return;
     if (!termsAccepted) return setError("Leia e aceite os Termos de Uso antes de escolher o tipo de conta.");
-    if (legacyRole && role !== legacyRole) {
-      setError("Seu cadastro WordPress já tem um tipo definido. Selecione o tipo indicado para associar sua conta.");
-      return;
-    }
     setBusy(true);
     setError(null);
     try {
       const { error } = await supabase.rpc("choose_account_type", { _role: role });
       if (error) {
-        setError("O servidor recusou esta escolha. Sua identidade precisa estar confirmada e, se existir uma conta anterior, o tipo original deverá ser preservado. Tente recuperar seu cadastro antigo.");
+        setError("O servidor recusou a escolha. Confirme sua identidade ou procure a recuperação manual se houver uma conta antiga vinculada a outra pessoa.");
       } else {
         await refreshRoles();
       }
@@ -412,11 +408,27 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
                   {busy ? "Ativando acesso…" : "Ativar administração do novo portal"}
                 </button>
               ) : legacyRole ? (
-                <button type="button" disabled={busy || !termsAccepted || !legacyChecked || rolesError || ownerCheckPending || ownerCheckError}
-                  onClick={() => void confirmLegacy()}
-                  className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60">
-                  {busy ? "Associando cadastro anterior…" : "Confirmo meus dados — recuperar conta e perfis"}
-                </button>
+                <>
+                  <button type="button" disabled={busy || !termsAccepted || !legacyChecked || rolesError || ownerCheckPending || ownerCheckError}
+                    onClick={() => void confirmLegacy()}
+                    className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+                    {busy ? "Associando cadastro anterior…" : "Confirmo meus dados — recuperar conta e perfis"}
+                  </button>
+                  <p className="mt-2 text-left text-xs text-muted-foreground">
+                    Seu tipo antigo é apenas referência. Você também pode escolher uma função diferente no portal novo,
+                    sem importar automaticamente profissão, contatos, categorias ou permissão da conta anterior.
+                  </p>
+                  <button type="button" disabled={busy || !canAttemptRole || !termsAccepted || rolesError || ownerCheckPending || ownerCheckError}
+                    onClick={() => choose("tecnico")}
+                    className="min-h-11 rounded-md border border-primary px-4 py-2.5 text-sm font-semibold text-primary disabled:opacity-60">
+                    Técnico com regras atuais
+                  </button>
+                  <button type="button" disabled={busy || !canAttemptRole || !termsAccepted || rolesError || ownerCheckPending || ownerCheckError}
+                    onClick={() => choose("cliente")}
+                    className="min-h-11 rounded-md border border-input px-4 py-2.5 text-sm font-semibold text-foreground disabled:opacity-60">
+                    Cliente com regras atuais
+                  </button>
+                </>
               ) : (
                 <>
                   <button disabled={busy || !canAttemptRole || !termsAccepted || rolesError || ownerCheckPending || ownerCheckError} onClick={() => choose("tecnico")} className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">

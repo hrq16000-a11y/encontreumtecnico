@@ -46,7 +46,8 @@ jobs:
             'disabled={busy || !canAttemptRole || !termsAccepted || rolesError || ownerCheckPending || ownerCheckError}',
             'canAttemptNewAccountRole({ legacyChecked, legacyLookupError, legacyRole })',
             'supabase.rpc("choose_account_type", { _role: role })',
-            'role !== legacyRole',
+            'Técnico com regras atuais',
+            'Cliente com regras atuais',
           ]) {
             if (!ui.includes(term)) throw Error('Missing safe first-login step: '+term);
           }
@@ -59,7 +60,7 @@ jobs:
           const newRoleGuard=readFileSync('src/lib/onboarding-legacy-fallback.ts','utf8');
           if (!newRoleGuard.includes('state.legacyRole === null') ||
               !newRoleGuard.includes('state.legacyLookupError'))
-            throw Error('Known legacy role must not be overridable on lookup failure');
+            throw Error('Do not use a stale imported role after failed legacy lookup');
           console.log('Verified Google/session and server-only role authority; optional legacy lookup failures do not block new registration');
           NODE
       - name: Verify one-time project-owner bootstrap contract

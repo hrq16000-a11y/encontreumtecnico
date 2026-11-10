@@ -14,11 +14,11 @@ describe("Cadastro novo independente do lookup histórico", () => {
     })).toBe(true);
   });
 
-  it("não oferece outro papel para conta antiga de tipo já conhecido", () => {
+  it("oferece uma nova escolha de papel mesmo com referência histórica conhecida", () => {
     for (const legacyRole of ["tecnico", "cliente"] as const) {
       expect(canAttemptNewAccountRole({
         legacyChecked: true, legacyLookupError: false, legacyRole,
-      })).toBe(false);
+      })).toBe(true);
     }
   });
 
