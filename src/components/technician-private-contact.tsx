@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { normalizeBrazilianPhone } from "@/lib/brazilian-phone";
 
 const db = supabase as unknown as SupabaseClient;
 
@@ -58,15 +59,16 @@ export function TechnicianPrivateContact({ userId }: { userId: string }) {
   async function save(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (busy || loading) return;
-    if (!/^(?:\+?55)?[\s().-]*[1-9]{2}[\s().-]*[2-9][0-9\s().-]{7,12}$/.test(phone.trim())) {
-      setMessage("Informe um número brasileiro válido com DDD. Exemplo: (41) 99999-9999.");
+    const normalizedPhone = normalizeBrazilianPhone(phone);
+    if (!normalizedPhone) {
+      setMessage("Informe um telefone com DDD: 10 dígitos (fixo) ou 11 dígitos (celular).");
       return;
     }
     setBusy(true);
     setMessage(null);
     try {
       const { data, error } = await db.rpc("eut_save_my_private_contact", {
-        _phone: phone.trim(),
+        _phone: normalizedPhone,
         _allow_paid_contact: allowPaidContact,
       });
       if (error || data?.saved !== true) {
@@ -74,8 +76,8 @@ export function TechnicianPrivateContact({ userId }: { userId: string }) {
       } else {
         setHasNumber(true);
         setMessage(allowPaidContact
-          ? "WhatsApp salvo. O número continuará privado e só será fornecido após pagamento real confirmado."
-          : "WhatsApp salvo como privado. Você ainda não autorizou a liberação após compra.");
+          ? "Telefone salvo de forma privada. A liberação exige acesso confirmado, quando disponível."
+          : "Telefone salvo como privado. Você ainda não autorizou a liberação após compra.");
       }
     } catch {
       setMessage("Falha de conexão ao salvar o contato privado.");
@@ -85,7 +87,7 @@ export function TechnicianPrivateContact({ userId }: { userId: string }) {
   }
 
   async function remove() {
-    if (!hasNumber || busy || !window.confirm("Excluir seu WhatsApp do portal? Compras anteriores também ficarão sem acesso ao número enquanto ele estiver ausente.")) return;
+    if (!hasNumber || busy || !window.confirm("Excluir seu telefone do portal? Compras anteriores também ficarão sem acesso ao número enquanto ele estiver ausente.")) return;
     setBusy(true);
     setMessage(null);
     try {
@@ -106,19 +108,19 @@ export function TechnicianPrivateContact({ userId }: { userId: string }) {
   }
 
   return (
-    <section className="mt-5 rounded-xl border border-border bg-card p-5" aria-label="Meu WhatsApp privado">
-      <h2 className="text-lg font-semibold text-card-foreground">Meu WhatsApp privado</h2>
+    <section className="mt-5 rounded-xl border border-border bg-card p-5" aria-label="Meu telefone privado">
+      <h2 className="text-lg font-semibold text-card-foreground">Meu telefone privado</h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        Cadastre o número no qual deseja receber contatos de clientes. Ele não aparece no seu perfil público,
+        Cadastre um telefone fixo (10 dígitos) ou celular (11 dígitos), sempre com DDD. Um telefone fixo não garante WhatsApp. Ele não aparece no seu perfil público,
         no Google nem na busca de técnicos. A liberação a clientes depende de uma aquisição confirmada,
         quando o sistema de pagamento estiver disponível.
       </p>
       <form onSubmit={(event) => void save(event)} className="mt-4 grid gap-4">
         <label className="text-sm font-medium text-foreground">
-          WhatsApp com DDD
+          Telefone com DDD (fixo ou celular)
           <input type="tel" inputMode="tel" autoComplete="tel-national" required
             maxLength={40} disabled={busy || loading}
-            placeholder="Ex.: (41) 99999-9999"
+            placeholder="Ex.: (41) 3333-4444 ou (41) 99999-8888"
             value={phone} onChange={(event) => setPhone(event.target.value)}
             className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-base text-foreground disabled:opacity-60" />
         </label>
@@ -133,7 +135,7 @@ export function TechnicianPrivateContact({ userId }: { userId: string }) {
         <div className="flex flex-wrap gap-2">
           <button type="submit" disabled={busy || loading}
             className="min-h-11 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60">
-            {busy ? "Atualizando…" : hasNumber ? "Atualizar WhatsApp privado" : "Salvar WhatsApp privado"}
+            {busy ? "Atualizando…" : hasNumber ? "Atualizar telefone privado" : "Salvar telefone privado"}
           </button>
           {hasNumber && (
             <button type="button" onClick={() => void remove()} disabled={busy || loading}
@@ -145,7 +147,7 @@ export function TechnicianPrivateContact({ userId }: { userId: string }) {
         {message && <p role="status" className="text-sm text-foreground">{message}</p>}
       </form>
       <p className="mt-3 text-xs text-muted-foreground">
-        Cadastrar o WhatsApp não gera cobrança ou mensalidade para o prestador. Não significa que o
+        Cadastrar o telefone não gera cobrança ou mensalidade para o prestador. Não significa que o
         pagamento do cliente já esteja ativado ou que o portal tenha verificado a profissão informada.
       </p>
     </section>

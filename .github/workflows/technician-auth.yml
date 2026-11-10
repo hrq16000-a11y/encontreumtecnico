@@ -10,6 +10,9 @@ on:
       - 'src/lib/legacy-claim-validation.test.ts'
       - 'src/components/legacy-public-archive.tsx'
       - 'src/routes/area-tecnico.tsx'
+      - 'src/components/technician-private-contact.tsx'
+      - 'src/lib/brazilian-phone.ts'
+      - 'src/lib/brazilian-phone.test.ts'
       - 'src/components/legacy-account-activation.tsx'
       - 'src/components/legacy-profile-import.tsx'
       - '.github/workflows/technician-auth.yml'
@@ -28,6 +31,8 @@ jobs:
         run: bun run build
       - name: TypeScript check
         run: bunx tsc --noEmit --pretty false
+      - name: Validar telefones brasileiros de 10 e 11 dígitos
+        run: bunx vitest run src/lib/brazilian-phone.test.ts
       - name: Legacy claim return validation tests
         run: bunx vitest run src/lib/legacy-claim-validation.test.ts
       - name: Verify auth route and recovery contract
