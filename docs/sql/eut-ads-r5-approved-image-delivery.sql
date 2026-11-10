@@ -93,10 +93,14 @@ BEGIN
     ),'[]'::jsonb),
     'creatives', COALESCE((
       SELECT jsonb_agg(to_jsonb(q)) FROM (
-        SELECT id,campaign_id,title,creative_type,media_storage_key,
-          public_media_key,headline,description,image_alt,destination_url,
-          review_state,created_at
-        FROM eut_ads.creatives ORDER BY created_at DESC,id LIMIT 100
+        SELECT cr.id,cr.campaign_id,cr.title,cr.creative_type,cr.media_storage_key,
+          cr.public_media_key,cr.headline,cr.description,cr.image_alt,cr.destination_url,
+          cr.review_state,cr.created_at,
+          EXISTS (
+            SELECT 1 FROM storage.objects o
+            WHERE o.bucket_id='eut-ad-delivery' AND o.name=cr.public_media_key
+          ) AS public_media_delivered
+        FROM eut_ads.creatives cr ORDER BY cr.created_at DESC,cr.id LIMIT 100
       ) q
     ),'[]'::jsonb),
     'assignments', COALESCE((
