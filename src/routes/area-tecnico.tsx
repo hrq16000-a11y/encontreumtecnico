@@ -365,9 +365,19 @@ export function TechnicianAreaPage() {
                       {form.city.trim()}/{form.state_uf}
                       {form.neighborhood.trim() ? ` · ${form.neighborhood.trim()}` : ""}
                     </p>
-                    <p className="mt-2 text-muted-foreground">
-                      {form.specialties.length} {form.specialties.length === 1 ? "especialidade" : "especialidades"} ·
-                      {" "}{form.service_slugs.length} {form.service_slugs.length === 1 ? "serviço" : "serviços"}
+                    <p className="mt-3 font-semibold text-foreground">Especialidades escolhidas</p>
+                    <p className="mt-1 text-muted-foreground">
+                      {categories.filter((category) => form.specialties.includes(category.slug))
+                        .map((category) => category.label).join(", ")}
+                    </p>
+                    <p className="mt-3 font-semibold text-foreground">Serviços que você realiza</p>
+                    <p className="mt-1 text-muted-foreground">
+                      {services.filter((service) => form.service_slugs.includes(service.slug))
+                        .map((service) => service.label).join(", ")}
+                    </p>
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      Ao publicar, estas especialidades e sua região de atendimento
+                      poderão aparecer no perfil público. Nenhum contato privado é divulgado.
                     </p>
                   </div>
               <label className="text-sm font-medium text-foreground">Apresentação
