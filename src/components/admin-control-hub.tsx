@@ -44,9 +44,9 @@ export function AdminControlHub() {
           </span>
         </div>
         <p className="mt-2 text-sm text-muted-foreground">
-          A gestão privada de patrocinadores, posições, campanhas em rascunho,
-          criativos e imagens já está disponível abaixo. Agendamento público,
-          aprovação de campanhas, exibição de banners e relatórios de entrega
+          A gestão privada de patrocinadores, posições e criativos está disponível abaixo.
+          Cards patrocinados podem ser aprovados e exibidos em três espaços públicos,
+          após confirmação comercial. Banners de imagem, segmentação e relatórios
           ainda dependem das próximas rodadas.
         </p>
         <a href="#admin-patrocinadores" className="mt-3 inline-flex min-h-10 items-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">

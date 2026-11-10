@@ -1,0 +1,87 @@
+name: EUT ads R4 public delivery safety gate
+on:
+  pull_request:
+    paths:
+      - 'docs/sql/eut-ads-r4-approved-public-cards.sql'
+      - 'docs/sql/tests/eut-ads-r4-rollback-delivery.sql'
+      - 'src/components/sponsored-public-slot.tsx'
+      - 'src/components/sponsored-public-slot.test.ts'
+      - 'src/components/admin-advertising-manager.tsx'
+      - 'src/components/admin-control-hub.tsx'
+      - 'src/routes/index.tsx'
+      - 'src/routes/tecnicos.index.tsx'
+      - 'src/routes/servicos.tsx'
+      - '.github/workflows/eut-ads-r4.yml'
+permissions:
+  contents: read
+jobs:
+  public-ads:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Build TanStack production
+        run: bun run build
+      - name: TypeScript strict
+        run: bunx tsc --noEmit --pretty false
+      - name: Validate sponsored-card input and private-data stripping
+        run: bunx vitest run src/components/sponsored-public-slot.test.ts
+      - name: R4 security contract, routes and labels
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const sql=readFileSync('docs/sql/eut-ads-r4-approved-public-cards.sql','utf8');
+          const test=readFileSync('docs/sql/tests/eut-ads-r4-rollback-delivery.sql','utf8');
+          const component=readFileSync('src/components/sponsored-public-slot.tsx','utf8');
+          const admin=readFileSync('src/components/admin-advertising-manager.tsx','utf8');
+          const pages={
+            'src/routes/index.tsx':'<SponsoredPublicSlot slotKey="home.content_1" routePath="/" />',
+            'src/routes/tecnicos.index.tsx':'<SponsoredPublicSlot slotKey="search.top" routePath="/tecnicos" />',
+            'src/routes/servicos.tsx':'<SponsoredPublicSlot slotKey="services.content_1" routePath="/servicos" />',
+          };
+          for(const [path,token] of Object.entries(pages)) {
+            const page=readFileSync(path,'utf8');
+            if(!page.includes(token)) throw Error('Missing approved public slot: '+path);
+          }
+          for(const required of [
+            'public.eut_ads_public_slot(_slot_key text, _route_path text)',
+            'public.eut_ads_admin_activate_card(', 'eut_ads.require_admin()',
+            "c.status='active'", "s.status='contracted'", "cr.review_state='approved'",
+            "cr.creative_type='sponsored_card'", "p.format='sponsored_card'",
+            'cardinality(cp.uf_targets)=0', 'cardinality(cp.city_targets)=0',
+            "cp.enabled=true", "c.ends_at > statement_timestamp()",
+            'REVOKE ALL ON FUNCTION public.eut_ads_public_slot(text,text) FROM PUBLIC, anon, authenticated',
+            'GRANT EXECUTE ON FUNCTION public.eut_ads_public_slot(text,text) TO anon, authenticated',
+            'REVOKE ALL ON FUNCTION public.eut_ads_admin_activate_card(uuid,uuid,uuid,text)',
+            "v_status<>'draft'", "v_price<=0", "v_start>statement_timestamp()",
+            "v_note)<16", "WHERE id=_creative_id AND review_state='draft'",
+            "SET status='active'", "SET enabled=true",
+            "'brand_name',s.brand_name", "'destination_url',cr.destination_url",
+          ]) if(!sql.includes(required)) throw Error('Security condition missing: '+required);
+          for(const forbidden of [
+            "'contact_email'", "'contact_phone_e164'", "'media_storage_key'",
+            "'price_cents'", "'tax_id_digits'", "'internal_notes'",
+          ]) if(sql.slice(0,2300).includes(forbidden)) throw Error('PII leaked in public projection: '+forbidden);
+          for(const required of [
+            'ROLLBACK;', 'Ativação acessível para anônimos', 'Pessoa sem papel admin',
+            'Campanha em rascunho vazou', 'Campos inesperados expostos',
+            'Pausa não interrompeu exibição',
+          ]) if(!test.includes(required)) throw Error('R4 real database test missing '+required);
+          for(const required of [
+            'Publicidade', 'rel="sponsored noopener noreferrer"', 'min-h-[156px]',
+            'Não representa certificação', 'asApprovedSponsoredCard',
+            'eut_ads_public_slot',
+          ]) {
+            if(!component.includes(required)) throw Error('Public card label/privacy/CLS missing '+required);
+          }
+          if(component.includes('service_role') || component.includes('contact_phone') ||
+             component.includes('navigator.geolocation') || component.includes('track?.(')) {
+            throw Error('Advertising delivery must not use privileged keys, tracking or private contacts');
+          }
+          if(!admin.includes('eut_ads_admin_activate_card') || !admin.includes('Confirmar revisão e ativar card público')) {
+            throw Error('Explicit admin approval UI missing');
+          }
+          console.log('R4 explicit card delivery and approval safety: PASS');
+          NODE

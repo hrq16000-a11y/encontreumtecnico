@@ -5,6 +5,7 @@ import logo from "@/assets/logo-encontreumtecnico.png.asset.json";
 import heroImg from "@/assets/tecnico-cftv-instalacao.jpg";
 import techImg from "@/assets/tecnica-informatica.jpg";
 import { PageShell } from "../components/page-placeholder";
+import { SponsoredPublicSlot } from "@/components/sponsored-public-slot";
 import { ProblemAssistant } from "../components/problem-assistant";
 import { Reveal } from "../components/motion";
 import {
@@ -180,6 +181,8 @@ function HomePage() {
           ))}
         </ul>
       </section>
+
+      <SponsoredPublicSlot slotKey="home.content_1" routePath="/" />
 
       <Reveal><CategoryGrid /></Reveal>
 
