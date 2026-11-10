@@ -34,7 +34,7 @@ const TABS: { key: TStatus; label: string }[] = [
   { key: "rejeitado", label: "Rejeitados" },
 ];
 
-function AdminPage() {
+export function AdminPage() {
   const { user, roles, loading } = useAuth();
   const isAdmin = roles.includes("admin");
   const [techs, setTechs] = useState<Tech[] | null>(null);

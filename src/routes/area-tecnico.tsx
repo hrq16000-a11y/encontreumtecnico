@@ -66,7 +66,7 @@ function TechnicianRequests() {
   );
 }
 
-function TechnicianAreaPage() {
+export function TechnicianAreaPage() {
   const { user, roles, loading } = useAuth();
   const { categories, loading: catalogLoading, error: catalogError } = useActiveCategories();
   const { services, loading: servicesLoading, error: servicesError } = useActiveServices();

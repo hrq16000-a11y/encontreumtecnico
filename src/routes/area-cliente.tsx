@@ -22,14 +22,18 @@ export const Route = createFileRoute("/area-cliente")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: ClientAreaPage,
+  component: CanonicalClientAreaPage,
 });
 
 const input = "mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-base text-foreground focus-visible:ring-2 focus-visible:ring-ring";
 
-function ClientAreaPage() {
-  const { user, loading } = useAuth();
+function CanonicalClientAreaPage() {
   const { tecnico } = Route.useSearch();
+  return <ClientAreaPage tecnico={tecnico} />;
+}
+
+export function ClientAreaPage({ tecnico }: { tecnico?: string }) {
+  const { user, loading } = useAuth();
   const [rows, setRows] = useState<Req[] | null>(null);
   const [form, setForm] = useState({ title: "", description: "", category: CATEGORIES[0] as string, city: "", region: "" });
   const [msg, setMsg] = useState<string | null>(null);

@@ -104,7 +104,7 @@ function EmailPasswordForm({ onError }: { onError: (m: string | null) => void })
   );
 }
 
-function SignInPage() {
+export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
   const { user, roles, loading, rolesError, refreshRoles } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
@@ -203,17 +203,17 @@ function SignInPage() {
       const stored = sessionStorage.getItem("eut-after-login");
       sessionStorage.removeItem("eut-after-login");
       if (stored && stored !== "/entrar") navigate({ to: stored as "/" });
-      else if (roles.includes("admin")) navigate({ to: "/admin" });
-      else if (roles.includes("tecnico")) navigate({ to: "/area-tecnico" });
-      else navigate({ to: "/area-cliente" });
+      else if (roles.includes("admin")) navigate({ to: lp2 ? "/lp2/admin" : "/admin" });
+      else if (roles.includes("tecnico")) navigate({ to: lp2 ? "/lp2/meu-perfil" : "/area-tecnico" });
+      else navigate({ to: lp2 ? "/lp2/cliente" : "/area-cliente" });
     }
     void continueLogin();
     return () => { active = false; };
-  }, [loading, user?.id, roleKey, navigate]);
+  }, [loading, user?.id, roleKey, navigate, lp2]);
 
   async function google() {
     setError(null);
-    const { error } = await signInWithGoogle();
+    const { error } = await signInWithGoogle(lp2 ? "/lp2/entrar" : "/entrar");
     if (error) setError("Não foi possível iniciar o login com Google. Tente novamente.");
   }
 
