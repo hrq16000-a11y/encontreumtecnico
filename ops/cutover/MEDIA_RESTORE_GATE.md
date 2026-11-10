@@ -60,3 +60,15 @@ the database. Run only on a trusted machine; never attach SQL to public CI.
 **A successful integrity check is not a restore test**, does not prove that a
 basename match is the right person's photo, and does not approve cutover.
 A controlled isolated restore, ID-level mapping and privacy checks remain required.
+
+
+## Matching original images without false associations
+
+The verifier now reports both **weak basename coincidences** and **stronger exact
+uploads-relative-path matches** (for example `2026/11/avatar.webp`). Two
+different technicians may have a photo with the same basename. Therefore
+`possible_zip_basename_matches` must never trigger automatic publication.
+Even `possible_zip_exact_upload_path_matches` is **not proof of who owns the
+image**: it only prioritizes which originals need manual ID-level review.
+No archive member name, image, client information or attachment URL is printed
+in the aggregate JSON output. The actual restoration is a separate step.

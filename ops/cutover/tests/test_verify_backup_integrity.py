@@ -44,10 +44,42 @@ class OfflineBackupAuditTests(unittest.TestCase):
         self.assertEqual(result["wordpress_xml"]["items"], 2)
         self.assertEqual(result["wordpress_xml"]["attachment_items"], 1)
         self.assertEqual(result["wordpress_xml"]["possible_zip_basename_matches"], 1)
+        self.assertEqual(result["wordpress_xml"]["possible_zip_exact_upload_path_matches"], 1)
         self.assertFalse(result["restore_verified"])
         self.assertFalse(result["cutover_approved"])
         self.assertFalse(result["old_sql_dump"]["sql_executed"])
         self.assertEqual(len(result["media_zip"]["sha256"]), 64)
+
+
+    def test_same_basename_different_folders_not_misattributed(self):
+        self.write_zip([
+            ("wp-content/uploads/2025/10/avatar.webp", b"old"),
+            ("uploads/2026/11/avatar.webp", b"new"),
+        ])
+        self.xml.write_bytes(WXR.replace(b"/uploads/avatar.webp", b"/uploads/2026/11/avatar.webp"))
+        summary = checker.audit_backup_set(self.xml, self.media, self.sql)["wordpress_xml"]
+        self.assertEqual(summary["possible_zip_basename_matches"], 1)
+        self.assertEqual(summary["ambiguous_basename_matches"], 1)
+        self.assertEqual(summary["possible_zip_exact_upload_path_matches"], 1)
+        self.assertEqual(summary["ambiguous_upload_path_matches"], 0)
+
+    def test_absent_original_upload_path_is_not_a_match(self):
+        self.write_zip([("uploads/2025/10/avatar.webp", b"wrong version")])
+        self.xml.write_bytes(WXR.replace(b"/uploads/avatar.webp", b"/uploads/2026/11/avatar.webp"))
+        summary = checker.audit_backup_set(self.xml, self.media, self.sql)["wordpress_xml"]
+        self.assertEqual(summary["possible_zip_basename_matches"], 1)
+        self.assertEqual(summary["possible_zip_exact_upload_path_matches"], 0)
+        self.assertFalse(summary["zip_path_matches_are_identity_proof"])
+
+    def test_encoded_or_traversal_upload_path(self):
+        self.assertEqual(
+            checker.uploads_relative_path(
+                "https://example.org/wp-content/uploads/2026/11/my%20photo.webp", source_url=True
+            ),
+            "2026/11/my photo.webp",
+        )
+        self.assertIsNone(checker.uploads_relative_path("/uploads/%2e%2e/private.webp", source_url=True))
+        self.assertIsNone(checker.uploads_relative_path("uploads/../private.webp"))
 
     def test_rejects_path_traversal(self):
         self.write_zip([("../secrets.txt", b"x")])

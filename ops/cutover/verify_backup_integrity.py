@@ -63,10 +63,33 @@ def validate_member(info: zipfile.ZipInfo) -> str:
     return str(PurePosixPath(raw)).casefold().rstrip("/")
 
 
+
+def uploads_relative_path(value: str, *, source_url: bool = False) -> str | None:
+    """Match only full paths below uploads/, never a photo's basename alone.
+
+    A ZIP entry like backup/wp-content/uploads/2026/11/photo.webp matches a
+    WXR attachment URL ending in /uploads/2026/11/photo.webp. This is not
+    proof that the attachment belongs to a particular technician.
+    """
+    decoded = unquote(urlsplit(value).path if source_url else value)
+    if "\\" in decoded or "\x00" in decoded:
+        return None
+    parts = decoded.split("/")
+    if any(part in (".", "..") for part in parts):
+        return None
+    for index, segment in enumerate(parts[:-1]):
+        if segment.casefold() != "uploads":
+            continue
+        relative = parts[index + 1:]
+        if not all(relative):
+            return None
+        return "/".join(relative).casefold()
+    return None
+
 def inspect_zip(path: Path) -> tuple[dict[str, int | str], Counter[str]]:
     result = file_checksum(path)
     names: set[str] = set()
-    basenames: Counter[str] = Counter()
+    media_keys: Counter[str] = Counter()
     total = 0
     files = 0
     try:
@@ -85,7 +108,10 @@ def inspect_zip(path: Path) -> tuple[dict[str, int | str], Counter[str]]:
                 files += 1
                 if total > MAX_TOTAL_UNCOMPRESSED:
                     raise ValidationError("ZIP exceeds maximum uncompressed size")
-                basenames[PurePosixPath(normalized).name] += 1
+                media_keys["basename:" + PurePosixPath(normalized).name] += 1
+                relative = uploads_relative_path(info.filename)
+                if relative:
+                    media_keys["uploads:" + relative] += 1
                 # Read through EOF: ZipExtFile validates CRC, without extraction.
                 with archive.open(info) as member:
                     for _chunk in iter(lambda: member.read(CHUNK), b""):
@@ -93,7 +119,7 @@ def inspect_zip(path: Path) -> tuple[dict[str, int | str], Counter[str]]:
     except (zipfile.BadZipFile, EOFError, RuntimeError, OSError) as exc:
         raise ValidationError("ZIP failed checksum, CRC or structural validation") from exc
     result.update({"entries": len(entries), "files": files, "uncompressed_bytes": total, "crc_check": "pass"})
-    return result, basenames
+    return result, media_keys
 
 
 def ensure_xml_no_entities(path: Path) -> None:
@@ -108,7 +134,7 @@ def ensure_xml_no_entities(path: Path) -> None:
             carry = value[-16:]
 
 
-def inspect_wxr(path: Path, media_basenames: Counter[str]) -> dict[str, int | str]:
+def inspect_wxr(path: Path, media_keys: Counter[str]) -> dict[str, int | str]:
     result = file_checksum(path)
     ensure_xml_no_entities(path)
     items = 0
@@ -116,6 +142,8 @@ def inspect_wxr(path: Path, media_basenames: Counter[str]) -> dict[str, int | st
     ids: set[str] = set()
     name_matched = 0
     name_ambiguous = 0
+    upload_path_matched = 0
+    upload_path_ambiguous = 0
     missing_attachment_urls = 0
     try:
         for _event, el in ET.iterparse(path, events=("end",)):
@@ -134,9 +162,13 @@ def inspect_wxr(path: Path, media_basenames: Counter[str]) -> dict[str, int | st
                     missing_attachment_urls += 1
                 else:
                     basename = PurePosixPath(unquote(urlsplit(url).path)).name.casefold()
-                    candidates = media_basenames.get(basename, 0)
+                    candidates = media_keys.get("basename:" + basename, 0)
                     name_matched += int(candidates > 0)
                     name_ambiguous += int(candidates > 1)
+                    relative = uploads_relative_path(url, source_url=True)
+                    exact_candidates = media_keys.get("uploads:" + relative, 0) if relative else 0
+                    upload_path_matched += int(exact_candidates == 1)
+                    upload_path_ambiguous += int(exact_candidates > 1)
             el.clear()
     except ET.ParseError as exc:
         raise ValidationError("WordPress XML failed parsing") from exc
@@ -148,16 +180,19 @@ def inspect_wxr(path: Path, media_basenames: Counter[str]) -> dict[str, int | st
         "attachment_urls_absent": missing_attachment_urls,
         "possible_zip_basename_matches": name_matched,
         "ambiguous_basename_matches": name_ambiguous,
+        "possible_zip_exact_upload_path_matches": upload_path_matched,
+        "ambiguous_upload_path_matches": upload_path_ambiguous,
+        "zip_path_matches_are_identity_proof": False,
         "basename_matches_are_identity_proof": False,
     })
     return result
 
 
 def audit_backup_set(xml: Path, media: Path, sql: Path) -> dict:
-    zip_result, names = inspect_zip(media)
+    zip_result, media_keys = inspect_zip(media)
     return {
         "media_zip": zip_result,
-        "wordpress_xml": inspect_wxr(xml, names),
+        "wordpress_xml": inspect_wxr(xml, media_keys),
         "old_sql_dump": {**file_checksum(sql), "sql_executed": False},
         "backup_integrity": "pass",
         "restore_verified": False,
