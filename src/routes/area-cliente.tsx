@@ -71,6 +71,9 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
     setForm({ title: "", description: "", category: "", city: "", region: "" });
     setMsg(null);
     setSaving(false);
+    // A pending share belongs to the previous account. Its finally handler
+    // intentionally cannot mutate another user's state, so clear it here.
+    setSendingId(null);
     setShareNow(false);
     pendingSubmission.current = null;
   }, [user?.id]);
