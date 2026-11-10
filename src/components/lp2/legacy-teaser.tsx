@@ -15,9 +15,9 @@ export function LP2LegacyTeaser(){
  const [error,setError]=useState(false)
  useEffect(()=>{
   let active=true
-  void publicArchive.from('legacy_public_archive')
+  void Promise.resolve(publicArchive.from('legacy_public_archive')
    .select('wp_post_id,display_name,sector_tags,country_label,validation_status')
-   .eq('validation_status','em_validacao').order('wp_post_id',{ascending:true}).limit(4)
+   .eq('validation_status','em_validacao').order('wp_post_id',{ascending:true}).limit(4))
    .then(({data,error:queryError}:{data:Historical[]|null;error:unknown})=>{
     if(!active)return
     if(queryError)setError(true)
