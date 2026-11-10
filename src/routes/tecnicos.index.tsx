@@ -178,7 +178,11 @@ function TechniciansPage() {
                   >
                     <div className="flex items-start justify-between gap-2">
                       <h2 className="font-semibold text-card-foreground">{t.display_name}</h2>
-                      <span className="shrink-0 rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Perfil público</span>
+                      {t.online_now ? (
+                        <span className="shrink-0 rounded bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">Online recentemente</span>
+                      ) : (
+                        <span className="shrink-0 rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">Perfil público</span>
+                      )}
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {t.city}{t.state_uf ? `/${t.state_uf}` : ""}{t.neighborhood ? ` · ${t.neighborhood}` : ""}{t.region ? ` · ${t.region}` : ""}
