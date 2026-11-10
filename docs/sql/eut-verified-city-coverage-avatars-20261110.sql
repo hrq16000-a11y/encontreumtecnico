@@ -143,6 +143,12 @@ CREATE POLICY eut_technician_avatar_owner_insert ON storage.objects
   AND EXISTS (SELECT 1 FROM public.user_roles r
     WHERE r.user_id=(SELECT auth.uid()) AND r.role='tecnico'::public.app_role)
  );
+DROP POLICY IF EXISTS eut_technician_avatar_owner_select ON storage.objects;
+CREATE POLICY eut_technician_avatar_owner_select ON storage.objects
+ FOR SELECT TO authenticated USING (
+  bucket_id='eut-technician-avatars'
+  AND split_part(name,'/',2)=(SELECT auth.uid()::text)
+ );
 DROP POLICY IF EXISTS eut_technician_avatar_owner_delete ON storage.objects;
 CREATE POLICY eut_technician_avatar_owner_delete ON storage.objects
  FOR DELETE TO authenticated USING (
