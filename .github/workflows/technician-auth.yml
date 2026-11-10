@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'src/routes/entrar.tsx'
+      - 'src/lib/onboarding-legacy-fallback.ts'
+      - 'src/lib/onboarding-legacy-fallback.test.ts'
       - 'src/hooks/use-auth.tsx'
       - 'src/routes/redefinir-senha.tsx'
       - 'src/routes/reivindicar-cadastro.tsx'
@@ -33,14 +35,28 @@ jobs:
         run: bunx tsc --noEmit --pretty false
       - name: Validar telefones brasileiros de 10 e 11 dígitos
         run: bunx vitest run src/lib/brazilian-phone.test.ts
-      - name: Legacy claim and account isolation tests
-        run: bunx vitest run src/lib/legacy-claim-validation.test.ts src/lib/account-scoped-queries.test.ts
+      - name: New-account fallback, legacy identity and account isolation tests
+        run: bunx vitest run src/lib/onboarding-legacy-fallback.test.ts src/lib/legacy-claim-validation.test.ts src/lib/account-scoped-queries.test.ts
       - name: Verify auth route and recovery contract
         run: |
           node --input-type=module <<'NODE'
           import { readFileSync } from 'node:fs';
           const signin = readFileSync('src/routes/entrar.tsx','utf8');
           const auth = readFileSync('src/hooks/use-auth.tsx','utf8');
+          const standalone = readFileSync('src/lib/onboarding-legacy-fallback.ts','utf8');
+          const dbContract = 'choose_account_type';
+          for (const required of [
+            'canAttemptNewAccountRole({ legacyChecked, legacyLookupError, legacyRole })',
+            'if (busy || !canAttemptRole',
+            'disabled={busy || !canAttemptRole',
+            'supabase.rpc("choose_account_type", { _role: role })',
+            'Confirmo meus dados — recuperar conta e perfis',
+            'eut_confirm_my_legacy_account',
+          ]) if (!signin.includes(required)) throw Error('Secure independent signup flow missing: '+required);
+          if (!standalone.includes('legacyChecked || state.legacyLookupError') ||
+              !standalone.includes('state.legacyRole === null')) throw Error('Onboarding fallback must not override known legacy roles');
+          if (signin.includes('user_roles").insert(')) throw Error('Client must never assign a user role directly');
+          if (!dbContract) throw Error('Server role authority missing');
           for (const v of [
             'await supabase.auth.getUser()',
             'onAuthStateChange',
