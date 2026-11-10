@@ -33,8 +33,8 @@ jobs:
         run: bunx tsc --noEmit --pretty false
       - name: Validar telefones brasileiros de 10 e 11 dígitos
         run: bunx vitest run src/lib/brazilian-phone.test.ts
-      - name: Legacy claim return validation tests
-        run: bunx vitest run src/lib/legacy-claim-validation.test.ts
+      - name: Legacy claim and account isolation tests
+        run: bunx vitest run src/lib/legacy-claim-validation.test.ts src/lib/account-scoped-queries.test.ts
       - name: Verify auth route and recovery contract
         run: |
           node --input-type=module <<'NODE'
@@ -73,6 +73,16 @@ jobs:
           const importPanel = readFileSync('src/components/legacy-profile-import.tsx','utf8');
           const activation = readFileSync('src/components/legacy-account-activation.tsx','utf8');
           const techArea = readFileSync('src/routes/area-tecnico.tsx','utf8');
+          for (const term of [
+            'canAcceptAccountResult', 'profileOwnerId', 'profileReady',
+            'setProfileError(true)', 'Tentar carregar novamente',
+            'Conferir meu perfil publicado', 'Publicar meu perfil gratuitamente',
+          ]) {
+            if (!techArea.includes(term)) throw Error('First technician signup safeguard missing: '+term);
+          }
+          if (techArea.includes('Enviar para análise')) {
+            throw Error('Technician signup must not imply manual review when publication is automatic');
+          }
           if (!importPanel.includes('eut_my_linked_legacy_candidate_details') ||
               !importPanel.includes('Reutilizar nome e apresentação') ||
               !activation.includes('eut_confirm_my_legacy_account') ||
