@@ -11,6 +11,7 @@ import { LegacyClaimReview } from "@/components/legacy-claim-review";
 import { EutAdminManager } from "@/components/eut-admin-manager";
 import { AdminControlHub } from "@/components/admin-control-hub";
 import { AdminAdvertisingManager } from "@/components/admin-advertising-manager";
+import { AdminContactsCenter } from "@/components/admin-contacts-center";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -107,6 +108,7 @@ export function AdminPage() {
 
             <p className="mt-3 text-sm text-muted-foreground">Os indicadores acima consideram os cadastros atuais. Os registros históricos ainda em revisão aparecem separadamente abaixo.</p>
             <AdminControlHub />
+            <div id="admin-contatos" className="scroll-mt-20"><AdminContactsCenter /></div>
             <div id="admin-patrocinadores" className="scroll-mt-20"><AdminAdvertisingManager /></div>
             <div id="admin-metricas" className="scroll-mt-20"><SearchMetrics /></div>
             <div id="admin-legado" className="scroll-mt-20"><LegacyReviewQueue /></div>
