@@ -14,25 +14,25 @@ export function renderErrorPage(status: 500 | 503 = 500): string {
     <title>${status} · ${copy.label} | Encontre um Técnico</title>
     <style>
       * { box-sizing: border-box; }
-      html { color-scheme: light; }
-      body { min-height: 100vh; margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: radial-gradient(ellipse at 50% 10%, #e8f4ff 0, #fff 58%); color: #142c47; display: flex; flex-direction: column; }
+      html { color-scheme: dark; }
+      body { min-height: 100vh; margin: 0; display: flex; flex-direction: column; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: radial-gradient(ellipse at 75% 12%, #184967 0, transparent 44%), linear-gradient(135deg, #112b44, #09192b); color: #fff; }
       header, footer { width: min(100%, 75rem); margin-inline: auto; padding: 1.5rem 1.25rem; }
-      header a { color: #163c67; font-weight: 800; letter-spacing: -.02em; font-size: 1.125rem; text-decoration: none; }
-      main { display: grid; place-items: center; flex: 1; padding: 1.25rem; }
-      .card { width: min(100%, 36rem); border: 1px solid #dce8f3; border-radius: 1.5rem; background: #fff; box-shadow: 0 16px 60px #1539610c; padding: clamp(1.5rem, 5vw, 3rem); text-align: center; }
-      .symbol { width: 5rem; height: 5rem; display: grid; place-items: center; margin: 0 auto 1.5rem; border-radius: 1.25rem; background: #eaf4fc; color: #126aa8; font-size: 2rem; font-weight: 700; }
-      .label { font-size: .75rem; text-transform: uppercase; font-weight: 800; letter-spacing: .17em; color: #096aa8; }
-      h1 { font-size: clamp(1.75rem, 5vw, 2.25rem); line-height: 1.15; letter-spacing: -.04em; margin: .75rem 0 1rem; }
-      p { color: #516579; line-height: 1.7; margin: 0 auto .75rem; max-width: 29rem; }
+      header a { color: #fff; font-weight: 800; letter-spacing: -.03em; font-size: 1.15rem; text-decoration: none; }
+      main { display: grid; place-items: center; flex: 1; padding: 2rem 1.25rem; }
+      .card { width: min(100%, 46rem); text-align: center; }
+      .symbol { width: 2.5rem; height: 2.5rem; display: grid; place-items: center; margin: 0 auto .65rem; border-radius: 100%; background: #13496c; color: #8be3ff; font-weight: 700; }
+      .label { text-transform: uppercase; font-size: .8rem; font-weight: 800; letter-spacing: .15em; color: #85dffc; }
+      h1 { font-size: clamp(2rem, 5vw, 3rem); line-height: 1.14; letter-spacing: -.04em; margin: 1rem 0 1.3rem; }
+      p { color: #dfedf6; line-height: 1.7; margin: .7rem auto; max-width: 33rem; }
       .actions { display: flex; flex-wrap: wrap; gap: .75rem; justify-content: center; margin-top: 2rem; }
-      .actions a { display: inline-flex; align-items: center; justify-content: center; min-height: 3rem; border-radius: .75rem; padding: .75rem 1.15rem; font-weight: 700; text-decoration: none; }
-      .primary { background: #066ba9; color: #fff; }
-      .secondary { border: 1px solid #d5e0eb; color: #142c47; }
-      .help { border-top: 1px solid #e6edf4; margin-top: 2rem; padding-top: 1.25rem; font-size: .9rem; }
-      .help a { color: #066ba9; font-weight: 700; }
-      footer { color: #65788a; font-size: .8rem; }
+      .actions a { display: inline-flex; align-items: center; justify-content: center; min-height: 3rem; border-radius: .75rem; padding: .75rem 1.4rem; font-weight: 750; text-decoration: none; }
+      .primary { background: #17b7e9; color: #071d31; }
+      .secondary { border: 1px solid #819bb0; background: #ffffff13; color: #fff; }
+      .help { margin-top: 2rem; font-size: .9rem; }
+      .help a { color: #85dffc; font-weight: 700; }
+      footer { border-top: 1px solid #ffffff26; color: #acc9dd; font-size: .8rem; }
       @media (max-width: 30rem) { .actions { flex-direction: column; } }
-      a:focus-visible { outline: 3px solid #f6aa38; outline-offset: 3px; }
+      a:focus-visible { outline: 3px solid #8be3ff; outline-offset: 3px; }
     </style>
   </head>
   <body>
