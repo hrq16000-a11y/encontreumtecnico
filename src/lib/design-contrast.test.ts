@@ -52,7 +52,7 @@ describe("contraste global EUT — WCAG AA", () => {
     expect(dark.length).toBeGreaterThan(100);
     expect(brand.indexOf(".dark {")).toBeGreaterThan(brand.indexOf(":root {"));
     expect(css).toContain("/* site-import tokens: end */");
-    expect(css).toContain("@scope"); // Imported legacy and LP2 styles remain isolated elsewhere.
+    expect(css).toContain("--site-import-foreground"); // Imported roles retain their own prefixed tokens.
   });
   for (const [theme, section] of [["claro", light], ["escuro", dark]] as const) {
     for (const [foreground, background] of textPairs) {
