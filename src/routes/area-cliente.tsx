@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState, type FormEvent } from "react";
+import { useContext, useEffect, useState, type FormEvent } from "react";
 import { z } from "zod";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { PageShell } from "../components/page-placeholder";
+import { PageShell, LP2EmbeddedContext } from "../components/page-placeholder";
 import { RequestCard, type Req } from "../components/request-list";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +33,7 @@ function CanonicalClientAreaPage() {
 }
 
 export function ClientAreaPage({ tecnico }: { tecnico?: string }) {
+  const lp2 = useContext(LP2EmbeddedContext);
   const { user, loading } = useAuth();
   const [rows, setRows] = useState<Req[] | null>(null);
   const [form, setForm] = useState({ title: "", description: "", category: CATEGORIES[0] as string, city: "", region: "" });
@@ -82,7 +83,7 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string }) {
           <p className="mt-4 text-sm text-muted-foreground">Carregando…</p>
         ) : !user ? (
           <p className="mt-4 text-sm text-muted-foreground">
-            <Link to="/entrar" className="font-medium text-primary underline">Entre</Link> para abrir e acompanhar suas solicitações.
+            <Link to={lp2 ? "/lp2/entrar" : "/entrar"} className="font-medium text-primary underline">Entre</Link> para abrir e acompanhar suas solicitações.
           </p>
         ) : (
           <>

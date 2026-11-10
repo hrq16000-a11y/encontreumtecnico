@@ -1,11 +1,12 @@
 import {createFileRoute,Link,Outlet} from '@tanstack/react-router'
 import {useState} from 'react'
+import {LP2EmbeddedContext} from '../../components/page-placeholder'
 import {ServiceIcon} from '../../components/lp2/ServiceIcon'
 import '../../components/lp2/theme.css'
 
 const logo='/lp2-assets/logo-original.webp'
 export const Route=createFileRoute('/lp2')({
-  head:()=>({meta:[{title:'LP2 | Encontre um Técnico — Prévia do tema TanStack'},{name:'robots',content:'noindex,nofollow'},{name:'description',content:'Prévia independente do tema original do Encontre um Técnico.'}]}),
+  head:()=>({meta:[{title:'Encontre um Técnico | Tema LP2'},{name:'description',content:'Encontre profissionais independentes no Brasil pela interface LP2, com cadastro e autenticação da mesma plataforma.'}]}),
   component:Lp2Layout,
 })
 function Lp2Layout(){
@@ -23,12 +24,12 @@ function Lp2Layout(){
      <Link to="/lp2/galeria" search={{q:'',city:''}} onClick={close}>Encontrar técnico</Link>
      <Link to="/lp2/atividades" onClick={close}>Solicitações</Link>
      <Link to="/lp2/cliente" onClick={close}>Para clientes</Link>
+     <Link to="/lp2/entrar" onClick={close}>Entrar</Link>
      <Link to="/lp2/cadastro" className="nav-button" onClick={close}>Sou técnico <ServiceIcon name="arrow" size={16}/></Link>
     </div>
    </nav></header>
-   <aside className="lp2-preview-notice" role="status">LP2 · Prévia visual independente. Cadastros, login e operações administrativas estão desativados. <a href="/">Acessar o portal oficial</a>.</aside>
-   <div id="lp2-main" tabIndex={-1}><Outlet/></div>
-   <footer className="footer"><div className="container footer-main"><div><Link to="/lp2" aria-label="Encontre um Técnico LP2" className="footer-logo"><img width={220} height={33} src={logo} alt="Encontre um Técnico"/></Link><p>Conectamos pessoas e técnicos independentes de informática e tecnologia, com liberdade para negociar diretamente.</p></div><div><h3>Encontre</h3><Link to="/lp2/galeria" search={{q:'',city:''}}>Buscar profissionais</Link><Link to="/lp2/atividades">Solicitações</Link><Link to="/lp2/cliente">Área do cliente</Link></div><div><h3>Sou técnico</h3><Link to="/lp2/cadastro">Cadastrar gratuitamente</Link><Link to="/lp2/acompanhar">Acompanhar cadastro</Link><Link to="/lp2/meu-perfil">Gerenciar perfil</Link></div><div><h3>Portal</h3><Link to="/lp2/admin">Administração (prévia)</Link><a href="/">Portal principal</a><span>Template visual preservado, sem conexão ao banco</span></div></div><div className="container footer-bottom"><span>© {new Date().getFullYear()} Encontre um Técnico. Tema LP2 isolado.</span><span>LP2 de homologação — dados e formulários não operacionais</span></div></footer>
+   <div id="lp2-main" tabIndex={-1}><LP2EmbeddedContext.Provider value={true}><Outlet/></LP2EmbeddedContext.Provider></div>
+   <footer className="footer"><div className="container footer-main"><div><Link to="/lp2" aria-label="Encontre um Técnico LP2" className="footer-logo"><img width={220} height={33} src={logo} alt="Encontre um Técnico"/></Link><p>Conectamos pessoas e técnicos independentes de informática e tecnologia, com liberdade para negociar diretamente.</p></div><div><h3>Encontre</h3><Link to="/lp2/galeria" search={{q:'',city:''}}>Buscar profissionais</Link><Link to="/lp2/atividades">Solicitações</Link><Link to="/lp2/cliente">Área do cliente</Link></div><div><h3>Sou técnico</h3><Link to="/lp2/cadastro">Cadastrar gratuitamente</Link><Link to="/lp2/acompanhar">Acompanhar cadastro</Link><Link to="/lp2/meu-perfil">Gerenciar perfil</Link></div><div><h3>Portal</h3><Link to="/lp2/admin">Administração</Link><a href="/">Portal principal</a><span>Mesma base de técnicos e clientes do portal</span></div></div><div className="container footer-bottom"><span>© {new Date().getFullYear()} Encontre um Técnico. Tema LP2 isolado.</span><span>Outra interface, mesmas contas e solicitações</span></div></footer>
   </div>
  </div>
 }

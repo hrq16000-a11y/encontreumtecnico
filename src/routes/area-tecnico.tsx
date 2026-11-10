@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState, type FormEvent } from "react";
+import { useContext, useEffect, useState, type FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { PageShell } from "../components/page-placeholder";
+import { PageShell, LP2EmbeddedContext } from "../components/page-placeholder";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveCategories } from "@/hooks/use-active-categories";
@@ -67,6 +67,7 @@ function TechnicianRequests() {
 }
 
 export function TechnicianAreaPage() {
+  const lp2 = useContext(LP2EmbeddedContext);
   const { user, roles, loading } = useAuth();
   const { categories, loading: catalogLoading, error: catalogError } = useActiveCategories();
   const { services, loading: servicesLoading, error: servicesError } = useActiveServices();
@@ -139,7 +140,7 @@ export function TechnicianAreaPage() {
         ) : !user || !roles.includes("tecnico") ? (
           <p className="mt-4 text-sm text-muted-foreground">
             Entre com uma conta de técnico para editar seu cadastro.{" "}
-            <Link to="/entrar" className="font-medium text-primary underline">Entrar</Link>
+            <Link to={lp2 ? "/lp2/entrar" : "/entrar"} className="font-medium text-primary underline">Entrar</Link>
           </p>
         ) : (
           <>

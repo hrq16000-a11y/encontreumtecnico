@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { PageShell } from "../components/page-placeholder";
+import { useContext, useEffect, useState } from "react";
+import { PageShell, LP2EmbeddedContext } from "../components/page-placeholder";
 import { RequestCard, type Req } from "../components/request-list";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,6 +35,7 @@ const TABS: { key: TStatus; label: string }[] = [
 ];
 
 export function AdminPage() {
+  const lp2 = useContext(LP2EmbeddedContext);
   const { user, roles, loading } = useAuth();
   const isAdmin = roles.includes("admin");
   const [techs, setTechs] = useState<Tech[] | null>(null);
@@ -87,7 +88,7 @@ export function AdminPage() {
         {loading ? (
           <p className="mt-4 text-sm text-muted-foreground">Carregando…</p>
         ) : !user ? (
-          <p className="mt-4 text-sm text-muted-foreground"><Link to="/entrar" className="text-primary underline">Entre</Link> com uma conta de administrador.</p>
+          <p className="mt-4 text-sm text-muted-foreground"><Link to={lp2 ? "/lp2/entrar" : "/entrar"} className="text-primary underline">Entre</Link> com uma conta de administrador.</p>
         ) : !isAdmin ? (
           <p className="mt-4 text-sm text-muted-foreground">Sua conta não tem acesso de administrador.</p>
         ) : (
