@@ -3,9 +3,11 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
 import { rankTechniciansByDeclaredArea } from "@/lib/technician-local-ranking";
+import { isValidTechnicianId, isValidTechnicianSlug } from "@/lib/technician-id";
 
 export type PublicTechnician = {
   id: string;
+  public_slug: string;
   display_name: string;
   specialties: string[];
   service_slugs: string[];
@@ -18,7 +20,7 @@ export type PublicTechnician = {
   pioneer_bronze?: boolean;
 };
 
-const COLUMNS = "id, display_name, specialties, service_slugs, city, state_uf, neighborhood, region, bio";
+const COLUMNS = "id, public_slug, display_name, specialties, service_slugs, city, state_uf, neighborhood, region, bio";
 
 // Links e classificação por IA anteriores usavam rótulos, não identificadores.
 const LEGACY_CATEGORY_ALIASES: Record<string, string> = {
@@ -142,13 +144,16 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
   });
 
 export const getApprovedTechnician = createServerFn({ method: "GET" })
-  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .inputValidator((d) => z.object({ id: z.string().min(1).max(96) }).parse(d))
   .handler(async ({ data }): Promise<PublicTechnician | null> => {
+    const isUuid = isValidTechnicianId(data.id);
+    if (!isUuid && !isValidTechnicianSlug(data.id)) return null;
+    const lookupColumn = isUuid ? "id" : "public_slug";
     const { data: row, error } = await publicClient()
       .from("technicians")
       .select(COLUMNS)
       .eq("status", "aprovado")
-      .eq("id", data.id)
+      .eq(lookupColumn, data.id.toLowerCase())
       .maybeSingle();
     // A failed database lookup must never be mistaken for an unpublished profile.
     // A genuine no-match is { data: null, error: null } from maybeSingle().

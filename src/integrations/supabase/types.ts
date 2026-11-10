@@ -287,6 +287,7 @@ export type Database = {
           created_at: string
           display_name: string
           id: string
+          public_slug: string
           neighborhood: string | null
           state_uf: string | null
           service_slugs: string[]
@@ -303,6 +304,7 @@ export type Database = {
           created_at?: string
           display_name: string
           id?: string
+          public_slug?: string
           neighborhood?: string | null
           state_uf?: string | null
           service_slugs?: string[]
@@ -319,6 +321,7 @@ export type Database = {
           created_at?: string
           display_name?: string
           id?: string
+          public_slug?: string
           neighborhood?: string | null
           state_uf?: string | null
           service_slugs?: string[]

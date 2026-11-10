@@ -45,6 +45,7 @@ export function TechnicianAreaPage() {
   });
   const [status, setStatus] = useState<keyof typeof STATUS_LABEL | null>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
+  const [profileSlug, setProfileSlug] = useState<string | null>(null);
   const [profileOwnerId, setProfileOwnerId] = useState<string | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState(false);
@@ -69,6 +70,7 @@ export function TechnicianAreaPage() {
     });
     setStatus(null);
     setProfileId(null);
+    setProfileSlug(null);
     setProfileOwnerId(null);
     setProfileError(false);
     setMsg(null);
@@ -100,6 +102,7 @@ export function TechnicianAreaPage() {
           });
           setStatus(data.status);
           setProfileId(data.id);
+          setProfileSlug(data.public_slug);
         }
         setProfileOwnerId(owner);
         setProfileLoading(false);
@@ -147,7 +150,15 @@ export function TechnicianAreaPage() {
         setMsg("Seu perfil tem uma restrição de segurança e não pode ser reativado automaticamente. Entre em contato.");
       } else if (data?.state === "publicado") {
         setStatus("aprovado");
-        if (typeof data.technician_id === "string") setProfileId(data.technician_id);
+        if (typeof data.technician_id === "string") {
+          setProfileId(data.technician_id);
+          // Public slug is generated server-side; UUID remains private routing data.
+          const { data: published } = await supabase.from("technicians")
+            .select("public_slug").eq("id", data.technician_id).maybeSingle();
+          if (currentUserRef.current === savingOwner && published?.public_slug) {
+            setProfileSlug(published.public_slug);
+          }
+        }
         setMsg("Perfil publicado automaticamente. Os dados profissionais são declarados por você; não há avaliação técnica do portal.");
       } else {
         setMsg("A publicação não foi concluída. Tente novamente.");
@@ -199,7 +210,7 @@ export function TechnicianAreaPage() {
               Cadastro gratuito: informe nome, cidade, especialidades e pelo menos um serviço executado. Ao publicar, seu perfil entra na busca automaticamente, sem certificação de capacidade técnica pelo portal.
             </p>
             {currentStatus === "aprovado" && profileId && (
-              <Link to="/tecnicos/$tecnicoId" params={{ tecnicoId: profileId }}
+              <Link to="/tecnicos/$tecnicoId" params={{ tecnicoId: profileSlug || profileId }}
                 className="mt-3 inline-flex min-h-11 items-center rounded-md border border-primary px-4 text-sm font-semibold text-primary">
                 Conferir meu perfil publicado
               </Link>

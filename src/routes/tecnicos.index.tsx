@@ -235,7 +235,7 @@ function TechniciansPage() {
                 <li key={t.id}>
                   <Link
                     to="/tecnicos/$tecnicoId"
-                    params={{ tecnicoId: t.id }}
+                    params={{ tecnicoId: t.public_slug }}
                     className="eut-card-lift block h-full rounded-lg border border-border bg-card p-5 hover:border-primary"
                   >
                     <div className="flex items-start justify-between gap-2">

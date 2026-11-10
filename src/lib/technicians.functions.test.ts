@@ -50,6 +50,21 @@ describe("public technician profile lookup", () => {
     expect(mocks.query.eq).toHaveBeenCalledWith("id", id);
   });
 
+  it("resolves a published profile by its human-readable slug", async () => {
+    const public_slug = "tecnico-de-exemplo-curitiba-pr";
+    mocks.query.maybeSingle.mockResolvedValue({ data: { id, public_slug, display_name: "Exemplo", city: "Curitiba", state_uf: "PR", specialties: [], service_slugs: [], neighborhood: null, region: null, bio: null }, error: null });
+    mocks.client.rpc.mockResolvedValue({ data: [], error: null });
+    const result = await getApprovedTechnician({ data: { id: public_slug } });
+    expect(mocks.query.eq).toHaveBeenCalledWith("public_slug", public_slug);
+    expect(result?.id).toBe(id);
+    expect(result?.public_slug).toBe(public_slug);
+  });
+
+  it("does not query Supabase for malicious or malformed slugs", async () => {
+    expect(await getApprovedTechnician({ data: { id: "../admin" } })).toBeNull();
+    expect(mocks.client.from).not.toHaveBeenCalled();
+  });
+
   it("does not claim that a profile is absent when the query fails", async () => {
     mocks.query.maybeSingle.mockResolvedValue({
       data: null,
@@ -68,6 +83,7 @@ describe("public technician profile lookup", () => {
   it("returns only public fields when an approved profile exists", async () => {
     const profile = {
       id,
+      public_slug: "tecnico-de-exemplo-curitiba-pr",
       display_name: "Técnico de exemplo",
       specialties: ["computadores"],
       service_slugs: ["formatacao"],
