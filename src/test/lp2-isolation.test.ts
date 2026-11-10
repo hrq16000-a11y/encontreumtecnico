@@ -33,6 +33,9 @@ describe('LP2 operacional: mesma base, temas separados',()=>{
    expect(read('src/routes/lp2/'+file+'.tsx')).toContain('ClientAreaPage')
   expect(read('src/routes/lp2/admin.tsx')).toContain('AdminPage')
   expect(read('src/routes/lp2/galeria.tsx')).toContain('LegacyPublicArchive')
+  expect(read('src/routes/lp2/index.tsx')).toContain('LP2LegacyTeaser')
+  expect(read('src/components/lp2/legacy-teaser.tsx')).toContain('legacy_public_archive')
+  expect(read('src/components/lp2/legacy-teaser.tsx')).not.toContain('whatsapp')
   expect(read('src/components/page-placeholder.tsx')).toContain('LP2EmbeddedContext')
  })
  it('é indexável nas páginas públicas e protege as privadas',()=>{
