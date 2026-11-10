@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useContext, useEffect, useState, type FormEvent } from "react";
+import { useContext, useEffect, useRef, useState, type FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { zodValidator } from "@tanstack/zod-adapter";
@@ -12,6 +12,7 @@ import { LegacyAccountActivation } from "@/components/legacy-account-activation"
 import { consumeTriageDraft } from "@/lib/triage-draft";
 import { clearTechnicianTarget, recallTechnicianTarget, rememberTechnicianTarget } from "@/lib/selected-technician-target";
 import { containsObviousContact } from "@/lib/private-message-validation";
+import { accountScopedRows, canAcceptAccountResult } from "@/lib/account-scoped-queries";
 
 export const Route = createFileRoute("/area-cliente")({
   validateSearch: zodValidator(z.object({ tecnico: z.string().optional() })),
@@ -43,6 +44,12 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
   const lp2 = useContext(LP2EmbeddedContext);
   const { user, loading, roles } = useAuth();
   const [rows, setRows] = useState<Req[] | null>(null);
+  const [rowsOwnerId, setRowsOwnerId] = useState<string | null>(null);
+  const [rowsError, setRowsError] = useState(false);
+  const currentUserIdRef = useRef<string | null>(null);
+  currentUserIdRef.current = user?.id ?? null;
+  const loadVersion = useRef(0);
+  const ownRows = accountScopedRows(rows, rowsOwnerId, roles.includes("cliente") ? user?.id : null);
   const { categories, loading: catalogLoading, error: catalogError } = useActiveCategories();
   const [form, setForm] = useState({ title: "", description: "", category: "", city: "", region: "" });
   const [msg, setMsg] = useState<string | null>(null);
@@ -83,28 +90,59 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
   }, [loading, user?.id, roles.join(",")]);
 
   async function load() {
-    if (!user) return;
-    const { data } = await supabase.from("service_requests").select("*").eq("client_id", user.id).order("created_at", { ascending: false });
-    setRows(data ?? []);
-    const shares = await directDb.from("eut_direct_request_consents")
-      .select("request_id").eq("client_id", user.id);
-    if (!shares.error) setSharedIds(new Set((shares.data ?? []).map((entry: { request_id: string }) => entry.request_id)));
+    if (!user || !roles.includes("cliente")) return;
+    const owner = user.id;
+    const version = ++loadVersion.current;
+    const current = () => canAcceptAccountResult(owner, currentUserIdRef.current, version, loadVersion.current);
+    setRows(null);
+    setRowsOwnerId(null);
+    setRowsError(false);
     setReplyLoadError(false);
-    const requestIds = (data ?? []).map((request) => request.id);
-    if (!requestIds.length) {
+    setSharedIds(new Set());
+    setReplyByRequest({});
+
+    try {
+      const { data, error } = await supabase.from("service_requests")
+        .select("*").eq("client_id", owner).order("created_at", { ascending: false });
+      if (!current()) return;
+      if (error) throw error;
+
+      const mine = data ?? [];
+      setRows(mine);
+      setRowsOwnerId(owner);
+      if (!mine.length) return;
+
+      const [shares, replies] = await Promise.all([
+        directDb.from("eut_direct_request_consents").select("request_id").eq("client_id", owner),
+        directDb.from("eut_direct_request_replies").select("request_id,body,created_at")
+          .in("request_id", mine.map((item) => item.id)),
+      ]);
+      if (!current()) return;
+      if (shares.error || replies.error) {
+        setReplyLoadError(true);
+      }
+      if (!shares.error) {
+        setSharedIds(new Set((shares.data ?? []).map((entry: { request_id: string }) => entry.request_id)));
+      }
+      if (!replies.error) {
+        setReplyByRequest(Object.fromEntries(((replies.data ?? []) as DirectReply[])
+          .map((entry) => [entry.request_id, entry])));
+      }
+    } catch {
+      if (!current()) return;
+      // Never turn a failed private query into "you have no requests".
+      setRowsError(true);
+      setRows(null);
+      setRowsOwnerId(null);
+      setSharedIds(new Set());
       setReplyByRequest({});
-      return;
-    }
-    const replies = await directDb.from("eut_direct_request_replies")
-      .select("request_id,body,created_at").in("request_id", requestIds);
-    if (replies.error) {
-      setReplyLoadError(true);
-      setReplyByRequest({});
-    } else {
-      setReplyByRequest(Object.fromEntries(((replies.data ?? []) as DirectReply[]).map((item) => [item.request_id, item])));
     }
   }
-  useEffect(() => { load(); }, [user]);
+  useEffect(() => {
+    void load();
+    // Invalidate in-flight account-owned queries when the component unmounts.
+    return () => { loadVersion.current++; };
+  }, [user?.id, roles.join(",")]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -155,7 +193,7 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
     setSendingId(id);
     setMsg(null);
     try {
-      const request = rows?.find((entry) => entry.id === id);
+      const request = ownRows?.find((entry) => entry.id === id);
       if (request && containsObviousContact(`${request.title} ${request.description} ${request.city} ${request.region ?? ""}`)) {
         setMsg("Antes de compartilhar, retire telefone, e-mail, links e endereço completo. O pedido permanece privado.");
         return;
@@ -184,9 +222,9 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Área do cliente</h1>
         {loading ? (
           <p className="mt-4 text-sm text-muted-foreground">Carregando…</p>
-        ) : !user ? (
+        ) : !user || !roles.includes("cliente") ? (
           <p className="mt-4 text-sm text-muted-foreground">
-            <Link to={lp2 ? "/lp2/entrar" : "/entrar"} className="font-medium text-primary underline">Entre</Link> para abrir e acompanhar suas solicitações.
+            <Link to={lp2 ? "/lp2/entrar" : "/entrar"} className="font-medium text-primary underline">Entre com uma conta de cliente</Link> para abrir e acompanhar suas solicitações.
           </p>
         ) : (
           <>
@@ -259,13 +297,17 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
             {replyLoadError && <p role="alert" className="mt-2 text-sm text-destructive">
               Não foi possível atualizar as respostas. Tente novamente.
             </p>}
-            {rows === null ? (
-              <p className="mt-3 text-sm text-muted-foreground">Carregando…</p>
-            ) : rows.length === 0 ? (
+            {rowsError ? (
+              <p role="alert" className="mt-3 text-sm text-destructive">
+                Não foi possível consultar seus pedidos. Use "Atualizar respostas" para tentar novamente.
+              </p>
+            ) : ownRows === null ? (
+              <p role="status" className="mt-3 text-sm text-muted-foreground">Carregando seus pedidos…</p>
+            ) : ownRows.length === 0 ? (
               <p className="mt-3 text-sm text-muted-foreground">Você ainda não abriu nenhuma solicitação.</p>
             ) : (
               <ul className="mt-3 grid gap-3">
-                {rows.map((r) => (
+                {ownRows.map((r) => (
                   <RequestCard key={r.id} r={r} shared={sharedIds.has(r.id)}>
                     {sharedIds.has(r.id) ? (
                       <span className="text-xs font-semibold text-primary">
