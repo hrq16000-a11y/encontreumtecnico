@@ -68,9 +68,14 @@ function TechnicianProfilePage() {
               </section>
             )}
             {t.bio && <p className="mt-4 whitespace-pre-line text-sm text-foreground">{t.bio}</p>}
-            <Link to="/area-cliente" search={{ tecnico: t.id }} className="mt-6 inline-flex min-h-11 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">
-              Solicitar atendimento
+            <Link to="/acesso-contato/$tecnicoId" params={{ tecnicoId: t.id }}
+              className="mt-6 inline-flex min-h-11 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">
+              Ver condições de acesso ao contato
             </Link>
+            <p className="mt-3 text-xs text-muted-foreground">
+              O contato é privado. O pagamento por conveniência ainda não está disponível;
+              nenhum número é exibido sem aquisição confirmada.
+            </p>
           </div>
         )}
       </section>
