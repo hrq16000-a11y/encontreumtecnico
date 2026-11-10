@@ -5,6 +5,7 @@ on:
     paths:
       - 'src/routes/entrar.tsx'
       - 'src/hooks/use-auth.tsx'
+      - 'docs/sql/eut-project-owner-bootstrap.sql'
       - '.github/workflows/eut-auth-preflight.yml'
   workflow_dispatch:
 
@@ -39,6 +40,34 @@ jobs:
           if (ui.includes('service_role')||ui.includes('auth.admin.createUser'))
             throw Error('Privileged account creation in browser');
           console.log('Confirmed-account WordPress lookup: fail closed, explicit retry, no privileged browser APIs');
+          NODE
+      - name: Verify one-time project-owner bootstrap contract
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const sql = readFileSync('docs/sql/eut-project-owner-bootstrap.sql','utf8');
+          const signin = readFileSync('src/routes/entrar.tsx','utf8');
+          for (const term of [
+            'eut_migration.project_owner_bootstrap',
+            'eut_can_bootstrap_project_owner',
+            'eut_bootstrap_project_owner',
+            "i.provider='google'",
+            "i.identity_data->>'email_verified'='true'",
+            'email_confirmed_at IS NOT NULL',
+            'pg_advisory_xact_lock',
+            'FOR UPDATE',
+            "REVOKE ALL ON FUNCTION public.eut_bootstrap_project_owner() FROM PUBLIC, anon, authenticated",
+            'GRANT EXECUTE ON FUNCTION public.eut_bootstrap_project_owner() TO authenticated',
+          ]) if (!sql.includes(term)) throw Error('Owner bootstrap safeguard missing: '+term);
+          for (const term of [
+            'canBootstrapOwner', 'ownerCheckPending', 'ownerCheckError',
+            'eut_can_bootstrap_project_owner', 'eut_bootstrap_project_owner',
+            'Ativar administração do novo portal', 'termsAccepted',
+          ]) if (!signin.includes(term)) throw Error('Owner UI safeguard missing: '+term);
+          if (/\b(?:[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})\b/i.test(sql)) {
+            throw Error('Personal bootstrap email must not be committed to public repository');
+          }
+          console.log('One-time owner bootstrap static contract: OK');
           NODE
       - name: Check live Supabase Auth provider (no account creation)
         run: |
