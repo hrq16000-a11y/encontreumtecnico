@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
       - name: Historic URL and privacy regression tests
-        run: bunx vitest run src/lib/legacy-cutover.test.ts src/lib/legacy-navigation.test.ts
+        run: bunx vitest run src/lib/legacy-cutover.test.ts src/lib/legacy-route-loaders.test.ts src/lib/legacy-navigation.test.ts
       - name: Build TanStack Start
         run: bun run build
       - name: TypeScript (after route tree generation)
