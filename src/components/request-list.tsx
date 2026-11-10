@@ -10,7 +10,7 @@ export const REQUEST_STATUS: Record<Req["status"], string> = {
   cancelada: "Cancelada",
 };
 
-export function RequestCard({ r, children }: { r: Req; children?: React.ReactNode }) {
+export function RequestCard({ r, children, shared = false }: { r: Req; children?: React.ReactNode; shared?: boolean }) {
   return (
     <li className="rounded-lg border border-border bg-card p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -21,7 +21,7 @@ export function RequestCard({ r, children }: { r: Req; children?: React.ReactNod
           </p>
           <p className="mt-2 text-sm text-card-foreground">{r.description}</p>
         </div>
-        <span className="rounded bg-muted px-2 py-0.5 text-xs text-foreground">{REQUEST_STATUS[r.status]}</span>
+        <span className="rounded bg-muted px-2 py-0.5 text-xs text-foreground">{shared && r.status === "aberta" ? "Compartilhada com o técnico" : REQUEST_STATUS[r.status]}</span>
       </div>
       {children && <div className="mt-3 flex flex-wrap gap-2">{children}</div>}
     </li>
