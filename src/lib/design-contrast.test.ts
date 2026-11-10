@@ -25,11 +25,11 @@ function luminance([L, C, H]: Lch): number {
     -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s,
   ];
   return rgb.reduce((sum, value, i) =>
-    sum + Math.min(1, Math.max(0, value)) * [0.2126, 0.7152, 0.0722][i], 0);
+    sum + Math.min(1, Math.max(0, value)) * ([0.2126, 0.7152, 0.0722][i] ?? 0), 0);
 }
 function ratio(fg: Lch, bg: Lch): number {
-  const [a, b] = [luminance(fg), luminance(bg)].sort((x, y) => y - x);
-  return (a + 0.05) / (b + 0.05);
+  const values = [luminance(fg), luminance(bg)].sort((x, y) => y - x);
+  return ((values[0] ?? 0) + 0.05) / ((values[1] ?? 0) + 0.05);
 }
 const textPairs = [
   ["foreground", "background"],
