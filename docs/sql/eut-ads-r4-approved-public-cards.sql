@@ -45,7 +45,7 @@ BEGIN
     AND cr.review_state='approved'
     AND cr.approved_by IS NOT NULL AND cr.approved_at IS NOT NULL
     AND cr.creative_type='sponsored_card'
-    AND cr.destination_url ~ '^https://[^[:space:]]+$'
+    AND cr.destination_url ~* '^https://([a-z0-9-]+[.])+[a-z]{2,}(:[0-9]{1,5})?([/?#][^[:space:]]*)?$'
   ORDER BY cp.priority ASC, c.approved_at ASC, cr.id ASC
   LIMIT 1;
   RETURN v_result;
@@ -99,7 +99,7 @@ BEGIN
     WHERE id=_creative_id AND campaign_id=_campaign_id
       AND review_state='draft' AND creative_type='sponsored_card'
       AND length(btrim(coalesce(headline,'')))>=3
-      AND destination_url ~ '^https://[^[:space:]]+$'
+      AND destination_url ~* '^https://([a-z0-9-]+[.])+[a-z]{2,}(:[0-9]{1,5})?([/?#][^[:space:]]*)?$'
   ) THEN RAISE EXCEPTION 'Criativo textual revisável e HTTPS são obrigatórios'; END IF;
 
   SELECT slot_key,route_pattern INTO v_slot,v_route
