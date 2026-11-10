@@ -449,6 +449,9 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
           </>
         )}
         {error && <p role="alert" className="mt-4 text-sm text-destructive">{error}</p>}
+        <Link to="/ajuda-acesso" className="mt-6 inline-flex min-h-11 items-center text-sm font-semibold text-primary underline-offset-4 hover:underline">
+          Erro ou dificuldade para acessar / cadastrar? Falar com suporte
+        </Link>
       </section>
     </PageShell>
   );
