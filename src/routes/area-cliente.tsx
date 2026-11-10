@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveCategories } from "@/hooks/use-active-categories";
 import { LegacyAccountActivation } from "@/components/legacy-account-activation";
+import { consumeTriageDraft } from "@/lib/triage-draft";
 
 export const Route = createFileRoute("/area-cliente")({
   validateSearch: zodValidator(z.object({ tecnico: z.string().optional() })),
@@ -34,12 +35,29 @@ function CanonicalClientAreaPage() {
 
 export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
   const lp2 = useContext(LP2EmbeddedContext);
-  const { user, loading } = useAuth();
+  const { user, loading, roles } = useAuth();
   const [rows, setRows] = useState<Req[] | null>(null);
   const { categories, loading: catalogLoading, error: catalogError } = useActiveCategories();
   const [form, setForm] = useState({ title: "", description: "", category: "", city: "", region: "" });
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    // Read only after a verified client session exists. Otherwise a login
+    // redirect would consume the draft before the client can use it.
+    if (loading || !user || !roles.includes("cliente")) return;
+    const draft = consumeTriageDraft();
+    if (!draft) return;
+    setForm((current) => ({
+      ...current,
+      title: draft.description.slice(0, 120).trim(),
+      description: draft.description,
+      category: draft.category === "Todas" ? "" : draft.category,
+      city: draft.city,
+      region: draft.region,
+    }));
+    setMsg("Sua triagem foi recuperada. Revise a descrição, a categoria e a cidade antes de salvar.");
+  }, [loading, user?.id, roles.join(",")]);
 
   async function load() {
     if (!user) return;
