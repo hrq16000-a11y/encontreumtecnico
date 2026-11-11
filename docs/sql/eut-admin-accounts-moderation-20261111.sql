@@ -131,7 +131,12 @@ BEGIN
  SELECT coalesce(jsonb_agg(to_jsonb(z) ORDER BY z.created_at DESC),'[]'::jsonb)
  INTO v_audit FROM (
   SELECT actor_id,action,subject_user_id,phone_last4,created_at,reason
-  FROM eut_moderation.contact_audit ORDER BY created_at DESC LIMIT 40) z;
+  FROM eut_moderation.contact_audit
+  UNION ALL
+  SELECT actor_id,action,target_key::uuid AS subject_user_id,
+    null::text AS phone_last4,created_at,reason
+  FROM public.eut_admin_management_log WHERE target_type='account'
+  ORDER BY created_at DESC LIMIT 40) z;
  RETURN jsonb_build_object('total',v_total,'page',v_page,'page_size',20,
                            'accounts',v_rows,'blocked_phones',v_phones,'audit',v_audit);
 END $$;
