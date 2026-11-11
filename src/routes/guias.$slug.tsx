@@ -20,6 +20,21 @@ export const Route = createFileRoute("/guias/$slug")({
         { property: "og:description", content: guide?.description ?? "" },
         { property: "og:type", content: "article" },
         { property: "og:url", content: canonical },
+        ...(guide ? [{
+          "script:ld+json": {
+            "@context": "https://schema.org",
+            "@type": "Article",
+            headline: guide.title,
+            description: guide.description,
+            inLanguage: "pt-BR",
+            datePublished: guide.publishedAt,
+            dateModified: guide.updatedAt,
+            mainEntityOfPage: canonical,
+            author: { "@type": "Organization", name: "Encontre um Técnico — equipe editorial" },
+            publisher: { "@type": "Organization", name: "Encontre um Técnico", url: SITE },
+            isAccessibleForFree: true,
+          },
+        }] : []),
         ...(guide ? [] : [{ name: "robots", content: "noindex, nofollow" }]),
       ],
       links: [{ rel: "canonical", href: canonical }],
@@ -46,7 +61,7 @@ function GuidePage() {
             <h1 className="mt-3 text-3xl font-extrabold leading-tight text-foreground sm:text-4xl">{guide.title}</h1>
             <p className="mt-4 text-base leading-7 text-muted-foreground">{guide.introduction}</p>
             <p className="mt-4 text-xs leading-5 text-muted-foreground">
-              Conteúdo editorial do Encontre um Técnico · Publicado em 11/11/2026 · Orientação informativa, sem diagnóstico ou endosso de prestadores.
+              Conteúdo editorial do Encontre um Técnico · Publicado em {new Date(guide.publishedAt + "T12:00:00Z").toLocaleDateString("pt-BR", { timeZone: "UTC" })} · Orientação informativa, sem diagnóstico ou endosso de prestadores.
             </p>
           </header>
           <div className="mt-9 space-y-8">
