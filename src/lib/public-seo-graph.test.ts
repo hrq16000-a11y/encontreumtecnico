@@ -44,8 +44,8 @@ describe("Grafo público de interlinks indexáveis", () => {
     expect(graph.cities.map((c) => cityGraphPath(c))).toEqual([
       "/cidades/pr/curitiba", "/cidades/sp/sao-paulo",
     ]);
-    expect(graph.cities[0].count).toBe(2);
-    expect(graph.cities[0].updated_at).toBe("2026-11-11T10:00:00Z");
+    expect(graph.cities[0]!.count).toBe(2);
+    expect(graph.cities[0]!.updated_at).toBe("2026-11-11T10:00:00Z");
     expect(graph.cities.some((c) => c.slug.includes("regiao-metropolitana"))).toBe(false);
     expect(graph.cities.some((c) => c.slug.includes("cidade-inventada"))).toBe(false);
     expect(profilesInCity(graph, "PR", "curitiba")).toHaveLength(2);
@@ -62,15 +62,15 @@ describe("Grafo público de interlinks indexáveis", () => {
   });
 
   it("relaciona perfis por cidade, categoria ou serviço, nunca aleatoriamente nem ao próprio", () => {
-    const related = relatedGraphProfiles(graph, graph.profiles[0]);
+    const related = relatedGraphProfiles(graph, graph.profiles[0]!);
     expect(related.map(x => x.public_slug)).toEqual([
       "tecnico-cftv", "grande-porto-alegre", "rede-sao-paulo",
     ]);
-    expect(related[0].relation).toBe("Mesmo município");
-    expect(related[1].relation).toBe("Serviço em comum");
+    expect(related[0]!.relation).toBe("Mesmo município");
+    expect(related[1]!.relation).toBe("Serviço em comum");
     expect(related.some(x => x.public_slug === "tecnica-curitiba")).toBe(false);
     expect(related.some(x => x.public_slug === "profissional-sem-catalogo")).toBe(false);
-    expect(relatedGraphProfiles(graph, graph.profiles[0], 1)).toHaveLength(1);
+    expect(relatedGraphProfiles(graph, graph.profiles[0]!, 1)).toHaveLength(1);
   });
 
   it("publica só URLs canônicas e genuínas no sitemap, sem perfis malformados ou regiões falsas", () => {
