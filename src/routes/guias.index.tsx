@@ -35,12 +35,13 @@ function GuidesIndex() {
           </p>
         </header>
         <ul className="mt-10 grid gap-5 md:grid-cols-2">
-          {GUIDES.map((guide) => (
+          {GUIDES.map((guide, index) => (
             <li key={guide.slug} className="flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
               <Link to="/guias/$slug" params={{ slug: guide.slug }} className="block overflow-hidden">
                 <img src={getGuideArtwork(guide.categorySlug).src}
                   alt={getGuideArtwork(guide.categorySlug).alt}
-                  width={1200} height={630} loading="lazy"
+                  width={1200} height={630} loading={index === 0 ? "eager" : "lazy"}
+                  fetchPriority={index === 0 ? "high" : "auto"} decoding="async"
                   className="aspect-video w-full object-cover transition-transform duration-300 hover:scale-[1.025]" />
               </Link>
               <div className="flex flex-1 flex-col p-6">
