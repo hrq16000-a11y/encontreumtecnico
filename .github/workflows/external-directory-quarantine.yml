@@ -1,0 +1,20 @@
+name: External public directory quarantine gate
+
+on:
+  pull_request:
+    paths:
+      - "scripts/external-directory-*.mjs"
+      - "data/external-staging/**"
+      - ".github/workflows/external-directory-quarantine.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  offline-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check isolated public records and absence of automatic publication
+        run: node --test scripts/external-directory-batch.test.mjs scripts/external-directory-snapshot.test.mjs
