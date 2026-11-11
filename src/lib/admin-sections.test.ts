@@ -7,9 +7,9 @@ import {
 const read = (path: string) => readFileSync(path, "utf8");
 
 describe("Central administrativa: URLs próprias e RLS intacta", () => {
-  it("oferece dez seções únicas, uma home e nove módulos reais", () => {
+  it("oferece onze seções únicas, uma home e dez módulos reais", () => {
     expect(ADMIN_SECTIONS.map((x) => x.key)).toEqual([
-      "inicio", "tecnicos", "clientes", "solicitacoes",
+      "inicio", "tecnicos", "clientes", "contas", "solicitacoes",
       "patrocinadores", "mensagens", "catalogo",
       "legado", "reivindicacoes", "metricas",
     ]);
@@ -55,6 +55,7 @@ describe("Central administrativa: URLs próprias e RLS intacta", () => {
     ]) expect(page).toContain(source);
     expect(page).not.toContain("auth.admin.deleteUser");
     expect(page).not.toContain("service_role");
-    expect(page).toContain("O gerenciamento completo de identidades, banimentos e exclusões");
+    expect(page).toContain('<AdminAccountsManager initialFilter="clientes" />');
+    expect(page).toContain('section === "contas"');
   });
 });
