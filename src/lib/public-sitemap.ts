@@ -8,6 +8,8 @@ const SITEMAP_MAX_URLS = 50_000;
 const PROFILE_PAGE_SIZE = 1_000;
 const PROFILE_LIMIT = 49_000;
 const SITE = "https://www.encontreumtecnico.com";
+// Defense in depth if a future editor accidentally adds a private route.
+const PRIVATE_PATH = /^\/(?:admin|area-(?:tecnico|cliente)|entrar|cadastro|acesso-contato|redefinir-senha|reivindicar-cadastro|cliente|tecnico|convite|home2)(?:\/|$)|^\/lp2\/(?:admin|entrar|cliente|cadastro)(?:\/|$)/;
 
 const xmlEscape = (value: string): string => value
   .replace(/&/g, "&amp;")
@@ -26,7 +28,7 @@ function lastModified(value: string | null): string | null {
 export function buildPublicSitemapXml(paths: readonly string[], profiles: readonly SitemapProfile[]): string {
   const urls = new Map<string, string | null>();
   for (const path of paths) {
-    if (/^\/[a-z0-9./-]*$/.test(path)) urls.set(path, null);
+    if (/^\/[a-z0-9./-]*$/.test(path) && !PRIVATE_PATH.test(path)) urls.set(path, null);
   }
   for (const row of profiles) {
     if (typeof row.public_slug !== "string" || !isValidTechnicianSlug(row.public_slug)) continue;
