@@ -17,6 +17,7 @@ import { AdminTechnicianManager } from "@/components/admin-technician-manager";
 import { AdminOwnTechnicianRole } from "@/components/admin-own-technician-role";
 import { AdminMemberInvites } from "@/components/admin-member-invites";
 import { AdminAccountsManager } from "@/components/admin-accounts-manager";
+import { AdminClientInsights } from "@/components/admin-client-insights";
 import { adminModuleTitle, type AdminSection } from "@/lib/admin-sections";
 import { ArrowRight } from "lucide-react";
 
@@ -195,6 +196,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
               <h2 id="admin-clientes-titulo" className="text-xl font-bold text-foreground">Clientes e solicitações</h2>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">Gerencie os clientes por identidade confirmada, convite, nome e bloqueios auditados. Os dados de solicitações privadas são consultados somente no módulo Solicitações. Exclusões definitivas exigem procedimento próprio de privacidade.</p>
               <AdminMemberInvites initialRole="cliente" />
+              <AdminClientInsights />
               <AdminAccountsManager initialFilter="clientes" />
               <div className="mt-5 rounded-xl border border-border bg-muted/20 p-5">
                 <h3 className="font-bold text-foreground">Solicitações em módulo protegido</h3>
