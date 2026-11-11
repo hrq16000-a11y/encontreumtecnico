@@ -8,6 +8,13 @@ on:
       - 'src/routes/index.tsx'
       - 'src/components/problem-assistant.tsx'
       - 'src/routes/lp2/index.tsx'
+      - 'src/routes/lp2/galeria.tsx'
+      - 'src/routes/home2.tsx'
+      - 'src/components/debounced-text-filter.tsx'
+      - 'src/lib/pending-search-filter.ts'
+      - 'src/lib/pending-search-filter.test.ts'
+      - 'src/lib/unsent-ui-draft.ts'
+      - 'src/lib/unsent-ui-draft.test.ts'
       - '.github/workflows/eut-no-debounce-draft.yml'
 permissions:
   contents: read
@@ -51,7 +58,7 @@ jobs:
             throw Error('Assistance draft may not release private contacts');
           NODE
       - name: Session isolation, auth, public wizard and existing navigation tests
-        run: bunx vitest run src/lib/assistance-draft.test.ts src/lib/unsent-ui-draft.test.ts src/lib/protected-session-draft.test.ts src/components/page-placeholder.test.tsx src/lib/shared-shell-routing.test.ts src/hooks/use-auth.test.tsx src/components/free-search-help.test.tsx
+        run: bunx vitest run src/lib/assistance-draft.test.ts src/lib/unsent-ui-draft.test.ts src/lib/pending-search-filter.test.ts src/lib/protected-session-draft.test.ts src/components/page-placeholder.test.tsx src/lib/shared-shell-routing.test.ts src/hooks/use-auth.test.tsx src/components/free-search-help.test.tsx
       - name: Server and legacy boundary
         run: node scripts/eut-wordpress-runtime-boundary.mjs
       - name: Build
