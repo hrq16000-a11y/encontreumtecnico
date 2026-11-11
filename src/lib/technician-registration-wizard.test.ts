@@ -38,7 +38,11 @@ describe("Cadastro guiado mobile", () => {
     expect(route).toContain("registrationStepError(2, form, catalog)");
     expect(route).toContain('role="progressbar"');
     expect(route).toContain('bottom-[calc(3.5rem+env(safe-area-inset-bottom))]');
-    expect(route).toContain("Gerenciar contatos, presença, pedidos e oportunidades");
+    // The old mixed accordion was replaced by separate protected workspaces.
+    expect(route).toContain('panelTab === "solicitacoes"');
+    expect(route).toContain('<TechnicianDirectRequests userId={user.id} />');
+    expect(route).toContain('panelTab === "configuracoes"');
+    expect(route).toContain('<TechnicianPrivateContact userId={user.id} />');
     expect(route).toContain("Já tinha cadastro no portal antigo? Recuperar meus dados");
   });
 
