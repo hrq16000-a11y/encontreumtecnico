@@ -43,7 +43,11 @@ describe("SEO global do Encontre um Técnico", () => {
     expect(builder).toContain('export const SITE = "' + site + '"');
     const graphSource = read("src/lib/public-seo-graph.functions.ts");
     expect(xml).toContain("getPublicGraphSnapshot()");
-    expect(xml).toContain("graph.profiles, graph.cities, graph.categories");
+    expect(xml).toContain("buildPublicSitemapIndexXml(graph)");
+    const children = read("src/lib/public-sitemap-index.ts");
+    expect(children).toContain('"/sitemaps/base.xml"');
+    expect(children).toContain('"/sitemaps/cidades.xml"');
+    expect(children).toContain('"/sitemaps/categorias.xml"');
     expect(graphSource).toContain('.eq("status", "aprovado")');
     expect(graphSource).toContain('eut_ibge_municipalities');
     expect(graphSource).toContain('.eq("active", true)');
