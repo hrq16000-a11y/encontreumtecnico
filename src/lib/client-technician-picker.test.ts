@@ -45,6 +45,18 @@ describe("Escolha de técnico dentro do formulário mobile", () => {
     expect(picker).not.toContain("eut_share_direct_request");
   });
 
+  it("alterar texto ou localização revoga consentimento prévio", () => {
+    const route = readFileSync("src/routes/area-cliente.tsx", "utf8");
+    const edit = route.slice(route.indexOf("function updateRequestField("),
+      route.indexOf("function chooseTechnicianInWizard("));
+    expect(edit).toContain("setShareNow(false)");
+    for (const key of ["title", "description", "category", "city", "region"]) {
+      expect(route).toContain(`updateRequestField("${key}", e.target.value)`);
+    }
+    expect(route).toContain("receiving a different target never carries a prior opt-in");
+    expect(route).toContain("setShareNow(false);\n                  }} />");
+  });
+
   it("seleciona sem navegar, preserva rascunho e exige novo consentimento", () => {
     const route = readFileSync("src/routes/area-cliente.tsx", "utf8");
     const selected = route.slice(route.indexOf("function chooseTechnicianInWizard("),
