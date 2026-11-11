@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { GUIDES, GUIDE_PATHS, getPublishedGuide } from "./public-guides";
+import { GUIDES, GUIDE_PATHS, getPublishedGuide, getRelatedGuides } from "./public-guides";
 import { getGuideArtwork } from "./guide-artwork";
 import { buildPublicSitemapXml, SITE } from "./public-sitemap";
 
@@ -139,7 +139,7 @@ describe("SEO global do Encontre um Técnico", () => {
   });
 
   it("publica somente guias autorais com canonical, dados Article e links para técnicos", () => {
-    expect(GUIDES).toHaveLength(4);
+    expect(GUIDES).toHaveLength(6);
     expect(new Set(GUIDES.map(guide => guide.slug)).size).toBe(GUIDES.length);
     expect(GUIDE_PATHS).toHaveLength(GUIDES.length + 1);
     const index = read("src/routes/guias.index.tsx");
@@ -166,6 +166,7 @@ describe("SEO global do Encontre um Técnico", () => {
       expect(getPublishedGuide(guide.slug)?.title).toBe(guide.title);
       expect(getGuideArtwork(guide.categorySlug).src).toContain("/guias/");
       expect(getGuideArtwork(guide.categorySlug).alt.length).toBeGreaterThan(35);
+      expect(getRelatedGuides(guide.slug).every(x => x.slug !== guide.slug)).toBe(true);
     }
     expect(getPublishedGuide("../admin")).toBeNull();
     expect(sitemap).not.toContain("/admin");
@@ -207,6 +208,8 @@ describe("SEO global do Encontre um Técnico", () => {
       "public/guias/cftv-planejamento-ilustrado.svg",
       "public/guias/wifi-instabilidade-cobertura-ilustrado.svg",
       "public/guias/impressora-offline-fila-ilustrado.svg",
+      "public/guias/backup-seguro-manutencao-ilustrado.svg",
+      "public/guias/ar-condicionado-nao-gela-ilustrado.svg",
     ]) {
       const svg = read(asset);
       expect(svg).toContain("<svg");
@@ -228,5 +231,30 @@ describe("SEO global do Encontre um Técnico", () => {
     }
     expect(ecosystem).not.toContain("precisodeumprossional.com.br");
     expect(sitemap).toContain("<loc>" + SITE + "/ecossistema</loc>");
+  });
+
+  it("gera conteúdo rico sobre backup e climatização com relacionamentos e leads contextuais", () => {
+    const article = read("src/routes/guias.$slug.tsx");
+    const cta = read("src/components/guide-lead-callout.tsx");
+    const visual = read("src/components/guide-section-visual.tsx");
+    const guideSlugs = [
+      "backup-arquivos-antes-manutencao-computador",
+      "ar-condicionado-nao-gela-verificacoes-seguras",
+    ];
+    for (const slug of guideSlugs) {
+      const guide = getPublishedGuide(slug);
+      expect(guide).not.toBeNull();
+      expect(guide?.sections.length).toBe(5);
+      expect(guide?.sections.every(sec => sec.paragraphs.length > 0)).toBe(true);
+      expect(guide?.description.length).toBeGreaterThan(75);
+      expect(getRelatedGuides(slug).length).toBeGreaterThan(0);
+    }
+    expect(cta).toContain('software: "Sistemas e software"');
+    expect(cta).toContain('climatizacao: "Climatização"');
+    expect(cta).toContain("openFreeHelp");
+    expect(article).toContain("getRelatedGuides(guide.slug)");
+    expect(article).toContain('to="/guias/$slug"');
+    expect(visual).toContain("software: BACKUP");
+    expect(visual).toContain("climatizacao: CLIMATE");
   });
 });
