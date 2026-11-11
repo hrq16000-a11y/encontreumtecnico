@@ -64,7 +64,7 @@ describe("AdSense display unit 9606076941", () => {
       .toBe("ca-pub-3762170279587706");
     expect(document.querySelector(publisherUnit)?.getAttribute("data-ad-format")).toBe("auto");
     expect(document.querySelector(publisherUnit)?.getAttribute("data-full-width-responsive")).toBe("true");
-    expect((window as Window & { adsbygoogle: object[] }).adsbygoogle).toHaveLength(1);
+    expect((window as Window & { adsbygoogle?: object[] }).adsbygoogle).toHaveLength(1);
   });
 
   it("does not request twice on a rerender and unmounts the ad on private routes", async () => {
@@ -72,7 +72,7 @@ describe("AdSense display unit 9606076941", () => {
     const { rerender } = render(<PortalAd />);
     await waitFor(() => expect(document.querySelector(publisherUnit)).not.toBeNull());
     rerender(<PortalAd />);
-    expect((window as Window & { adsbygoogle: object[] }).adsbygoogle).toHaveLength(1);
+    expect((window as Window & { adsbygoogle?: object[] }).adsbygoogle).toHaveLength(1);
     route.pathname = "/admin";
     rerender(<PortalAd />);
     await waitFor(() => expect(document.querySelector(publisherUnit)).toBeNull());
