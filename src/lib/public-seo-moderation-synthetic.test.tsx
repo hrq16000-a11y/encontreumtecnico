@@ -171,6 +171,40 @@ describe("Elegibilidade pública moderada: simulação RPC sem SQL real", () => 
     expect(graph).toContain("readPublicEligibleRows(");
     expect(adapter).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
   });
+  it("reconsulta elegibilidade após uma revogação sem reutilizar decisão anterior", async () => {
+    const blocked = new Set<string>();
+    const seen = { calls: 0 };
+    const client: PublicEligibilityRpc = {
+      rpc: async (_name, args) => {
+        seen.calls++;
+        return { data: args._ids.filter(id => !blocked.has(id))
+          .map(technician_id => ({ technician_id })), error: null };
+      },
+    };
+    const candidate = [{ id: "qa-owner-virtual", public_slug: "qa-moderado" }];
+    const first = await readPublicEligibleRows(client, candidate);
+    expect(first).toHaveLength(1);
+    blocked.add(candidate[0]!.id);
+    const second = await readPublicEligibleRows(client, candidate);
+    expect(second).toHaveLength(0);
+    expect(seen.calls).toBe(2);
+  });
+
+  it("não retém grafo de técnicos na memória e proíbe cache de SSR/XML", () => {
+    const graph = readFileSync("src/lib/public-seo-graph.functions.ts", "utf8");
+    const profile = readFileSync("src/lib/technicians.functions.ts", "utf8");
+    const xml = readFileSync("src/lib/public-sitemap-http.ts", "utf8");
+    const sitemapIndex = readFileSync("src/routes/sitemap[.]xml.ts", "utf8");
+    expect(graph).toContain("return loadGraphUncached();");
+    expect(graph).not.toContain("let cached: Promise<GraphCatalog>");
+    expect(graph).toContain("REFERENCE_CATALOG_CACHE_MS");
+    expect(graph).toContain('setResponseHeader("Cache-Control", "no-store")');
+    expect(profile).toContain('setResponseHeader("Cache-Control", "no-store")');
+    expect(xml).toContain('"Vercel-CDN-Cache-Control": "no-store"');
+    expect(sitemapIndex).toContain('"Cache-Control": "no-store, max-age=0"');
+    expect(xml).not.toContain("stale-while-revalidate");
+  });
+
   it("limita RPC a 500 IDs por lote e nunca agrega IDs que não foram solicitados", async () => {
     const rows = Array.from({ length: 501 }, (_, i) => ({ id: "qa-batch-" + i }));
     const rpc = vi.fn(async (_name: string, params: { _ids: string[] }) => ({
