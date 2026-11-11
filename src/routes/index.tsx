@@ -97,24 +97,37 @@ const CHIPS = [
 
 function HomePage() {
   const navigate = useNavigate();
-  const [savedSearch] = useState(() => readUiTextDraft("home"));
-  const [specialty, setSpecialty] = useState(savedSearch?.["specialty"] ?? "");
-  const [city, setCity] = useState(savedSearch?.["city"] ?? "");
-  const [locationUf, setLocationUf] = useState(savedSearch?.["uf"] ?? "");
-  const [locationNeighborhood, setLocationNeighborhood] = useState(savedSearch?.["neighborhood"] ?? "");
-  const cityEditedByUser = useRef(Boolean(savedSearch?.["city"]));
+  // Initial SSR and client render agree; the saved search is loaded only
+  // after hydration, while the empty form stays hidden from the visitor.
+  const [specialty, setSpecialty] = useState("");
+  const [city, setCity] = useState("");
+  const [locationUf, setLocationUf] = useState("");
+  const [locationNeighborhood, setLocationNeighborhood] = useState("");
+  const [draftReady, setDraftReady] = useState(false);
+  const cityEditedByUser = useRef(false);
   useEffect(() => {
-    // No cancelable timer: rapidly leaving the Home used to lose the last edit.
+    const saved = readUiTextDraft("home");
+    if (saved) {
+      setSpecialty(saved["specialty"] ?? "");
+      setCity(saved["city"] ?? "");
+      setLocationUf(saved["uf"] ?? "");
+      setLocationNeighborhood(saved["neighborhood"] ?? "");
+      cityEditedByUser.current = Boolean(saved["city"]);
+    }
+    setDraftReady(true);
+  }, []);
+  useEffect(() => {
+    if (!draftReady) return;
     saveUiTextDraft("home", { specialty, city, uf: locationUf, neighborhood: locationNeighborhood });
-  }, [specialty, city, locationUf, locationNeighborhood]);
+  }, [draftReady, specialty, city, locationUf, locationNeighborhood]);
   const { area: suggestedRegion, loading: regionLoading } = useRegionalSuggestion();
   useEffect(() => {
     // The user may edit while the lookup is pending; never override typed city.
-    if (!suggestedRegion || city.trim() || cityEditedByUser.current) return;
+    if (!draftReady || !suggestedRegion || city.trim() || cityEditedByUser.current) return;
     setCity(suggestedRegion.city);
     setLocationUf(suggestedRegion.uf);
     setLocationNeighborhood(suggestedRegion.neighborhood);
-  }, [suggestedRegion?.city, suggestedRegion?.uf, city]);
+  }, [draftReady, suggestedRegion?.city, suggestedRegion?.uf, city]);
 
 
   return (
@@ -137,6 +150,12 @@ function HomePage() {
             <p className="mt-4 max-w-xl text-lg text-muted-foreground">
               Encontre prestadores cadastrados de CFTV, informática, redes e impressoras na sua região. Negocie diretamente, sem leilão de menor preço.
             </p>
+            {!draftReady ? (
+              <div role="status" aria-live="polite" aria-busy="true"
+                className="mt-8 flex min-h-16 items-center rounded-xl bg-card px-4 py-3 text-sm text-muted-foreground shadow-soft">
+                Recuperando sua busca…
+              </div>
+            ) : (
             <form
               className="mt-8 flex flex-col gap-3 rounded-xl bg-card p-3 shadow-soft sm:flex-row"
               onSubmit={(e) => {
@@ -177,6 +196,7 @@ function HomePage() {
                 Buscar
               </button>
             </form>
+            )}
             <div className="mt-3 max-w-xl">
               <div aria-live="polite" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/20 bg-card/90 px-4 py-3 text-xs shadow-sm sm:text-sm">
                 <span className="flex items-start gap-2 text-foreground">
