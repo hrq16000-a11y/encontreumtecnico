@@ -69,6 +69,13 @@ function ServicesPage() {
             O cadastro é gratuito ao técnico. A presença em uma categoria não garante disponibilidade, qualificação ou contratação.
           </p>
         </section>
+        <p className="mt-6 text-center text-sm text-muted-foreground">
+          Ainda não sabe qual categoria escolher?{" "}
+          <Link to="/tecnicos" search={{ especialidade: "Todas", cidade: "", regiao: "" }}
+            className="font-semibold text-primary underline-offset-4 hover:underline">
+            Consulte todos os perfis publicados
+          </Link>.
+        </p>
       </section>
     </PageShell>
   );
