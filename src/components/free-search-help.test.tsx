@@ -39,7 +39,7 @@ describe("Funil flutuante de atendimento", () => {
     fireEvent.change(input, { target: { value: "Problema descrito, não perder" } });
     fireEvent.blur(window);
     fireEvent.focus(window);
-    fireEvent.visibilityChange(document);
+    document.dispatchEvent(new Event("visibilitychange"));
     expect((input as HTMLTextAreaElement).value).toBe("Problema descrito, não perder");
     expect(screen.getByRole("dialog")).toBeTruthy();
   });
