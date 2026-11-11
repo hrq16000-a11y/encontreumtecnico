@@ -17,7 +17,10 @@ on:
       - 'src/lib/admin-member-invite-contract.test.ts'
       - 'docs/sql/eut-admin-member-invitations-20261111.sql'
       - 'src/routes/entrar.tsx'
-      - 'src/lib/admin-account-moderation-contract.test.ts src/lib/admin-member-invite-contract.test.ts'
+      - 'src/lib/admin-account-moderation-contract.test.ts'
+      - 'src/lib/admin-member-invite-contract.test.ts'
+      - 'src/lib/eut-invite-client-privacy.test.ts'
+      - 'docs/sql/eut-member-invite-actor-lock-20261111.sql'
       - 'docs/sql/eut-admin-accounts-moderation-20261111.sql'
       - 'src/components/legacy-review-queue.tsx'
       - 'src/components/site-header.tsx'
@@ -41,7 +44,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: Module navigation, RLS and privacy regression tests
-        run: bunx vitest run src/lib/admin-sections.test.ts src/lib/admin-technician-pagination.test.ts src/lib/admin-own-technician-role.test.ts src/lib/admin-management-contract.test.ts src/lib/admin-account-moderation-contract.test.ts
+        run: bunx vitest run src/lib/admin-sections.test.ts src/lib/admin-technician-pagination.test.ts src/lib/admin-own-technician-role.test.ts src/lib/admin-management-contract.test.ts src/lib/admin-account-moderation-contract.test.ts src/lib/admin-member-invite-contract.test.ts src/lib/eut-invite-client-privacy.test.ts
       - name: Verify anonymous cannot read privileged admin data (live, read-only)
         run: |
           node --input-type=module <<'NODE'
