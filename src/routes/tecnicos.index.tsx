@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { listApprovedTechnicians } from "../lib/technicians.functions";
-import { TechnicianAvatar } from "@/components/technician-avatar";
+import { TechnicianSearchCard } from "@/components/technician-search-card";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { PageShell, EmptyState } from "../components/page-placeholder";
@@ -277,47 +277,17 @@ function TechniciansPage() {
               </div>
             </div>
           ) : (
-            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <ul className="grid gap-5 md:grid-cols-2">
               {technicians.map((t) => (
-                <li key={t.id}>
-                  <Link
-                    to="/tecnicos/$tecnicoId"
-                    params={{ tecnicoId: t.public_slug }}
-                    className="eut-card-lift block h-full rounded-lg border border-border bg-card p-5 hover:border-primary"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex min-w-0 items-start gap-3"><TechnicianAvatar name={t.display_name} avatarPath={t.avatar_path} className="h-14 w-14" /><div className="min-w-0"><h2 className="font-semibold text-card-foreground">{t.display_name}</h2>{t.referral_highlight && <span className="mt-1 mr-1 inline-flex rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">Destaque por indicações</span>}{t.pioneer_bronze && <span className="mt-1 inline-flex rounded-full border border-amber-700/30 bg-amber-800/10 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:text-amber-300">Pioneiro Bronze</span>}</div></div>
-                      {t.online_now ? (
-                        <span className="shrink-0 rounded bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">Online recentemente</span>
-                      ) : (
-                        <span className="shrink-0 rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">Perfil público</span>
-                      )}
-                    </div>
-                    {prioritizeRegion && localMatchLabel(t, {
+                <li key={t.id} className="min-w-0">
+                  <TechnicianSearchCard
+                    technician={t}
+                    categories={categories}
+                    services={services}
+                    localMatch={prioritizeRegion ? localMatchLabel(t, {
                       uf: search.uf, cidade: search.cidade, bairro: search.bairro,
-                    }) && (
-                      <p className="mt-2 text-xs font-semibold text-primary">
-                        {localMatchLabel(t, { uf: search.uf, cidade: search.cidade, bairro: search.bairro })}
-                      </p>
-                    )}
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {t.city}{t.state_uf ? `/${t.state_uf}` : ""}{t.neighborhood ? ` · ${t.neighborhood}` : ""}{t.region ? ` · ${t.region}` : ""}
-                    </p>
-                    {(t.coverage_cities?.length ?? 0) > 0 && (
-                      <p className="mt-2 text-xs font-medium text-foreground">
-                        Atende: {t.coverage_cities?.map(city => city.name + "/" + city.uf).join(" · ")}
-                        {t.service_radius_km != null ? " · raio declarado " + t.service_radius_km + " km" : ""}
-                      </p>
-                    )}
-                    <ul className="mt-3 flex flex-wrap gap-1.5">
-                      {t.specialties.map((s) => (
-                        <li key={s} className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-foreground">{categoryLabel(s, categories)}</li>
-                      ))}
-                      {t.service_slugs.map((slug) => (
-                        <li key={slug} className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs text-primary">{serviceLabel(slug, services)}</li>
-                      ))}
-                    </ul>
-                  </Link>
+                    }) : null}
+                  />
                 </li>
               ))}
             </ul>
