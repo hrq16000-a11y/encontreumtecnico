@@ -64,6 +64,7 @@ export function AdminContactsDashboard({ adminId }: { adminId: string }) {
   const [busy, setBusy] = useState(false);
   const [revealed, setRevealed] = useState<{ owner: string; phone: string } | null>(null);
   const revealTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const accessEpoch = useRef(0);
   const [info, setInfo] = useState("");
   const [error, setError] = useState("");
   const [showAudit, setShowAudit] = useState(false);
@@ -71,12 +72,24 @@ export function AdminContactsDashboard({ adminId }: { adminId: string }) {
   const [showMessages, setShowMessages] = useState(false);
 
   function hidePhone() {
+    // Invalidate even an in-flight reveal request on filter change, logout or tab switch.
+    accessEpoch.current++;
     if (revealTimeout.current) clearTimeout(revealTimeout.current);
     revealTimeout.current = null;
     setRevealed(null);
   }
-  useEffect(() => () => {
-    if (revealTimeout.current) clearTimeout(revealTimeout.current);
+  useEffect(() => {
+    function hideOnBackground() {
+      if (document.visibilityState === "hidden") hidePhone();
+    }
+    document.addEventListener("visibilitychange", hideOnBackground);
+    window.addEventListener("pagehide", hidePhone);
+    return () => {
+      document.removeEventListener("visibilitychange", hideOnBackground);
+      window.removeEventListener("pagehide", hidePhone);
+      accessEpoch.current++;
+      if (revealTimeout.current) clearTimeout(revealTimeout.current);
+    };
   }, []);
   useEffect(() => {
     let active = true;
@@ -115,11 +128,14 @@ export function AdminContactsDashboard({ adminId }: { adminId: string }) {
       "Motivo do acesso ao número integral (8 a 500 caracteres). O acesso será registrado em auditoria:",
     )?.trim();
     if (!canRevealAdminContact(reasonText)) return;
-    hidePhone(); setBusy(true); setError(""); setInfo("");
+    hidePhone();
+    const epoch = accessEpoch.current;
+    setBusy(true); setError(""); setInfo("");
     try {
       const { data, error: rpcError } = await db.rpc("eut_admin_contact_reveal", {
         _user_id: subject.user_id, _reason: reasonText,
       });
+      if (epoch !== accessEpoch.current) return;
       if (rpcError || data?.ok !== true || typeof data.phone !== "string" ||
           !/^\+[1-9]\d{7,14}$/.test(data.phone)) {
         throw new Error("O servidor não confirmou a leitura do contato.");
@@ -130,7 +146,8 @@ export function AdminContactsDashboard({ adminId }: { adminId: string }) {
       }, 60_000);
       setInfo("Número revelado apenas nesta tela por 60 segundos. Consulta auditada.");
     } catch {
-      setError("Não foi possível consultar o número completo. Verifique as permissões.");
+      if (epoch === accessEpoch.current)
+        setError("Não foi possível consultar o número completo. Verifique as permissões.");
     } finally { setBusy(false); }
   }
 
