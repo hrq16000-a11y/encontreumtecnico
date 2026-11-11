@@ -20,8 +20,9 @@ export function buildPublicSitemapXml(
   profiles: readonly PublicSitemapProfile[],
   cities: readonly { uf: string; slug: string; count: number; updated_at?: string | null }[] = [],
   categories: readonly { slug: string; count: number; updated_at?: string | null }[] = [],
+  options: { includeStatic?: boolean } = {},
 ): string {
-  const lines = PUBLIC_PATHS.map((path) =>
+  const lines = (options.includeStatic === false ? [] : PUBLIC_PATHS).map((path) =>
     `  <url><loc>${SITE}${path}</loc></url>`);
   const seen = new Set<string>();
   for (const profile of profiles) {
@@ -60,5 +61,9 @@ export function buildPublicSitemapXml(
   // One sitemap cannot exceed 50,000 URLs; fail loudly before publishing
   // an incomplete sitemap. The next scaling milestone is sitemap indexes.
   if (lines.length > 50_000) throw new Error("Split public sitemap into a sitemap index");
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${lines.join("\n")}\n</urlset>\n`;
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${lines.join("\n")}\n</urlset>\n`;
+  if (Buffer.byteLength(xml, "utf8") > 50 * 1024 * 1024) {
+    throw new Error("Split sitemap before 50 MB XML limit");
+  }
+  return xml;
 }
