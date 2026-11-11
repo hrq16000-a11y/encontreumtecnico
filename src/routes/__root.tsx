@@ -15,6 +15,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { FriendlyErrorState } from "../components/friendly-error-state";
 import { PageShell } from "../components/page-placeholder";
+import { AdSenseLoader } from "../components/adsense-loader";
 import { isStandaloneVisualRoute } from "../lib/shared-shell-routing";
 
 // One stable, public, WordPress-independent image for every route's social preview.
@@ -57,6 +58,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { name: "google-site-verification", content: "O-IQy-UG-3vu25luyD7srfGtD_lU8_tOTZzVbda7t9Q" },
+      { name: "google-adsense-account", content: "ca-pub-3762170279587706" },
       { title: "Encontre um Técnico" },
       { name: "description", content: "Encontre e contrate técnicos de tecnologia perto de você." },
       { property: "og:title", content: "Encontre um Técnico" },
@@ -107,6 +109,7 @@ function RootShell({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body {...importedDocument?.body}>
+        <AdSenseLoader />
         {children}
         <Scripts />
       </body>
