@@ -13,7 +13,7 @@ describe("Sitemap dinâmico com técnicos publicados", () => {
       { public_slug: "" },
       { public_slug: null },
     ]);
-    expect(PUBLIC_PATHS).toHaveLength(18);
+    expect(PUBLIC_PATHS).toHaveLength(19);
     expect(SITE).toBe("https://www.encontreumtecnico.com.br");
     expect(xml).toContain("<loc>" + SITE + "/tecnicos/tecnico-curitiba</loc>");
     expect(xml).toContain("<lastmod>2026-11-10</lastmod>");
@@ -23,8 +23,9 @@ describe("Sitemap dinâmico com técnicos publicados", () => {
     expect(xml).not.toContain("<script>");
     expect(xml).not.toContain("/area-cliente");
     expect(xml).not.toContain("/acesso-contato");
-    expect(xml.match(/<url>/g)).toHaveLength(23);
+    expect(xml.match(/<url>/g)).toHaveLength(24);
     expect(xml).toContain(SITE + "/cobertura</loc>");
+    expect(xml).toContain(SITE + "/ecossistema</loc>");
     expect(xml).toContain(SITE + "/guias</loc>");
     expect(xml).toContain(SITE + "/guias/computador-lento-o-que-verificar</loc>");
     expect(xml).toContain(SITE + "/guias/instalacao-cameras-seguranca-como-planejar</loc>");
