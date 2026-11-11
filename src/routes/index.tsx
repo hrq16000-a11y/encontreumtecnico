@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BadgeCheck, HandCoins, Eye, Scale, Camera, Laptop, Wifi, Printer, MapPin, Search } from "lucide-react";
 import logo from "@/assets/logo-encontreumtecnico.png.asset.json";
 import heroImg from "@/assets/tecnico-cftv-instalacao.jpg";
@@ -97,10 +97,11 @@ function HomePage() {
   const [city, setCity] = useState("");
   const [locationUf, setLocationUf] = useState("");
   const [locationNeighborhood, setLocationNeighborhood] = useState("");
+  const cityEditedByUser = useRef(false);
   const { area: suggestedRegion, loading: regionLoading } = useRegionalSuggestion();
   useEffect(() => {
     // The user may edit while the lookup is pending; never override typed city.
-    if (!suggestedRegion || city.trim()) return;
+    if (!suggestedRegion || city.trim() || cityEditedByUser.current) return;
     setCity(suggestedRegion.city);
     setLocationUf(suggestedRegion.uf);
     setLocationNeighborhood(suggestedRegion.neighborhood);
@@ -156,7 +157,7 @@ function HomePage() {
                 id="busca-cidade"
                 type="text"
                 value={city}
-                onChange={(e) => { setCity(e.target.value); setLocationUf(""); setLocationNeighborhood(""); }}
+                onChange={(e) => { cityEditedByUser.current = true; setCity(e.target.value); setLocationUf(""); setLocationNeighborhood(""); }}
                 placeholder="Cidade ou região"
                 className="h-11 min-h-11 w-full shrink-0 sm:w-auto sm:flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
