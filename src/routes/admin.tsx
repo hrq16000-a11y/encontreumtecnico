@@ -14,6 +14,7 @@ import { AdminControlHub } from "@/components/admin-control-hub";
 import { AdminAdvertisingManager } from "@/components/admin-advertising-manager";
 import { AdminNavigation } from "@/components/admin-navigation";
 import { AdminTechnicianManager } from "@/components/admin-technician-manager";
+import { AdminOwnTechnicianRole } from "@/components/admin-own-technician-role";
 import { AdminAccountsManager } from "@/components/admin-accounts-manager";
 import { adminModuleTitle, type AdminSection } from "@/lib/admin-sections";
 import { ArrowRight } from "lucide-react";
@@ -132,6 +133,8 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             <main className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6"
               aria-label={"Módulo administrativo: " + adminModuleTitle(section)}>
             <ConnectedGoogleIdentity user={user} />
+            {(section === "inicio" || section === "tecnicos") &&
+              <AdminOwnTechnicianRole isTechnician={roles.includes("tecnico")} refreshRoles={refreshRoles} />}
             {error && <p role="alert" className="mt-2 text-sm text-destructive">{error}</p>}
                         {section === "inicio" && (<section aria-label="Resumo administrativo">
               <dl className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
