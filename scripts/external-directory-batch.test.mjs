@@ -34,3 +34,20 @@ test("rejeita outra cidade, categoria, origem ou URL com parâmetros",()=>{
     {source_page:"http://guiafix.com.br/almirante-tamandare-pr/tecnico-de-informatica"},
   ]) assert.throws(()=>stagePublicDirectoryBatch({...input,...change}));
 });
+
+test("Paranaguá/PR é um lote isolado e não reaproveita Almirante Tamandaré",()=>{
+  const newInput={
+    ...input,
+    source_page:"https://guiafix.com.br/paranagua-pr/tecnico-de-informatica",
+    city:"Paranaguá", city_ibge:4118204,
+  };
+  const captured=stagePublicDirectoryBatch(newInput);
+  assert.equal(captured.city,"Paranaguá");
+  assert.equal(captured.city_ibge,4118204);
+  assert.equal(captured.listings.length,2);
+  assert.equal(captured.published,0);
+  assert.throws(()=>stagePublicDirectoryBatch({...newInput,city_ibge:4100400}));
+  assert.throws(()=>stagePublicDirectoryBatch({...newInput,city:"Almirante Tamandaré"}));
+  assert.throws(()=>stagePublicDirectoryBatch({...newInput,source_page:input.source_page}));
+  assert.throws(()=>stagePublicDirectoryBatch({...newInput,source_page:newInput.source_page+"?page=2"}));
+});
