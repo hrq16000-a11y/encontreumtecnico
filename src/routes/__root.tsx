@@ -13,6 +13,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { FriendlyErrorState } from "../components/friendly-error-state";
+import { AuthDialogProvider } from "../components/auth-dialog";
 
 // One stable, public, WordPress-independent image for every route's social preview.
 const SOCIAL_IMAGE = "https://www.encontreumtecnico.com/social-preview.jpg";
@@ -116,8 +117,10 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <AuthDialogProvider>
+        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+        <Outlet />
+      </AuthDialogProvider>
     </QueryClientProvider>
   );
 }
