@@ -140,7 +140,7 @@ describe("public SEO discovery integration — actual SSR and HTTP response cont
       expect(html).toContain('href="' + uri + '"');
     }
     expect(html).toContain("<h1");
-    expect(html).not.toMatch(/wa\\.me|telefone privado|@example\\.com|contact_phone/i);
+    expect(html).not.toMatch(/wa\.me|telefone privado|@example\.com|contact_phone/i);
   });
 
   it("preserves /cobertura and all original guides while splitting genuine URLs", () => {
@@ -226,8 +226,8 @@ describe("dedicated SSR SEO Vitest suites (isolated CI regression)", () => {
         "\\n" + (check.stdout || "").slice(-18_000) +
         "\\n" + (check.stderr || "").slice(-12_000));
     }
-    const summary = (check.stdout || "").split("\\n")
-      .filter(line => /Test Files|Tests |src\\/(?:lib|routes|components)\\//.test(line));
+    const summary = (check.stdout || "").split("\n")
+      .filter(line => /Test Files|Tests |src\/(?:lib|routes|components)\//.test(line));
     console.info("Isolated SEO suites passed:", summary.join(" | ").slice(0, 3000));
   }, 100_000);
 });
