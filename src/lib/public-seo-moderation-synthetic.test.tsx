@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { buildPublicGraph, profilesInCategory, profilesInCity, relatedGraphProfiles, type GraphProfile } from "@/lib/public-seo-graph";
 import { buildPublicSitemapIndexXml, buildPublicSitemapPartXml, listPublicSitemapParts } from "@/lib/public-sitemap-index";
 import { PublicSeoDirectory, PublicProfileConnections } from "@/components/public-seo-discovery";
+import { readPublicEligibleRows, type PublicEligibilityRpc } from "@/lib/public-eligibility";
 
 type Status = "aprovado" | "pendente" | "suspenso" | "reprovado";
 /** These identities/phone numbers are synthetic, never read from Supabase. */
@@ -114,26 +115,60 @@ describe("SEO público: simulação não destrutiva de suspensão e atualizaçã
   });
 });
 
-describe("BLOQUEADOR DE PUBLICAÇÃO: banimento independente do status aprovado", () => {
-  it("exige remover perfil de conta banida mesmo quando status continua aprovado", () => {
-    const blockedAccount = make("qa-banido-uuid", "aprovado", "Curitiba", "PR", "redes");
-    const blockedOwners = new Set([blockedAccount.syntheticOwner]);
-    expect(blockedOwners.has(blockedAccount.syntheticOwner)).toBe(true);
-    // Current graph receives only the approval-filtered rows, not an authorized
-    // ban decision. A red assertion is deliberate evidence of the missing guard.
-    const publicGraph = graphFromApproved([...source, blockedAccount]);
-    expect(publicGraph.profiles.some(p => p.public_slug === blockedAccount.public_slug)).toBe(false);
+describe("Elegibilidade pública moderada: simulação RPC sem SQL real", () => {
+  const mockGate = (blocked: Set<string>): PublicEligibilityRpc => ({
+    rpc: async (name, args) => ({
+      data: name === "eut_public_eligible_technician_ids"
+        ? args._ids.filter(id => !blocked.has(id)).map(technician_id => ({ technician_id })) : null,
+      error: name === "eut_public_eligible_technician_ids" ? null : { message: "Unknown RPC" },
+    }),
   });
 
-  it("exige remover perfil cujo contato privado corresponde a telefone banido", () => {
-    const blockedPhone = make("qa-banido-telefone", "aprovado", "Curitiba", "PR", "redes");
-    blockedPhone.syntheticPhone = "00000000001";
-    const deniedDigits = new Set(["00000000001"]);
-    expect(deniedDigits.has(blockedPhone.syntheticPhone)).toBe(true);
-    // No private phone is ever read by browser/anon. The public query lacks
-    // a safe server-side moderation signal, so it currently includes this row.
-    const publicGraph = graphFromApproved([...source, blockedPhone]);
-    const xml = buildPublicSitemapPartXml(publicGraph, "tecnicos", 1);
-    expect(xml).not.toContain("/tecnicos/qa-banido-telefone");
+  it("retira o técnico banido por conta ainda aprovado de grafo, interlinks e sitemap", async () => {
+    const blocked = make("qa-banido-uuid", "aprovado", "Curitiba", "PR", "redes");
+    const all = [...source, blocked].map(p => ({ ...p, id: "qa-" + p.public_slug }));
+    const eligible = await readPublicEligibleRows(mockGate(new Set(["qa-" + blocked.public_slug])), all.filter(p => p.status === "aprovado"));
+    const graph = buildPublicGraph(eligible, cities, categories);
+    expect(graph.profiles.some(p => p.public_slug === blocked.public_slug)).toBe(false);
+    const xml = buildPublicSitemapPartXml(graph, "tecnicos", 1);
+    expect(xml).not.toContain("/tecnicos/qa-banido-uuid");
+    const current = graph.profiles.find(p => p.public_slug === "qa-rede-curitiba")!;
+    expect(relatedGraphProfiles(graph, current).some(p => p.public_slug === blocked.public_slug)).toBe(false);
+  });
+
+  it("retira técnico com telefone banido do sitemap mesmo que aprovado", async () => {
+    const blocked = make("qa-banido-telefone", "aprovado", "Curitiba", "PR", "redes");
+    const all = [...source, blocked].map(p => ({ ...p, id: "qa-" + p.public_slug }));
+    const eligible = await readPublicEligibleRows(mockGate(new Set(["qa-" + blocked.public_slug])), all.filter(p => p.status === "aprovado"));
+    const graph = buildPublicGraph(eligible, cities, categories);
+    expect(buildPublicSitemapPartXml(graph, "tecnicos", 1)).not.toContain("/tecnicos/qa-banido-telefone");
+  });
+
+  it("falha fechado se o RPC ainda não existe ou estiver indisponível", async () => {
+    const rows = [{ id: "qa-id", display_name: "Técnico", status: "aprovado" }];
+    const errors = [
+      { data: null, error: { code: "PGRST202" } },
+      { data: null, error: null },
+      { data: [{ wrong: true }], error: null },
+    ];
+    for (const result of errors) {
+      await expect(readPublicEligibleRows({ rpc: async () => result }, rows))
+        .rejects.toThrow(/eligibility unavailable|Invalid public eligibility response/);
+    }
+  });
+
+  it("exige backend/RLS com bloqueio por conta e telefone, sem exposição de listas", () => {
+    const migration = readFileSync("docs/sql/eut-public-eligibility-moderation-proposal-20261111.sql", "utf8");
+    const adapter = readFileSync("src/lib/public-eligibility.ts", "utf8");
+    const list = readFileSync("src/lib/technicians.functions.ts", "utf8");
+    const graph = readFileSync("src/lib/public-seo-graph.functions.ts", "utf8");
+    expect(migration).toContain("eut_moderation.blocked_accounts");
+    expect(migration).toContain("eut_moderation.blocked_phones");
+    expect(migration).toContain("eut_technician_private_contacts");
+    expect(migration).toContain("DROP POLICY IF EXISTS");
+    expect(adapter).toContain("eut_public_eligible_technician_ids");
+    expect(list.match(/readPublicEligibleRows\(/g)).toHaveLength(2);
+    expect(graph).toContain("readPublicEligibleRows(");
+    expect(adapter).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
   });
 });
