@@ -14,6 +14,9 @@ async function visit(page, path) {
   assert(response.status() >= 200 && response.status() < 400,
     path + " returned HTTP " + response.status());
   await page.locator("body").waitFor({ state: "visible", timeout: 20000 });
+  // Diagnostic for SSR hydration races: wait for the client runtime to settle
+  // before entering any user text. If this resolves losses, hydration is implicated.
+  await page.waitForTimeout(1200);
 }
 
 async function preserveHome2(page, context) {
@@ -21,6 +24,8 @@ async function preserveHome2(page, context) {
   const field = page.locator('input[placeholder="Em qual cidade?"]');
   await field.waitFor({ state: "visible", timeout: 20000 });
   await field.fill("São José dos Pinhais");
+  console.log("DIAG Home2 draft after input:", await page.evaluate(() =>
+    sessionStorage.getItem("eut-ui-text-v1:home2")));
   const background = await context.newPage();
   await background.bringToFront();
   await page.waitForTimeout(850); // Exceeds existing filter debounce interval.
@@ -41,6 +46,8 @@ async function preserveGallery(page) {
   await query.waitFor({ state: "visible", timeout: 20000 });
   await query.fill("impressora e notebook");
   await city.fill("Pinhais");
+  console.log("DIAG LP2 draft after input:", await page.evaluate(() =>
+    sessionStorage.getItem("eut-ui-text-v1:lp2-gallery")));
   await visit(page, "/como-funciona");
   await page.goBack({ waitUntil: "domcontentloaded" });
   assert.equal(await query.inputValue(), "impressora e notebook", "LP2 loses incomplete specialty");
@@ -54,6 +61,8 @@ async function preserveSearch(page) {
   const field = page.locator("#filtro-bairro");
   await field.waitFor({ state: "visible", timeout: 30000 });
   await field.fill("Boqueirão");
+  console.log("DIAG /tecnicos pending after input:", await page.evaluate(() =>
+    sessionStorage.getItem("eut-filter-pending-v1:filtro-bairro")));
   await visit(page, "/como-funciona");
   await page.goBack({ waitUntil: "domcontentloaded" });
   await field.waitFor({ state: "visible", timeout: 20000 });
