@@ -31,7 +31,7 @@ export function MunicipalityPicker({
 
   return (
     <div className="grid gap-2">
-      <label htmlFor="municipio-busca" className="text-sm font-semibold text-foreground">Pesquisar município oficial</label>
+      <label htmlFor="municipio-busca" className="text-sm font-semibold text-foreground">Buscar município na lista oficial</label>
       <input id="municipio-busca" type="search" value={query} disabled={!uf || loading || error}
         onChange={(event) => setQuery(event.target.value)}
         placeholder={uf ? "Digite parte do nome (ex.: São José)" : "Selecione primeiro uma UF"}
@@ -40,7 +40,7 @@ export function MunicipalityPicker({
       {error && <p role="alert" className="text-sm text-destructive">
         Não foi possível carregar a lista de municípios. <button type="button" className="font-semibold underline" onClick={retry}>Tentar novamente</button>
       </p>}
-      <label htmlFor="municipio-opcoes" className="text-sm font-semibold text-foreground">Município-base confirmado</label>
+      <label htmlFor="municipio-opcoes" className="text-sm font-semibold text-foreground">Município selecionado</label>
       <select id="municipio-opcoes" required value={selectedId ?? ""} disabled={!uf || loading || error}
         onChange={(event) => {
           const found = cities.find((item) => item.id === Number(event.target.value));
@@ -56,7 +56,7 @@ export function MunicipalityPicker({
         </p>
       )}
       {selectedId && <p className="text-xs font-medium text-foreground">
-        Validado pelo catálogo de municípios · código IBGE {selectedId}
+        Código IBGE {selectedId}
       </p>}
     </div>
   );
