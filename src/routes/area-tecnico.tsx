@@ -84,6 +84,7 @@ export function TechnicianAreaPage() {
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
   const loadVersion = useRef(0);
   const draftOwnerRef = useRef<string | null>(null);
+  const [draftRestoredOwnerId, setDraftRestoredOwnerId] = useState<string | null>(null);
   const serverFormBaselineRef = useRef<string>("");
   const currentUserRef = useRef<string | null>(null);
   currentUserRef.current = user?.id ?? null;
@@ -141,6 +142,7 @@ export function TechnicianAreaPage() {
     };
     serverFormBaselineRef.current = JSON.stringify(initial);
     draftOwnerRef.current = null;
+    setDraftRestoredOwnerId(null);
     setForm(initial);
     setStatus(null);
     setProfileId(null);
@@ -205,20 +207,27 @@ export function TechnicianAreaPage() {
   useEffect(() => {
     if (!user || !roles.includes("tecnico")) {
       draftOwnerRef.current = null;
+      setDraftRestoredOwnerId(null);
       return;
     }
     if (profileLoading || profileError || profileOwnerId !== user.id ||
         draftOwnerRef.current === user.id) return;
     const existing = readProtectedDraft<typeof form>("tecnico", user.id);
     draftOwnerRef.current = user.id;
-    if (!existing) return;
+    if (!existing) {
+      setDraftRestoredOwnerId(user.id);
+      return;
+    }
     const value = existing.form;
     if (typeof value.display_name !== "string" || typeof value.state_uf !== "string" ||
         typeof value.city !== "string" || typeof value.neighborhood !== "string" ||
         typeof value.region !== "string" || typeof value.bio !== "string" ||
         !Array.isArray(value.specialties) || !Array.isArray(value.service_slugs) ||
         !value.specialties.every(item => typeof item === "string") ||
-        !value.service_slugs.every(item => typeof item === "string")) return;
+        !value.service_slugs.every(item => typeof item === "string")) {
+      setDraftRestoredOwnerId(user.id);
+      return;
+    }
     setForm({
       display_name: value.display_name.slice(0, 80),
       state_uf: value.state_uf.slice(0, 2),
@@ -232,6 +241,8 @@ export function TechnicianAreaPage() {
     });
     setStep(Math.max(1, Math.min(3, existing.step)) as RegistrationStep);
     setMsg("Rascunho do cadastro recuperado nesta aba. Confira antes de publicar.");
+    // Show the editor only after the server profile and this owner's draft are reconciled.
+    setDraftRestoredOwnerId(user.id);
   }, [user?.id, roleKey, profileLoading, profileError, profileOwnerId]);
 
   useEffect(() => {
@@ -380,7 +391,7 @@ export function TechnicianAreaPage() {
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
           </div>
-        ) : !profileReady ? (
+        ) : !profileReady || draftRestoredOwnerId !== user.id ? (
           <div className="mt-4 rounded-lg border border-border p-4">
             {profileError ? (
               <>
@@ -393,7 +404,9 @@ export function TechnicianAreaPage() {
                 </button>
               </>
             ) : (
-              <p role="status" className="text-sm text-muted-foreground">Carregando seu cadastro…</p>
+              <p role="status" aria-live="polite" aria-busy="true" className="text-sm text-muted-foreground">
+                {profileReady ? "Recuperando seu rascunho privado…" : "Carregando seu cadastro…"}
+              </p>
             )}
           </div>
         ) : (
