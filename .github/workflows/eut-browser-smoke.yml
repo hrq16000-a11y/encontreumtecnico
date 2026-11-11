@@ -23,7 +23,9 @@ jobs:
           const { readFileSync } = require('node:fs');
           const assert = require('node:assert/strict');
           const src = readFileSync('src/routes/tecnicos.index.tsx', 'utf8');
-          assert.match(src, /id="filtro-uf"[\\s\\S]{0,240}min-h-11/);
+          const ufStart = src.indexOf('id="filtro-uf"');
+          assert(ufStart >= 0 && src.slice(ufStart, ufStart + 300).includes('min-h-11'),
+            'UF select must have 44px minimum height');
           assert.match(src, /min-h-11[^"]*">Buscar na região/);
           console.log('UF select and regional search touch targets: >= 44px in source');
           NODE
