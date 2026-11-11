@@ -14,7 +14,11 @@ describe("Before User Created: proteção por identidade conhecida", () => {
     expect(hook).toContain("eut_moderation.blocked_phones");
     expect(hook).toContain("JOIN auth.users AS u ON u.id = b.user_id");
     expect(hook).toContain("lower(btrim(coalesce(u.email, '')))");
-    expect(hook).toContain("b.phone_digits = v_phone");
+    expect(hook).toContain("b.phone_digits IN (v_phone_e164,v_phone_national)");
+    expect(hook).toContain("v_phone_national := substr(v_phone,3)");
+    expect(hook).toContain("v_phone_e164 := '55'||v_phone");
+    expect(hook).toContain("length(v_phone) IN (12,13)");
+    expect(hook).toContain("length(v_phone) IN (10,11)");
     expect(hook).toContain("RETURN '{}'::jsonb");
     expect(hook).toContain("'http_code', 403");
     expect(hook).not.toMatch(/\b(DELETE|TRUNCATE)\s+(FROM\s+)?auth\.users/i);
@@ -41,6 +45,9 @@ describe("Before User Created: proteção por identidade conhecida", () => {
     expect(smoke).toContain("DO $smoke$");
     expect(smoke).toContain("v_result <> '{}'::jsonb");
     expect(smoke).toContain("v_result->'error'->>'http_code'");
+    expect(smoke).toContain("Falhou ao normalizar telefone brasileiro sem 55");
+    expect(smoke).toContain("Bloqueio indevido ao mudar DDD");
+    expect(smoke).toContain("Bloqueio indevido por DDD isolado");
     expect(smoke).not.toMatch(/^\s*(INSERT|UPDATE|DELETE|TRUNCATE)\s/im);
     expect(rollout).toContain("Authentication > Hooks > Before User Created");
     expect(rollout).toContain("desabilitar o hook");
