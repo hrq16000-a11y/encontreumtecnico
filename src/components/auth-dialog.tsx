@@ -5,6 +5,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { authReturnUrl } from "@/lib/auth-domain";
+import { watchGooglePopupReturn } from "@/lib/google-popup-return";
 import { readSignupIntent, rememberSignupIntent, type SignupIntent } from "@/lib/signup-intent";
 
 type Mode = "entrar" | "cadastrar" | "recuperar";
@@ -124,6 +125,7 @@ export function AuthDialogProvider({ children }: { children: ReactNode }) {
       popup.focus();
     }
     setBusy(true);
+    let stopWatcher: (() => void) | null = null;
     try {
       const { data, error: authError } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -136,41 +138,29 @@ export function AuthDialogProvider({ children }: { children: ReactNode }) {
         window.location.assign(data.url);
         return;
       }
-      const onMessage = async (event: MessageEvent) => {
-        if (event.origin !== window.location.origin || event.source !== popup) return;
-        if (event.data?.type !== "eut:google-oauth-complete" &&
-            event.data?.type !== "eut:google-oauth-error") return;
-        window.removeEventListener("message", onMessage);
-        if (event.data.type === "eut:google-oauth-error") {
+      stopWatcher = watchGooglePopupReturn({
+        popup,
+        origin: window.location.origin,
+        verifySession: async () => {
+          const { data: result, error: sessionError } = await supabase.auth.getUser();
+          return !sessionError && Boolean(result.user);
+        },
+        onVerified: () => {
+          window.location.assign("/entrar"); // Existing role and WordPress reconciliation.
+        },
+        onFailure: () => {
           setBusy(false);
-          setError("O acesso pelo Google não foi concluído. Você pode tentar novamente.");
-          return;
-        }
-        // Never trust postMessage as authentication: verify with Supabase.
-        const { data: session } = await supabase.auth.getUser();
-        if (session.user) {
-          window.location.assign("/entrar"); // Role/legacy account reconciliation.
-        } else {
+          setError("Não foi possível confirmar o acesso pelo Google. Tente novamente.");
+        },
+        onClosed: () => {
+          // COOP can report a popup closed early. Do not stop watching
+          // same-origin storage; allow retry while keeping late success possible.
           setBusy(false);
-          setError("Não foi possível confirmar a sessão. Tente novamente.");
-        }
-      };
-      window.addEventListener("message", onMessage);
+        },
+      });
       popup.location.replace(data.url);
-      // If the person closes Google's window, release the UI and allow a retry.
-      const watch = window.setInterval(() => {
-        if (!popup.closed) return;
-        window.clearInterval(watch);
-        // Google may enforce COOP and report WindowProxy.closed early.
-        // Keep the authenticated postMessage listener until it completes or times out.
-        setBusy(false);
-      }, 600);
-      window.setTimeout(() => {
-        window.clearInterval(watch);
-        window.removeEventListener("message", onMessage);
-        setBusy(false);
-      }, 120000);
     } catch {
+      stopWatcher?.();
       popup?.close();
       setError("Não foi possível abrir o Google agora. Tente novamente ou use e-mail e senha.");
       setBusy(false);
