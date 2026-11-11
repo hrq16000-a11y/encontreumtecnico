@@ -8,6 +8,7 @@ CREATE OR REPLACE FUNCTION eut_moderation.subject_operational(_user_id uuid)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path='pg_catalog' AS $$
   SELECT _user_id IS NOT NULL
+    AND EXISTS (SELECT 1 FROM auth.users u WHERE u.id=_user_id)
     AND NOT EXISTS (
       SELECT 1 FROM eut_moderation.blocked_accounts b WHERE b.user_id=_user_id
     )
