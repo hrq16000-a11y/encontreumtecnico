@@ -45,55 +45,32 @@ BEGIN
     IF v_result->'error'->>'http_code' IS DISTINCT FROM '403' THEN
       RAISE EXCEPTION 'Falhou ao restringir telefone cadastrado no bloqueio';
     END IF;
-
-    IF v_phone ~ '^55[1-9][1-9][2-9][0-9]{7,8}
-
-  SELECT u.email INTO v_email
-    FROM auth.users u
-    JOIN eut_moderation.blocked_accounts b ON b.user_id=u.id
-   WHERE u.email IS NOT NULL LIMIT 1;
-  IF v_email IS NOT NULL THEN
-    v_result := eut_moderation.before_user_created_guard(
-      jsonb_build_object('user', jsonb_build_object('email',v_email,'phone','')));
-    IF v_result->'error'->>'http_code' IS DISTINCT FROM '403' THEN
-      RAISE EXCEPTION 'Falhou ao restringir email de conta banida';
-    END IF;
-  END IF;
-END;
-$smoke$;
-
+    IF v_phone ~ '^55[1-9][1-9][2-9][0-9]{7,8}$'
        AND length(v_phone) IN (12,13) THEN
       v_national := substr(v_phone,3);
-
-      -- Mesmo telefone sem o código internacional 55 também é restrito.
       v_result := eut_moderation.before_user_created_guard(
-        jsonb_build_object('user', jsonb_build_object(
+        jsonb_build_object('user',jsonb_build_object(
           'email','eut-hook-qa-'||md5(random()::text)||'@example.invalid',
-          'phone',v_national
-        )));
+          'phone',v_national)));
       IF v_result->'error'->>'http_code' IS DISTINCT FROM '403' THEN
         RAISE EXCEPTION 'Falhou ao normalizar telefone brasileiro sem 55';
       END IF;
 
-      -- Mudar DDD mantendo assinante NUNCA identifica a mesma linha.
       v_other_area_phone :=
         (CASE WHEN left(v_national,2)='11' THEN '21' ELSE '11' END)
-         || substr(v_national,3);
+        || substr(v_national,3);
       v_result := eut_moderation.before_user_created_guard(
-        jsonb_build_object('user', jsonb_build_object(
+        jsonb_build_object('user',jsonb_build_object(
           'email','eut-hook-qa-'||md5(random()::text)||'@example.invalid',
-          'phone','55'||v_other_area_phone
-        )));
+          'phone','55'||v_other_area_phone)));
       IF v_result <> '{}'::jsonb THEN
         RAISE EXCEPTION 'Bloqueio indevido ao mudar DDD';
       END IF;
 
-      -- DDD sozinho também não deve acionar a restrição.
       v_result := eut_moderation.before_user_created_guard(
-        jsonb_build_object('user', jsonb_build_object(
+        jsonb_build_object('user',jsonb_build_object(
           'email','eut-hook-qa-'||md5(random()::text)||'@example.invalid',
-          'phone',left(v_national,2)
-        )));
+          'phone',left(v_national,2))));
       IF v_result <> '{}'::jsonb THEN
         RAISE EXCEPTION 'Bloqueio indevido por DDD isolado';
       END IF;
