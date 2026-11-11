@@ -3,7 +3,7 @@
 -- Reutiliza banimentos da PR #138; não remove, edita ou faz logout de auth.users.
 BEGIN;
 
--- Checagem privada por IDENTIDADE já confirmada, sem confiar em user_metadata/IP/DDD.
+-- Checagem privada por IDENTIDADE já confirmada, sem confiar em campos editáveis/IP/DDD.
 CREATE OR REPLACE FUNCTION eut_moderation.subject_operational(_user_id uuid)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path='pg_catalog' AS $$
