@@ -22,6 +22,140 @@ export type PublicGuide = {
 export const GUIDES: readonly PublicGuide[] = [
 
   {
+    slug: "backup-arquivos-antes-manutencao-computador",
+    title: "Backup antes da manutenção: como proteger documentos, fotos e arquivos importantes",
+    description: "Guia prático para organizar cópias de segurança antes de reparos, formatação ou troca de computador, sem expor senhas ou perder dados.",
+    categorySlug: "software",
+    categoryName: "Sistemas e software",
+    publishedAt: "2026-11-11",
+    updatedAt: "2026-11-11",
+    introduction: "Antes de formatar um notebook, substituir um disco ou solicitar uma manutenção, vale perguntar: onde está a cópia dos meus arquivos? O backup reduz o risco de perda em procedimentos comuns, mas precisa existir, estar acessível e ser adequado ao problema. Estas orientações ajudam a preparar o atendimento sem desmontar equipamentos, compartilhar senhas ou executar ações que possam piorar uma falha física.",
+    sections: [
+      {
+        heading: "Identifique o que realmente precisa ser preservado",
+        paragraphs: [
+          "Comece pelos arquivos que você não conseguiria recuperar facilmente: documentos pessoais, trabalhos, fotografias, arquivos de projetos, planilhas e materiais de estudo. Verifique pastas de trabalho, área de trabalho, downloads e diretórios usados por programas específicos. Não presuma que tudo está salvo na pasta Documentos ou na nuvem.",
+          "Alguns aplicativos guardam informações em bibliotecas próprias, bancos de dados locais ou perfis do usuário. Se você utiliza software profissional, sistemas de gestão ou arquivos de projetos, consulte o fabricante ou o responsável técnico sobre como exportar uma cópia íntegra. Anote também quais programas e licenças precisarão ser reinstalados, sem divulgar códigos de ativação."
+        ],
+        checklist: [
+          "Documentos, fotos e arquivos de trabalho prioritários identificados.",
+          "Pastas e programas que armazenam dados fora dos locais comuns.",
+          "Configurações e licenças necessárias para voltar a trabalhar.",
+          "Arquivos corporativos separados de conteúdos pessoais quando aplicável."
+        ]
+      },
+      {
+        heading: "Entenda a diferença entre sincronização e cópia de segurança",
+        paragraphs: [
+          "Uma pasta sincronizada pode facilitar o acesso em diferentes dispositivos, mas exclusões, alterações e arquivos corrompidos também podem se propagar. Por isso, sincronização não é automaticamente um backup independente. Verifique se o serviço mantém histórico de versões e qual é o prazo de recuperação antes de depender apenas dele.",
+          "Uma estratégia conhecida é manter cópias em mais de um tipo de armazenamento e preservar pelo menos uma delas separada do computador. O formato ideal depende do valor dos arquivos, do espaço disponível e do risco envolvido. Em qualquer opção, confirme se os arquivos estão completos e se você consegue lê-los; apenas ver uma barra de progresso concluída não garante recuperação."
+        ],
+        checklist: [
+          "Destino escolhido com espaço suficiente e acesso autorizado.",
+          "Cópia independente que não será alterada junto com o computador.",
+          "Histórico de versões verificado quando usar serviços sincronizados.",
+          "Dispositivo de backup guardado em local seguro após a cópia."
+        ]
+      },
+      {
+        heading: "Faça a cópia sem aumentar o risco de perda",
+        paragraphs: [
+          "Se o equipamento está estável e os arquivos podem ser abertos, copie primeiro os itens essenciais para um destino confiável e verifique alguns documentos e fotografias no local de destino. Não remova pastas do sistema nem apague a origem depois da cópia. Evite instalar programas de backup desconhecidos que solicitam acesso amplo sem explicar sua finalidade.",
+          "Se houver estalos repetitivos, desaparecimento de unidade, travamentos durante a leitura ou sinais de dano físico, pare os testes intensivos. Tentar ler um disco defeituoso repetidamente pode reduzir a possibilidade de recuperação especializada. Nessa situação, descreva os sintomas e informe que preservar os dados tem prioridade sobre deixar o computador funcionando imediatamente."
+        ]
+      },
+      {
+        heading: "Proteja a privacidade antes de entregar o equipamento",
+        paragraphs: [
+          "Combine previamente quais arquivos o profissional precisa acessar para o diagnóstico. Sempre que possível, encerre sessões de contas sensíveis e use meios apropriados de acesso temporário, sem revelar códigos de autenticação, senhas bancárias ou credenciais de outras pessoas. Equipamentos de empresas devem seguir as regras de segurança e autorização do empregador.",
+          "Se dados pessoais, financeiros ou de clientes estiverem armazenados no dispositivo, explique a sensibilidade dessas informações e combine como serão tratados os arquivos durante o atendimento. Pergunte sobre retenção de cópias, devolução de mídias e exclusão de dados temporários. Um contrato ou ordem de serviço pode registrar limites importantes."
+        ],
+        checklist: [
+          "Contas sensíveis protegidas sem bloquear o diagnóstico necessário.",
+          "Acesso temporário e escopo do técnico previamente combinados.",
+          "Informações de clientes e da empresa tratadas conforme as regras aplicáveis.",
+          "Procedimento para excluir cópias temporárias ao encerrar o serviço."
+        ]
+      },
+      {
+        heading: "Prepare um pedido de manutenção com prioridade aos dados",
+        paragraphs: [
+          "Ao solicitar suporte, descreva o defeito, o sistema operacional, se o equipamento liga e quais dados são indispensáveis. Informe se existe um backup testado e quando ele foi realizado. Se o computador já apresenta sinais de falha de disco, não autorize formatação, reinstalação ou troca de armazenamento antes de entender as consequências para a recuperação dos arquivos.",
+          "Peça que o orçamento discrimine diagnóstico, tentativa de recuperação, substituição de peças e reinstalação, quando necessários. Pergunte se há risco de perda e quem terá acesso aos dados. A presença de um técnico no diretório significa apenas que ele declarou sua especialidade; você deve confirmar capacidade, disponibilidade e condições do atendimento diretamente."
+        ]
+      }
+    ],
+    finalAdvice: "Escolha Sistemas e software na busca e explique se precisa de cópia de segurança, reinstalação ou diagnóstico. O funil organiza a solicitação e a prioridade dos arquivos sem liberar contatos privados de profissionais."
+  },
+  {
+    slug: "ar-condicionado-nao-gela-verificacoes-seguras",
+    title: "Ar-condicionado não gela: o que verificar com segurança antes de pedir assistência",
+    description: "Orientações para observar filtros, modo de operação e sinais de falha sem abrir o aparelho, manipular gás refrigerante ou arriscar choques.",
+    categorySlug: "climatizacao",
+    categoryName: "Climatização",
+    publishedAt: "2026-11-11",
+    updatedAt: "2026-11-11",
+    introduction: "Quando o ar-condicionado liga, mas não resfria o ambiente, a causa não pode ser determinada apenas pela sensação de temperatura. Configuração inadequada, filtro obstruído, ambiente muito quente, falha elétrica ou necessidade de manutenção são possibilidades diferentes. Este guia traz observações externas e seguras para organizar a solicitação. Reparos elétricos, circuitos de refrigerante e limpeza interna exigem profissional capacitado.",
+    sections: [
+      {
+        heading: "Confira o modo escolhido e as condições do ambiente",
+        paragraphs: [
+          "Veja se o controle remoto está no modo de resfriamento, quando disponível, e se a temperatura selecionada é inferior à temperatura percebida no ambiente. Modo ventilação apenas movimenta o ar e não oferece o mesmo efeito de resfriamento. Aguarde o tempo recomendado pelo fabricante para avaliar o funcionamento, sem alternar repetidamente entre liga e desliga.",
+          "Considere janelas abertas, incidência direta de sol, muitas pessoas no cômodo e portas que ficam abertas. Esses fatores podem dificultar a climatização mesmo quando o equipamento funciona. Anote em que horários o problema aparece e se ocorre em um cômodo específico. Não use essas observações para afirmar que a capacidade do aparelho é suficiente ou insuficiente sem avaliação técnica."
+        ],
+        checklist: [
+          "Modo de funcionamento indicado no controle ou no painel.",
+          "Temperatura programada e tempo de funcionamento observado.",
+          "Portas, janelas e fontes de calor no ambiente.",
+          "Se o problema ocorre sempre ou apenas em alguns horários."
+        ]
+      },
+      {
+        heading: "Observe os filtros e a circulação de ar",
+        paragraphs: [
+          "Filtros sujos podem reduzir a passagem de ar e prejudicar o desempenho. Consulte exclusivamente o manual do seu modelo antes de tentar remover um filtro acessível ao usuário. Se o fabricante permitir limpeza simples, desligue o aparelho pelo procedimento indicado e siga as instruções; não utilize produtos químicos ou água em componentes elétricos.",
+          "Verifique visualmente se há objetos, cortinas ou móveis bloqueando a entrada ou a saída de ar. Observe se o jato de ar está muito fraco em comparação ao funcionamento habitual. Não coloque ferramentas, dedos ou objetos nas aletas, não abra painéis técnicos e não tente alcançar partes internas da evaporadora ou condensadora."
+        ],
+        checklist: [
+          "Condições visíveis de filtros acessíveis conforme o manual.",
+          "Entrada e saída de ar livres de obstáculos.",
+          "Alterações perceptíveis na ventilação habitual.",
+          "Necessidade de limpeza profissional quando houver sujeira interna."
+        ]
+      },
+      {
+        heading: "Reconheça sinais de falha que exigem assistência",
+        paragraphs: [
+          "Ruídos incomuns, odor de queimado, desarme de disjuntor, água escorrendo em local inadequado e formação persistente de gelo são sinais para interromper o uso e procurar avaliação. Não tente descongelar componentes com calor intenso, romper tubulações ou improvisar ligações elétricas. Se houver risco de choque ou incêndio, mantenha distância e peça ajuda apropriada.",
+          "Apenas um técnico qualificado pode verificar com segurança componentes elétricos e o circuito de refrigeração. Não há motivo para completar gás refrigerante por tentativa: eventual vazamento deve ser identificado e tratado conforme normas e procedimentos. A reposição indiscriminada pode não solucionar a falha e oferece riscos ambientais e operacionais."
+        ]
+      },
+      {
+        heading: "Organize o histórico para facilitar o diagnóstico",
+        paragraphs: [
+          "Anote marca, modelo e capacidade nominal se constarem da identificação visível, além do tempo aproximado de instalação e da última manutenção conhecida. Informe se houve queda de energia, obra, reforma, mudança de local ou limpeza recente. Não remova tampas apenas para localizar uma etiqueta e não divulgue números de série completos ou dados de acesso em campos públicos.",
+          "Diga se o equipamento liga normalmente, se o ventilador gira e se a falha foi súbita ou gradual. Em equipamentos de uso comercial, siga regras internas e comunique o responsável pela manutenção antes de testar. Essas informações não substituem medição nem diagnóstico, mas ajudam o profissional a chegar preparado."
+        ],
+        checklist: [
+          "Marca e modelo identificados sem desmontagem.",
+          "Histórico de manutenção ou limpeza, quando conhecido.",
+          "Quando a falha começou e se houve evento anterior.",
+          "Fotos externas seguras, sem mostrar detalhes privados do imóvel."
+        ]
+      },
+      {
+        heading: "Solicite um orçamento claro e um serviço seguro",
+        paragraphs: [
+          "Descreva a ausência de resfriamento, a intensidade do fluxo de ar, a localidade e a urgência. Pergunte o que está incluído na visita de diagnóstico e quais serviços dependerão de orçamento adicional. Acesso à unidade externa, trabalho em altura, materiais, equipamentos de segurança e eventual deslocamento precisam ser discutidos antes da execução.",
+          "Confirme a habilitação adequada do profissional para atividades elétricas e de refrigeração, as recomendações do fabricante e o tratamento ambiental do refrigerante quando houver intervenção. Peça registro do serviço e esclarecimento da garantia contratada. O portal organiza perfis e pedidos; ele não pode antecipar a causa, o preço ou a disponibilidade."
+        ]
+      }
+    ],
+    finalAdvice: "Selecione Climatização e informe cidade, modelo do aparelho e sintomas observados. Use o atendimento guiado para registrar a solicitação; somente um profissional habilitado poderá confirmar o diagnóstico e os procedimentos indicados."
+  },
+
+
+  {
     slug: "wifi-caindo-sinal-fraco-como-identificar",
     title: "Wi-Fi caindo ou sinal fraco: como identificar o problema antes de chamar um técnico",
     description: "Um roteiro seguro para diferenciar falhas do roteador, da cobertura e da operadora, registrar sintomas e preparar um atendimento de redes.",
