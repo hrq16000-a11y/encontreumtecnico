@@ -1,33 +1,26 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ContactForm } from "@/components/contact-form";
+import { LifeBuoy, ShieldCheck } from "lucide-react";
+import { openFreeHelp } from "@/lib/free-search-help";
 import { TextPage, TextSection, pageHead } from "@/components/text-page";
 
 export const Route = createFileRoute("/contato")({
-  head: () => pageHead("Contato e atendimento", "Canais para dúvidas sobre o portal, privacidade, cobrança e suporte ao acesso.", "/contato"),
+  head: () => pageHead("Contato e atendimento", "Atendimento guiado para encontrar técnicos, solicitar gestão ou resolver dúvidas.", "/contato"),
   component: () => (
-    <TextPage title="Contato e atendimento" intro="Atendimento sobre a plataforma, seus dados e seus direitos.">
-      <TextSection title="Dúvidas e pedidos de privacidade">
-        <p>
-          Solicitações de acesso a dados, correções, segurança, reclamações de consumo sobre o serviço digital e dúvidas
-          de pagamento podem ser feitas sem adquirir o contato de um prestador.
-        </p>
-        <p>Canal de privacidade: <a href="mailto:dpo@encontreumtecnico.com" className="font-medium text-primary underline">dpo@encontreumtecnico.com</a>.</p>
-        <p>
-          Consulte também as <Link to="/faq" className="font-medium text-primary underline">perguntas frequentes</Link> e a{" "}
-          <Link to="/politicas" className="font-medium text-primary underline">central de políticas</Link>.
-        </p>
+    <TextPage title="Contato e atendimento" intro="Escolha a melhor forma de resolver sua necessidade em poucos passos.">
+      <TextSection title="Precisou de ajuda?">
+        <p>Não é necessário preencher um formulário genérico. O funil guiado identifica o serviço desejado, a urgência e sua região aproximada, quando disponível.</p>
+        <button type="button" onClick={() => openFreeHelp()}
+          className="mt-4 inline-flex min-h-12 items-center gap-2 rounded-xl bg-primary px-5 font-bold text-primary-foreground shadow-sm hover:bg-primary/90">
+          <LifeBuoy className="h-5 w-5" aria-hidden="true" /> Iniciar atendimento guiado
+        </button>
       </TextSection>
-      <TextSection title="Ajuda na busca por prestadores">
-        <p>
-          Se não encontrar um prestador em sua região, você pode solicitar ajuda gratuita nesta primeira fase
-          pelo formulário desta página ou pelo botão flutuante “Ajuda grátis”. A equipe receberá sua mensagem
-          para orientar a busca. Isso não garante que exista um técnico disponível, nem libera números particulares
-          ou substitui a negociação direta entre cliente e profissional.
-        </p>
+      <TextSection title="Duas maneiras de solicitar">
+        <p><strong>Contato direto:</strong> escolha o técnico e consulte o acesso individual por R$ 9,99 no horário comercial ou R$ 29,99 fora dele. Cada aquisição corresponde a um contato, no limite de dois contatos distintos por dia. O checkout automatizado ainda não está disponível: não cobramos nem liberamos contato sem pagamento confirmado.</p>
+        <p><strong>Gestão assistida:</strong> informe a necessidade para a equipe orientar a busca e o atendimento, sem taxa antecipada. Qualquer valor de serviço será informado e combinado separadamente.</p>
       </TextSection>
-      <TextSection title="Fale com a equipe">
-        <p>Não envie senhas, códigos de autenticação, números completos de cartão ou dados sensíveis desnecessários pelo formulário.</p>
-        <ContactForm />
+      <TextSection title="Privacidade e segurança">
+        <p className="flex gap-2"><ShieldCheck className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" /> Nenhum telefone privado de técnico é exibido pelo funil. Não envie senhas, dados bancários ou documentos sensíveis.</p>
+        <p>Para acesso, correção ou exclusão de dados pessoais, utilize <a href="mailto:dpo@encontreumtecnico.com" className="font-semibold text-primary underline">dpo@encontreumtecnico.com</a>. Veja também as <Link to="/faq" className="text-primary underline">perguntas frequentes</Link> e a <Link to="/politicas" className="text-primary underline">central de políticas</Link>.</p>
       </TextSection>
     </TextPage>
   ),
