@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import { readPublicEligibleRows, type PublicEligibilityRpc } from "@/lib/public-eligibility";
 import type { Database } from "@/integrations/supabase/types";
 import {
   buildPublicGraph, profilesInCategory, profilesInCity, relatedGraphProfiles,
@@ -39,7 +40,7 @@ async function loadGraphUncached(): Promise<GraphCatalog> {
   const profiles: GraphProfile[] = [];
   for (let page = 0; page <= MAX_PROFILE_PAGES; page++) {
     const { data, error } = await db.from("technicians")
-      .select("public_slug,display_name,city,state_uf,specialties,service_slugs,updated_at")
+      .select("id,public_slug,display_name,city,state_uf,specialties,service_slugs,updated_at")
       .eq("status", "aprovado")
       .order("created_at", { ascending: true })
       .range(page * BATCH, (page + 1) * BATCH - 1);
@@ -49,7 +50,10 @@ async function loadGraphUncached(): Promise<GraphCatalog> {
       if ((data ?? []).length) throw new Error("Public SEO graph exceeds 50,000 profiles: partition source reads");
       break;
     }
-    profiles.push(...(data ?? []));
+    // Fail closed when moderation RPC is absent, stale or inaccessible.
+    // Only eligible rows reach city/category links and the sitemap.
+    const safe = await readPublicEligibleRows(db as unknown as PublicEligibilityRpc, data ?? []);
+    profiles.push(...safe.map(({ id: _id, ...publicProfile }) => publicProfile));
     if ((data ?? []).length < BATCH) break;
   }
 
