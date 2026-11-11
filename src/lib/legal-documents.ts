@@ -80,7 +80,7 @@ export const legalDocuments: Record<LegalDocumentKey, LegalDocumentData> = {
         "paragraphs": [
           "Conforme o uso, poderão ser tratados nome, e-mail, identificador da conta, dados de autenticação administrados pelo provedor, cidade, UF, bairro, regiões atendidas, categorias e serviços declarados, apresentação profissional, foto enviada, dados de solicitações, registros de contato, prevenção a abuso e histórico de atendimento.",
           "Na contratação da conveniência, poderão ser tratados identificadores da transação, situação do pagamento, comprovantes e histórico de acessos liberados. Dados completos de cartão devem ser tratados pelo provedor de pagamento habilitado, e não expostos nos perfis.",
-          "A geolocalização precisa, se utilizada, deverá depender da permissão do dispositivo; endereço IP e sinais técnicos podem servir a segurança, localização aproximada e controle de fraude, quando necessários."
+          "A geolocalização precisa, se utilizada, deverá depender da permissão do dispositivo; endereço IP e sinais técnicos podem servir a segurança, localização aproximada e controle de fraude, quando necessários. Sugestões de cidade e UF derivadas dos cabeçalhos de IP da hospedagem são aproximadas, usadas somente para facilitar buscas e cadastros e preservadas por até seis horas na sessão do navegador. Não inferimos bairros pelo IP ou pela operadora, nem divulgamos localização sugerida sem confirmação."
         ]
       },
       {

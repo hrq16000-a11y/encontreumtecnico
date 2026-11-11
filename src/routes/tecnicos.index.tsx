@@ -16,6 +16,7 @@ import { canShowLegacyArchive } from "../lib/legacy-archive-filters";
 import { useEffect, useRef, useState } from "react";
 import { analyticsAllowed, recordSearch } from "@/lib/search-analytics";
 import { openFreeHelp } from "@/lib/free-search-help";
+import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { MapPin, ShieldCheck, UserRoundCheck, LifeBuoy } from "lucide-react";
 
 const searchSchema = z.object({
@@ -98,6 +99,8 @@ function TechniciansPage() {
     return () => window.clearTimeout(popup);
   }, [technicians.length, searchArea, search.cidade, search.uf, search.bairro, search.servico]);
 
+  const { area: regionalHint } = useRegionalSuggestion();
+  const suggestedArea = !search.cidade.trim() && !search.uf ? regionalHint : null;
   const specialty = categories.some((c) => c.slug === search.especialidade)
     ? search.especialidade
     : "Todas";
@@ -212,6 +215,14 @@ function TechniciansPage() {
             </p>
           )}
         </div>
+        {suggestedArea && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/20 bg-accent/50 px-4 py-3 text-sm">
+            <span><MapPin className="mr-1 inline h-4 w-4 text-primary" aria-hidden="true" />
+              Você pode estar perto de <strong>{suggestedArea.city}/{suggestedArea.uf}</strong>. Estimativa por IP, não localização exata.</span>
+            <Link to="/tecnicos" search={{especialidade:search.especialidade,cidade:suggestedArea.city,uf:suggestedArea.uf,bairro:suggestedArea.neighborhood,regiao:"",servico:search.servico,prioridade:"regiao"}}
+              className="inline-flex min-h-10 items-center rounded-lg bg-primary px-4 text-xs font-bold text-primary-foreground">Buscar na região</Link>
+          </div>
+        )}
         <SponsoredPublicSlot slotKey="search.top" routePath="/tecnicos" />
         <section aria-label="Transparência e confiança na busca" className="mt-6 grid gap-3 rounded-2xl border border-primary/15 bg-accent/50 p-4 sm:grid-cols-3">
           <div className="flex items-start gap-3"><UserRoundCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" /><p className="text-sm text-foreground"><strong className="block">{technicians.length} perfil{technicians.length === 1 ? "" : "s"} nesta busca</strong><span className="text-xs text-muted-foreground">Somente perfis publicados; resultados conforme os filtros aplicados.</span></p></div>

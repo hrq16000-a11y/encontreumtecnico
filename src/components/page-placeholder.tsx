@@ -13,7 +13,7 @@ export function PageShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-background pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0">
       <SiteHeader />
-      <main id="conteudo-principal" tabIndex={-1} className="flex-1">{children}</main>
+      <main id="conteudo-principal" tabIndex={-1} className="eut-soft-arrival flex-1">{children}</main>
       <SiteFooter />
       <CookieNotice />
       <FreeSearchHelp />
