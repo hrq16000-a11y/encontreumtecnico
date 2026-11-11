@@ -1,4 +1,5 @@
 import { BRAZIL_STATES } from "@/lib/service-taxonomy";
+import { isBroadRegionalLabel, safeNeighborhood, placeKey } from "@/lib/location-labels";
 
 // GPS is used only on the visitor's device; coordinates are never persisted,
 // logged or attached to a technician request. Only municipality/UF/locality
@@ -14,7 +15,14 @@ export function suggestTechnicianArea<T extends {
 }>(form: T, area: CustomerArea, source: "manual" | "automatic"): T {
   if (source === "automatic" &&
       (form.state_uf || form.city.trim() || form.neighborhood.trim())) return form;
-  return { ...form, state_uf: area.uf, city: area.city, neighborhood: area.neighborhood };
+  // GPS municipality is approximate; the provider's locality is NOT a
+  // confirmed neighborhood. Preserve manual neighborhood for the same city.
+  const city = isBroadRegionalLabel(area.city) ? "" : area.city;
+  const keptCity = city || form.city;
+  const sameCity = !city || placeKey(city) === placeKey(form.city);
+  const neighborhood = safeNeighborhood(area.neighborhood, keptCity) ||
+    (sameCity ? safeNeighborhood(form.neighborhood, keptCity) : "");
+  return { ...form, state_uf: area.uf, city: keptCity, neighborhood };
 }
 
 export function parseBrazilianDeviceLocation(value: unknown): CustomerArea | null {
@@ -27,10 +35,11 @@ export function parseBrazilianDeviceLocation(value: unknown): CustomerArea | nul
   const uf = rawState.match(/(?:^|-)BR-([A-Z]{2})$/)?.[1] ??
     (BRAZIL_STATES.find((s) => s === rawState) ?? "");
   if (city.length < 2 || !BRAZIL_STATES.some((s) => s === uf)) return null;
-  const locality = typeof item["locality"] === "string" ? item["locality"].trim().slice(0, 80) : "";
-  const neighborhood = locality && locality.toLocaleLowerCase("pt-BR") !== city.toLocaleLowerCase("pt-BR")
-    ? locality : "";
-  return { city, uf, neighborhood };
+  // BigDataCloud 'locality' may represent a district, city or metropolitan
+  // area. It is NOT an authoritative neighborhood field. Do not infer one,
+  // even when it differs from 'city' (e.g. locality=São José dos Pinhais).
+  // The user may type Jardim Itália manually after confirming municipality.
+  return { city, uf, neighborhood: "" };
 }
 
 export async function locateCustomerFromDevice(): Promise<CustomerArea> {
