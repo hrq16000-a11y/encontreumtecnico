@@ -1,41 +1,29 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { FreeSearchHelp } from "./free-search-help";
-import { freeHelpCopy, openFreeHelp } from "@/lib/free-search-help";
+import { openFreeHelp } from "@/lib/free-search-help";
 
-vi.mock("./contact-form", () => ({
-  ContactForm: ({ initialSubject, initialMessage, submitLabel }: {
-    initialSubject: string; initialMessage: string; submitLabel: string;
-  }) => <div data-testid="safe-contact">{initialSubject} {initialMessage} {submitLabel}</div>,
+vi.mock("./assistance-funnel", () => ({
+  AssistanceFunnel: ({ context }: { context: { city?: string; service?: string } }) =>
+    <div data-testid="guided-funnel">Etapa 1 de 3 · {context.city ?? ""} · {context.service ?? ""}</div>,
 }));
 afterEach(() => { cleanup(); document.body.style.overflow = ""; });
 
-describe("Ajuda gratuita para área não encontrada", () => {
-  it("não abre automaticamente no restante do portal, e nunca promete contato grátis", () => {
+describe("Funil flutuante de atendimento", () => {
+  it("não abre de forma intrusiva e permanece acessível em qualquer página", () => {
     render(<FreeSearchHelp />);
     expect(screen.queryByRole("dialog")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /ajuda grátis/i }));
+    fireEvent.click(screen.getByRole("button", { name: /preciso de ajuda/i }));
     expect(screen.getByRole("dialog")).toBeTruthy();
-    expect(screen.getByText(/Primeira fase · R\$ 0,00/)).toBeTruthy();
-    expect(screen.getByText(/O telefone de nenhum técnico é liberado/)).toBeTruthy();
+    expect(screen.getByTestId("guided-funnel").textContent).toContain("Etapa 1 de 3");
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
   });
-
-  it("recebe a região informada e abre formulário privado predefinido", () => {
+  it("recebe contexto regional do fluxo sem resultados", () => {
     render(<FreeSearchHelp />);
     act(() => openFreeHelp({ city: "Curitiba", uf: "PR", service: "redes" }));
     expect(screen.getByRole("dialog")).toBeTruthy();
-    expect(screen.getByText(/Busca em Curitiba · PR/)).toBeTruthy();
-    expect(screen.getByTestId("safe-contact").textContent).toContain("Curitiba · PR");
-    expect(screen.getByTestId("safe-contact").textContent).toContain("redes");
-    expect(screen.getByTestId("safe-contact").textContent).toContain("Solicitar ajuda gratuita");
-  });
-
-  it("limita textos da busca enviados ao formulário", () => {
-    const copy = freeHelpCopy({city: "São Paulo", service: "<script>rede</script>"});
-    expect(copy.location).toBe("São Paulo");
-    expect(copy.message).not.toContain("<script>");
-    expect(copy.message).toContain("rede");
+    expect(screen.getByTestId("guided-funnel").textContent).toContain("Curitiba");
+    expect(screen.getByTestId("guided-funnel").textContent).toContain("redes");
   });
 });
