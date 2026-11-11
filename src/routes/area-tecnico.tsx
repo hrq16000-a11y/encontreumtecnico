@@ -11,6 +11,7 @@ import { useActiveServices } from "@/hooks/use-active-services";
 import { BRAZIL_STATES, validMunicipality } from "@/lib/service-taxonomy";
 import { useMunicipalities } from "@/hooks/use-municipalities";
 import { MunicipalityPicker } from "@/components/municipality-picker";
+import { TechnicianCepSuggestion } from "@/components/technician-cep-suggestion";
 import { TechnicianCoverageEditor } from "@/components/technician-coverage-editor";
 import { TechnicianAvatarEditor } from "@/components/technician-avatar-editor";
 import { LegacyAccountActivation } from "@/components/legacy-account-activation";
@@ -313,6 +314,8 @@ export function TechnicianAreaPage() {
     if (servicesLoading || servicesError) return setMsg("O catálogo de serviços não está disponível. Tente novamente.");
     if (form.service_slugs.length === 0) return setMsg("Escolha pelo menos um serviço específico que você executa.");
     if (form.service_slugs.some((slug) => !services.some((service) => service.slug === slug && form.specialties.includes(service.category_slug)))) return setMsg("Os serviços precisam pertencer às categorias selecionadas e estar ativos.");
+    // Persist a recovery point before any network request. Never erase it on failure.
+    writeDraft(form, 3);
     setSaving(true);
     setMsg(null);
     try {
@@ -329,7 +332,8 @@ export function TechnicianAreaPage() {
       });
       if (currentUserRef.current !== savingOwner) return;
       if (error) {
-        setMsg("Não foi possível publicar. Confira cidade, categorias e serviços e tente novamente.");
+        const reference = typeof error.code === "string" && /^[A-Z0-9]{4,8}$/.test(error.code) ? ` (referência ${error.code})` : "";
+        setMsg(`Não foi possível publicar${reference}. Seus dados continuam neste dispositivo. Tente novamente; se persistir, acesse o suporte pelo funil de ajuda.`);
       } else if (data?.state === "bloqueado_por_seguranca") {
         setMsg("Seu perfil tem uma restrição de segurança e não pode ser reativado automaticamente. Entre em contato.");
       } else if (data?.state === "publicado") {
@@ -525,6 +529,13 @@ export function TechnicianAreaPage() {
                   updateRegistration(suggestTechnicianArea(current, area, source));
                 }}
               />
+              <TechnicianCepSuggestion onChoose={(city, bairro) => {
+                const next = { state_uf: city.uf, city: city.name, base_city_ibge_id: city.id };
+                if (needsLocationDraftConfirmation(form, next) &&
+                    !window.confirm("Usar a localidade do CEP substituirá os bairros e áreas anteriores. Deseja continuar?")) return;
+                const changed = changeTechnicianPlace(form, next);
+                updateRegistration({ ...changed, neighborhood: safeNeighborhood(bairro, city.name) || changed.neighborhood });
+              }} />
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="text-sm font-medium text-foreground">Estado (UF)
                   <select required className={input} value={form.state_uf} onChange={(e) => selectBaseMunicipality({ state_uf: e.target.value, city: "", base_city_ibge_id: null })}>
