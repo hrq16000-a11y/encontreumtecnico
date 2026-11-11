@@ -26,7 +26,7 @@ export function AdminInvitesManager() {
 
   useEffect(() => {
     let active = true;
-    void db.rpc("eut_owner_admin_invites_snapshot").then(({ data, error: e }) => {
+    void Promise.resolve(db.rpc("eut_owner_admin_invites_snapshot")).then(({ data, error: e }) => {
       if (!active) return;
       setOwner(!e && !!data && Array.isArray(data.invites));
       setItems(!e && Array.isArray(data?.invites) ? data.invites as Invite[] : []);
