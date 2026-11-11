@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { buildAssistanceLead, type AssistanceMode } from "@/lib/assistance-intent";
 import type { FreeHelpContext } from "@/lib/free-search-help";
+import { clearAssistanceDraft, readAssistanceDraft, saveAssistanceDraft } from "@/lib/assistance-draft";
 
 const input = "mt-1 min-h-11 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
 const services = ["Computadores e notebooks", "Redes e Wi-Fi", "CFTV e segurança", "Impressoras", "Sistemas e software", "Outro serviço"];
@@ -12,21 +13,32 @@ const services = ["Computadores e notebooks", "Redes e Wi-Fi", "CFTV e seguranç
 export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContext; onClose: () => void }) {
   const navigate = useNavigate();
   const { area: suggested } = useRegionalSuggestion();
-  const [mode, setMode] = useState<AssistanceMode | null>(context.mode ?? null);
-  const [step, setStep] = useState(context.mode ? 1 : 0);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [service, setService] = useState(context.service || "");
-  const [when, setWhen] = useState("Nos próximos dias");
-  const [problem, setProblem] = useState("");
-  const [city, setCity] = useState(context.city || "");
-  const [uf, setUf] = useState(context.uf || "");
-  const [neighborhood, setNeighborhood] = useState(context.neighborhood || "");
+  const [restored] = useState(() => readAssistanceDraft(context.technicianId));
+  const [mode, setMode] = useState<AssistanceMode | null>(context.mode ?? restored?.mode ?? null);
+  const [step, setStep] = useState(context.mode ? 1 : restored?.step ?? 0);
+  const [name, setName] = useState(restored?.name ?? "");
+  const [email, setEmail] = useState(restored?.email ?? "");
+  const [service, setService] = useState(context.service || restored?.service || "");
+  const [when, setWhen] = useState(restored?.when ?? "Nos próximos dias");
+  const [problem, setProblem] = useState(restored?.problem ?? "");
+  const [city, setCity] = useState(context.city || restored?.city || "");
+  const [uf, setUf] = useState(context.uf || restored?.uf || "");
+  const [neighborhood, setNeighborhood] = useState(context.neighborhood || restored?.neighborhood || "");
   const [consent, setConsent] = useState(false);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
-  const cityEdited = useRef(Boolean(context.city));
+  const cityEdited = useRef(Boolean(context.city || restored?.city));
+
+  useEffect(() => {
+    if (sent) return;
+    const timer = window.setTimeout(() => {
+      saveAssistanceDraft(context.technicianId, {
+        mode, step, name, email, service, when, problem, city, uf, neighborhood,
+      });
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [context.technicianId, mode, step, name, email, service, when, problem, city, uf, neighborhood, sent]);
 
   useEffect(() => {
     if (!suggested || cityEdited.current || city.trim()) return;
@@ -52,6 +64,7 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
       // Existing admin-only inbox. This does NOT create payment rights.
       const { error: requestError } = await supabase.from("contact_messages").insert(lead);
       if (requestError) throw requestError;
+      clearAssistanceDraft(context.technicianId);
       setSent(true);
     } catch {
       setError("Não conseguimos registrar seu pedido. Nada foi cobrado. Tente novamente.");
@@ -178,7 +191,7 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
           </label>
           <p className="flex items-start gap-2 text-xs text-muted-foreground">
             <ShieldCheck className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-            Nenhum telefone privado de técnico será liberado por este pedido. Nada será cobrado nesta etapa.
+            Nenhum telefone privado de técnico será liberado por este pedido. Nada será cobrado nesta etapa. O rascunho fica somente nesta aba por até 45 minutos e é apagado após o envio confirmado.
           </p>
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           <div className="flex gap-3">
