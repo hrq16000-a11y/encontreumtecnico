@@ -315,4 +315,25 @@ describe("SEO global do Encontre um Técnico", () => {
     ])).toBe(true);
     expect(isGuideDetailHeadMatch([])).toBe(false);
   });
+
+  it("evita baixar o wizard completo antes de abrir o funil, sem perder SSR e proteção de dados", () => {
+    const floating = read("src/components/free-search-help.tsx");
+    const shell = read("src/components/page-placeholder.tsx");
+    const wizard = read("src/components/assistance-funnel.tsx");
+    const cta = read("src/components/guide-lead-callout.tsx");
+    expect(floating).toContain('lazy(() =>');
+    expect(floating).toContain('import("./assistance-funnel")');
+    expect(floating).not.toContain('import { AssistanceFunnel } from "./assistance-funnel"');
+    expect(floating).toContain("<Suspense fallback=");
+    expect(floating).toContain("<LazyAssistanceFunnel key={JSON.stringify(context)}");
+    expect(floating).toContain('window.addEventListener("eut-open-free-help"');
+    expect(floating).toContain("{open && (");
+    expect(shell).toContain("<FreeSearchHelp />");
+    expect(cta).toContain("openFreeHelp");
+    expect(wizard).toContain("readAssistanceDraft");
+    expect(wizard).toContain("saveAssistanceDraft");
+    expect(wizard).toContain("if (requestError) throw requestError;");
+    expect(wizard.indexOf("setSavedWhatsAppLead(lead);"))
+      .toBeGreaterThan(wizard.indexOf("if (requestError) throw requestError;"));
+  });
 });
