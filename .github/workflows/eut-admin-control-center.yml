@@ -8,6 +8,11 @@ on:
       - 'src/components/admin-technician-manager.tsx'
       - 'src/components/admin-accounts-manager.tsx'
       - 'src/lib/admin-account-moderation-contract.test.ts'
+      - 'src/lib/admin-invite-contract.test.ts'
+      - 'src/components/admin-invites-manager.tsx'
+      - 'src/routes/convite-administrativo.tsx'
+      - 'docs/sql/eut-owner-admin-invitations-20261111.sql'
+      - 'docs/admin/EUT_ADMIN_INVITES_2026-11-11.md'
       - 'docs/sql/eut-admin-accounts-moderation-20261111.sql'
       - 'src/components/legacy-review-queue.tsx'
       - 'src/components/site-header.tsx'
@@ -31,7 +36,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: Module navigation, RLS and privacy regression tests
-        run: bunx vitest run src/lib/admin-sections.test.ts src/lib/admin-management-contract.test.ts src/lib/admin-account-moderation-contract.test.ts
+        run: bunx vitest run src/lib/admin-sections.test.ts src/lib/admin-management-contract.test.ts src/lib/admin-account-moderation-contract.test.ts src/lib/admin-invite-contract.test.ts
       - name: Build TanStack
         run: bun run build
       - name: TypeScript check
