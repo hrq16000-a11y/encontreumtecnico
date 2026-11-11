@@ -96,6 +96,24 @@ async function preserveAssistance(page) {
   // Intentionally never send the request or check consent: no production writes.
 }
 
+async function anonymousPrivatePanels(page) {
+  // Real Chromium against production, without an auth token. Read only.
+  // Never click buttons that could create, approve, block, pay or edit anything.
+  const checks = [
+    { path: "/area-cliente", marker: "Entre com uma conta de cliente", forbidden: "Registrar minha necessidade" },
+    { path: "/area-tecnico", marker: "Entre para acessar seu painel", forbidden: "Cadastro guiado" },
+    { path: "/admin/tecnicos", marker: "Entre com uma conta de administrador", forbidden: "Gestão administrativa de técnicos" },
+  ];
+  for (const check of checks) {
+    await visit(page, check.path);
+    await page.waitForFunction((text) => document.body.innerText.includes(text), check.marker, { timeout: 20000 });
+    const body = await page.locator("body").innerText();
+    assert(!body.includes(check.forbidden), check.path + " shows authenticated editor to a visitor");
+    assert((await page.locator('input[type="password"]').count()) === 0,
+      check.path + " unexpectedly requests password in a private panel");
+  }
+}
+
 async function main() {
   const browser = await chromium.launch({ headless: true });
   const failures = [];
@@ -106,6 +124,7 @@ async function main() {
       ["desktop: LP2 gallery/back/reload", preserveGallery],
       ["desktop: /tecnicos pending search", preserveSearch],
       ["desktop: assistance draft/reload", preserveAssistance],
+      ["desktop: anonymous private panel boundaries", anonymousPrivatePanels],
     ]) {
       const page = await desktop.newPage();
       page.setDefaultTimeout(20000);
