@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageShell } from "@/components/page-placeholder";
 import { GUIDES } from "@/lib/public-guides";
+import { getGuideArtwork } from "@/lib/guide-artwork";
 import { SITE } from "@/lib/public-sitemap";
 
 export const Route = createFileRoute("/guias/")({
@@ -9,7 +10,7 @@ export const Route = createFileRoute("/guias/")({
       { title: "Guias para contratar serviços técnicos — Encontre um Técnico" },
       { name: "description", content: "Orientações práticas para identificar problemas, preparar pedidos de manutenção e comparar serviços técnicos sem expor dados privados." },
       { property: "og:title", content: "Guias práticos de serviços técnicos — Encontre um Técnico" },
-      { property: "og:description", content: "Checklist de manutenção de computador e planejamento de câmeras de segurança antes de solicitar atendimento." },
+      { property: "og:description", content: "Guias práticos sobre computadores, Wi-Fi, impressoras e câmeras para preparar a solicitação de atendimento." },
       { property: "og:url", content: SITE + "/guias" },
       { property: "og:type", content: "website" },
     ],
@@ -37,10 +38,8 @@ function GuidesIndex() {
           {GUIDES.map((guide) => (
             <li key={guide.slug} className="flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
               <Link to="/guias/$slug" params={{ slug: guide.slug }} className="block overflow-hidden">
-                <img src={guide.categorySlug === "cftv" ? "/guias/cftv-planejamento-ilustrado.svg" : "/guias/computador-diagnostico-ilustrado.svg"}
-                  alt={guide.categorySlug === "cftv"
-                    ? "Esquema de segurança com câmeras e rede de gravação"
-                    : "Bancada ilustrada de manutenção de computadores"}
+                <img src={getGuideArtwork(guide.categorySlug).src}
+                  alt={getGuideArtwork(guide.categorySlug).alt}
                   width={1200} height={630} loading="lazy"
                   className="aspect-video w-full object-cover transition-transform duration-300 hover:scale-[1.025]" />
               </Link>
