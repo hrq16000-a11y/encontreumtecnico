@@ -1,0 +1,51 @@
+name: EUT tab refocus and private draft regression
+on:
+  pull_request:
+    paths:
+      - 'src/hooks/use-auth.tsx'
+      - 'src/hooks/use-auth.test.tsx'
+      - 'src/lib/protected-session-draft.ts'
+      - 'src/lib/protected-session-draft.test.ts'
+      - 'src/routes/area-cliente.tsx'
+      - 'src/routes/area-tecnico.tsx'
+      - '.github/workflows/eut-tab-focus-draft.yml'
+permissions:
+  contents: read
+jobs:
+  preserve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Same-account auth refocus and scoped drafts
+        run: bunx vitest run src/hooks/use-auth.test.tsx src/lib/protected-session-draft.test.ts
+      - name: No cross-account draft or auth regressions
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          const auth=readFileSync('src/hooks/use-auth.tsx','utf8');
+          const drafts=readFileSync('src/lib/protected-session-draft.ts','utf8');
+          const client=readFileSync('src/routes/area-cliente.tsx','utf8');
+          const tech=readFileSync('src/routes/area-tecnico.tsx','utf8');
+          for(const token of ['settledUserIdRef','pendingUserIdRef','accountIdRef.current !== nextId']) {
+            if(!auth.includes(token))throw Error('Auth ownership/duplicate guard lost: '+token);
+          }
+          for(const token of ['sessionStorage','MAX_AGE','data.owner !== owner','data.kind !== kind']) {
+            if(!drafts.includes(token))throw Error('Account-scoped short-lived session draft guard lost: '+token);
+          }
+          if(drafts.includes('localStorage') || drafts.includes('supabase') || drafts.includes('service_role'))
+            throw Error('Draft storage must not be persistent or server side');
+          if(!client.includes('clearProtectedDraft("cliente", owner)') ||
+             !client.includes('currentUserIdRef.current === owner') ||
+             !tech.includes('clearProtectedDraft("tecnico", savingOwner)') ||
+             !tech.includes('profileOwnerId !== user.id'))
+            throw Error('Owner binding or confirmed-save cleanup missing');
+          NODE
+      - name: Legacy and privacy boundary
+        run: node scripts/eut-wordpress-runtime-boundary.mjs
+      - name: TanStack SSR build
+        run: bun run build
+      - name: TypeScript
+        run: bunx tsc --noEmit --pretty false
