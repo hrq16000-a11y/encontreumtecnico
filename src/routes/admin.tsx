@@ -128,7 +128,8 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
               aria-label={"Módulo administrativo: " + adminModuleTitle(section)}>
             <ConnectedGoogleIdentity user={user} />
             {error && <p role="alert" className="mt-2 text-sm text-destructive">{error}</p>}
-            <dl className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+                        {section === "inicio" && (<section aria-label="Resumo administrativo">
+              <dl className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
               {stats.map((s) => (
                 <div key={s.label} className="rounded-lg border border-border bg-card p-4">
                   <dt className="text-xs text-muted-foreground">{s.label}</dt>
@@ -139,13 +140,14 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
 
             <p className="mt-3 text-sm text-muted-foreground">Os indicadores acima consideram os cadastros atuais. Os registros históricos ainda em revisão aparecem separadamente abaixo.</p>
             <AdminControlHub />
-            <div id="admin-patrocinadores" className="scroll-mt-20"><AdminAdvertisingManager /></div>
-            <div id="admin-metricas" className="scroll-mt-20"><SearchMetrics /></div>
-            <div id="admin-legado" className="scroll-mt-20"><LegacyReviewQueue /></div>
-            <div id="admin-reivindicacoes" className="scroll-mt-20"><LegacyClaimReview /></div>
-            <div id="admin-catalogo" className="scroll-mt-20"><EutAdminManager /></div>
-
-            <h2 id="admin-tecnicos" className="mt-10 scroll-mt-20 text-lg font-semibold text-foreground">Técnicos</h2>
+            </section>)}
+            {section === "patrocinadores" && <section aria-label="Patrocinadores e banners"><div id="admin-patrocinadores"><AdminAdvertisingManager /></div></section>}
+            {section === "metricas" && <section aria-label="Buscas e indicadores"><div id="admin-metricas"><SearchMetrics /></div></section>}
+            {section === "legado" && <section aria-label="Acervo WordPress"><div id="admin-legado"><LegacyReviewQueue /></div></section>}
+            {section === "reivindicacoes" && <section aria-label="Reivindicações"><div id="admin-reivindicacoes"><LegacyClaimReview /></div></section>}
+            {section === "catalogo" && <section aria-label="Categorias e serviços"><div id="admin-catalogo"><EutAdminManager /></div></section>}
+            {section === "tecnicos" && <section aria-label="Gestão de técnicos">
+              <h2 id="admin-tecnicos" className="mt-10 scroll-mt-20 text-lg font-semibold text-foreground">Técnicos</h2>
             <div role="tablist" className="mt-3 flex flex-wrap gap-2">
               {TABS.map((t) => (
                 <button key={t.key} role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)}
@@ -174,8 +176,9 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
                 ))}
               </ul>
             )}
-
-            <h2 id="admin-mensagens" className="mt-10 scroll-mt-20 text-lg font-semibold text-foreground">Mensagens de contato</h2>
+            </section>}
+            {section === "mensagens" && <section aria-label="Mensagens administrativas">
+              <h2 id="admin-mensagens" className="mt-10 scroll-mt-20 text-lg font-semibold text-foreground">Mensagens de contato</h2>
             {msgs.length === 0 ? (
               <p className="mt-3 text-sm text-muted-foreground">Nenhuma mensagem recebida.</p>
             ) : (
@@ -196,14 +199,30 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
                 ))}
               </ul>
             )}
-
-            <h2 id="admin-solicitacoes" className="mt-10 scroll-mt-20 text-lg font-semibold text-foreground">Solicitações recentes</h2>
+            </section>}
+            {section === "solicitacoes" && <section aria-label="Solicitações registradas">
+              <h2 id="admin-solicitacoes" className="mt-10 scroll-mt-20 text-lg font-semibold text-foreground">Solicitações recentes</h2>
             {reqs.length === 0 ? (
               <p className="mt-3 text-sm text-muted-foreground">Nenhuma solicitação aberta ainda.</p>
             ) : (
               <ul className="mt-3 grid gap-3">{reqs.slice(0, 50).map((r) => <RequestCard key={r.id} r={r} />)}</ul>
             )}
-            </main>
+            </section>}
+            {section === "clientes" && <section aria-labelledby="admin-clientes-titulo">
+              <h2 id="admin-clientes-titulo" className="text-xl font-bold text-foreground">Clientes e solicitações</h2>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">Consulta limitada aos clientes que registraram solicitações no portal atual. O gerenciamento completo de identidades, banimentos e exclusões será habilitado somente com ações autorizadas e auditoria.</p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-border bg-muted/20 p-5"><p className="text-sm text-muted-foreground">Solicitações consultadas</p><p className="mt-1 text-3xl font-extrabold text-foreground">{reqs.length}</p></div>
+                <div className="rounded-xl border border-border bg-muted/20 p-5"><p className="text-sm text-muted-foreground">Solicitantes nessas solicitações</p><p className="mt-1 text-3xl font-extrabold text-foreground">{new Set(reqs.map((r) => r.client_id)).size}</p></div>
+              </div>
+              <div className="mt-5 rounded-xl border border-border bg-card p-5">
+                <h3 className="font-bold text-foreground">Atividades disponíveis</h3>
+                <p className="mt-2 text-sm text-muted-foreground">Os detalhes dos atendimentos estão no módulo de solicitações. Esta tela não revela e-mail, telefone ou dados de autenticação dos clientes sem uma política segura de acesso.</p>
+                <Link to="/admin/$secao" params={{ secao: "solicitacoes" }} className="mt-4 inline-flex min-h-12 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground">Consultar solicitações <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
+              </div>
+            </section>}
+
+</main>
           </div>
         )}
       </section>
