@@ -3,6 +3,70 @@ import { Diamond, MapPin, Network, PenTool, Search, Target, UserPlus, ClipboardL
 
 const ALL = { especialidade: "Todas", cidade: "", regiao: "" };
 
+/**
+ * Duas opções de atendimento, sem encaminhar automaticamente por IP:
+ * pedido rápido no portal local do próprio responsável ou consulta à rede
+ * nacional de prestadores independentes. Link externo preserva a busca.
+ */
+export function CanaisDeAtendimento() {
+  return (
+    <section aria-labelledby="canais-atendimento-titulo" className="border-b border-border bg-background px-4 py-10 sm:py-12">
+      <div className="mx-auto max-w-6xl">
+        <p className="text-xs font-bold uppercase tracking-widest text-primary">Escolha como deseja ser atendido</p>
+        <h2 id="canais-atendimento-titulo" className="mt-2 text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
+          Atendimento local em Curitiba ou técnicos parceiros em todo o Brasil
+        </h2>
+        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+          São duas opções distintas: para solicitar atendimento com agilidade em Curitiba e Região
+          Metropolitana, utilize o Preciso de um Técnico. Nas demais cidades, encontre profissionais
+          independentes da rede nacional e combine o serviço diretamente com eles.
+        </p>
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          <article className="flex min-w-0 flex-col rounded-2xl border border-primary/30 bg-primary/5 p-5 sm:p-6">
+            <p className="text-xs font-bold uppercase tracking-wide text-primary">Curitiba e Região Metropolitana</p>
+            <h3 className="mt-2 text-xl font-extrabold text-foreground">Preciso de um Técnico</h3>
+            <p className="mt-3 flex-1 text-sm leading-relaxed text-muted-foreground">
+              Precisa resolver algo com urgência na região? Inicie a triagem no portal de atendimento
+              local. A agenda e o deslocamento dependem de disponibilidade e confirmação prévia.
+            </p>
+            <a
+              href="https://precisodeumtecnico.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-center text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              Solicitar atendimento local
+              <span className="ml-2" aria-hidden="true">↗</span>
+            </a>
+            <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+              Abre o site Preciso de um Técnico em outra aba. Valores e condições são próprios do atendimento local.
+            </p>
+          </article>
+          <article className="flex min-w-0 flex-col rounded-2xl border border-border bg-card p-5 sm:p-6">
+            <p className="text-xs font-bold uppercase tracking-wide text-primary">Profissionais parceiros de todo o Brasil</p>
+            <h3 className="mt-2 text-xl font-extrabold text-foreground">Encontre um Técnico</h3>
+            <p className="mt-3 flex-1 text-sm leading-relaxed text-muted-foreground">
+              Busque técnicos cadastrados por especialidade e cidade, inclusive fora de Curitiba.
+              Sem leilão de menor preço: o orçamento, a agenda e a contratação são combinados
+              diretamente com cada profissional.
+            </p>
+            <Link
+              to="/tecnicos"
+              search={ALL}
+              className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-primary/30 bg-background px-4 py-3 text-center text-sm font-bold text-primary transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              Buscar técnicos parceiros pelo Brasil
+            </Link>
+            <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+              Cadastro e especialidades são declarados pelos profissionais; disponibilidade não é garantida.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function FindOneSection() {
   return (
     <section className="bg-muted/40 px-4 py-16 md:py-24">
@@ -37,11 +101,12 @@ export function JoinNetworkSection() {
         Nada de disputar o menor lance: valorizamos conhecimento, experiência e negociação direta.
       </p>
       <div className="mt-5 max-w-3xl rounded-2xl border border-primary/25 bg-primary/5 p-5">
-        <p className="text-lg font-bold text-foreground">Atendimento técnico: referência mínima sugerida de R$ 150 por até 1 hora.</p>
+        <p className="text-lg font-bold text-foreground">Na rede nacional de parceiros: referência sugerida a partir de R$ 150 por até 1 hora.</p>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
           É uma orientação de valorização, não preço fixado pela plataforma.
           Cada profissional combina diretamente seu orçamento com o cliente; deslocamento, urgência,
           peças, complexidade e tempo adicional podem alterar o valor final.
+          O atendimento local do Preciso de um Técnico tem condições próprias, informadas no site correspondente.
         </p>
       </div>
       <div className="mt-5 flex flex-col gap-3 sm:flex-row">
