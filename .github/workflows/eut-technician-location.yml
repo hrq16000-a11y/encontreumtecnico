@@ -19,7 +19,7 @@ on:
       - 'src/components/technician-avatar.tsx'
       - 'src/components/public-technician-profile.tsx'
       - 'src/lib/public-seo-moderation-synthetic.test.tsx'
-      - 'src/routes/public-technician-ban-404.test.tsx'
+      - 'src/lib/public-technician-ban-404.test.tsx'
       - 'docs/sql/eut-public-eligibility-moderation-proposal-20261111.sql'
       - 'docs/seo/EUT_STAGING_RLS_404_READINESS_2026-11-11.md'
       - 'src/integrations/supabase/types.ts'
@@ -41,7 +41,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: GPS, official municipalities, secure coverage and avatars
-        run: bunx vitest run src/lib/customer-location.test.ts src/lib/technician-registration-wizard.test.ts src/lib/municipality-coverage.test.ts src/lib/technicians.functions.test.ts src/lib/public-seo-moderation-synthetic.test.tsx src/routes/public-technician-ban-404.test.tsx src/lib/technician-panel-navigation.test.ts
+        run: bunx vitest run src/lib/customer-location.test.ts src/lib/technician-registration-wizard.test.ts src/lib/municipality-coverage.test.ts src/lib/technicians.functions.test.ts src/lib/public-seo-moderation-synthetic.test.tsx src/lib/public-technician-ban-404.test.tsx src/lib/technician-panel-navigation.test.ts
       - run: bun run build
         if: ${{ !cancelled() }}
       - name: TypeScript after route generation

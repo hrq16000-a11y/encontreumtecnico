@@ -116,7 +116,9 @@ describe("public technician profile lookup", () => {
     expect((await getApprovedTechnician({ data: { id } }))?.public_slug).toBe(profile.public_slug);
     revoked = true;
     expect(await getApprovedTechnician({ data: { id } })).toBeNull();
-    expect(mocks.client.rpc).toHaveBeenCalledTimes(2);
+    // Other profile enrichments can legitimately call unrelated RPCs.
+    expect(mocks.client.rpc.mock.calls.filter(([name]) =>
+      name === "eut_public_eligible_technician_ids")).toHaveLength(2);
   });
 
   it("does not turn moderation RPC outage into a false 404", async () => {

@@ -23,7 +23,7 @@ vi.mock("../components/page-placeholder", () => ({
 vi.mock("@/components/public-technician-profile", () => ({
   PublicTechnicianProfile: () => null,
 }));
-import { Route } from "./tecnicos.$tecnicoId";
+import { Route } from "../routes/tecnicos.$tecnicoId";
 
 type RouteUnderTest = {
   loader: (input: { params: { tecnicoId: string } }) => Promise<any>;
