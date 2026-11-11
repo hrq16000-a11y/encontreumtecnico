@@ -213,7 +213,7 @@ describe("SEO global do Encontre um Técnico", () => {
       expect(svg).toContain("<title");
       expect(svg).toContain("<desc");
       expect(svg).not.toMatch(/<script|<foreignObject|onload\s*=/i);
-      expect(Buffer.byteLength(svg)).toBeLessThan(12000);
+      expect(new TextEncoder().encode(svg).length).toBeLessThan(12000);
     }
   });
 
