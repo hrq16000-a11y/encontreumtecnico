@@ -13,6 +13,7 @@ import { EutAdminManager } from "@/components/eut-admin-manager";
 import { AdminControlHub } from "@/components/admin-control-hub";
 import { AdminAdvertisingManager } from "@/components/admin-advertising-manager";
 import { AdminNavigation } from "@/components/admin-navigation";
+import { AdminTechnicianManager } from "@/components/admin-technician-manager";
 import { adminModuleTitle, type AdminSection } from "@/lib/admin-sections";
 import { ArrowRight } from "lucide-react";
 
@@ -32,14 +33,6 @@ export const Route = createFileRoute("/admin")({
 });
 
 type Tech = Tables<"technicians">;
-type TStatus = Tech["status"];
-const TABS: { key: TStatus; label: string }[] = [
-  { key: "pendente", label: "Pendentes" },
-  { key: "aprovado", label: "Aprovados" },
-  { key: "suspenso", label: "Suspensos" },
-  { key: "rejeitado", label: "Rejeitados" },
-];
-
 export function AdminPage() {
   return <AdminWorkspace section="inicio" />;
 }
@@ -51,7 +44,6 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
   const [techs, setTechs] = useState<Tech[] | null>(null);
   const [reqs, setReqs] = useState<Req[]>([]);
   const [msgs, setMsgs] = useState<Tables<"contact_messages">[]>([]);
-  const [tab, setTab] = useState<TStatus>("pendente");
   const [error, setError] = useState<string | null>(null);
 
   async function load() {
@@ -84,16 +76,10 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
   }
   useEffect(() => { if (isAdmin) void load(); }, [isAdmin, section]);
 
-  async function setStatus(id: string, status: TStatus) {
-    const { error } = await supabase.from("technicians").update({ status, reviewed_at: new Date().toISOString() }).eq("id", id);
-    if (error) setError("Não foi possível atualizar o cadastro.");
-    else load();
-  }
-
   const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
   const acceptedMonth = reqs.filter((r) => r.accepted_at && new Date(r.accepted_at) >= monthStart).length;
   const openedMonth = reqs.filter((r) => new Date(r.created_at) >= monthStart).length;
-  const count = (s: TStatus) => techs?.filter((t) => t.status === s).length ?? 0;
+  const count = (s: Tech["status"]) => techs?.filter((t) => t.status === s).length ?? 0;
   const stats = [
     { label: "Técnicos aprovados", value: count("aprovado") },
     { label: "Cadastros pendentes", value: count("pendente") },
@@ -158,35 +144,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             {section === "reivindicacoes" && <section aria-label="Reivindicações"><div id="admin-reivindicacoes"><LegacyClaimReview /></div></section>}
             {section === "catalogo" && <section aria-label="Categorias e serviços"><div id="admin-catalogo"><EutAdminManager /></div></section>}
             {section === "tecnicos" && <section aria-label="Gestão de técnicos">
-              <h2 id="admin-tecnicos" className="mt-10 scroll-mt-20 text-lg font-semibold text-foreground">Técnicos</h2>
-            <div role="tablist" className="mt-3 flex flex-wrap gap-2">
-              {TABS.map((t) => (
-                <button key={t.key} role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)}
-                  className={`min-h-11 rounded-full border px-4 text-sm ${tab === t.key ? "border-primary bg-primary text-primary-foreground" : "border-input text-foreground"}`}>
-                  {t.label} ({count(t.key)})
-                </button>
-              ))}
-            </div>
-            {techs === null ? (
-              <p className="mt-4 text-sm text-muted-foreground">Carregando cadastros…</p>
-            ) : techs.filter((t) => t.status === tab).length === 0 ? (
-              <p className="mt-4 text-sm text-muted-foreground">Nenhum cadastro nesta lista.</p>
-            ) : (
-              <ul className="mt-4 grid gap-3">
-                {techs.filter((t) => t.status === tab).map((t) => (
-                  <li key={t.id} className="rounded-lg border border-border bg-card p-4">
-                    <p className="font-semibold text-card-foreground">{t.display_name}</p>
-                    <p className="text-sm text-muted-foreground">{t.city}{t.region ? ` · ${t.region}` : ""} · {t.specialties.join(", ")}</p>
-                    {t.bio && <p className="mt-2 text-sm text-card-foreground">{t.bio}</p>}
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {t.status !== "aprovado" && <button onClick={() => setStatus(t.id, "aprovado")} className={`${btn} bg-primary text-primary-foreground`}>{t.status === "suspenso" ? "Reativar" : "Aprovar"}</button>}
-                      {t.status === "pendente" && <button onClick={() => setStatus(t.id, "rejeitado")} className={`${btn} border border-input text-foreground`}>Rejeitar</button>}
-                      {t.status === "aprovado" && <button onClick={() => setStatus(t.id, "suspenso")} className={`${btn} border border-input text-foreground`}>Suspender</button>}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
+              <AdminTechnicianManager technicians={techs} onChanged={load} />
             </section>}
             {section === "mensagens" && <section aria-label="Mensagens administrativas">
               <h2 id="admin-mensagens" className="mt-10 scroll-mt-20 text-lg font-semibold text-foreground">Mensagens de contato</h2>

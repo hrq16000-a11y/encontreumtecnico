@@ -51,7 +51,7 @@ describe("Central administrativa: URLs próprias e RLS intacta", () => {
       "<AdminAdvertisingManager />", "<EutAdminManager />",
       "<LegacyReviewQueue />", "<LegacyClaimReview />",
       "<SearchMetrics />", "contact_messages",
-      'supabase.from("technicians").update({ status',
+      '<AdminTechnicianManager technicians={techs} onChanged={load} />',
     ]) expect(page).toContain(source);
     expect(page).not.toContain("auth.admin.deleteUser");
     expect(page).not.toContain("service_role");

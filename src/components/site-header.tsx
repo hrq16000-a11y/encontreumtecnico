@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { showMobileQuickTabs } from "@/lib/navigation-safety";
 import { ArrowRight, CircleHelp, House, LogIn, Menu, Search, Wrench, X, UserRound } from "lucide-react";
@@ -16,6 +16,7 @@ const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:rin
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
+  const headerRef = useRef<HTMLElement | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const { user, roles, loading } = useAuth();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
@@ -39,13 +40,23 @@ export function SiteHeader() {
     const onEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
     };
+    const onOutside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !headerRef.current?.contains(event.target))
+        setOpen(false);
+    };
     window.addEventListener("keydown", onEscape);
-    return () => window.removeEventListener("keydown", onEscape);
+    document.addEventListener("pointerdown", onOutside);
+    return () => {
+      window.removeEventListener("keydown", onEscape);
+      document.removeEventListener("pointerdown", onOutside);
+    };
   }, [open]);
+
+  useEffect(() => { setOpen(false); }, [pathname]);
 
   return (
     <>
-    <header className={"sticky top-0 z-40 border-b border-border/70 bg-background/95 backdrop-blur-xl transition-shadow duration-300 " + (scrolled ? "shadow-md" : "shadow-sm")}>
+    <header ref={headerRef} className={"sticky top-0 z-40 border-b border-border/70 bg-background/95 backdrop-blur-xl transition-shadow duration-300 " + (scrolled ? "shadow-md" : "shadow-sm")}>
       <a href="#conteudo-principal" className={"sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground " + FOCUS}>
         Ir para o conteúdo
       </a>
