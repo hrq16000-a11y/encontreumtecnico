@@ -11,6 +11,7 @@ import { HomeCommunityInvite } from "@/components/home-community-invite";
 import { ProblemAssistant } from "../components/problem-assistant";
 import { CustomerLocationButton } from "@/components/customer-location-button";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
+import { readUiTextDraft, saveUiTextDraft } from "@/lib/unsent-ui-draft";
 import { Reveal } from "../components/motion";
 import {
   CategoryGrid,
@@ -95,11 +96,18 @@ const CHIPS = [
 
 function HomePage() {
   const navigate = useNavigate();
-  const [specialty, setSpecialty] = useState("");
-  const [city, setCity] = useState("");
-  const [locationUf, setLocationUf] = useState("");
-  const [locationNeighborhood, setLocationNeighborhood] = useState("");
-  const cityEditedByUser = useRef(false);
+  const [savedSearch] = useState(() => readUiTextDraft("home"));
+  const [specialty, setSpecialty] = useState(savedSearch?.["specialty"] ?? "");
+  const [city, setCity] = useState(savedSearch?.["city"] ?? "");
+  const [locationUf, setLocationUf] = useState(savedSearch?.["uf"] ?? "");
+  const [locationNeighborhood, setLocationNeighborhood] = useState(savedSearch?.["neighborhood"] ?? "");
+  const cityEditedByUser = useRef(Boolean(savedSearch?.["city"]));
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      saveUiTextDraft("home", { specialty, city, uf: locationUf, neighborhood: locationNeighborhood });
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [specialty, city, locationUf, locationNeighborhood]);
   const { area: suggestedRegion, loading: regionLoading } = useRegionalSuggestion();
   useEffect(() => {
     // The user may edit while the lookup is pending; never override typed city.

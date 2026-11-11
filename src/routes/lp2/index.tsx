@@ -1,6 +1,7 @@
 import {listApprovedTechnicians} from '../../lib/technicians.functions'
 import {createFileRoute,Link,useNavigate} from '@tanstack/react-router'
-import {useState} from 'react'
+import {useEffect,useState} from 'react'
+import {readUiTextDraft,saveUiTextDraft} from '../../lib/unsent-ui-draft'
 import type {FormEvent} from 'react'
 import {ServiceIcon} from '../../components/lp2/ServiceIcon'
 import {LP2LegacyTeaser} from '../../components/lp2/legacy-teaser'
@@ -27,8 +28,13 @@ type Technician={id:string;nome:string;cidade?:string;uf?:string;especialidade?:
 type Activity={id:string;titulo:string;especialidade:string;cidade:string;uf:string;descricao:string}
 function Home(){
  const navigate=useNavigate()
- const [service,setService]=useState('')
- const [city,setCity]=useState('')
+ const [draft]=useState(()=>readUiTextDraft("lp2-home"))
+ const [service,setService]=useState(draft?.["service"]??'')
+ const [city,setCity]=useState(draft?.["city"]??'')
+ useEffect(()=>{
+   const timer=window.setTimeout(()=>saveUiTextDraft("lp2-home",{service,city}),400)
+   return ()=>window.clearTimeout(timer)
+ },[service,city])
  const technicians=Route.useLoaderData()
  const profiles=technicians.slice(0,4).map(fromPublicTechnician)
  const requests:Activity[]=[]
