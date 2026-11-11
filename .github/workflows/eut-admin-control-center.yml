@@ -32,6 +32,37 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Module navigation, RLS and privacy regression tests
         run: bunx vitest run src/lib/admin-sections.test.ts src/lib/admin-management-contract.test.ts src/lib/admin-account-moderation-contract.test.ts
+      - name: Verify anonymous cannot read privileged admin data (live, read-only)
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const source = readFileSync('src/integrations/supabase/client.ts', 'utf8');
+          const base = source.match(/const SUPABASE_URL = "([^"]+)"/)?.[1];
+          const key = source.match(/const SUPABASE_PUBLISHABLE_KEY = "([^"]+)"/)?.[1];
+          if (!base || !key || !base.endsWith('.supabase.co')) {
+            throw Error('Public Supabase configuration is unavailable');
+          }
+          // Do not authenticate, create accounts or send a mutating admin action.
+          // A protected RPC and a protected audit table must never return HTTP 2xx.
+          const probes = [
+            { name: 'Private admin accounts directory', path: '/rest/v1/rpc/eut_admin_accounts_snapshot',
+              method: 'POST', body: JSON.stringify({ _search: '', _filter: 'todos', _page: 0 }) },
+            { name: 'Immutable admin audit table', path: '/rest/v1/eut_admin_management_log?select=id&limit=1', method: 'GET' },
+          ];
+          for (const probe of probes) {
+            const response = await fetch(base + probe.path, {
+              method: probe.method,
+              headers: { apikey: key, 'content-type': 'application/json' },
+              ...(probe.body ? { body: probe.body } : {}),
+              signal: AbortSignal.timeout(12000),
+            });
+            if (![401, 403, 404].includes(response.status)) {
+              throw Error(probe.name + ': unexpected anonymous access or API failure (HTTP ' + response.status + ')');
+            }
+            // Do not log response bodies: they may contain backend details.
+            console.log(probe.name + ': anonymous access rejected (HTTP ' + response.status + ')');
+          }
+          NODE
       - name: Build TanStack
         run: bun run build
       - name: TypeScript check
