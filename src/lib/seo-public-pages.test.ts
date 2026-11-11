@@ -272,4 +272,20 @@ describe("SEO global do Encontre um Técnico", () => {
     expect(cta).not.toContain("api.whatsapp.com");
     expect(buildPublicSitemapXml([])).not.toContain("/perguntas-frequentes");
   });
+  it("limita correção de fontes aos artigos e mantém funil coerente com categorias publicadas", () => {
+    const article = read("src/routes/guias.$slug.tsx");
+    const style = read("src/styles.css");
+    const funnel = read("src/components/assistance-funnel.tsx");
+    const cta = read("src/components/guide-lead-callout.tsx");
+    expect(article).toContain('className="eut-guide-stable-type mt-7"');
+    expect(style).toContain(".eut-guide-stable-type {");
+    expect(style).toContain("font-family: system-ui");
+    expect(style).toContain(".eut-guide-stable-type h1,");
+    expect(style).not.toContain("body { font-family: system-ui");
+    expect(cta).toContain('climatizacao: "Climatização"');
+    expect(funnel).toContain('"Sistemas e software", "Climatização", "Outro serviço"');
+    expect(funnel).toContain("if (requestError) throw requestError;");
+    expect(funnel.indexOf("setSavedWhatsAppLead(lead);")).toBeGreaterThan(funnel.indexOf("if (requestError) throw requestError;"));
+    expect(funnel).not.toContain("verifyMetaWebhookSignature");
+  });
 });
