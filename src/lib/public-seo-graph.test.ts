@@ -64,7 +64,7 @@ describe("Grafo público de interlinks indexáveis", () => {
   it("relaciona perfis por cidade, categoria ou serviço, nunca aleatoriamente nem ao próprio", () => {
     const related = relatedGraphProfiles(graph, graph.profiles[0]);
     expect(related.map(x => x.public_slug)).toEqual([
-      "tecnico-cftv", "rede-sao-paulo", "grande-porto-alegre",
+      "tecnico-cftv", "grande-porto-alegre", "rede-sao-paulo",
     ]);
     expect(related[0].relation).toBe("Mesmo município");
     expect(related[1].relation).toBe("Serviço em comum");
