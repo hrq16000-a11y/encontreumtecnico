@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useActiveCategories } from "@/hooks/use-active-categories";
 import { LegacyAccountActivation } from "@/components/legacy-account-activation";
 import { CustomerLocationButton } from "@/components/customer-location-button";
+import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { ClientTechnicianPicker } from "@/components/client-technician-picker";
 import { consumeTriageDraft } from "@/lib/triage-draft";
 import { clearTechnicianTarget, recallTechnicianTarget, rememberTechnicianTarget } from "@/lib/selected-technician-target";
@@ -58,6 +59,7 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
   const ownRows = accountScopedRows(rows, rowsOwnerId, roles.includes("cliente") ? user?.id : null);
   const { categories, loading: catalogLoading, error: catalogError } = useActiveCategories();
   const [form, setForm] = useState({ title: "", description: "", category: "", city: "", region: "" });
+  const { area: regionalHint } = useRegionalSuggestion();
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [step, setStep] = useState<ClientRequestStep>(1);
@@ -113,6 +115,14 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
     }));
     setMsg("Sua triagem foi recuperada. Revise a descrição, a categoria e a cidade antes de salvar.");
   }, [loading, user?.id, roles.join(",")]);
+
+  useEffect(() => {
+    // A region suggestion never overrides the user's city or a prior triage.
+    if (loading || !user || !roles.includes("cliente") || !regionalHint) return;
+    setForm(previous => previous.city.trim() ? previous : {
+      ...previous, city: regionalHint.city, region: previous.region || regionalHint.neighborhood,
+    });
+  }, [loading, user?.id, roles.join(","), regionalHint?.city, regionalHint?.uf]);
 
   async function load() {
     if (!user || !roles.includes("cliente")) return;
@@ -420,6 +430,10 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
               )}
               {step === 2 && (
                 <div className="grid gap-4">
+                  {regionalHint && <p className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+                    <strong className="text-foreground">Cidade sugerida: {regionalHint.city}/{regionalHint.uf}.</strong>
+                    {" "}Estimativa aproximada, não sua localização exata. Confira antes de enviar.
+                  </p>}
                   <CustomerLocationButton onLocated={(area, source) => {
                     setForm((old) => source === "automatic" && old.city.trim() ? old :
                       { ...old, city: area.city, region: area.neighborhood });

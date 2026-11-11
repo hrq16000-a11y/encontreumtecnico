@@ -22,6 +22,7 @@ import { PioneerPhoneVerification } from "@/components/pioneer-phone-verificatio
 import { TechnicianDirectRequests } from "@/components/technician-direct-requests";
 import { CustomerLocationButton } from "@/components/customer-location-button";
 import { suggestTechnicianArea } from "@/lib/customer-location";
+import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
 import { registrationStepError, type RegistrationStep } from "@/lib/technician-registration-wizard";
 
@@ -70,6 +71,7 @@ export function TechnicianAreaPage() {
   const currentUserRef = useRef<string | null>(null);
   currentUserRef.current = user?.id ?? null;
   const roleKey = roles.join(",");
+  const { area: regionalHint } = useRegionalSuggestion();
   const { cities: officialBaseCities } = useMunicipalities(form.state_uf);
   const baseMunicipality = officialBaseCities.find((city) => city.id === form.base_city_ibge_id) ?? null;
   const currentStatus = roles.includes("tecnico") && profileOwnerId === user?.id ? status : null;
@@ -156,6 +158,14 @@ export function TechnicianAreaPage() {
     if (validation) { setMsg(validation); return; }
     if (step < 3) moveToStep((step + 1) as RegistrationStep);
   }
+
+  useEffect(() => {
+    // Only suggest for a brand-new technician profile after loading completes.
+    // A known profile, manually selected municipality or existing field always wins.
+    if (loading || !user || !roles.includes("tecnico") || profileLoading ||
+        profileError || profileId || !regionalHint) return;
+    setForm(previous => suggestTechnicianArea(previous, regionalHint, "automatic"));
+  }, [loading, user?.id, roleKey, profileLoading, profileError, profileId, regionalHint?.city, regionalHint?.uf]);
 
   async function save(e: FormEvent) {
     e.preventDefault();
@@ -308,6 +318,10 @@ export function TechnicianAreaPage() {
               <label className="text-sm font-medium text-foreground">Nome público
                 <input required minLength={2} maxLength={80} className={input} value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} />
               </label>
+              {regionalHint && <p className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+                 <strong className="text-foreground">Região aproximada: {regionalHint.city}/{regionalHint.uf}.</strong>
+                 {" "}Não é automaticamente sua área de atendimento. Confirme sua cidade real antes de publicar.
+               </p>}
               <CustomerLocationButton
                 purpose="technician"
                 autoIfGranted={!profileId && !form.state_uf && !form.city.trim() && !form.neighborhood.trim()}

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { locateCustomerFromDevice, type CustomerArea } from "@/lib/customer-location";
+import { rememberRegionalHint } from "@/lib/regional-suggestion";
 
 export function CustomerLocationButton({
   onLocated, autoIfGranted = true, purpose = "customer",
@@ -25,6 +26,8 @@ export function CustomerLocationButton({
       const area = await locateCustomerFromDevice();
       if (!mounted.current) return;
       callback.current(area, source);
+      // Only existing GPS permission or a user click; store city/UF, no coordinates.
+      rememberRegionalHint({ ...area, source: "gps" });
       setFound(area);
       setFeedback(purpose === "technician"
         ? "Localidade sugerida. Confira sua cidade e bairro antes de publicar o perfil profissional."
