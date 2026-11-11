@@ -97,7 +97,7 @@ export function AdminPage() {
         ) : (
           <>
             <ConnectedGoogleIdentity user={user} />
-            {error && <p role="alert" className="mt-2 text-sm text-destructive">{error}</p>
+            {error && <p role="alert" className="mt-2 text-sm text-destructive">{error}</p>}
             <dl className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
               {stats.map((s) => (
                 <div key={s.label} className="rounded-lg border border-border bg-card p-4">
