@@ -9,6 +9,13 @@ on:
       - 'src/routes/servicos.tsx'
       - 'src/routes/como-funciona.tsx'
       - 'src/lib/seo-public-pages.test.ts'
+      - 'src/lib/public-sitemap-index.ts'
+      - 'src/lib/public-sitemap-index.test.ts'
+      - 'src/lib/public-sitemap-http.ts'
+      - 'src/lib/public-sitemap-http.test.ts'
+      - 'src/components/public-seo-discovery.ssr.test.tsx'
+      - 'src/routes/public-seo-routes.test.tsx'
+      - 'src/routes/sitemaps.tecnicos.{$pagina}[.]xml.ts'
       - '.github/workflows/home2-build.yml'
   workflow_dispatch:
 
@@ -32,6 +39,8 @@ jobs:
         run: bun run build
       - name: SEO public pages, redirects and privacy tests
         run: bunx vitest run src/lib/seo-public-pages.test.ts src/lib/public-sitemap.test.ts src/lib/public-coverage.test.ts
+      - name: Sitemap index, HTTP 200/404/503, SSR, canonicals e perfis reais
+        run: bunx vitest run src/lib/public-sitemap-index.test.ts src/lib/public-sitemap-http.test.ts src/components/public-seo-discovery.ssr.test.tsx src/routes/public-seo-routes.test.tsx
       - name: Regression triage fallback
         run: bunx vitest run src/lib/problem-triage-local.test.ts
       - name: TypeScript check
