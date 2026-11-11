@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ to, children, ...props }: { to: string; children: ReactNode; [key: string]: unknown }) => (
-    <a href={to} onClick={props.onClick as (() => void) | undefined}>{children}</a>
+    <a href={to} onClick={props["onClick"] as (() => void) | undefined}>{children}</a>
   ),
 }));
 
