@@ -10,7 +10,7 @@ describe("Google AdSense: verificação e privacidade", () => {
     expect(root).toContain('name: "google-adsense-account", content: "ca-pub-3762170279587706"');
     expect(ads).toBe("google.com, pub-3762170279587706, DIRECT, f08c47fec0942fa0\\n".replace("\\n", "\n"));
     expect(loader).toContain("pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=");
-    expect(loader).toContain('VITE_EUT_ADSENSE_SERVING !== "true"');
+    expect(loader).toContain('import.meta.env["VITE_EUT_ADSENSE_SERVING"] !== "true"');
     expect(root).toContain("<AdSenseLoader />");
   });
   it("não carrega anúncios no admin, login, cadastro, pagamento nem telas pessoais", () => {
