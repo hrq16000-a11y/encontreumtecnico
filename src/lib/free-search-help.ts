@@ -6,6 +6,7 @@ export type FreeHelpContext = {
   technicianId?: string;
   technicianName?: string;
   mode?: "direct" | "managed";
+  guideSlug?: string;
 };
 
 const clean = (value: unknown) =>

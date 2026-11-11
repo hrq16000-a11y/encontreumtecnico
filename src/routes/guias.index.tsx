@@ -35,7 +35,16 @@ function GuidesIndex() {
         </header>
         <ul className="mt-10 grid gap-5 md:grid-cols-2">
           {GUIDES.map((guide) => (
-            <li key={guide.slug} className="flex flex-col rounded-2xl border border-border bg-card p-6 shadow-sm">
+            <li key={guide.slug} className="flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+              <Link to="/guias/$slug" params={{ slug: guide.slug }} className="block overflow-hidden">
+                <img src={guide.categorySlug === "cftv" ? "/guias/cftv-planejamento-ilustrado.svg" : "/guias/computador-diagnostico-ilustrado.svg"}
+                  alt={guide.categorySlug === "cftv"
+                    ? "Esquema de segurança com câmeras e rede de gravação"
+                    : "Bancada ilustrada de manutenção de computadores"}
+                  width={1200} height={630} loading="lazy"
+                  className="aspect-video w-full object-cover transition-transform duration-300 hover:scale-[1.025]" />
+              </Link>
+              <div className="flex flex-1 flex-col p-6">
               <p className="text-xs font-semibold uppercase tracking-wider text-primary">{guide.categoryName}</p>
               <h2 className="mt-3 text-xl font-bold leading-snug text-card-foreground">{guide.title}</h2>
               <p className="mt-3 flex-1 text-sm leading-6 text-muted-foreground">{guide.description}</p>
@@ -44,6 +53,7 @@ function GuidesIndex() {
                 className="mt-5 inline-flex min-h-11 items-center text-sm font-bold text-primary underline-offset-4 hover:underline">
                 Ler guia completo →
               </Link>
+              </div>
             </li>
           ))}
         </ul>
