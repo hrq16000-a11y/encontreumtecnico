@@ -58,10 +58,18 @@ jobs:
           if (ui.includes('service_role') || ui.includes('.from("eut_ads.') || ui.includes('auth.admin.')) {
             throw Error('Browser must never access private tables or privileged auth');
           }
+          const route=readFileSync('src/routes/admin_.$secao.tsx','utf8');
+          const moduleList=readFileSync('src/lib/admin-sections.ts','utf8');
+          const nav=readFileSync('src/components/admin-navigation.tsx','utf8');
           if (!admin.includes('roles.includes("admin")') ||
+              !admin.includes('section === "patrocinadores"') ||
               !admin.includes('<AdminAdvertisingManager />') ||
-              !hub.includes('admin-patrocinadores')) {
-            throw Error('Admin-only routing or real navigation missing');
+              !hub.includes('key: "patrocinadores"') ||
+              !hub.includes('to="/admin/$secao"') ||
+              !moduleList.includes('key: "patrocinadores"') ||
+              !nav.includes('to="/admin/$secao"') ||
+              !route.includes('validAdminModule(params.secao)')) {
+            throw Error('Admin-only routing or real page navigation missing');
           }
           console.log('R3 admin CRUD and privacy static gate: PASS');
           NODE

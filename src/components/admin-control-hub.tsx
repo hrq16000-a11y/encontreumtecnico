@@ -1,18 +1,22 @@
+import { Link } from "@tanstack/react-router";
+import type { AdminModule } from "@/lib/admin-sections";
+import { ArrowUpRight, Megaphone } from "lucide-react";
+
 type AdminShortcut = {
-  anchor: string;
+  key: AdminModule;
   name: string;
   description: string;
 };
 
 const SHORTCUTS: AdminShortcut[] = [
-  { anchor: "admin-patrocinadores", name: "Patrocinadores e banners", description: "Gerenciar anunciantes, espaços, campanhas e criativos privados" },
-  { anchor: "admin-catalogo", name: "Categorias e serviços", description: "Criar, revisar e organizar especialidades" },
-  { anchor: "admin-legado", name: "Acervo WordPress", description: "Conferir registros importados sem publicá-los" },
-  { anchor: "admin-reivindicacoes", name: "Reivindicações", description: "Analisar pedidos de titularidade" },
-  { anchor: "admin-tecnicos", name: "Técnicos cadastrados", description: "Aprovar, suspender e revisar perfis ativos" },
-  { anchor: "admin-solicitacoes", name: "Solicitações", description: "Acompanhar demandas dos clientes" },
-  { anchor: "admin-mensagens", name: "Mensagens", description: "Responder e arquivar contatos" },
-  { anchor: "admin-metricas", name: "Buscas e indicadores", description: "Consultar estatísticas com consentimento" },
+  { key: "patrocinadores", name: "Patrocinadores e banners", description: "Gerenciar anunciantes, espaços, campanhas e criativos privados" },
+  { key: "catalogo", name: "Categorias e serviços", description: "Criar, revisar e organizar especialidades" },
+  { key: "legado", name: "Acervo WordPress", description: "Conferir registros importados sem publicá-los" },
+  { key: "reivindicacoes", name: "Reivindicações", description: "Analisar pedidos de titularidade" },
+  { key: "tecnicos", name: "Técnicos cadastrados", description: "Aprovar, suspender e revisar perfis ativos" },
+  { key: "solicitacoes", name: "Solicitações", description: "Acompanhar demandas dos clientes" },
+  { key: "mensagens", name: "Mensagens", description: "Responder e arquivar contatos" },
+  { key: "metricas", name: "Buscas e indicadores", description: "Consultar estatísticas com consentimento" },
 ];
 
 /**
@@ -49,23 +53,26 @@ export function AdminControlHub() {
           após confirmação comercial. Banners de imagem, segmentação e relatórios
           ainda dependem das próximas rodadas.
         </p>
-        <a href="#admin-patrocinadores" className="mt-3 inline-flex min-h-10 items-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
-          Abrir gestão de patrocínios
-        </a>
+        <Link to="/admin/$secao" params={{ secao: "patrocinadores" }}
+          className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">
+          <Megaphone className="h-4 w-4" aria-hidden="true" /> Abrir gestão de patrocínios
+          <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+        </Link>
       </div>
 
       <nav aria-label="Acessos rápidos da administração" className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {SHORTCUTS.map((item) => (
-          <a
-            key={item.anchor}
-            href={`#${item.anchor}`}
-            className="group rounded-lg border border-border p-3 transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          <Link
+            key={item.key}
+            to="/admin/$secao"
+            params={{ secao: item.key }}
+            className="group rounded-xl border border-border bg-background p-4 transition-colors hover:border-primary hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <span className="block text-sm font-semibold text-card-foreground group-hover:text-primary">
-              {item.name}
+            <span className="flex items-center justify-between gap-2 text-sm font-bold text-card-foreground group-hover:text-primary">
+              {item.name}<ArrowUpRight className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
             </span>
             <span className="mt-1 block text-xs text-muted-foreground">{item.description}</span>
-          </a>
+          </Link>
         ))}
       </nav>
     </section>
