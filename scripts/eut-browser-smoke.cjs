@@ -52,7 +52,7 @@ async function preserveHome2(page, context) {
 async function preserveGallery(page) {
   await visit(page, "/lp2/galeria");
   const query = page.locator('input[placeholder="Ex.: notebook, redes"]');
-  const city = page.locator('input[placeholder="Ex.: Curitiba"]');
+  const city = page.locator('input[placeholder="Município (ex.: Curitiba)"]');
   await query.waitFor({ state: "visible", timeout: 20000 });
   await query.fill("impressora e notebook");
   await city.fill("Pinhais");
@@ -114,6 +114,56 @@ async function anonymousPrivatePanels(page) {
   }
 }
 
+
+async function publicMobileNeighborhoods(page) {
+  // Real Chromium rendering with a mobile context, but not a physical Android
+  // or iPhone. Only public URLs; never authenticate or submit a form.
+  for (const width of [320, 375, 390, 768]) {
+    await page.setViewportSize({ width, height: 812 });
+    for (const path of ["/", "/tecnicos", "/lp2/galeria"]) {
+      await visit(page, path);
+      const size = await page.evaluate(() => ({
+        viewport: document.documentElement.clientWidth,
+        content: document.documentElement.scrollWidth,
+      }));
+      console.log("MOBILE_WIDTH", JSON.stringify({ width, path, ...size }));
+      assert(size.content <= size.viewport + 4,
+        path + " has horizontal overflow at " + width + "px: " +
+        size.content + " > " + size.viewport);
+    }
+  }
+  await page.setViewportSize({ width: 375, height: 812 });
+  await visit(page, "/tecnicos");
+  const state = page.locator("#filtro-uf");
+  const city = page.locator("#filtro-cidade");
+  const neighborhood = page.locator("#filtro-bairro");
+  for (const [field, name] of [
+    [state, "UF"], [city, "Município"], [neighborhood, "Bairro"],
+  ]) {
+    const box = await field.boundingBox();
+    assert(box && box.width >= 44, name + " is not touchable/visible");
+    console.log("MOBILE_TOUCH_TARGET", JSON.stringify({
+      name, width: box.width, height: box.height,
+      // A pre-release smoke against production measures touch height.
+      // The PR's source gate verifies the 44px correction before deploy.
+      needsHeightFix: box.height < 44,
+    }));
+  }
+  await state.selectOption("PR");
+  await city.fill("São José dos Pinhais");
+  const suggestions = page.locator("#eut-bairro-diretorio");
+  await suggestions.waitFor({ state: "attached", timeout: 20000 });
+  const labels = await suggestions.locator("option").evaluateAll(options => options.map(option => option.value));
+  assert(labels.includes("Itália"), "Official SJP neighborhood suggestions missing");
+  assert(!labels.includes("Jardim Itália"),
+    "The public catalog should not invent the owner's neighborhood label");
+  await neighborhood.fill("Jardim Itália");
+  await page.waitForTimeout(700);
+  assert.equal(await neighborhood.inputValue(), "Jardim Itália",
+    "Free-form neighborhood overwritten after client search debounce");
+  console.log("PASS mobile public filters: IBGE municipality, manual bairro and no overflow");
+}
+
 async function main() {
   const browser = await chromium.launch({ headless: true });
   const failures = [];
@@ -137,7 +187,9 @@ async function main() {
     const page = await mobile.newPage();
     page.setDefaultTimeout(20000);
     try { await preserveHome2(page, mobile); console.log("PASS mobile Chromium emulation: Home2 tabs/back/reload"); }
-    catch (error) { failures.push("mobile Chromium Home2: " + error.message); console.error("FAIL mobile: " + error.message); }
+    catch (error) { failures.push("mobile Chromium Home2: " + error.message); console.error("FAIL mobile Home2: " + error.message); }
+    try { await publicMobileNeighborhoods(page); console.log("PASS mobile Chromium: neighborhood, widths and filters"); }
+    catch (error) { failures.push("mobile Chromium public geography: " + error.message); console.error("FAIL mobile geography: " + error.message); }
     finally { await mobile.close(); }
   } finally { await browser.close(); }
   if (failures.length) {
