@@ -112,8 +112,11 @@ export function AuthDialogProvider({ children }: { children: ReactNode }) {
       ? window.open("about:blank", "eut-google-login", "popup=yes,width=520,height=720,scrollbars=yes,resizable=yes")
       : null;
     if (popup) {
-      popup.document.title = "Entrar com Google — Encontre um Técnico";
-      popup.document.body.innerHTML = '<p style="font:16px system-ui;padding:28px">Abrindo autenticação segura do Google…</p>';
+      // A reused named popup may already be on Google's origin.
+      try {
+        popup.document.title = "Entrar com Google — Encontre um Técnico";
+        popup.document.body.innerHTML = '<p style="font:16px system-ui;padding:28px">Abrindo autenticação segura do Google…</p>';
+      } catch { /* cross-origin popup: navigation still works */ }
       popup.focus();
     }
     setBusy(true);
@@ -154,7 +157,8 @@ export function AuthDialogProvider({ children }: { children: ReactNode }) {
       const watch = window.setInterval(() => {
         if (!popup.closed) return;
         window.clearInterval(watch);
-        window.removeEventListener("message", onMessage);
+        // Google may enforce COOP and report WindowProxy.closed early.
+        // Keep the authenticated postMessage listener until it completes or times out.
         setBusy(false);
       }, 600);
       window.setTimeout(() => {
