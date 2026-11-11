@@ -97,4 +97,14 @@ describe("Índice dinâmico de sitemap e rotas filhas", () => {
     expect(wholeIndex.match(/<sitemap>/g)).toHaveLength(19);
     expect(wholeIndex).toContain(SITE + "/sitemaps/tecnicos/16.xml");
   });
+  it("preserva explicitamente as URLs de cobertura e todos os guias existentes na main", () => {
+    const xml = buildPublicSitemapPartXml(graph, "base") ?? "";
+    expect(PUBLIC_PATHS).toContain("/cobertura");
+    expect(xml).toContain("<loc>" + SITE + "/cobertura</loc>");
+    for (const guide of GUIDE_PATHS) {
+      expect(xml).toContain("<loc>" + SITE + guide + "</loc>");
+    }
+    expect(xml.match(/<url>/g)).toHaveLength(PUBLIC_PATHS.length + GUIDE_PATHS.length);
+  });
+
 });
