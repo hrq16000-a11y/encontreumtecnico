@@ -21,7 +21,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Verification, route safety and consent tests
         run: bunx vitest run src/lib/adsense.test.ts
-      - name: TypeScript
-        run: bunx tsc --noEmit --pretty false
-      - name: Production build (no deployment)
+      - name: Production build (generates TanStack route types; no deployment)
         run: bun run build
+      - name: TypeScript after generated route graph
+        run: bunx tsc --noEmit --pretty false
