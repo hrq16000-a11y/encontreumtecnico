@@ -76,7 +76,7 @@ describe("GPS informa município, mas nunca inventa bairro", () => {
     expect(tech).toContain('purpose="technician"');
     expect(tech).toContain('suggestTechnicianArea(current, area, source)');
     expect(tech).toContain('autoIfGranted={!profileId');
-    expect(button).toContain("cidade, UF e");
+    expect(button).toContain("município e UF");
     expect(button).toContain("Bairro não é identificado com segurança");
     expect(button).toContain("BigDataCloud");
     expect(button).toContain("coordenadas e IP");
