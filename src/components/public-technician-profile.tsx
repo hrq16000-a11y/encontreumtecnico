@@ -7,13 +7,14 @@ import {
 } from "lucide-react";
 import type { PublicTechnician } from "@/lib/technicians.functions";
 import { TechnicianAvatar } from "@/components/technician-avatar";
+import { PublicProfileConnections, type PublicSeoLinks } from "@/components/public-seo-discovery";
 import { categoryLabel, useActiveCategories } from "@/hooks/use-active-categories";
 import { serviceLabel, useActiveServices } from "@/hooks/use-active-services";
 
 /** Presentation only: uses fields from the published and sanitized technician
  * profile. Never loads or guesses private contacts, ratings or endorsements.
  */
-export function PublicTechnicianProfile({ technician: t }: { technician: PublicTechnician }) {
+export function PublicTechnicianProfile({ technician: t, links }: { technician: PublicTechnician; links?: PublicSeoLinks }) {
   const { categories } = useActiveCategories();
   const { services } = useActiveServices();
   const location = [t.city + (t.state_uf ? "/" + t.state_uf : ""), t.neighborhood, t.region].filter(Boolean).join(" · ");
@@ -190,6 +191,7 @@ export function PublicTechnicianProfile({ technician: t }: { technician: PublicT
             <Link to="/tecnicos" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-primary hover:underline"><ArrowLeft className="h-4 w-4" aria-hidden="true" /> Voltar à busca</Link>
           </aside>
         </div>
+        <PublicProfileConnections links={links} />
       </div>
 
       <nav aria-label="Ações rápidas deste técnico" className="fixed inset-x-3 bottom-3 z-30 flex gap-2 rounded-2xl border border-border bg-background/95 p-2 shadow-[0_12px_44px_-16px_rgba(7,28,57,.45)] backdrop-blur-xl lg:hidden">
