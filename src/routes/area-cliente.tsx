@@ -17,7 +17,7 @@ import { containsObviousContact } from "@/lib/private-message-validation";
 import { accountScopedRows, canAcceptAccountResult } from "@/lib/account-scoped-queries";
 import { persistClientRequest } from "@/lib/client-request-save";
 import { ownedRequestForAction } from "@/lib/client-request-action";
-import { clientRequestStepError, type ClientRequestStep } from "@/lib/client-request-wizard";
+import { clientRequestStepError, type ClientRequestDraft, type ClientRequestStep } from "@/lib/client-request-wizard";
 
 export const Route = createFileRoute("/area-cliente")({
   validateSearch: zodValidator(z.object({ tecnico: z.string().optional() })),
@@ -87,6 +87,7 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
   useEffect(() => {
     // Keep the selected public UUID across a Google/email login redirect.
     // Only this ID is persisted and it expires automatically after 30 min.
+    setShareNow(false); // receiving a different target never carries a prior opt-in
     if (tecnico) {
       const valid = rememberTechnicianTarget(tecnico);
       setTechnicianTarget(valid ? tecnico : null);
@@ -177,6 +178,13 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
       window.requestAnimationFrame(() => stepHeadingRef.current?.focus());
     }
   }
+  function updateRequestField(key: keyof ClientRequestDraft, value: string) {
+    setForm((current) => ({ ...current, [key]: value }));
+    // A previous authorization was for the prior description/location,
+    // never silently reuse consent for amended request details.
+    setShareNow(false);
+  }
+
   function chooseTechnicianInWizard(id: string | null) {
     // Only a public UUID is retained within the tab. No draft text, GPS,
     // telephone or consent flag is stored or transmitted by selection.
@@ -389,16 +397,16 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
                   <label className="text-sm font-medium text-foreground">Resumo do problema
                     <input minLength={5} maxLength={120} className={input} value={form.title}
                       autoComplete="off" placeholder="Ex.: Wi-Fi parou de funcionar"
-                      onChange={(e) => setForm((old) => ({ ...old, title: e.target.value }))} />
+                      onChange={(e) => updateRequestField("title", e.target.value)} />
                   </label>
                   <label className="text-sm font-medium text-foreground">Descrição do problema
                     <textarea minLength={10} maxLength={2000} rows={5} className={input}
                       value={form.description} placeholder="Explique os sintomas e o serviço desejado, sem contatos pessoais"
-                      onChange={(e) => setForm((old) => ({ ...old, description: e.target.value }))} />
+                      onChange={(e) => updateRequestField("description", e.target.value)} />
                   </label>
                   <label className="text-sm font-medium text-foreground">Categoria do serviço
                     <select className={input} value={form.category} disabled={catalogUnavailable}
-                      onChange={(e) => setForm((old) => ({ ...old, category: e.target.value }))}>
+                      onChange={(e) => updateRequestField("category", e.target.value)}>
                       <option value="">Selecione uma categoria</option>
                       {categories.map((category) => <option key={category.slug} value={category.slug}>{category.label}</option>)}
                     </select>
@@ -413,16 +421,17 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
                   <CustomerLocationButton onLocated={(area, source) => {
                     setForm((old) => source === "automatic" && old.city.trim() ? old :
                       { ...old, city: area.city, region: area.neighborhood });
+                    setShareNow(false);
                   }} />
                   <label className="text-sm font-medium text-foreground">Cidade do atendimento
                     <input maxLength={80} className={input} value={form.city}
                       autoComplete="address-level2" placeholder="Ex.: Curitiba"
-                      onChange={(e) => setForm((old) => ({ ...old, city: e.target.value }))} />
+                      onChange={(e) => updateRequestField("city", e.target.value)} />
                   </label>
                   <label className="text-sm font-medium text-foreground">Bairro ou região aproximada (opcional)
                     <input maxLength={120} className={input} value={form.region}
                       autoComplete="address-level3" placeholder="Ex.: Centro"
-                      onChange={(e) => setForm((old) => ({ ...old, region: e.target.value }))} />
+                      onChange={(e) => updateRequestField("region", e.target.value)} />
                   </label>
                   <p className="text-xs text-muted-foreground">
                     Não precisamos do número da sua casa. A localização exata do GPS
