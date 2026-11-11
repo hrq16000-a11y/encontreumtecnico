@@ -40,7 +40,9 @@ jobs:
       - name: GPS, official municipalities, secure coverage and avatars
         run: bunx vitest run src/lib/customer-location.test.ts src/lib/technician-registration-wizard.test.ts src/lib/municipality-coverage.test.ts src/lib/technicians.functions.test.ts src/lib/public-seo-moderation-synthetic.test.tsx src/lib/technician-panel-navigation.test.ts
       - run: bun run build
+        if: ${{ !cancelled() }}
       - name: TypeScript after route generation
+        if: ${{ !cancelled() }}
         run: bunx tsc --noEmit --pretty false
       - name: Check UF, municipality, neighborhood, regions
         run: |
