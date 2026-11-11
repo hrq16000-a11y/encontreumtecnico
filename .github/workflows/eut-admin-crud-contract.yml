@@ -1,0 +1,27 @@
+name: EUT admin transactional CRUD contract gate
+
+on:
+  pull_request:
+    paths:
+      - 'src/lib/admin-technician-crud-intent.ts'
+      - 'src/lib/admin-technician-crud-intent.test.ts'
+      - 'docs/admin/CRUD_TRANSACIONAL_AUDITADO_2026-11-11.md'
+      - '.github/workflows/eut-admin-crud-contract.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  offline-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.3"
+      - run: bun install --frozen-lockfile
+      - name: Test admin change preview without database
+        run: bunx vitest run src/lib/admin-technician-crud-intent.test.ts
+      - name: TypeScript check
+        run: bunx tsc --noEmit --pretty false
