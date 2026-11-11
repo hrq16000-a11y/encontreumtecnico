@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
+import { authReturnUrl } from "@/lib/auth-domain";
 
 export type Role = "admin" | "tecnico" | "cliente";
 
@@ -136,6 +137,6 @@ export function signInWithGoogle(next = "/entrar") {
   sessionStorage.setItem("eut-after-login", safe);
   return supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo: `${window.location.origin}/entrar` },
+    options: { redirectTo: authReturnUrl("/entrar", window.location.origin) },
   });
 }
