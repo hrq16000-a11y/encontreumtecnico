@@ -6,6 +6,7 @@ on:
       - 'src/components/technician-presence.tsx'
       - 'src/routes/area-tecnico.tsx'
       - 'src/routes/tecnicos.index.tsx'
+      - 'src/components/technician-search-card.tsx'
       - 'src/routes/tecnicos.$tecnicoId.tsx'
       - 'src/components/public-technician-profile.tsx'
       - 'src/lib/technicians.functions.ts'
@@ -40,6 +41,7 @@ jobs:
           const panel=r('src/routes/area-tecnico.tsx');
           const server=r('src/lib/technicians.functions.ts');
           const list=r('src/routes/tecnicos.index.tsx');
+          const card=r('src/components/technician-search-card.tsx');
           const detailRoute=r('src/routes/tecnicos.$tecnicoId.tsx');
           const detail=r('src/components/public-technician-profile.tsx');
           if(!detailRoute.includes('PublicTechnicianProfile'))throw Error('Approved-only profile route no longer renders presentation');
@@ -57,7 +59,9 @@ jobs:
           for(const term of ['eut_online_published_ids','_technician_ids: rows.map','online_now','Number(b.online_now)']) {
             if(!server.includes(term))throw Error('Online-only search relevance missing: '+term);
           }
-          if(!server.includes('.eq("status", "aprovado")') || !list.includes('t.online_now') || !detail.includes('t.online_now')) {
+          if(!server.includes('.eq("status", "aprovado")') ||
+             !list.includes('TechnicianSearchCard') || !card.includes('t.online_now') ||
+             !detail.includes('t.online_now')) {
             throw Error('Public presence must not expose unapproved profiles');
           }
           if(presence.includes('service_role')||server.includes('service_role')) throw Error('Privileged API key exposed');

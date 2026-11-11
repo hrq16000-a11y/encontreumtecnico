@@ -89,7 +89,12 @@ describe("SEO global do Encontre um Técnico", () => {
     expect(profile).toContain('statusCode: 301');
     expect(profile).toContain('technician.public_slug');
     expect(profile).toContain('loaderData?.public_slug');
-    expect(read("src/routes/tecnicos.index.tsx")).toContain("params={{ tecnicoId: t.public_slug }}");
+    const technicianList = read("src/routes/tecnicos.index.tsx");
+    const technicianCard = read("src/components/technician-search-card.tsx");
+    expect(technicianList).toContain("TechnicianSearchCard");
+    expect(technicianCard).toContain('to="/tecnicos/$tecnicoId"');
+    expect(technicianCard).toContain("params={{ tecnicoId: t.public_slug }}");
+    expect(technicianCard).not.toContain('contact_phone');
     expect(profile).toContain('if (!technician) throw notFound()');
     expect(query).toContain('if (error) {');
     expect(query).toContain('throw new Error("Não foi possível consultar o perfil do técnico.")');
