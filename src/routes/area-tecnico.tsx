@@ -239,15 +239,47 @@ export function TechnicianAreaPage() {
 
   return (
     <PageShell>
-      <section className="mx-auto max-w-2xl px-4 py-10">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Área do técnico</h1>
+      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+        <div className="mb-7 rounded-3xl border border-primary/15 bg-gradient-to-br from-primary/10 via-card to-card p-6 shadow-sm sm:p-8">
+          <p className="text-xs font-bold uppercase tracking-widest text-primary">Meu espaço profissional</p>
+          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">Painel do técnico</h1>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">Perfil, cobertura, solicitações e indicações organizados por área. Cadastro livre, sem mensalidade e sem intermediação.</p>
+        </div>
         {loading ? (
-          <p className="mt-4 text-sm text-muted-foreground">Carregando…</p>
-        ) : !user || !roles.includes("tecnico") ? (
-          <p className="mt-4 text-sm text-muted-foreground">
-            Entre com uma conta de técnico para editar seu cadastro.{" "}
-            <Link to={lp2 ? "/lp2/entrar" : "/entrar"} className="font-medium text-primary underline">Entrar</Link>
-          </p>
+          <div role="status" className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">
+            Carregando sua conta com segurança…
+          </div>
+        ) : !user ? (
+          <div className="max-w-2xl rounded-2xl border border-border bg-card p-6 shadow-sm">
+            <h2 className="text-xl font-bold text-card-foreground">Entre para acessar seu painel</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Seu painel não fica disponível sem autenticação. Após o Google ou e-mail, sua conta será reconhecida e você poderá continuar o cadastro.</p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Link to={lp2 ? "/lp2/entrar" : "/entrar"} className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground">
+                Entrar na minha conta <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+              <Link to="/cadastro" className="inline-flex min-h-12 items-center rounded-xl border border-input px-5 py-3 text-sm font-semibold text-foreground">
+                Primeiro acesso
+              </Link>
+            </div>
+          </div>
+        ) : rolesError ? (
+          <div role="alert" className="max-w-2xl rounded-2xl border border-destructive/30 bg-card p-6 shadow-sm">
+            <h2 className="text-lg font-bold text-card-foreground">Não conseguimos consultar suas permissões</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Sua sessão continua conectada. Não é necessário criar outra conta nem fazer login novamente.</p>
+            <button type="button" onClick={() => void refreshRoles()} className="mt-4 min-h-12 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground">
+              Tentar carregar meu painel novamente
+            </button>
+          </div>
+        ) : !roles.includes("tecnico") ? (
+          <div className="max-w-2xl rounded-2xl border border-border bg-card p-6 shadow-sm">
+            <h2 className="text-lg font-bold text-card-foreground">Sua conta está conectada</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Esta conta ainda não possui uma área de técnico. Não precisa entrar novamente: escolha sua função no cadastro ou abra a área já associada.</p>
+            <Link to={roles.includes("admin") ? "/admin" : roles.includes("cliente") ? "/area-cliente" : "/entrar"}
+              className="mt-4 inline-flex min-h-12 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground">
+              {roles.includes("admin") ? "Abrir administração" : roles.includes("cliente") ? "Abrir área do cliente" : "Confirmar meu tipo de conta"}
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </div>
         ) : !profileReady ? (
           <div className="mt-4 rounded-lg border border-border p-4">
             {profileError ? (
