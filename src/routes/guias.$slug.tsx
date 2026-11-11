@@ -64,7 +64,7 @@ function GuidePage() {
           <span aria-hidden="true">/</span>
           <span aria-current="page" className="text-foreground">{guide.categoryName}</span>
         </nav>
-        <article className="mt-7">
+        <article className="eut-guide-stable-type mt-7">
           <header>
             <p className="text-xs font-semibold uppercase tracking-[.16em] text-primary">{guide.categoryName}</p>
             <h1 className="mt-3 text-3xl font-extrabold leading-tight text-foreground sm:text-4xl">{guide.title}</h1>
