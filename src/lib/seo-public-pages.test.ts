@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { GUIDES, GUIDE_PATHS, getPublishedGuide } from "./public-guides";
+import { getGuideArtwork } from "./guide-artwork";
 import { buildPublicSitemapXml, SITE } from "./public-sitemap";
 
 const read = (path: string) => readFileSync(path, "utf8");
@@ -138,7 +139,7 @@ describe("SEO global do Encontre um Técnico", () => {
   });
 
   it("publica somente guias autorais com canonical, dados Article e links para técnicos", () => {
-    expect(GUIDES).toHaveLength(2);
+    expect(GUIDES).toHaveLength(4);
     expect(new Set(GUIDES.map(guide => guide.slug)).size).toBe(GUIDES.length);
     expect(GUIDE_PATHS).toHaveLength(GUIDES.length + 1);
     const index = read("src/routes/guias.index.tsx");
@@ -163,10 +164,15 @@ describe("SEO global do Encontre um Técnico", () => {
       expect(guide.updatedAt).toBe("2026-11-11");
       expect(sitemap).toContain('<loc>' + SITE + '/guias/' + guide.slug + '</loc>');
       expect(getPublishedGuide(guide.slug)?.title).toBe(guide.title);
+      expect(getGuideArtwork(guide.categorySlug).src).toContain("/guias/");
+      expect(getGuideArtwork(guide.categorySlug).alt.length).toBeGreaterThan(35);
     }
     expect(getPublishedGuide("../admin")).toBeNull();
     expect(sitemap).not.toContain("/admin");
     expect(sitemap).not.toContain("/area-cliente");
+    for (const slug of ["wifi-caindo-sinal-fraco-como-identificar", "impressora-offline-fila-travada-o-que-fazer"]) {
+      expect(sitemap).toContain(SITE + "/guias/" + slug + "</loc>");
+    }
   });
   it("mostra somente cobertura declarada de perfis públicos e a inclui no sitemap", () => {
     const route = read("src/routes/cobertura.tsx");
@@ -186,7 +192,7 @@ describe("SEO global do Encontre um Técnico", () => {
     const index = read("src/routes/guias.index.tsx");
     const visuals = read("src/components/guide-section-visual.tsx");
     const cta = read("src/components/guide-lead-callout.tsx");
-    expect(article).toContain("<GuideSectionVisual isCctv={isCctv} index={index} />");
+    expect(article).toContain("<GuideSectionVisual categorySlug={guide.categorySlug} index={index} />");
     expect(article).toContain("index === 1 || index === 3");
     expect(article).toContain("<GuideLeadCallout guide={guide} compact />");
     expect(article).toContain('to="/ecossistema"');
@@ -199,12 +205,15 @@ describe("SEO global do Encontre um Técnico", () => {
     for (const asset of [
       "public/guias/computador-diagnostico-ilustrado.svg",
       "public/guias/cftv-planejamento-ilustrado.svg",
+      "public/guias/wifi-instabilidade-cobertura-ilustrado.svg",
+      "public/guias/impressora-offline-fila-ilustrado.svg",
     ]) {
       const svg = read(asset);
       expect(svg).toContain("<svg");
       expect(svg).toContain("<title");
       expect(svg).toContain("<desc");
       expect(svg).not.toMatch(/<script|<foreignObject|onload\s*=/i);
+      expect(Buffer.byteLength(svg)).toBeLessThan(12000);
     }
   });
 
