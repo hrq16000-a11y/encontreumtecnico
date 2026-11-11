@@ -17,4 +17,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Check isolated public records and absence of automatic publication
-        run: node --test scripts/external-directory-batch.test.mjs scripts/external-directory-snapshot.test.mjs
+        run: node --test scripts/external-directory-batch.test.mjs scripts/external-directory-snapshot.test.mjs scripts/external-directory-cruzeiro-do-sul.test.mjs scripts/external-directory-cruzeiro-do-sul-snapshot.test.mjs
