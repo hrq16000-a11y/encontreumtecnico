@@ -67,6 +67,16 @@ function ServicesPage() {
             O cadastro é livre e gratuito para profissionais. A publicação do perfil não significa certificação ou avaliação técnica.
           </p>
         </section>
+        <aside className="mt-8 rounded-2xl border border-primary/20 bg-primary/5 p-6">
+          <h2 className="text-lg font-bold text-foreground">Antes de solicitar um atendimento</h2>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            Leia orientações práticas sobre lentidão de computadores e preparação para instalar câmeras,
+            incluindo cuidados com dados e como descrever suas necessidades.
+          </p>
+          <Link to="/guias" className="mt-4 inline-flex min-h-11 items-center text-sm font-bold text-primary hover:underline">
+            Ler guias técnicos gratuitos →
+          </Link>
+        </aside>
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Não sabe qual especialidade escolher?{" "}
           <Link to="/tecnicos" search={{ especialidade: "Todas", cidade: "", regiao: "" }}
