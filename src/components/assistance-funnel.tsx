@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2, CreditCard, Headset, MapPin, Shiel
 import { supabase } from "@/integrations/supabase/client";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { buildAssistanceLead, type AssistanceMode } from "@/lib/assistance-intent";
+import { buildSavedLeadWhatsAppUrl, type SavedAssistanceLead } from "@/lib/assistance-whatsapp";
 import type { FreeHelpContext } from "@/lib/free-search-help";
 import { clearAssistanceDraft, readAssistanceDraft, saveAssistanceDraft, type AssistanceDraft } from "@/lib/assistance-draft";
 
@@ -27,6 +28,7 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
   const [consent, setConsent] = useState(false);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [savedWhatsAppLead, setSavedWhatsAppLead] = useState<SavedAssistanceLead | null>(null);
   const [error, setError] = useState("");
   const cityEdited = useRef(Boolean(context.city || restored?.city));
   const latestDraft = useRef<AssistanceDraft>({ mode, step, name, email, service, when, problem, city, uf, neighborhood });
@@ -62,6 +64,7 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
     const lead = buildAssistanceLead({
       mode, name, email, service, when, problem, city, uf, neighborhood,
       technicianId: context.technicianId, technicianName: context.technicianName,
+      sourceGuide: context.guideSlug,
     });
     if (!lead) { setError("Confira o problema e o tipo de serviço."); return; }
     setSending(true);
@@ -69,6 +72,7 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
       // Existing admin-only inbox. This does NOT create payment rights.
       const { error: requestError } = await supabase.from("contact_messages").insert(lead);
       if (requestError) throw requestError;
+      setSavedWhatsAppLead(lead);
       clearAssistanceDraft(context.technicianId);
       setSent(true);
     } catch {
@@ -99,6 +103,22 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
           ? "Sua solicitação foi encaminhada ao canal privado da equipe. Não há pagamento antecipado. O atendimento depende de disponibilidade e eventual serviço será combinado separadamente."
           : "Seu interesse no contato direto foi registrado. Ainda não houve cobrança ou liberação de telefone. A equipe poderá orientar os próximos passos."}
       </p>
+      {savedWhatsAppLead && (
+        <div className="mt-5 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+          <h4 className="font-bold text-foreground">Continue pelo WhatsApp da equipe</h4>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            O pedido já foi registrado no portal. Ao abrir a conversa, você autoriza o compartilhamento
+            do nome, e-mail, serviço, urgência, localidade e descrição com o WhatsApp para atendimento.
+            Toque em Enviar no WhatsApp para realmente encaminhar a mensagem. A abertura da conversa, sozinha,
+            não significa que ela foi enviada ou recebida.
+          </p>
+          <a href={buildSavedLeadWhatsAppUrl(savedWhatsAppLead)}
+            target="_blank" rel="noopener noreferrer"
+            className="mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-emerald-700 px-4 text-sm font-extrabold text-white hover:bg-emerald-800">
+            Abrir WhatsApp com mensagem pronta →
+          </a>
+        </div>
+      )}
       <button type="button" onClick={mode === "direct" ? goToSearch : onClose}
         className="mt-6 min-h-12 w-full rounded-xl bg-primary px-5 font-bold text-primary-foreground">
         {mode === "direct" ? "Ver técnicos na minha região" : "Concluir"}
