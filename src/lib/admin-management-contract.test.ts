@@ -37,7 +37,7 @@ describe("Admin management hardening", () => {
     expect(technicians).toContain("setReload((value) => value + 1)");
     expect(technicians).toContain("window.confirm");
     expect(technicians).toContain("Dessuspender");
-    expect(admin).toContain("<AdminTechnicianManager />");
+    expect(admin).toContain("<AdminTechnicianManager adminOwnerId={user.id} />");
   });
   it("protects WordPress source and 20 demo candidates, with at most 20 records per batch", () => {
     for (const term of [

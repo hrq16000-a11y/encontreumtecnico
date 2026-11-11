@@ -159,7 +159,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             {section === "contas" && <section aria-label="Contas e bloqueios"><AdminMemberInvites /><AdminAccountsManager /></section>}
             {section === "tecnicos" && <section aria-label="Gestão de técnicos">
               <AdminMemberInvites initialRole="tecnico" />
-              <AdminTechnicianManager />
+              <AdminTechnicianManager adminOwnerId={user.id} />
             </section>}
             {section === "mensagens" && <section aria-label="Mensagens administrativas">
               <h2 id="admin-mensagens" className="mt-10 scroll-mt-20 text-lg font-semibold text-foreground">Mensagens de contato</h2>
