@@ -7,6 +7,8 @@ const authState = vi.hoisted(() => ({
     roles: [] as Array<"admin" | "tecnico" | "cliente">, loading: false },
 }));
 vi.mock("@/hooks/use-auth", () => ({ useAuth: () => authState.value }));
+const authDialog = vi.hoisted(() => ({ open: vi.fn() }));
+vi.mock("@/components/auth-dialog", () => ({ useAuthDialog: () => authDialog.open }));
 
 
 vi.mock("@tanstack/react-router", () => ({
@@ -16,7 +18,7 @@ vi.mock("@tanstack/react-router", () => ({
   }) => <a href={to} onClick={onClick} aria-label={typeof props["aria-label"] === "string" ? props["aria-label"] : undefined}>{children}</a>,
 }));
 
-afterEach(() => { cleanup(); navState.pathname = "/"; authState.value = { user: null, roles: [], loading: false }; });
+afterEach(() => { cleanup(); navState.pathname = "/"; authState.value = { user: null, roles: [], loading: false }; authDialog.open.mockClear(); });
 
 describe("Cabeçalho do novo portal", () => {
   it("abre o menu móvel com destinos públicos e caminhos de cadastro preservados", () => {
@@ -27,21 +29,37 @@ describe("Cabeçalho do novo portal", () => {
     expect(screen.getByRole("button", { name: "Fechar menu" }).getAttribute("aria-expanded")).toBe("true");
     const menu = screen.getByRole("navigation", { name: "Navegação móvel" });
     expect(menu.querySelector('a[href="/tecnicos"]')).toBeTruthy();
-    expect(menu.querySelector('a[href="/area-cliente"]')).toBeTruthy();
-    expect(menu.querySelector('a[href="/area-tecnico"]')).toBeTruthy();
-    expect(menu.querySelector('a[href="/entrar"]')).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Sou cliente" }));
+    expect(authDialog.open).toHaveBeenCalledWith("cadastrar", "cliente");
+    expect(screen.queryByRole("navigation", { name: "Navegação móvel" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Abrir menu" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sou técnico" }));
+    expect(authDialog.open).toHaveBeenCalledWith("cadastrar", "tecnico");
+    fireEvent.click(screen.getByRole("button", { name: "Abrir menu" }));
+    fireEvent.click(screen.getByRole("button", { name: "Entrar ou criar conta" }));
+    expect(authDialog.open).toHaveBeenCalledWith("entrar");
   });
 
   it("oferece três atalhos móveis sem substituir o menu completo", () => {
     render(<SiteHeader />);
     const quick = screen.getByRole("navigation", { name: "Acesso rápido no celular" });
-    for (const path of ["/", "/tecnicos", "/entrar"]) {
+    for (const path of ["/", "/tecnicos"]) {
       expect(quick.querySelector(`a[href="${path}"]`)).toBeTruthy();
     }
+    fireEvent.click(screen.getByRole("button", { name: "Minha área" }));
+    expect(authDialog.open).toHaveBeenCalledWith("entrar");
     expect(quick.textContent).toContain("Minha área");
     expect(quick.textContent).toContain("Buscar");
     expect(quick.className).toContain("md:hidden");
     expect(screen.getByRole("button", { name: "Abrir menu" })).toBeTruthy();
+  });
+
+  it("abre o login e o cadastro no desktop sem navegar para a página inteira", () => {
+    render(<SiteHeader />);
+    fireEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    expect(authDialog.open).toHaveBeenCalledWith("entrar");
+    fireEvent.click(screen.getByRole("button", { name: "Sou técnico" }));
+    expect(authDialog.open).toHaveBeenCalledWith("cadastrar", "tecnico");
   });
 
   it("fecha com Escape e após tocar em um link", () => {
