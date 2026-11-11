@@ -103,6 +103,10 @@ function ServiceCategoryPage() {
               className="inline-flex min-h-11 items-center rounded-xl border border-primary/30 px-4 text-sm font-semibold text-primary hover:bg-primary/5">
               Guardar pedido da minha região
             </Link>
+            <Link to="/cadastro"
+              className="inline-flex min-h-11 items-center rounded-xl border border-border px-4 text-sm font-semibold text-primary hover:bg-muted/50">
+              Sou profissional — cadastrar gratuitamente
+            </Link>
             <a href="#orientacoes-da-especialidade"
               className="inline-flex min-h-11 items-center rounded-xl border border-border px-4 text-sm font-semibold text-primary hover:bg-muted/50">
               Informações para contratar
