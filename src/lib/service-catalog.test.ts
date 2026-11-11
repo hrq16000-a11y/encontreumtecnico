@@ -11,7 +11,7 @@ describe("Encontre um Técnico: conteúdo nas entranhas do catálogo", () => {
     expect(SERVICE_CATEGORIES).toHaveLength(10);
     expect(new Set(SERVICE_CATEGORIES.map(x => x.slug)).size).toBe(10);
     expect(GUIDES).toHaveLength(6);
-    expect(ENRICHED_CATEGORY_PATHS).toHaveLength(6);
+    expect(ENRICHED_CATEGORY_PATHS).toHaveLength(8);
     for (const guide of GUIDES) {
       const entry = getEnrichedServiceCategory(guide.categorySlug);
       expect(entry?.guide).toBe(guide);
