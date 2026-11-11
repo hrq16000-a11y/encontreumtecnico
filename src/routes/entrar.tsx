@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { safeLegacyClaimReturnPath } from "@/lib/legacy-claim-validation";
 import { authReturnUrl } from "@/lib/auth-domain";
 import { canAttemptNewAccountRole } from "@/lib/onboarding-legacy-fallback";
+import { safeLoginDestination } from "@/lib/navigation-safety";
 
 export const Route = createFileRoute("/entrar")({
   head: () => ({
@@ -238,10 +239,10 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
       if (!active) return;
       const stored = sessionStorage.getItem("eut-after-login");
       sessionStorage.removeItem("eut-after-login");
-      if (stored && stored !== "/entrar") navigate({ to: stored as "/" });
-      else if (roles.includes("admin")) navigate({ to: lp2 ? "/lp2/admin" : "/admin" });
-      else if (roles.includes("tecnico")) navigate({ to: lp2 ? "/lp2/meu-perfil" : "/area-tecnico" });
-      else navigate({ to: lp2 ? "/lp2/cliente" : "/area-cliente" });
+      // Only resume an allowed, same-origin route that matches the signed-in role.
+      // A stale technician/admin target must never trap a client in the wrong panel.
+      const destination = safeLoginDestination(stored, roles, lp2);
+      navigate({ to: destination as "/" });
     }
     void continueLogin();
     return () => { active = false; };

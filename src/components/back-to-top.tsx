@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
 import { ArrowUp } from "lucide-react";
+import { useRouterState } from "@tanstack/react-router";
+import { isTechnicianDetailPath } from "@/lib/navigation-safety";
 
 /** Tiny, accessible replacement for the former Careerfy back-to-top script. */
 export function BackToTop() {
   const [visible, setVisible] = useState(false);
+  const pathname = useRouterState({ select: state => state.location.pathname });
+  const detailHasOwnStickyActions = isTechnicianDetailPath(pathname);
 
   useEffect(() => {
     const update = () => setVisible(window.scrollY > 450);
@@ -24,7 +28,7 @@ export function BackToTop() {
           && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" });
       }}
-      className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-5 z-30 md:bottom-6 inline-flex h-11 w-11 items-center justify-center rounded-full border border-primary/30 bg-primary text-primary-foreground shadow-lg transition-transform hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transform-none motion-reduce:transition-none"
+      className={"fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-5 z-30 md:bottom-6 h-11 w-11 items-center justify-center rounded-full border border-primary/30 bg-primary text-primary-foreground shadow-lg transition-transform hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transform-none motion-reduce:transition-none " + (detailHasOwnStickyActions ? "hidden md:inline-flex" : "inline-flex")}
     >
       <ArrowUp className="h-5 w-5" aria-hidden="true" />
     </button>
