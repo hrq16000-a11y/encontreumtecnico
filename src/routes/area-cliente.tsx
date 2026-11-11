@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useActiveCategories } from "@/hooks/use-active-categories";
 import { LegacyAccountActivation } from "@/components/legacy-account-activation";
 import { CustomerLocationButton } from "@/components/customer-location-button";
+import { ClientTechnicianPicker } from "@/components/client-technician-picker";
 import { consumeTriageDraft } from "@/lib/triage-draft";
 import { clearTechnicianTarget, recallTechnicianTarget, rememberTechnicianTarget } from "@/lib/selected-technician-target";
 import { containsObviousContact } from "@/lib/private-message-validation";
@@ -176,6 +177,16 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
       window.requestAnimationFrame(() => stepHeadingRef.current?.focus());
     }
   }
+  function chooseTechnicianInWizard(id: string | null) {
+    // Only a public UUID is retained within the tab. No draft text, GPS,
+    // telephone or consent flag is stored or transmitted by selection.
+    if (id) rememberTechnicianTarget(id);
+    else clearTechnicianTarget();
+    setTechnicianTarget(id);
+    setShareNow(false); // a different recipient always requires fresh opt-in
+    setMsg(null);
+  }
+
   function advance() {
     const error = clientRequestStepError(step, form, availableCategories,
       catalogUnavailable, shareNow, technicianTarget);
@@ -421,32 +432,19 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
               )}
               {step === 3 && (
                 <div className="grid gap-3">
-                  {technicianTarget ? (
-                    <div className="rounded-xl border border-primary/25 bg-primary/5 p-4">
-                      <p className="text-sm font-semibold text-foreground">Você já selecionou um técnico</p>
+                  <ClientTechnicianPicker
+                    category={form.category}
+                    city={form.city}
+                    selectedId={technicianTarget}
+                    onSelect={chooseTechnicianInWizard}
+                  />
+                  {technicianTarget && (
+                    <div role="status" className="rounded-xl border border-primary/25 bg-primary/5 p-4">
+                      <p className="text-sm font-semibold text-foreground">Você escolheu um técnico</p>
                       <p className="mt-2 text-sm text-muted-foreground">
-                        O profissional selecionado só verá o pedido se você marcar a autorização.
-                        Nenhum telefone será exibido ou liberado por este envio.
-                      </p>
-                      <Link to="/acesso-contato/$tecnicoId" params={{ tecnicoId: technicianTarget }}
-                        className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-primary underline">
-                        Ver condições de acesso ao contato
-                      </Link>
-                    </div>
-                  ) : (
-                    <div className="rounded-xl border border-border bg-muted/25 p-4">
-                      <p className="font-semibold text-foreground">Nenhum técnico selecionado</p>
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        Você pode guardar a necessidade somente na sua área. Para pedir a um técnico específico,
-                        escolha o profissional na busca antes de iniciar um novo pedido.
-                      </p>
-                      <Link to="/tecnicos"
-                        className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-primary underline">
-                        Ver técnicos disponíveis
-                      </Link>
-                      <p className="text-xs text-muted-foreground">
-                        Atenção: se sair agora, este formulário ainda não estará salvo.
-                        Para preservar a solicitação, conclua a opção privada.
+                        Essa escolha não envia o pedido. Para solicitar o compartilhamento,
+                        marque a autorização abaixo e confirme na última etapa.
+                        Nenhum telefone será liberado.
                       </p>
                     </div>
                   )}
