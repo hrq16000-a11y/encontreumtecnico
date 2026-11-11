@@ -78,7 +78,7 @@ export function GuideSectionVisual({ isCctv, index }: { isCctv: boolean; index: 
         </svg>
         <div className="relative grid grid-cols-3 gap-2">
           {stages.map((stage, i) => {
-            const StageIcon = symbols[i];
+            const StageIcon = symbols[i] ?? Wrench;
             return (
               <div key={stage} className="flex min-w-0 flex-col items-center gap-1 text-center text-white">
                 <StageIcon className="h-5 w-5 text-teal-100" aria-hidden />
