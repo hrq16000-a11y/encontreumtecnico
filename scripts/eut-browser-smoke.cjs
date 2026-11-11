@@ -153,7 +153,7 @@ async function publicMobileNeighborhoods(page) {
   await city.fill("São José dos Pinhais");
   const suggestions = page.locator("#eut-bairro-diretorio");
   await suggestions.waitFor({ state: "attached", timeout: 20000 });
-  const labels = await suggestions.locator("option").allTextContents();
+  const labels = await suggestions.locator("option").evaluateAll(options => options.map(option => option.value));
   assert(labels.includes("Itália"), "Official SJP neighborhood suggestions missing");
   assert(!labels.includes("Jardim Itália"),
     "The public catalog should not invent the owner's neighborhood label");
