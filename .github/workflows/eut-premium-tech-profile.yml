@@ -22,7 +22,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: UI behavior, factual badges, privacy
-        run: bunx vitest run src/components/public-technician-profile.test.tsx src/lib/public-seo-graph.test.ts src/lib/public-sitemap.test.ts
+        run: bunx vitest run src/components/public-technician-profile.test.tsx src/lib/public-seo-graph.test.ts src/lib/public-sitemap.test.ts src/lib/seo-public-pages.test.ts
       - name: WordPress runtime independence
         run: node scripts/eut-wordpress-runtime-boundary.mjs
       - name: Generate TanStack routes and build
