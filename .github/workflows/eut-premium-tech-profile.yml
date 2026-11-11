@@ -16,7 +16,7 @@ on:
       - 'src/routes/sitemaps.base[.]xml.ts'
       - 'src/routes/sitemaps.cidades[.]xml.ts'
       - 'src/routes/sitemaps.categorias[.]xml.ts'
-      - 'src/routes/sitemaps.tecnicos.$pagina[.]xml.ts'
+      - 'src/routes/sitemaps.tecnicos.{$pagina}[.]xml.ts'
       - 'scripts/eut-seo-ssr-http-smoke.mjs'
       - 'docs/seo/EUT_SITEMAP_INDEX_HOMOLOGACAO_2026-11-11.md'
       - 'src/lib/public-sitemap.test.ts'
