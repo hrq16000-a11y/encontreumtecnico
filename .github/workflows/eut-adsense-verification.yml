@@ -1,0 +1,27 @@
+name: EUT AdSense verification and consent
+on:
+  pull_request:
+    paths:
+      - 'public/ads.txt'
+      - 'src/routes/__root.tsx'
+      - 'src/components/adsense-loader.tsx'
+      - 'src/components/cookie-notice.tsx'
+      - 'src/lib/legal-documents.ts'
+      - 'src/lib/adsense.test.ts'
+      - '.github/workflows/eut-adsense-verification.yml'
+permissions:
+  contents: read
+jobs:
+  adsense-verification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Verification, route safety and consent tests
+        run: bunx vitest run src/lib/adsense.test.ts
+      - name: TypeScript
+        run: bunx tsc --noEmit --pretty false
+      - name: Production build (no deployment)
+        run: bun run build
