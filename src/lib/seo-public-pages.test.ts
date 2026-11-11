@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
+import { GUIDES, GUIDE_PATHS, getPublishedGuide } from "./public-guides";
+import { buildPublicSitemapXml, SITE } from "./public-sitemap";
 
 const read = (path: string) => readFileSync(path, "utf8");
 const site = "https://www.encontreumtecnico.com.br";
@@ -133,5 +135,37 @@ describe("SEO global do Encontre um Técnico", () => {
       "eletrica", "design-grafico", "impressoras", "redes", "software",
     ]) expect(services, slug).toContain('slug: "' + slug + '"');
     expect(services).not.toContain("WhatsApp direto");
+  });
+
+  it("publica somente guias autorais com canonical, dados Article e links para técnicos", () => {
+    expect(GUIDES).toHaveLength(2);
+    expect(new Set(GUIDES.map(guide => guide.slug)).size).toBe(GUIDES.length);
+    expect(GUIDE_PATHS).toHaveLength(GUIDES.length + 1);
+    const index = read("src/routes/guias.index.tsx");
+    const detail = read("src/routes/guias.$slug.tsx");
+    const services = read("src/routes/servicos.tsx");
+    const sitemap = buildPublicSitemapXml([]);
+    expect(index).toContain('createFileRoute("/guias/")');
+    expect(detail).toContain('createFileRoute("/guias/$slug")');
+    expect(detail).toContain("throw notFound()");
+    expect(detail).toContain('"script:ld+json"');
+    expect(detail).toContain('rel: "canonical"');
+    expect(detail).toContain('especialidade: guide.categorySlug');
+    expect(services).toContain('to="/guias"');
+    expect(SITE).toBe("https://www.encontreumtecnico.com.br");
+    expect(sitemap).toContain('<loc>' + SITE + '/guias</loc>');
+    for (const guide of GUIDES) {
+      expect(guide.sections.length).toBeGreaterThanOrEqual(5);
+      expect(guide.sections.every(section => section.paragraphs.length > 0)).toBe(true);
+      expect(guide.description.length).toBeGreaterThan(65);
+      expect(guide.title.length).toBeGreaterThan(35);
+      expect(guide.publishedAt).toBe("2026-11-11");
+      expect(guide.updatedAt).toBe("2026-11-11");
+      expect(sitemap).toContain('<loc>' + SITE + '/guias/' + guide.slug + '</loc>');
+      expect(getPublishedGuide(guide.slug)?.title).toBe(guide.title);
+    }
+    expect(getPublishedGuide("../admin")).toBeNull();
+    expect(sitemap).not.toContain("/admin");
+    expect(sitemap).not.toContain("/area-cliente");
   });
 });
