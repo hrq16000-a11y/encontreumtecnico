@@ -3,6 +3,7 @@ import { PageShell } from "@/components/page-placeholder";
 import { getPublishedGuide } from "@/lib/public-guides";
 import { GuideSectionVisual } from "@/components/guide-section-visual";
 import { GuideLeadCallout } from "@/components/guide-lead-callout";
+import { getGuideArtwork } from "@/lib/guide-artwork";
 import { SITE } from "@/lib/public-sitemap";
 
 export const Route = createFileRoute("/guias/$slug")({
@@ -14,6 +15,7 @@ export const Route = createFileRoute("/guias/$slug")({
   head: ({ loaderData, params }) => {
     const guide = loaderData;
     const canonical = SITE + "/guias/" + (guide?.slug ?? params.slug);
+    const hero = guide ? SITE + getGuideArtwork(guide.categorySlug).src : undefined;
     return {
       meta: [
         { title: guide ? guide.title + " | Encontre um Técnico" : "Guia não encontrado — Encontre um Técnico" },
@@ -22,6 +24,7 @@ export const Route = createFileRoute("/guias/$slug")({
         { property: "og:description", content: guide?.description ?? "" },
         { property: "og:type", content: "article" },
         { property: "og:url", content: canonical },
+        ...(hero ? [{ property: "og:image", content: hero }, { property: "og:image:alt", content: getGuideArtwork(guide!.categorySlug).alt }] : []),
         ...(guide ? [{
           "script:ld+json": {
             "@context": "https://schema.org",
@@ -32,6 +35,7 @@ export const Route = createFileRoute("/guias/$slug")({
             datePublished: guide.publishedAt,
             dateModified: guide.updatedAt,
             mainEntityOfPage: canonical,
+            image: hero,
             author: { "@type": "Organization", name: "Encontre um Técnico — equipe editorial" },
             publisher: { "@type": "Organization", name: "Encontre um Técnico", url: SITE },
             isAccessibleForFree: true,
@@ -47,8 +51,7 @@ export const Route = createFileRoute("/guias/$slug")({
 
 function GuidePage() {
   const guide = Route.useLoaderData();
-  const isCctv = guide.categorySlug === "cftv";
-  const hero = isCctv ? "/guias/cftv-planejamento-ilustrado.svg" : "/guias/computador-diagnostico-ilustrado.svg";
+  const artwork = getGuideArtwork(guide.categorySlug);
   return (
     <PageShell>
       <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
@@ -69,9 +72,7 @@ function GuidePage() {
             </p>
           </header>
           <figure className="mt-7 overflow-hidden rounded-2xl border border-border bg-brand-navy shadow-xl">
-            <img src={hero} alt={isCctv
-              ? "Ilustração original com câmeras, zonas de cobertura, cabos e gravador de imagens"
-              : "Ilustração original de bancada de manutenção com monitor, computador e ferramentas"}
+            <img src={artwork.src} alt={artwork.alt}
               width={1200} height={630} fetchPriority="high" className="h-auto w-full object-cover" />
             <figcaption className="border-t border-white/10 px-4 py-3 text-xs text-slate-100">
               Ilustração editorial e informativa, não diagnóstico ou projeto de instalação.
@@ -95,7 +96,7 @@ function GuidePage() {
                     </ul>
                   </div>
                 )}
-                <GuideSectionVisual isCctv={isCctv} index={index} />
+                <GuideSectionVisual categorySlug={guide.categorySlug} index={index} />
               </section>
               {(index === 1 || index === 3) && <GuideLeadCallout guide={guide} compact />}
               </div>
