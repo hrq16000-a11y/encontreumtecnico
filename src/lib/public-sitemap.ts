@@ -1,4 +1,5 @@
 import { GUIDE_PATHS } from "@/lib/public-guides";
+import { ENRICHED_CATEGORY_PATHS } from "@/lib/service-catalog";
 /** Public sitemap builder. Never accept names, phones or private legacy records. */
 export const SITE = "https://www.encontreumtecnico.com.br";
 
