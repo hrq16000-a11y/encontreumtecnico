@@ -21,10 +21,13 @@ describe("Paginação administrativa para milhares de técnicos", () => {
     expect(manager).toContain('.range(from, to)');
     expect(manager).toContain('.order("id", { ascending: true })');
     expect(manager).toContain('query = query.eq("state_uf", uf)');
+    expect(manager).toContain('query = query.ilike("neighborhood"');
     expect(manager).toContain('query = query.contains("specialties", [category])');
     expect(manager).toContain("setReload((value) => value + 1)");
     expect(manager).toContain('db.rpc("eut_admin_technician_action"');
     expect(admin).toContain('const needsTechs = section === "inicio"');
+    expect(admin).toContain('.select("id", { count: "exact", head: true })');
+    expect(admin).not.toContain('supabase.from("technicians").select("*")');
     expect(admin).toContain("<AdminTechnicianManager />");
     expect(manager).not.toContain("service_role");
     expect(manager).not.toContain(".delete()");

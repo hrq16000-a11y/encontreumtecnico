@@ -28,6 +28,7 @@ export function AdminTechnicianManager() {
   const [draftSearch, setDraftSearch] = useState("");
   const [uf, setUf] = useState("");
   const [city, setCity] = useState("");
+  const [neighborhood, setNeighborhood] = useState("");
   const [category, setCategory] = useState("");
   const [sort, setSort] = useState<"newest" | "oldest" | "name">("newest");
   const [page, setPage] = useState(0);
@@ -64,6 +65,8 @@ export function AdminTechnicianManager() {
       const municipality = cleanAdminSearch(city);
       if (municipality) query = query.ilike("city", `%${municipality}%`);
       if (uf) query = query.eq("state_uf", uf);
+      const district = cleanAdminSearch(neighborhood);
+      if (district) query = query.ilike("neighborhood", `%${district}%`);
       if (category) query = query.contains("specialties", [category]);
       const ordered = query.order(sort === "name" ? "display_name" : "created_at",
         { ascending: sort === "name" || sort === "oldest" })
@@ -86,7 +89,7 @@ export function AdminTechnicianManager() {
       }
     });
     return () => { active = false; };
-  }, [status, search, city, uf, category, sort, page, reload]);
+  }, [status, search, city, neighborhood, uf, category, sort, page, reload]);
 
   useEffect(() => {
     let active = true;
@@ -175,7 +178,7 @@ export function AdminTechnicianManager() {
     <input id="admin-busca-tecnicos" value={draftSearch} onChange={(e) => setDraftSearch(e.target.value)} maxLength={80}
       placeholder="Buscar por nome profissional"
       className="mt-2 min-h-12 w-full rounded-xl border border-input bg-background px-4 text-foreground" />
-    <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
       <label className="grid gap-1 text-xs font-semibold text-foreground">Estado
         <select value={uf} onChange={(e) => { setUf(e.target.value); setPage(0); }}
           className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm">
@@ -186,6 +189,11 @@ export function AdminTechnicianManager() {
       <label className="grid gap-1 text-xs font-semibold text-foreground">Município
         <input value={city} maxLength={80} onChange={(e) => { setCity(e.target.value); setPage(0); }}
           placeholder="Ex.: Curitiba" className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm" />
+      </label>
+      <label className="grid gap-1 text-xs font-semibold text-foreground">Bairro
+        <input value={neighborhood} maxLength={80}
+          onChange={(e) => { setNeighborhood(e.target.value); setPage(0); }}
+          placeholder="Ex.: Centro" className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm" />
       </label>
       <label className="grid gap-1 text-xs font-semibold text-foreground">Especialidade
         <select value={category} onChange={(e) => { setCategory(e.target.value); setPage(0); }}
