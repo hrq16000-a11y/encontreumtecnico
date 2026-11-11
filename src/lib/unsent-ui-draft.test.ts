@@ -7,6 +7,12 @@ describe("navigation draft for non-sensitive search fields", () => {
     expect(readUiTextDraft("home", sessionStorage, 100000)).toEqual({specialty:"Redes",city:"Curitiba",uf:"PR",neighborhood:"Centro"});
     expect(readUiTextDraft("problem", sessionStorage, 100000)).toBeNull();
   });
+  it("retains Home2 filters separately after leaving and returning to the route", () => {
+    saveUiTextDraft("home2", { query: "redes", city: "Curitiba" }, sessionStorage, 100000);
+    expect(readUiTextDraft("home2", sessionStorage, 100000)).toEqual({ query: "redes", city: "Curitiba" });
+    expect(readUiTextDraft("home", sessionStorage, 100000)).toBeNull();
+    expect(readUiTextDraft("home2", sessionStorage, 100000 + 46 * 60 * 1000)).toBeNull();
+  });
   it("never stores huge data and expires after 45 minutes", () => {
     expect(saveUiTextDraft("problem", { description: "a".repeat(4000) }, sessionStorage)).toBe(false);
     saveUiTextDraft("problem", { description: "Meu notebook não liga" }, sessionStorage, 100000);
