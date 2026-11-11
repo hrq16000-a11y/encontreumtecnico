@@ -10,6 +10,10 @@ import { listApprovedTechnicians } from "@/lib/technicians.functions";
 import { SITE } from "@/lib/public-sitemap";
 import { ParanaguaExternalReferences } from "@/components/paranagua-external-references";
 
+// Fail closed: an admin must review bans, duplicates, terms and correction rights
+// before any third-party references can appear publicly.
+const PUBLIC_EXTERNAL_REFERENCES_ENABLED = false;
+
 export const Route = createFileRoute("/servicos/$categoria")({
   loader: async ({ params }) => {
     const entry = getEnrichedServiceCategory(params.categoria);
@@ -145,7 +149,7 @@ function ServiceCategoryPage() {
           </Link>
         </section>
 
-        {category.slug === "computadores" && <ParanaguaExternalReferences />}
+        {PUBLIC_EXTERNAL_REFERENCES_ENABLED && category.slug === "computadores" && <ParanaguaExternalReferences />}
 
         <article id="orientacoes-da-especialidade" className="eut-guide-stable-type mt-10 scroll-mt-28">
           <div className="max-w-4xl">
