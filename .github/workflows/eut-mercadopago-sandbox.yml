@@ -21,7 +21,9 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Test isolated payment adapter (mocked network; no secrets)
         run: bunx vitest run src/lib/mercado-pago-orders.test.ts
-      - name: TypeScript
-        run: bunx tsc --noEmit
+      # TanStack generates routeTree.gen.ts during the build.
+      # Checking tsc before it creates stale-route false positives on LP2.
       - name: TanStack build (no deployment)
         run: bun run build
+      - name: TypeScript after route generation
+        run: bunx tsc --noEmit
