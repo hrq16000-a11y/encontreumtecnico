@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { SiteHeader } from "./site-header";
+const navState = vi.hoisted(() => ({ pathname: "/" }));
 const authState = vi.hoisted(() => ({
   value: { user: null as { id: string } | null,
     roles: [] as Array<"admin" | "tecnico" | "cliente">, loading: false },
@@ -9,12 +10,13 @@ vi.mock("@/hooks/use-auth", () => ({ useAuth: () => authState.value }));
 
 
 vi.mock("@tanstack/react-router", () => ({
+  useRouterState: ({ select }: { select: (x: { location: { pathname: string } }) => string }) => select({ location: { pathname: navState.pathname } }),
   Link: ({ to, children, onClick, ...props }: {
     to: string; children: React.ReactNode; onClick?: () => void; [key: string]: unknown;
   }) => <a href={to} onClick={onClick} aria-label={typeof props["aria-label"] === "string" ? props["aria-label"] : undefined}>{children}</a>,
 }));
 
-afterEach(() => { cleanup(); authState.value = { user: null, roles: [], loading: false }; });
+afterEach(() => { cleanup(); navState.pathname = "/"; authState.value = { user: null, roles: [], loading: false }; });
 
 describe("Cabeçalho do novo portal", () => {
   it("abre o menu móvel com destinos públicos e caminhos de cadastro preservados", () => {
@@ -75,4 +77,15 @@ describe("menu autenticado e direcionamento para painel do papel real", () => {
     expect(screen.getAllByText("Minha conta").some((el) =>
       el.closest("a")?.getAttribute("href") === "/entrar")).toBe(true);
   });
+});
+
+describe("Sem sobreposição das barras no celular", () => {
+  it.each(["/entrar", "/area-tecnico", "/area-cliente", "/admin", "/tecnicos/jefferson-santana-tubarao-sc"])(
+    "não sobrepõe formulário ou CTA fixo em %s", (pathname) => {
+      navState.pathname = pathname;
+      render(<SiteHeader />);
+      expect(screen.queryByRole("navigation", { name: "Acesso rápido no celular" })).toBeNull();
+      expect(screen.getByRole("button", { name: "Abrir menu" })).toBeTruthy();
+    },
+  );
 });

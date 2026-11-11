@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
+import { showMobileQuickTabs } from "@/lib/navigation-safety";
 import { ArrowRight, CircleHelp, House, LogIn, Menu, Search, Wrench, X, UserRound } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import logo from "@/assets/logo-marinho.png";
@@ -17,6 +18,8 @@ export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { user, roles, loading } = useAuth();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const showQuickTabs = showMobileQuickTabs(pathname);
   // Server-controlled roles. Never infer admin privileges from the e-mail.
   const accountPath = roles.includes("admin") ? "/admin" as const
     : roles.includes("tecnico") ? "/area-tecnico" as const
@@ -143,7 +146,7 @@ export function SiteHeader() {
         </nav>
       )}
     </header>
-    <nav aria-label="Acesso rápido no celular"
+    {showQuickTabs && <nav aria-label="Acesso rápido no celular"
       className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-3 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-6px_22px_rgba(0,0,0,0.08)] backdrop-blur md:hidden">
       <Link to="/" activeOptions={{ exact: true }}
         className={"flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg py-2 text-xs font-medium text-muted-foreground " + FOCUS}
@@ -160,7 +163,7 @@ export function SiteHeader() {
         activeProps={{ className: "flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg bg-primary/10 py-2 text-xs font-semibold text-primary" }}>
         {signedIn ? <UserRound className="h-5 w-5" aria-hidden="true" /> : <LogIn className="h-5 w-5" aria-hidden="true" />} Minha área
       </Link>
-    </nav>
+    </nav>}
     </>
   );
 }
