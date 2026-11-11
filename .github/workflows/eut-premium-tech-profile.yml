@@ -7,6 +7,18 @@ on:
       - 'src/lib/public-seo-graph.ts'
       - 'src/lib/public-seo-graph.functions.ts'
       - 'src/lib/public-seo-graph.test.ts'
+      - 'src/lib/public-sitemap-index.ts'
+      - 'src/lib/public-sitemap-index.test.ts'
+      - 'src/lib/public-sitemap-http.ts'
+      - 'src/lib/public-sitemap-http.test.ts'
+      - 'src/routes/public-seo-routes.test.tsx'
+      - 'src/components/public-seo-discovery.ssr.test.tsx'
+      - 'src/routes/sitemaps.base[.]xml.ts'
+      - 'src/routes/sitemaps.cidades[.]xml.ts'
+      - 'src/routes/sitemaps.categorias[.]xml.ts'
+      - 'src/routes/sitemaps.tecnicos.$pagina[.]xml.ts'
+      - 'scripts/eut-seo-ssr-http-smoke.mjs'
+      - 'docs/seo/EUT_SITEMAP_INDEX_HOMOLOGACAO_2026-11-11.md'
       - 'src/lib/public-sitemap.test.ts'
       - 'src/components/public-technician-profile.test.tsx'
       - 'src/components/back-to-top.tsx'
@@ -22,7 +34,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: UI behavior, factual badges, privacy
-        run: bunx vitest run src/components/public-technician-profile.test.tsx src/lib/public-seo-graph.test.ts src/lib/public-sitemap.test.ts src/lib/seo-public-pages.test.ts
+        run: bunx vitest run src/components/public-technician-profile.test.tsx src/lib/public-seo-graph.test.ts src/lib/public-sitemap.test.ts src/lib/seo-public-pages.test.ts src/lib/public-sitemap-index.test.ts src/lib/public-sitemap-http.test.ts src/components/public-seo-discovery.ssr.test.tsx src/routes/public-seo-routes.test.tsx
       - name: WordPress runtime independence
         run: node scripts/eut-wordpress-runtime-boundary.mjs
       - name: Generate TanStack routes and build
