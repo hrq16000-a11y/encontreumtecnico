@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
 import { rankTechniciansByDeclaredArea } from "@/lib/technician-local-ranking";
 import { isValidTechnicianId, isValidTechnicianSlug } from "@/lib/technician-id";
+import { sanitizePublicTechnician } from "@/lib/public-profile-text";
 
 export type PublicTechnician = {
   id: string;
@@ -183,7 +184,7 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
       console.error("listApprovedTechnicians", error);
       throw new Error("Não foi possível carregar os técnicos.");
     }
-    const published = await withCoverageCities(await withReferralHighlights(await withPioneerBadges(await withOnlineStatus(rows ?? []))));
+    const published = await withCoverageCities(await withReferralHighlights(await withPioneerBadges(await withOnlineStatus((rows ?? []).map(sanitizePublicTechnician)))));
     if (!regionalPriority) return published.sort((a,b) => Number(b.online_now)-Number(a.online_now) || Number(Boolean(b.referral_highlight))-Number(Boolean(a.referral_highlight)) || Number(Boolean(b.pioneer_bronze))-Number(Boolean(a.pioneer_bronze)));
     return rankTechniciansByDeclaredArea(published, {
       uf, cidade: data.cidade, bairro: data.bairro,
@@ -208,5 +209,5 @@ export const getApprovedTechnician = createServerFn({ method: "GET" })
       console.error("getApprovedTechnician lookup failed", error.code ?? "unknown");
       throw new Error("Não foi possível consultar o perfil do técnico.");
     }
-    return row ? (await withCoverageCities(await withReferralHighlights(await withPioneerBadges(await withOnlineStatus([row])))))[0] ?? null : null;
+    return row ? (await withCoverageCities(await withReferralHighlights(await withPioneerBadges(await withOnlineStatus([sanitizePublicTechnician(row)])))))[0] ?? null : null;
   });
