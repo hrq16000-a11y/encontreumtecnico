@@ -560,11 +560,12 @@ export function TechnicianAreaPage() {
                   <textarea maxLength={1000} rows={4} className={input} value={form.bio}
                     aria-invalid={Boolean(publicTextProblem(form.bio, "bio"))}
                     onChange={(e) => setForm({ ...form, bio: e.target.value })}
-                    placeholder="Descreva sua experiência, serviços e modo de atendimento. Não informe contatos." />
+                    placeholder="Conte sua experiência, serviços e equipamentos que atende. Ex.: manutenção de notebooks, instalação de redes e suporte presencial." />
                 </label>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Sem números, telefones, WhatsApp, e-mails, arrobas, links ou redes sociais, mesmo separados por espaços ou linhas.
-                  Seus contatos ficam apenas no campo privado do técnico.
+                  Descreva apenas sua atuação real: experiência, serviços e tipos de equipamento.
+                  Pode mencionar modelos e tempo de experiência, mas nunca telefone, WhatsApp, e-mail, links ou redes sociais, mesmo disfarçados.
+                  Seus contatos ficam no cadastro privado.
                 </p>
                 {publicTextProblem(form.bio, "bio") && <p role="alert" className="mt-2 text-sm text-destructive">{publicTextProblem(form.bio, "bio")}</p>}
               </div>
