@@ -29,7 +29,9 @@ describe("Sitemap dinâmico com técnicos publicados", () => {
     const handler = readFileSync("src/routes/sitemap[.]xml.ts", "utf8");
     const source = readFileSync("src/lib/public-seo-graph.functions.ts", "utf8");
     expect(handler).toContain("getPublicGraphSnapshot()");
-    expect(handler).toContain("graph.profiles, graph.cities, graph.categories");
+    expect(handler).toContain("buildPublicSitemapIndexXml(graph)");
+    const childRoutes = readFileSync("src/routes/sitemaps.tecnicos.$pagina[.]xml.ts", "utf8");
+    expect(childRoutes).toContain('publicSitemapPartResponse("tecnicos", Number(raw))');
     expect(source).toContain('.select("public_slug,display_name,city,state_uf,specialties,service_slugs,updated_at")');
     expect(source).toContain('.eq("status", "aprovado")');
     expect(source).toContain('.range(page * BATCH, (page + 1) * BATCH - 1)');
