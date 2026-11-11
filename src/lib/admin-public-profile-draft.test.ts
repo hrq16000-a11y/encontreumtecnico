@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import { clearAdminPublicDraft, readAdminPublicDraft, saveAdminPublicDraft } from "./admin-public-profile-draft";
 
 const original = { display_name: "Maria Técnica", bio: "Especialista em manutenção de notebooks.", region: "Curitiba" };
@@ -6,6 +7,18 @@ const edited = { ...original, bio: original.bio + " Atende redes domésticas." }
 beforeEach(() => sessionStorage.clear());
 
 describe("administrative public profile draft: owner and record isolation", () => {
+  it("restores only on explicit edit and clears only after confirmed save or cancel", () => {
+    const component = readFileSync("src/components/admin-technician-manager.tsx", "utf8");
+    const page = readFileSync("src/routes/admin.tsx", "utf8");
+    expect(page).toContain("<AdminTechnicianManager adminOwnerId={user.id} />");
+    expect(component).toContain("readAdminPublicDraft(adminOwnerId, technician.id, baseline)");
+    expect(component).toContain("saveAdminPublicDraft(adminOwnerId, target.technician.id, baseline, next)");
+    expect(component).toContain('if (target.action === "editar") clearAdminPublicDraft(adminOwnerId, target.technician.id)');
+    expect(component).toContain("Servidor não confirmou a atualização solicitada.");
+    expect(component).toContain("setReason(\\"\\")".replaceAll("\\\\", "\\"));
+    expect(component).not.toContain("saveAdminPublicDraft(adminOwnerId, target.technician.id, baseline, reason)");
+  });
+
   it("recovers unsent public bio only for the same operator, technician and server baseline", () => {
     expect(saveAdminPublicDraft("admin-1", "tech-1", original, edited)).toBe(true);
     expect(readAdminPublicDraft("admin-1", "tech-1", original)).toEqual(edited);
