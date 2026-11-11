@@ -5,6 +5,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { rankTechniciansByDeclaredArea } from "@/lib/technician-local-ranking";
 import { isValidTechnicianId, isValidTechnicianSlug } from "@/lib/technician-id";
 import { sanitizePublicTechnician } from "@/lib/public-profile-text";
+import { readPublicEligibleRows, type PublicEligibilityRpc } from "@/lib/public-eligibility";
 
 export type PublicTechnician = {
   id: string;
@@ -184,7 +185,8 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
       console.error("listApprovedTechnicians", error);
       throw new Error("Não foi possível carregar os técnicos.");
     }
-    const published = await withCoverageCities(await withReferralHighlights(await withPioneerBadges(await withOnlineStatus((rows ?? []).map(sanitizePublicTechnician)))));
+    const eligible = await readPublicEligibleRows(publicClient() as unknown as PublicEligibilityRpc, rows ?? []);
+    const published = await withCoverageCities(await withReferralHighlights(await withPioneerBadges(await withOnlineStatus(eligible.map(sanitizePublicTechnician)))));
     if (!regionalPriority) return published.sort((a,b) => Number(b.online_now)-Number(a.online_now) || Number(Boolean(b.referral_highlight))-Number(Boolean(a.referral_highlight)) || Number(Boolean(b.pioneer_bronze))-Number(Boolean(a.pioneer_bronze)));
     return rankTechniciansByDeclaredArea(published, {
       uf, cidade: data.cidade, bairro: data.bairro,
@@ -209,5 +211,8 @@ export const getApprovedTechnician = createServerFn({ method: "GET" })
       console.error("getApprovedTechnician lookup failed", error.code ?? "unknown");
       throw new Error("Não foi possível consultar o perfil do técnico.");
     }
-    return row ? (await withCoverageCities(await withReferralHighlights(await withPioneerBadges(await withOnlineStatus([sanitizePublicTechnician(row)])))))[0] ?? null : null;
+    if (!row) return null;
+    const eligible = await readPublicEligibleRows(publicClient() as unknown as PublicEligibilityRpc, [row]);
+    if (!eligible.length) return null; // Suspended/banned/not eligible => real 404 in route loader.
+    return (await withCoverageCities(await withReferralHighlights(await withPioneerBadges(await withOnlineStatus([sanitizePublicTechnician(eligible[0]!)])))))[0] ?? null;
   });
