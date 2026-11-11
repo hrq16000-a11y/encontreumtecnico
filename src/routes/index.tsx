@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BadgeCheck, HandCoins, Eye, Scale, Camera, Laptop, Wifi, Printer, MapPin, Search } from "lucide-react";
 import logo from "@/assets/logo-encontreumtecnico.png.asset.json";
 import heroImg from "@/assets/tecnico-cftv-instalacao.jpg";
@@ -8,6 +8,7 @@ import { PageShell } from "../components/page-placeholder";
 import { SponsoredPublicSlot } from "@/components/sponsored-public-slot";
 import { ProblemAssistant } from "../components/problem-assistant";
 import { CustomerLocationButton } from "@/components/customer-location-button";
+import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { Reveal } from "../components/motion";
 import {
   CategoryGrid,
@@ -96,6 +97,15 @@ function HomePage() {
   const [city, setCity] = useState("");
   const [locationUf, setLocationUf] = useState("");
   const [locationNeighborhood, setLocationNeighborhood] = useState("");
+  const { area: suggestedRegion, loading: regionLoading } = useRegionalSuggestion();
+  useEffect(() => {
+    // The user may edit while the lookup is pending; never override typed city.
+    if (!suggestedRegion || city.trim()) return;
+    setCity(suggestedRegion.city);
+    setLocationUf(suggestedRegion.uf);
+    setLocationNeighborhood(suggestedRegion.neighborhood);
+  }, [suggestedRegion?.city, suggestedRegion?.uf, city]);
+
 
   return (
     <PageShell>
@@ -158,6 +168,15 @@ function HomePage() {
               </button>
             </form>
             <div className="mt-3 max-w-xl">
+              <div aria-live="polite" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/20 bg-card/90 px-4 py-3 text-xs shadow-sm sm:text-sm">
+                <span className="flex items-start gap-2 text-foreground">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                  {suggestedRegion
+                    ? <span><strong>Você pode estar em {suggestedRegion.city}/{suggestedRegion.uf}.</strong> <span className="text-muted-foreground">Estimativa aproximada; confira antes de pesquisar.</span></span>
+                    : <span className="text-muted-foreground">{regionLoading ? "Buscando sua região aproximada…" : "Informe sua cidade para buscar técnicos."}</span>}
+                </span>
+                {suggestedRegion && <button type="button" onClick={() => document.getElementById("busca-cidade")?.focus()} className="min-h-10 rounded-lg border border-primary/25 px-3 text-xs font-semibold text-primary hover:bg-accent">Corrigir cidade</button>}
+              </div>
               <CustomerLocationButton onLocated={(area, source) => {
                 if (source === "automatic" && city.trim()) return;
                 setCity(area.city);
