@@ -21,7 +21,7 @@ export function readProtectedDraft<T>(
     const k = key(kind, owner);
     const raw = k ? storage(override)?.getItem(k) : null;
     if (!raw || raw.length > MAX_BYTES) return null;
-    const data = JSON.parse(raw) as Record<string, unknown>;
+    const data = JSON.parse(raw) as { owner?: unknown; kind?: unknown; savedAt?: unknown; form?: unknown; step?: unknown };
     if (data.owner !== owner || data.kind !== kind || typeof data.savedAt !== "number" ||
         !Number.isFinite(data.savedAt) || data.savedAt > now + 60_000 ||
         now - data.savedAt > MAX_AGE || typeof data.form !== "object" ||
