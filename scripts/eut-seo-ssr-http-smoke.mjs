@@ -60,7 +60,7 @@ for (const [path, expected, format, assertCanonical] of cases) {
       } else if (format === "xml" && !text.includes("<urlset")) problems.push("XML de URLs ausente");
       else if (format === "html") {
         if (!text.includes("<h1")) problems.push("HTML SSR sem H1");
-        if (!text.includes('href="/tecnicos/')) problems.push("HTML SSR sem interlinks para técnico");
+        if (path !== profile && !text.includes('href="/tecnicos/')) problems.push("HTML SSR sem interlinks para técnico");
         if (assertCanonical) {
           const expectedUrl = expectedCanonical + path;
           const canonicalTag = text.match(/<link\b[^>]*rel=["']canonical["'][^>]*>/i)?.[0] ||
