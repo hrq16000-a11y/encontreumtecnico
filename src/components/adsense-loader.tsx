@@ -33,7 +33,7 @@ export function AdSenseLoader() {
   const pathname = useRouterState({ select: state => state.location.pathname });
 
   useEffect(() => {
-    if (import.meta.env.VITE_EUT_ADSENSE_SERVING !== "true") return;
+    if (import.meta.env["VITE_EUT_ADSENSE_SERVING"] !== "true") return;
     const sync = () => {
       const permitted = isEligibleAdSenseRoute(pathname) && hasAdvertisingConsent();
       const existing = document.head.querySelector<HTMLScriptElement>('script[data-eut-adsense="true"]');
@@ -46,7 +46,7 @@ export function AdSenseLoader() {
       script.async = true;
       script.src = SCRIPT_URL;
       script.crossOrigin = "anonymous";
-      script.dataset.eutAdsense = "true";
+      script.dataset["eutAdsense"] = "true";
       document.head.appendChild(script);
     };
     sync();
