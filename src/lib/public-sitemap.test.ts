@@ -27,9 +27,14 @@ describe("Sitemap dinâmico com técnicos publicados", () => {
   });
   it("declara consulta pública, somente aprovados, paginação, 503 e cache curto", () => {
     const handler = readFileSync("src/routes/sitemap[.]xml.ts", "utf8");
-    expect(handler).toContain('.select("public_slug,updated_at")');
-    expect(handler).toContain('.eq("status", "aprovado")');
-    expect(handler).toContain('.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)');
+    const source = readFileSync("src/lib/public-seo-graph.functions.ts", "utf8");
+    expect(handler).toContain("getPublicGraphSnapshot()");
+    expect(handler).toContain("graph.profiles, graph.cities, graph.categories");
+    expect(source).toContain('.select("public_slug,display_name,city,state_uf,specialties,service_slugs,updated_at")');
+    expect(source).toContain('.eq("status", "aprovado")');
+    expect(source).toContain('.range(page * BATCH, (page + 1) * BATCH - 1)');
+    expect(source).toContain('eut_ibge_municipalities');
+    expect(source).toContain('.eq("active", true)');
     expect(handler).toContain("status: 503");
     expect(handler).toContain("s-maxage=900");
     expect(handler).not.toContain("SERVICE_ROLE");
