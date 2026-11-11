@@ -9,6 +9,7 @@ import { authReturnUrl } from "@/lib/auth-domain";
 import { canAttemptNewAccountRole } from "@/lib/onboarding-legacy-fallback";
 import { safeLoginDestination } from "@/lib/navigation-safety";
 import { ConnectedGoogleIdentity } from "@/components/connected-google-identity";
+import { MemberInviteAcceptance } from "@/components/member-invite-acceptance";
 import { clearSignupIntent, readSignupIntent, type SignupIntent } from "@/lib/signup-intent";
 import { ArrowRight, LockKeyhole, Sparkles, UserRoundCheck, Wrench } from "lucide-react";
 
@@ -449,6 +450,7 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
               <input type="checkbox" required checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0" />
               <span>Li e aceito os <Link to="/termos" className="font-medium text-primary underline">Termos e condições</Link> e tomei conhecimento da <Link to="/privacidade" className="font-medium text-primary underline">Política de privacidade</Link>.</span>
             </label>
+            {!rolesError && <MemberInviteAcceptance userId={user.id} termsAccepted={termsAccepted} refreshRoles={refreshRoles} />}
             <div className="mt-5 grid w-full gap-3">
               {canBootstrapOwner ? (
                 <button type="button" disabled={busy || !termsAccepted || rolesError} onClick={() => void bootstrapOwner()}
