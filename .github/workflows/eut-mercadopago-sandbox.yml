@@ -1,0 +1,27 @@
+name: EUT Mercado Pago sandbox gate
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/mercado-pago-*.ts"
+      - "docs/integrations/MERCADO_PAGO_CHECKOUT_2026-11-11.md"
+      - ".github/workflows/eut-mercadopago-sandbox.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  sandbox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+      - name: Test isolated payment adapter (mocked network; no secrets)
+        run: bunx vitest run src/lib/mercado-pago-orders.test.ts
+      - name: TypeScript
+        run: bunx tsc --noEmit
+      - name: TanStack build (no deployment)
+        run: bun run build
