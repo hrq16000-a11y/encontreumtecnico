@@ -19,6 +19,16 @@ async function visit(page, path) {
   await page.waitForTimeout(1200);
 }
 
+async function eventuallyValue(field, expected, label) {
+  // SSR may initially render an empty input before React rehydrates it.
+  // Count an actual regression only if it remains wrong after hydration.
+  for (let retry = 0; retry < 35; retry++) {
+    if (await field.inputValue() === expected) return;
+    await new Promise(resolve => setTimeout(resolve, 150));
+  }
+  assert.equal(await field.inputValue(), expected, label);
+}
+
 async function preserveHome2(page, context) {
   await visit(page, "/home2");
   const field = page.locator('input[placeholder="Em qual cidade?"]');
@@ -34,9 +44,9 @@ async function preserveHome2(page, context) {
   await background.close();
   await visit(page, "/como-funciona");
   await page.goBack({ waitUntil: "domcontentloaded" });
-  assert.equal(await field.inputValue(), "São José dos Pinhais", "Home2 loses city on browser back");
+  await eventuallyValue(field, "São José dos Pinhais", "Home2 loses city on browser back");
   await page.reload({ waitUntil: "domcontentloaded" });
-  assert.equal(await field.inputValue(), "São José dos Pinhais", "Home2 loses city on reload");
+  await eventuallyValue(field, "São José dos Pinhais", "Home2 loses city on reload");
 }
 
 async function preserveGallery(page) {
@@ -50,10 +60,10 @@ async function preserveGallery(page) {
     sessionStorage.getItem("eut-ui-text-v1:lp2-gallery")));
   await visit(page, "/como-funciona");
   await page.goBack({ waitUntil: "domcontentloaded" });
-  assert.equal(await query.inputValue(), "impressora e notebook", "LP2 loses incomplete specialty");
-  assert.equal(await city.inputValue(), "Pinhais", "LP2 loses incomplete city");
+  await eventuallyValue(query, "impressora e notebook", "LP2 loses incomplete specialty");
+  await eventuallyValue(city, "Pinhais", "LP2 loses incomplete city");
   await page.reload({ waitUntil: "domcontentloaded" });
-  assert.equal(await city.inputValue(), "Pinhais", "LP2 loses city after reload");
+  await eventuallyValue(city, "Pinhais", "LP2 loses city after reload");
 }
 
 async function preserveSearch(page) {
@@ -66,7 +76,7 @@ async function preserveSearch(page) {
   await visit(page, "/como-funciona");
   await page.goBack({ waitUntil: "domcontentloaded" });
   await field.waitFor({ state: "visible", timeout: 20000 });
-  assert.equal(await field.inputValue(), "Boqueirão", "Search loses pending neighborhood on history");
+  await eventuallyValue(field, "Boqueirão", "Search loses pending neighborhood on history");
 }
 
 async function preserveAssistance(page) {
