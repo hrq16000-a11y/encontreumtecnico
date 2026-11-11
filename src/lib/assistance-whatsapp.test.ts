@@ -28,7 +28,7 @@ describe("happen-after-save WhatsApp handoff", () => {
     const funnel = readFileSync("src/components/assistance-funnel.tsx", "utf8");
     expect(article).not.toContain("api.whatsapp.com");
     expect(article).not.toContain("wa.me");
-    expect(article).toContain("openFreeHelp");
+    expect(readFileSync("src/components/guide-lead-callout.tsx", "utf8")).toContain("openFreeHelp");
     expect(funnel).toContain("if (requestError) throw requestError;");
     expect(funnel.indexOf("setSavedWhatsAppLead(lead);")).toBeGreaterThan(funnel.indexOf("if (requestError) throw requestError;"));
     expect(funnel).toContain("buildSavedLeadWhatsAppUrl(savedWhatsAppLead)");
