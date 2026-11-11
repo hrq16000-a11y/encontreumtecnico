@@ -6,6 +6,8 @@ import heroImg from "@/assets/tecnico-cftv-instalacao.jpg";
 import techImg from "@/assets/tecnica-informatica.jpg";
 import { PageShell } from "../components/page-placeholder";
 import { SponsoredPublicSlot } from "@/components/sponsored-public-slot";
+import { HomePublicProof } from "@/components/home-public-proof";
+import { HomeCommunityInvite } from "@/components/home-community-invite";
 import { ProblemAssistant } from "../components/problem-assistant";
 import { CustomerLocationButton } from "@/components/customer-location-button";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
@@ -232,6 +234,8 @@ function HomePage() {
 
       <Reveal><CategoryGrid /></Reveal>
 
+      <HomePublicProof />
+
       <section className="mx-auto max-w-3xl px-4 pb-16">
         <Reveal><ProblemAssistant /></Reveal>
       </section>
@@ -251,6 +255,8 @@ function HomePage() {
           </div>
         </div>
       </section>
+
+      <HomeCommunityInvite />
 
       <Reveal><CoverageSection /></Reveal>
       <Reveal><ApprovalProcessSection /></Reveal>
