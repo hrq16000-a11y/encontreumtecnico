@@ -63,7 +63,7 @@ describe('LP2 operacional: mesma base, temas separados',()=>{
   expect(xml).toContain('<loc>'+SITE+'/lp2</loc>');
   expect(xml).toContain('<loc>'+SITE+'/lp2/galeria</loc>');
   expect(xml).toContain('<loc>'+SITE+'/tecnicos/tecnico-curitiba</loc>');
-  expect(xml.match(/<loc>[^<]+tecnico-curitiba<\\/loc>/g)).toHaveLength(1);
+  expect(xml.match(/<loc>[^<]+tecnico-curitiba<\/loc>/g)).toHaveLength(1);
   expect(xml).not.toContain('../admin');
   expect(xml).not.toContain('<dados-privados>');
   expect(xml).not.toContain('/area-cliente');
