@@ -31,7 +31,7 @@ export function AdminInvitationPage() {
     setMessage(null);
     if (!user?.id) return;
     setChecking(true);
-    void db.rpc("eut_my_admin_invitation").then(({ data, error }) => {
+    void Promise.resolve(db.rpc("eut_my_admin_invitation")).then(({ data, error }) => {
       if (!active) return;
       setPending(error ? null : (data as PendingInvite));
       setMessage(error ? "Não foi possível conferir o convite. Consulte o suporte." : null);
