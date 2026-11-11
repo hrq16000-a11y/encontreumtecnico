@@ -1,18 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { buildPublicSitemapXml } from "@/lib/public-sitemap";
+import { buildPublicSitemapIndexXml } from "@/lib/public-sitemap-index";
 import { getPublicGraphSnapshot } from "@/lib/public-seo-graph.functions";
 
-// Public, approved profiles + catalog-valid municipalities + active categories.
-// Never export hidden contacts, IP, WordPress drafts, private leads or identities.
+// Sitemap index: each child stays inside the same canonical host and has real URLs.
+// Never export hidden contacts, WordPress drafts, leads or private identities.
 export const Route = createFileRoute("/sitemap.xml")({
   server: {
     handlers: {
       GET: async () => {
         try {
           const graph = await getPublicGraphSnapshot();
-          return new Response(buildPublicSitemapXml(
-            graph.profiles, graph.cities, graph.categories,
-          ), {
+          return new Response(buildPublicSitemapIndexXml(graph), {
             headers: {
               "Content-Type": "application/xml; charset=utf-8",
               "Cache-Control": "public, s-maxage=900, stale-while-revalidate=300",
