@@ -10,6 +10,7 @@ import { useActiveServices, serviceLabel } from "@/hooks/use-active-services";
 import { DebouncedTextFilter } from "@/components/debounced-text-filter";
 import { CustomerLocationButton } from "@/components/customer-location-button";
 import { BRAZIL_STATES } from "@/lib/service-taxonomy";
+import { neighborhoodCatalogFor, neighborhoodOptions } from "@/lib/neighborhood-sources";
 import { localMatchLabel } from "@/lib/technician-local-ranking";
 import { LegacyPublicArchive } from "../components/legacy-public-archive";
 import { canShowLegacyArchive } from "../lib/legacy-archive-filters";
@@ -83,6 +84,7 @@ function TechniciansPage() {
   const hasDeclaredLocation = Boolean(search.uf || search.cidade.trim());
 
   const searchArea = [search.bairro, search.cidade, search.uf].filter(Boolean).join(" · ");
+  const bairroCatalog = neighborhoodCatalogFor({ city: search.cidade, uf: search.uf });
   const helpContext = { city: search.cidade, uf: search.uf, neighborhood: search.bairro,
     service: services.find((s) => s.slug === search.servico)?.label || search.servico || (search.especialidade !== "Todas" ? search.especialidade : "") };
 
@@ -174,11 +176,19 @@ function TechniciansPage() {
           <DebouncedTextFilter
             id="filtro-bairro"
             label="Bairro"
+            list={bairroCatalog ? "eut-bairro-diretorio" : undefined}
             value={search.bairro}
             placeholder="Ex.: Centro"
             onCommit={(value) => update({ bairro: value })}
             onBlurTrack={(value) => trackFilter("bairro", value)}
           />
+          {bairroCatalog && <div className="text-xs text-muted-foreground sm:col-span-3">
+            <datalist id="eut-bairro-diretorio">
+              {neighborhoodOptions(bairroCatalog).map(bairro => <option key={bairro} value={bairro} />)}
+            </datalist>
+            Bairros sugeridos pela <a className="text-primary underline" href={bairroCatalog.sourceUrl}
+              target="_blank" rel="noopener noreferrer">prefeitura</a>; você pode digitar outra denominação.
+          </div>}
           <DebouncedTextFilter
             id="filtro-regiao"
             label="Região"
