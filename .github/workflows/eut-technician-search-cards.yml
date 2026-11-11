@@ -5,6 +5,8 @@ on:
       - 'src/routes/tecnicos.index.tsx'
       - 'src/components/technician-search-card.tsx'
       - 'src/components/technician-search-card.test.tsx'
+      - 'src/lib/location-labels.ts'
+      - 'src/lib/location-labels.test.ts'
       - '.github/workflows/eut-technician-search-cards.yml'
 permissions:
   contents: read
@@ -17,7 +19,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: Card factual social proof and privacy tests
-        run: bunx vitest run src/components/technician-search-card.test.tsx
+        run: bunx vitest run src/components/technician-search-card.test.tsx src/lib/location-labels.test.ts
       - name: Safeguard paid contacts, badges, avatars and filter results
         run: |
           node --input-type=module <<'NODE'

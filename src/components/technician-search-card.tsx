@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowUpRight, BriefcaseBusiness, MapPin, Medal, Radio, ShieldCheck, Sparkles, Wrench } from "lucide-react";
 import type { PublicTechnician } from "@/lib/technicians.functions";
 import { TechnicianAvatar } from "@/components/technician-avatar";
+import { formatPublicLocation, placeKey } from "@/lib/location-labels";
 import { useActiveCategories, categoryLabel } from "@/hooks/use-active-categories";
 import { useActiveServices, serviceLabel } from "@/hooks/use-active-services";
 
@@ -19,9 +20,12 @@ export function TechnicianSearchCard({ technician: t, categories, services, loca
   const servicePreview = t.service_slugs.slice(0, 3);
   const moreSpecialties = Math.max(0, t.specialties.length - specialtyPreview.length);
   const moreServices = Math.max(0, t.service_slugs.length - servicePreview.length);
-  const declaredCities = (t.coverage_cities ?? []).slice(0, 2);
-  const moreCities = Math.max(0, (t.coverage_cities?.length ?? 0) - declaredCities.length);
-  const location = [t.city + (t.state_uf ? "/" + t.state_uf : ""), t.neighborhood, t.region].filter(Boolean).join(" · ");
+  const additionalCities = (t.coverage_cities ?? []).filter((c, i, all) =>
+    (placeKey(c.name) !== placeKey(t.city) || c.uf !== t.state_uf) &&
+    all.findIndex(x => placeKey(x.name) === placeKey(c.name) && x.uf === c.uf) === i);
+  const declaredCities = additionalCities.slice(0, 2);
+  const moreCities = Math.max(0, additionalCities.length - declaredCities.length);
+  const location = formatPublicLocation(t);
 
   return (
     <Link to="/tecnicos/$tecnicoId" params={{ tecnicoId: t.public_slug }}
@@ -100,7 +104,7 @@ export function TechnicianSearchCard({ technician: t, categories, services, loca
 
         {declaredCities.length > 0 && (
           <p className="mt-4 break-words text-xs leading-5 text-muted-foreground">
-            <strong className="font-semibold text-foreground">Cidades declaradas: </strong>
+            <strong className="font-semibold text-foreground">Outros municípios: </strong>
             {declaredCities.map(city => city.name + "/" + city.uf).join(" · ")}
             {moreCities > 0 ? " · +" + moreCities : ""}
             {t.service_radius_km != null ? " · raio informado de " + t.service_radius_km + " km" : ""}

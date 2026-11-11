@@ -22,6 +22,7 @@ import { PioneerPhoneVerification } from "@/components/pioneer-phone-verificatio
 import { TechnicianDirectRequests } from "@/components/technician-direct-requests";
 import { CustomerLocationButton } from "@/components/customer-location-button";
 import { suggestTechnicianArea } from "@/lib/customer-location";
+import { safeNeighborhood, sameMunicipalityAsNeighborhood } from "@/lib/location-labels";
 import { clearProtectedDraft, readProtectedDraft, saveProtectedDraft } from "@/lib/protected-session-draft";
 import { saveTechnicianDraftImmediately } from "@/lib/technician-live-draft";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
@@ -311,7 +312,7 @@ export function TechnicianAreaPage() {
         _display_name: form.display_name.trim(),
         _state_uf: form.state_uf,
         _city: form.city.trim(),
-        _neighborhood: form.neighborhood.trim() || null,
+        _neighborhood: safeNeighborhood(form.neighborhood, form.city) || null,
         _region: form.region.trim() || null,
         _bio: form.bio.trim() || null,
         _specialties: form.specialties,
@@ -496,7 +497,7 @@ export function TechnicianAreaPage() {
                   {step === 1 ? "Seu nome e onde você atende" : step === 2 ? "Quais serviços você realiza?" : "Revise e publique seu perfil"}
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  {step === 1 ? "Informe apenas a região de atendimento. Você pode usar o GPS para sugerir cidade e bairro, sem publicar sua posição exata."
+                  {step === 1 ? "Escolha seu município oficial. O bairro é informado separadamente e não é identificado com segurança pelo GPS."
                     : step === 2 ? "Selecione categorias e pelo menos um serviço que você realmente executa. Sem certificação automática."
                     : "Confira tudo antes de publicar. Somente o servidor pode autorizar seu perfil público."}
                 </p>
@@ -506,10 +507,6 @@ export function TechnicianAreaPage() {
               <label className="text-sm font-medium text-foreground">Nome público
                 <input required minLength={2} maxLength={80} className={input} value={form.display_name} onChange={(e) => updateRegistration({ ...form, display_name: e.target.value })} />
               </label>
-              {regionalHint && <p className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
-                 <strong className="text-foreground">Região aproximada: {regionalHint.city}/{regionalHint.uf}.</strong>
-                 {" "}Não é automaticamente sua área de atendimento. Confirme sua cidade real antes de publicar.
-               </p>}
               <CustomerLocationButton
                 purpose="technician"
                 autoIfGranted={!profileId && !form.state_uf && !form.city.trim() && !form.neighborhood.trim()}
@@ -519,10 +516,6 @@ export function TechnicianAreaPage() {
                   updateRegistration(suggestTechnicianArea(current, area, source));
                 }}
               />
-              <p className="text-xs text-muted-foreground">
-                O GPS é apenas uma sugestão da sua localização atual. Confira a cidade
-                e informe as regiões onde você realmente atende antes de publicar.
-              </p>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="text-sm font-medium text-foreground">Estado (UF)
                   <select required className={input} value={form.state_uf} onChange={(e) => updateRegistration({ ...form, state_uf: e.target.value, city: "", base_city_ibge_id: null })}>
@@ -538,10 +531,19 @@ export function TechnicianAreaPage() {
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="text-sm font-medium text-foreground">Bairro de referência (opcional)
-                  <input maxLength={80} className={input} value={form.neighborhood} onChange={(e) => updateRegistration({ ...form, neighborhood: e.target.value })} />
+                  <input maxLength={80} className={input} value={safeNeighborhood(form.neighborhood, form.city)}
+                    placeholder="Ex.: Jardim Itália"
+                    onChange={(e) => updateRegistration({ ...form, neighborhood: e.target.value })} />
+                  {sameMunicipalityAsNeighborhood(form.neighborhood, form.city) && (
+                    <span role="status" className="mt-1 block text-xs text-amber-800 dark:text-amber-300">
+                      O preenchimento anterior era o município, não um bairro. Informe o bairro real, se desejar.
+                    </span>
+                  )}
                 </label>
-                <label className="text-sm font-medium text-foreground">Regiões e outros bairros atendidos
-                  <input maxLength={120} className={input} value={form.region} onChange={(e) => updateRegistration({ ...form, region: e.target.value })} />
+                <label className="text-sm font-medium text-foreground">Outros bairros ou regiões atendidos (opcional)
+                  <input maxLength={120} className={input} value={form.region}
+                    placeholder="Somente locais adicionais, sem repetir o município"
+                    onChange={(e) => updateRegistration({ ...form, region: e.target.value })} />
                 </label>
               </div>
                 </div>
@@ -588,7 +590,7 @@ export function TechnicianAreaPage() {
                     <p className="font-semibold text-foreground">{form.display_name.trim()}</p>
                     <p className="mt-1 text-muted-foreground">
                       {form.city.trim()}/{form.state_uf}
-                      {form.neighborhood.trim() ? ` · ${form.neighborhood.trim()}` : ""}
+                      {safeNeighborhood(form.neighborhood, form.city) ? ` · ${safeNeighborhood(form.neighborhood, form.city)}` : ""}
                     </p>
                     <p className="mt-3 font-semibold text-foreground">Especialidades escolhidas</p>
                     <p className="mt-1 text-muted-foreground">
@@ -599,9 +601,6 @@ export function TechnicianAreaPage() {
                     <p className="mt-1 text-muted-foreground">
                       {services.filter((service) => form.service_slugs.includes(service.slug))
                         .map((service) => service.label).join(", ")}
-                    </p>
-                    <p className="mt-3 text-xs text-muted-foreground">
-                      Cidade-base validada: {form.city || "a selecionar"}{form.base_city_ibge_id ? " · IBGE " + form.base_city_ibge_id : ""}.
                     </p>
                     <p className="mt-3 text-xs text-muted-foreground">
                       Ao publicar, estas especialidades e sua região de atendimento
