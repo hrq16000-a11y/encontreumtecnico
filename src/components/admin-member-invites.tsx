@@ -30,7 +30,7 @@ export function AdminMemberInvites({ initialRole = "tecnico" }: { initialRole?: 
   useEffect(() => {
     let active = true;
     setLoading(true);
-    void db.rpc("eut_admin_member_invites_snapshot").then(({ data, error: loadError }) => {
+    void Promise.resolve(db.rpc("eut_admin_member_invites_snapshot")).then(({ data, error: loadError }) => {
       if (!active) return;
       setRows(!loadError && Array.isArray(data?.invites) ? data.invites : []);
       if (loadError) setError("Não foi possível carregar os convites. Verifique seu acesso administrativo.");
