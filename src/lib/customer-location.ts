@@ -34,7 +34,8 @@ export function parseBrazilianDeviceLocation(value: unknown): CustomerArea | nul
     ? item["principalSubdivisionCode"].toUpperCase() : "";
   const uf = rawState.match(/(?:^|-)BR-([A-Z]{2})$/)?.[1] ??
     (BRAZIL_STATES.find((s) => s === rawState) ?? "");
-  if (city.length < 2 || !BRAZIL_STATES.some((s) => s === uf)) return null;
+  if (city.length < 2 || !BRAZIL_STATES.some((s) => s === uf) ||
+      isBroadRegionalLabel(city)) return null;
   // BigDataCloud 'locality' may represent a district, city or metropolitan
   // area. It is NOT an authoritative neighborhood field. Do not infer one,
   // even when it differs from 'city' (e.g. locality=São José dos Pinhais).
