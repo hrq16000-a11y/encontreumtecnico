@@ -5,7 +5,7 @@ import { GuideInlineHelpButton } from "@/components/guide-lead-callout";
 export function GuideReadingNavigation({ guide }: { guide: PublicGuide }) {
   return (
     <nav aria-label="Assuntos desta especialidade" className="mt-7 rounded-2xl border border-border bg-card p-4 sm:p-6">
-      <h2 className="text-lg font-bold text-foreground">Navegue por este guia</h2>
+      <h2 className="text-lg font-bold text-foreground">Explore os assuntos desta especialidade</h2>
       <ol className="mt-3 grid gap-1 sm:grid-cols-2">
         {guide.sections.map((section, index) => (
           <li key={section.heading}>
