@@ -13,7 +13,7 @@ describe("Central administrativa: URLs próprias e RLS intacta", () => {
       "patrocinadores", "mensagens", "catalogo",
       "legado", "reivindicacoes", "metricas",
     ]);
-    expect(new Set(ADMIN_SECTIONS.map((x) => x.key)).size).toBe(10);
+    expect(new Set(ADMIN_SECTIONS.map((x) => x.key)).size).toBe(11);
     expect(adminModulePath("inicio")).toBe("/admin");
     for (const entry of ADMIN_SECTIONS.filter((x) => x.key !== "inicio")) {
       expect(validAdminModule(entry.key)).toBe(true);
