@@ -25,6 +25,9 @@ import { suggestTechnicianArea } from "@/lib/customer-location";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
 import { registrationStepError, type RegistrationStep } from "@/lib/technician-registration-wizard";
+import { TechnicianPanelNavigation } from "@/components/technician-panel-navigation";
+import { technicianTabFromHash, technicianTabHref, type TechnicianPanelTab } from "@/lib/technician-panel-navigation";
+import { ArrowRight, ShieldCheck, MapPin, UserRound, Inbox, Camera } from "lucide-react";
 
 export const Route = createFileRoute("/area-tecnico")({
   head: () => ({
@@ -46,7 +49,7 @@ const activationDb = supabase as unknown as SupabaseClient;
 
 export function TechnicianAreaPage() {
   const lp2 = useContext(LP2EmbeddedContext);
-  const { user, roles, loading } = useAuth();
+  const { user, roles, loading, rolesError, refreshRoles } = useAuth();
   const { categories, loading: catalogLoading, error: catalogError } = useActiveCategories();
   const { services, loading: servicesLoading, error: servicesError } = useActiveServices();
   const [form, setForm] = useState({
@@ -66,6 +69,15 @@ export function TechnicianAreaPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [step, setStep] = useState<RegistrationStep>(1);
+  const [panelTab, setPanelTab] = useState<TechnicianPanelTab>("inicio");
+  useEffect(() => {
+    // Both canonical and isolated LP2 routes remain functional. Hash changes
+    // create deep links without reloading the account or losing form state.
+    const syncTab = () => setPanelTab(technicianTabFromHash(window.location.hash));
+    syncTab();
+    window.addEventListener("hashchange", syncTab);
+    return () => window.removeEventListener("hashchange", syncTab);
+  }, []);
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
   const loadVersion = useRef(0);
   const currentUserRef = useRef<string | null>(null);
