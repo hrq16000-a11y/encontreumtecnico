@@ -11,10 +11,8 @@ export function ProblemAssistant() {
   const [description, setDescription] = useState(() => readUiTextDraft("problem")?.["description"] ?? "");
   const [loading, setLoading] = useState(false);
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      saveUiTextDraft("problem", { description });
-    }, 400);
-    return () => window.clearTimeout(timer);
+    // Save the most recent draft before the next navigation can unmount us.
+    saveUiTextDraft("problem", { description });
   }, [description]);
   const [result, setResult] = useState<TriageResult | null>(null);
 

@@ -32,12 +32,11 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
 
   useEffect(() => {
     if (sent) return;
-    const timer = window.setTimeout(() => {
-      saveAssistanceDraft(context.technicianId, {
-        mode, step, name, email, service, when, problem, city, uf, neighborhood,
-      });
-    }, 450);
-    return () => window.clearTimeout(timer);
+    // Persist after each committed edit: delaying until an idle timer can
+    // discard the last characters when a user navigates immediately.
+    saveAssistanceDraft(context.technicianId, {
+      mode, step, name, email, service, when, problem, city, uf, neighborhood,
+    });
   }, [context.technicianId, mode, step, name, email, service, when, problem, city, uf, neighborhood, sent]);
 
   useEffect(() => {

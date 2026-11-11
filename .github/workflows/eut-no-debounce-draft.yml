@@ -1,0 +1,60 @@
+name: EUT no-debounce draft navigation regression
+on:
+  pull_request:
+    paths:
+      - 'src/components/assistance-funnel.tsx'
+      - 'src/routes/area-cliente.tsx'
+      - 'src/routes/area-tecnico.tsx'
+      - 'src/routes/index.tsx'
+      - 'src/components/problem-assistant.tsx'
+      - 'src/routes/lp2/index.tsx'
+      - '.github/workflows/eut-no-debounce-draft.yml'
+permissions:
+  contents: read
+jobs:
+  immediate-draft:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Verify latest input cannot be canceled by a 400-650ms timer
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          const files={
+            'src/components/assistance-funnel.tsx':'saveAssistanceDraft(context.technicianId',
+            'src/routes/area-cliente.tsx':'saveProtectedDraft("cliente", owner',
+            'src/routes/area-tecnico.tsx':'saveProtectedDraft("tecnico", owner',
+            'src/routes/index.tsx':'saveUiTextDraft("home"',
+            'src/components/problem-assistant.tsx':'saveUiTextDraft("problem"',
+            'src/routes/lp2/index.tsx':'saveUiTextDraft("lp2-home"',
+          };
+          for(const [path,token] of Object.entries(files)){
+            const content=readFileSync(path,'utf8');
+            if(!content.includes(token))throw Error('Draft write absent: '+path);
+            const start=content.indexOf(token),prefix=content.slice(Math.max(0,start-360),start);
+            if(prefix.includes('window.setTimeout(') && !prefix.includes('window.clearTimeout('))
+              throw Error('Draft save deferred until canceled timer: '+path);
+          }
+          const client=readFileSync('src/routes/area-cliente.tsx','utf8');
+          const tech=readFileSync('src/routes/area-tecnico.tsx','utf8');
+          const assist=readFileSync('src/components/assistance-funnel.tsx','utf8');
+          if(!client.includes('currentUserIdRef.current === owner') || !client.includes('clearProtectedDraft("cliente", owner)'))
+            throw Error('Client private draft owner and confirmed save guards missing');
+          if(!tech.includes('currentUserRef.current === owner') || !tech.includes('clearProtectedDraft("tecnico", savingOwner)'))
+            throw Error('Technician owner and confirmed publish guards missing');
+          if(!assist.includes('clearAssistanceDraft(context.technicianId)') || !assist.includes('if (sent) return;'))
+            throw Error('Assistance draft must be removed after server confirmation');
+          if(assist.includes('eut_reveal_paid_technician_contact') || assist.includes('wa.me/'))
+            throw Error('Assistance draft may not release private contacts');
+          NODE
+      - name: Session isolation, auth, public wizard and existing navigation tests
+        run: bunx vitest run src/lib/assistance-draft.test.ts src/lib/unsent-ui-draft.test.ts src/lib/protected-session-draft.test.ts src/components/page-placeholder.test.tsx src/lib/shared-shell-routing.test.ts src/hooks/use-auth.test.tsx src/components/free-search-help.test.tsx
+      - name: Server and legacy boundary
+        run: node scripts/eut-wordpress-runtime-boundary.mjs
+      - name: Build
+        run: bun run build
+      - name: Typecheck
+        run: bunx tsc --noEmit --pretty false
