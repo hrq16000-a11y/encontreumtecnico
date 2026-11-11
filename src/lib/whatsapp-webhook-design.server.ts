@@ -52,6 +52,7 @@ export function shouldAdvanceWhatsAppStatus(current: WhatsAppDeliveryStage, inco
   if (current === "read") return false;
   if (current === "delivered") return incoming === "read";
   if (current === "failed") return ["sent", "delivered", "read"].includes(incoming);
+  if (current === "uncertain" && ["queued", "claimed", "accepted_by_meta"].includes(incoming)) return false;
   if (incoming === "failed" || incoming === "uncertain") return ["queued", "claimed", "accepted_by_meta", "sent", "uncertain"].includes(current);
   const rank: Record<WhatsAppDeliveryStage, number> = {
     queued: 0, claimed: 1, accepted_by_meta: 2, sent: 3, delivered: 4, read: 5,
