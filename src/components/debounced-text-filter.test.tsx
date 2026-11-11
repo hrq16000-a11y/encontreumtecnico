@@ -71,7 +71,11 @@ describe("localidade: digitação sem consultas por tecla", () => {
     const onCommit = vi.fn();
     render(form("", onCommit));
     expect((screen.getByLabelText("Bairro") as HTMLInputElement).value).toBe("Cristal");
-    act(() => vi.advanceTimersByTime(FILTER_DEBOUNCE_MS));
+    act(() => vi.advanceTimersByTime(FILTER_DEBOUNCE_MS * 2));
+    expect(onCommit).not.toHaveBeenCalled();
+    const field = screen.getByLabelText("Bairro");
+    fireEvent.focus(field);
+    fireEvent.blur(field);
     expect(onCommit).toHaveBeenCalledWith("Cristal");
   });
 
@@ -89,7 +93,10 @@ describe("localidade: digitação sem consultas por tecla", () => {
     expect(readPendingFilter("filtro-bairro", "")).toBe("Boqueirão");
     vi.mocked(document.hasFocus).mockReturnValue(true);
     act(() => fireEvent.focus(window));
-    act(() => vi.advanceTimersByTime(FILTER_DEBOUNCE_MS));
+    act(() => vi.advanceTimersByTime(FILTER_DEBOUNCE_MS * 2));
+    expect(onCommit).not.toHaveBeenCalled(); // Regaining focus is not permission to run a search.
+    fireEvent.focus(field);
+    fireEvent.blur(field);
     expect(onCommit).toHaveBeenCalledWith("Boqueirão");
   });
 
