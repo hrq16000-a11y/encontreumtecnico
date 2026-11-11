@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Tables } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { TechnicianAvatar } from "@/components/technician-avatar";
+import { publicTextProblem } from "@/lib/public-profile-text";
 import { Check, Pencil, RotateCcw, ShieldAlert, UserRoundX, X } from "lucide-react";
 
 type Technician = Tables<"technicians">;
@@ -46,6 +47,12 @@ export function AdminTechnicianManager({
     if (reason.trim().length < 8 || reason.length > 400) {
       setFeedback("Informe o motivo da alteração (8 a 400 caracteres).");
       return;
+    }
+    if (target.action === "editar") {
+      const textError = publicTextProblem(draft.bio, "bio")
+        || publicTextProblem(draft.display_name, "identity")
+        || publicTextProblem(draft.region, "identity");
+      if (textError) { setFeedback(textError); return; }
     }
     if (target.action !== "editar" &&
         !window.confirm(`Confirmar: ${actionLabels[target.action].toLowerCase()} — ${target.technician.display_name}? A ação será registrada no histórico.`)) return;
@@ -122,9 +129,12 @@ export function AdminTechnicianManager({
         </label>
         <label className="text-sm font-medium text-foreground">Apresentação profissional
           <textarea rows={3} value={draft.bio} maxLength={1500}
+            aria-invalid={Boolean(publicTextProblem(draft.bio, "bio"))}
             onChange={(e) => setDraft((d) => ({ ...d, bio: e.target.value }))}
             className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-3 text-foreground" />
         </label>
+        <p className="text-xs text-muted-foreground">A apresentação pública não aceita números, telefones, WhatsApp, links, redes sociais nem e-mails, mesmo fragmentados. Contatos ficam no registro privado.</p>
+        {publicTextProblem(draft.bio, "bio") && <p role="alert" className="text-sm text-destructive">{publicTextProblem(draft.bio, "bio")}</p>}
         <p className="text-xs text-muted-foreground">Cidade-base, serviços e raio permanecem sujeitos às validações do cadastro profissional.</p>
       </div>}
       <label className="block text-sm font-semibold text-foreground">Motivo administrativo obrigatório
