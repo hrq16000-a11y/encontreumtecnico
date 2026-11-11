@@ -133,7 +133,7 @@ export function AdminTechnicianManager({
             onChange={(e) => setDraft((d) => ({ ...d, bio: e.target.value }))}
             className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-3 text-foreground" />
         </label>
-        <p className="text-xs text-muted-foreground">A apresentação pública não aceita números, telefones, WhatsApp, links, redes sociais nem e-mails, mesmo fragmentados. Contatos ficam no registro privado.</p>
+        <p className="text-xs text-muted-foreground">Informe apenas atividades e experiência reais. Modelos técnicos e anos de experiência são permitidos; telefones, WhatsApp, links, redes sociais e e-mails não, mesmo fragmentados. Contatos ficam no registro privado.</p>
         {publicTextProblem(draft.bio, "bio") && <p role="alert" className="text-sm text-destructive">{publicTextProblem(draft.bio, "bio")}</p>}
         <p className="text-xs text-muted-foreground">Cidade-base, serviços e raio permanecem sujeitos às validações do cadastro profissional.</p>
       </div>}
