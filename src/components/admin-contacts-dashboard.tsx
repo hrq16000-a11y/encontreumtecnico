@@ -108,9 +108,9 @@ export function AdminContactsDashboard({ adminId }: { adminId: string }) {
     hidePhone();
     detailEpoch.current++;
     setDetail(null);
-    void db.rpc("eut_admin_contacts_dashboard", {
+    void Promise.resolve(db.rpc("eut_admin_contacts_dashboard", {
       _search: search, _filter: filter, _page: page,
-    }).then(({ data, error: rpcError }) => {
+    })).then(({ data, error: rpcError }) => {
       if (!active) return;
       if (rpcError || !data || !Array.isArray(data.rows) ||
           !Array.isArray(data.blocked) || !Array.isArray(data.audit) ||
@@ -233,10 +233,10 @@ export function AdminContactsDashboard({ adminId }: { adminId: string }) {
         </div>
       </div>
       {snapshot?.stats && <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {[
+        {([
           ["Técnicos", "total_tecnicos"], ["Aprovados", "aprovados"], ["Suspensos", "suspensos"],
           ["Sem número", "sem_numero"], ["Telefones bloqueados", "numeros_restritos"], ["Contas bloqueadas", "contas_restritas"],
-        ].map(([label, field]) => (
+        ] as const).map(([label, field]) => (
           <div key={field} className="rounded-xl border border-border p-3">
             <dt className="text-xs text-muted-foreground">{label}</dt>
             <dd className="mt-1 text-xl font-bold tabular-nums text-foreground">{snapshot.stats[field] ?? "—"}</dd>
