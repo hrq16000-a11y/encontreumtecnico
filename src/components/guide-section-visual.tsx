@@ -1,6 +1,6 @@
 import {
   Activity, Cable, Camera, CheckCircle2, ClipboardCheck, CloudUpload, Cpu,
-  HardDrive, LockKeyhole, Monitor, ShieldAlert, ShieldCheck, Video, Wifi, Wrench,
+  HardDrive, LockKeyhole, Monitor, ShieldAlert, ShieldCheck, Video, Wifi, Wrench, Printer, FileClock, Router, Signal, FileCheck, Smartphone, AlertTriangle, Network, ScrollText, Settings,
   type LucideIcon,
 } from "lucide-react";
 
@@ -48,8 +48,30 @@ const CCTV: VisualConfig[] = [
     stages: ["Inventário", "Execução", "Entrega"] },
 ];
 
-export function GuideSectionVisual({ isCctv, index }: { isCctv: boolean; index: number }) {
-  const config = (isCctv ? CCTV : COMPUTER)[index];
+const NETWORK: VisualConfig[] = [
+  { label: "Identifique a origem da queda", subtitle: "Compare conexão sem fio, cabo e dispositivos", color: "from-sky-950 via-blue-800 to-teal-600", Icon: Network, symbols: [Wifi, Cable, Monitor], stages: ["Wi-Fi", "Cabo", "Comparar"] },
+  { label: "Mapa da cobertura", subtitle: "Observe cômodos e obstáculos sem divulgar o endereço", color: "from-blue-950 via-cyan-800 to-emerald-700", Icon: Signal, symbols: [Router, Signal, Smartphone], stages: ["Roteador", "Distância", "Ambiente"] },
+  { label: "Verificações conservadoras", subtitle: "Não restaure o roteador sem guardar as configurações", color: "from-indigo-950 via-blue-800 to-teal-700", Icon: Settings, symbols: [Cable, Router, ShieldCheck], stages: ["Cabos", "Estado", "Preservar"] },
+  { label: "Sinais de problema físico", subtitle: "Identifique falhas recorrentes e segurança elétrica", color: "from-slate-950 via-blue-900 to-orange-700", Icon: AlertTriangle, symbols: [Activity, ShieldAlert, Wrench], stages: ["Observar", "Interromper", "Avaliar"] },
+  { label: "Informações para o chamado", subtitle: "Relate sintomas e região antes de solicitar orçamento", color: "from-sky-950 via-teal-800 to-cyan-700", Icon: ClipboardCheck, symbols: [Wifi, ScrollText, CheckCircle2], stages: ["Sintomas", "Região", "Pedido"] },
+];
+const PRINTERS: VisualConfig[] = [
+  { label: "O que o visor informa", subtitle: "Diferencie conexão, papel e alertas do equipamento", color: "from-blue-950 via-sky-800 to-cyan-700", Icon: Printer, symbols: [Printer, ScrollText, AlertTriangle], stages: ["Visor", "Avisos", "Registrar"] },
+  { label: "Verifique a conexão", subtitle: "Compare USB, rede local e outros computadores", color: "from-indigo-950 via-blue-800 to-teal-700", Icon: Network, symbols: [Cable, Wifi, Monitor], stages: ["Cabo", "Rede", "Teste"] },
+  { label: "Fila com documentos", subtitle: "Evite reimpressão de material confidencial", color: "from-slate-950 via-cyan-800 to-blue-700", Icon: FileClock, symbols: [FileClock, LockKeyhole, FileCheck], stages: ["Pendente", "Revisar", "Confirmar"] },
+  { label: "Papel e suprimentos", subtitle: "Não force mecanismos ou use produtos incompatíveis", color: "from-blue-950 via-teal-800 to-emerald-700", Icon: Printer, symbols: [ScrollText, Printer, Wrench], stages: ["Papel", "Tinta", "Avaliar"] },
+  { label: "Pedido com informações úteis", subtitle: "Modelo, mensagem e localidade ajudam na triagem", color: "from-indigo-950 via-blue-800 to-sky-700", Icon: ClipboardCheck, symbols: [Printer, ScrollText, CheckCircle2], stages: ["Modelo", "Sintoma", "Suporte"] },
+];
+
+const SECTION_VISUALS: Record<string, VisualConfig[]> = {
+  computadores: COMPUTER,
+  cftv: CCTV,
+  redes: NETWORK,
+  impressoras: PRINTERS,
+};
+
+export function GuideSectionVisual({ categorySlug, index }: { categorySlug: string; index: number }) {
+  const config = (SECTION_VISUALS[categorySlug] ?? COMPUTER)[index];
   if (!config) return null;
   const { Icon, symbols, stages } = config;
   return (
