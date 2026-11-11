@@ -17,7 +17,7 @@ export const Route = createFileRoute("/servicos/$categoria")({
     // Do not reimplement its eligibility/ban logic or expose contact details.
     try {
       const technicians = await listApprovedTechnicians({
-        data: { especialidade: entry.category.slug, cidade: "", regiao: "" },
+        data: { especialidade: entry.category.slug, cidade: "", regiao: "", servico: "", uf: "", bairro: "", prioridade: "" },
       });
       return { technicians: technicians.slice(0, 6), listingUnavailable: false };
     } catch {
