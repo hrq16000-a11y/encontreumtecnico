@@ -46,12 +46,14 @@ jobs:
             ['tech profile',tech,['useActiveCategories()','c.slug','_state_uf: form.state_uf','eut_publish_my_technician']],
             ['search',results,['useActiveCategories()','value={c.slug}','{c.label}']],
             ['home1 categories',home1,['useActiveCategories()','category.slug','category.label']],
-            ['home2 categories',home2,['useActiveCategories()','categoryHref(cat.slug)','value={c.slug}']],
+            ['home2 categories',home2,['useActiveCategories()','search={{ especialidade: cat.slug','value={c.slug}']],
             ['search server',server,['LEGACY_CATEGORY_ALIASES','slug', '.eq("active", true)']],
           ]) {
             for (const term of terms) if (!body.includes(term)) throw Error(file+' missing '+term);
           }
           if (tech.includes('CATEGORIES.map(') || home2.includes('CATEGORIES.map(')) throw Error('Static category UI remains');
+          if (!home2.includes('to="/tecnicos"') || home2.includes('window.location.assign('))
+            throw Error('Dynamic categories must navigate using TanStack SPA routing');
           if (!tech.includes('data?.state === "publicado"')) throw Error('Server-confirmed automatic publication missing');
           if (tech.includes('status: "aprovado" as const') || tech.includes('from("technicians").insert(')) throw Error('Client attempted to approve directly instead of secure RPC');
           console.log('Server-only auto-publication + category and location guards: OK');
