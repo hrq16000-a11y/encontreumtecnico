@@ -94,7 +94,7 @@ export function DebouncedTextFilter({
           if (event.key === "Enter" && !inactive()) commit(draft);
         }}
         placeholder={placeholder}
-        className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground"
+        className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground"
       />
     </div>
   );
