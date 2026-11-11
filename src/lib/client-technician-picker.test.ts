@@ -59,7 +59,7 @@ describe("Escolha de técnico dentro do formulário mobile", () => {
     const locationHandler = route.slice(locationStart, locationEnd);
     expect(locationStart).toBeGreaterThan(-1);
     expect(locationEnd).toBeGreaterThan(locationStart);
-    expect(locationHandler).toContain("source === \\"automatic\\" && form.city.trim()");
+    expect(locationHandler).toContain('source === "automatic" && form.city.trim()');
     expect(locationHandler).toContain("saveLiveDraft(nextForm, step)");
     expect(locationHandler).toContain("setShareNow(false)");
 
