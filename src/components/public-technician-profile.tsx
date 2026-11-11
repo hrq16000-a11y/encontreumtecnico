@@ -147,6 +147,15 @@ export function PublicTechnicianProfile({ technician: t }: { technician: PublicT
                 pelo técnico, não georreferenciamento de sua residência nem garantia de deslocamento,
                 tempo de chegada ou disponibilidade.
               </p>
+              <div className="mt-4 flex flex-wrap gap-3 text-sm">
+                <Link to="/tecnicos" search={{ especialidade: "Todas", cidade: t.city, regiao: "", uf: t.state_uf ?? "" }}
+                  className="font-semibold text-primary underline-offset-4 hover:underline">
+                  Ver outros perfis com esta localidade →
+                </Link>
+                <Link to="/cobertura" className="font-semibold text-primary underline-offset-4 hover:underline">
+                  Explorar cobertura publicada →
+                </Link>
+              </div>
             </section>
             {t.bio && (
               <section id="sobre" aria-labelledby="titulo-sobre" className="eut-card-lift rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
