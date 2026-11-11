@@ -168,4 +168,16 @@ describe("SEO global do Encontre um Técnico", () => {
     expect(sitemap).not.toContain("/admin");
     expect(sitemap).not.toContain("/area-cliente");
   });
+  it("mostra somente cobertura declarada de perfis públicos e a inclui no sitemap", () => {
+    const route = read("src/routes/cobertura.tsx");
+    const source = read("src/lib/public-coverage.functions.ts");
+    const sitemap = buildPublicSitemapXml([]);
+    expect(route).toContain("getPublicCoverageOverview");
+    expect(route).toContain('rel: "canonical", href: SITE + "/cobertura"');
+    expect(source).toContain('.eq("status", "aprovado")');
+    expect(source).toContain('.select("public_slug,display_name,city,state_uf")');
+    expect(sitemap).toContain("<loc>" + SITE + "/cobertura</loc>");
+    expect(read("src/components/site-footer.tsx")).toContain('to="/cobertura"');
+    expect(read("src/components/public-technician-profile.tsx")).toContain('to="/cobertura"');
+  });
 });

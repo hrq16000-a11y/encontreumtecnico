@@ -3,7 +3,7 @@ import { GUIDE_PATHS } from "@/lib/public-guides";
 export const SITE = "https://www.encontreumtecnico.com.br";
 
 export const PUBLIC_PATHS = [
-  "/", "/tecnicos", "/lp2", "/lp2/galeria", "/servicos",
+  "/", "/tecnicos", "/cobertura", "/lp2", "/lp2/galeria", "/servicos",
   "/como-funciona", "/faq", "/contato", "/politicas",
   "/termos", "/privacidade", "/cookies", "/pagamentos-e-reembolsos",
   "/condicoes-do-prestador", "/responsabilidades", "/seguranca",
