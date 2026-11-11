@@ -28,7 +28,7 @@ describe("Paginação administrativa para milhares de técnicos", () => {
     expect(admin).toContain('const needsTechs = section === "inicio"');
     expect(admin).toContain('.select("id", { count: "exact", head: true })');
     expect(admin).not.toContain('supabase.from("technicians").select("*")');
-    expect(admin).toContain("<AdminTechnicianManager />");
+    expect(admin).toContain("<AdminTechnicianManager adminOwnerId={user.id} />");
     expect(manager).not.toContain("service_role");
     expect(manager).not.toContain(".delete()");
   });
