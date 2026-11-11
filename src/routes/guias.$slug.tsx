@@ -1,6 +1,6 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { PageShell } from "@/components/page-placeholder";
-import { getPublishedGuide } from "@/lib/public-guides";
+import { getPublishedGuide, getRelatedGuides } from "@/lib/public-guides";
 import { GuideSectionVisual } from "@/components/guide-section-visual";
 import { GuideLeadCallout } from "@/components/guide-lead-callout";
 import { getGuideArtwork } from "@/lib/guide-artwork";
@@ -52,6 +52,7 @@ export const Route = createFileRoute("/guias/$slug")({
 function GuidePage() {
   const guide = Route.useLoaderData();
   const artwork = getGuideArtwork(guide.categorySlug);
+  const relatedGuides = getRelatedGuides(guide.slug);
   return (
     <PageShell>
       <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
@@ -119,6 +120,18 @@ function GuidePage() {
           <section aria-labelledby="guias-relacionados" className="mt-8 rounded-2xl border border-border bg-card p-5 sm:p-7">
             <h2 id="guias-relacionados" className="text-xl font-bold text-foreground">Outros recursos para seu próximo passo</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">Aprenda mais, conheça a cobertura publicada e encontre outras iniciativas do ecossistema de serviços.</p>
+            {relatedGuides.length > 0 && (
+              <ul className="mt-4 space-y-3">
+                {relatedGuides.map((item) => (
+                  <li key={item.slug}>
+                    <Link to="/guias/$slug" params={{ slug: item.slug }}
+                      className="inline-flex min-h-10 items-center font-semibold text-primary hover:underline">
+                      Leia também: {item.title} →
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
             <div className="mt-4 flex flex-wrap gap-4 text-sm">
               <Link to="/guias" className="font-semibold text-primary hover:underline">Outros guias →</Link>
               <Link to="/cobertura" className="font-semibold text-primary hover:underline">Cobertura declarada →</Link>

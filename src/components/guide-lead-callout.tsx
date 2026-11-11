@@ -24,6 +24,8 @@ export function GuideLeadCallout({ guide, compact = false }: { guide: PublicGuid
               computadores: "Computadores e notebooks",
               redes: "Redes e Wi-Fi",
               impressoras: "Impressoras",
+              software: "Sistemas e software",
+              climatizacao: "Climatização",
             } as Record<string, string>)[guide.categorySlug] ?? guide.categoryName,
           })}
           className="inline-flex min-h-12 items-center justify-center rounded-xl bg-white px-5 text-sm font-extrabold text-blue-950 hover:bg-teal-50">

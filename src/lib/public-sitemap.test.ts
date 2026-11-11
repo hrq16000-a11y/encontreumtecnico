@@ -23,7 +23,7 @@ describe("Sitemap dinâmico com técnicos publicados", () => {
     expect(xml).not.toContain("<script>");
     expect(xml).not.toContain("/area-cliente");
     expect(xml).not.toContain("/acesso-contato");
-    expect(xml.match(/<url>/g)).toHaveLength(26);
+    expect(xml.match(/<url>/g)).toHaveLength(28);
     expect(xml).toContain(SITE + "/cobertura</loc>");
     expect(xml).toContain(SITE + "/ecossistema</loc>");
     expect(xml).toContain(SITE + "/guias</loc>");
@@ -31,6 +31,8 @@ describe("Sitemap dinâmico com técnicos publicados", () => {
     expect(xml).toContain(SITE + "/guias/instalacao-cameras-seguranca-como-planejar</loc>");
     expect(xml).toContain(SITE + "/guias/wifi-caindo-sinal-fraco-como-identificar</loc>");
     expect(xml).toContain(SITE + "/guias/impressora-offline-fila-travada-o-que-fazer</loc>");
+    expect(xml).toContain(SITE + "/guias/backup-arquivos-antes-manutencao-computador</loc>");
+    expect(xml).toContain(SITE + "/guias/ar-condicionado-nao-gela-verificacoes-seguras</loc>");
   });
   it("declara consulta pública, somente aprovados, paginação, 503 e cache curto", () => {
     const handler = readFileSync("src/routes/sitemap[.]xml.ts", "utf8");

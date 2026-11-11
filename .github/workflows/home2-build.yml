@@ -31,7 +31,7 @@ jobs:
       - name: Build TanStack
         run: bun run build
       - name: SEO public pages, redirects and privacy tests
-        run: bunx vitest run src/lib/seo-public-pages.test.ts src/lib/public-sitemap.test.ts src/lib/assistance-intent.test.ts src/lib/assistance-whatsapp.test.ts src/lib/whatsapp-cloud-adapter.test.ts src/components/free-search-help.test.tsx src/lib/public-sitemap.test.ts src/lib/public-coverage.test.ts
+        run: bunx vitest run src/lib/seo-public-pages.test.ts src/lib/public-sitemap.test.ts src/lib/assistance-intent.test.ts src/lib/assistance-whatsapp.test.ts src/lib/whatsapp-cloud-adapter.test.ts src/lib/whatsapp-webhook-design.test.ts src/components/free-search-help.test.tsx src/lib/public-coverage.test.ts
       - name: Regression triage fallback
         run: bunx vitest run src/lib/problem-triage-local.test.ts
       - name: TypeScript check
