@@ -18,9 +18,25 @@ describe("Bairros sugeridos apenas com fonte municipal identificada", () => {
     expect(neighborhoodOptions(catalog).length).toBeGreaterThanOrEqual(35);
   });
 
+  it("oferece somente nomes conferidos na planilha SIGMU da Prefeitura de Curitiba", () => {
+    const catalog = neighborhoodCatalogFor({
+      city: "Curitiba", uf: "PR", municipalityIbgeId: 4106902,
+    });
+    expect(catalog?.sourceUrl).toContain("dadosabertos.curitiba.pr.gov.br");
+    const options = neighborhoodOptions(catalog);
+    expect(options).toHaveLength(19);
+    expect(options).toContain("Água Verde");
+    expect(options).toContain("Jardim Botânico");
+    expect(options).toContain("Tarumã");
+    expect(options).not.toContain("Jardim Itália");
+    expect(neighborhoodCatalogFor({
+      city: "Curitiba", uf: "PR", municipalityIbgeId: 4125506,
+    })).toBeNull();
+  });
+
   it("nunca sugere um bairro de São José dos Pinhais para outros municípios", () => {
     for (const value of [
-      { city: "Curitiba", uf: "PR" },
+      { city: "Pinhais", uf: "PR" },
       { city: "São José dos Pinhais", uf: "SP" },
       { city: "São José dos Pinhais", uf: "" },
       { city: "", uf: "PR" },
