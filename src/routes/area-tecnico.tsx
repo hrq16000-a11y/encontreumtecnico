@@ -3,6 +3,8 @@ import { useContext, useEffect, useRef, useState, type FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { PageShell, LP2EmbeddedContext } from "../components/page-placeholder";
 import { useAuth } from "@/hooks/use-auth";
+import { ConnectedGoogleIdentity } from "@/components/connected-google-identity";
+import { googleIdentityHint } from "@/lib/google-identity-hint";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveCategories } from "@/hooks/use-active-categories";
 import { useActiveServices } from "@/hooks/use-active-services";
@@ -77,8 +79,7 @@ export function TechnicianAreaPage() {
   useEffect(() => {
     const version = ++loadVersion.current;
     setForm({
-      display_name: typeof user?.user_metadata?.["full_name"] === "string"
-        ? user.user_metadata["full_name"].slice(0, 80) : "",
+      display_name: user ? googleIdentityHint(user).fullName.slice(0, 80) : "",
       state_uf: "", city: "", neighborhood: "", region: "", bio: "",
       specialties: [], service_slugs: [], base_city_ibge_id: null,
     });
@@ -243,6 +244,8 @@ export function TechnicianAreaPage() {
           </div>
         ) : (
           <>
+            <ConnectedGoogleIdentity user={user} />
+            <p className="mt-2 text-xs text-muted-foreground">Nome e foto são sugestões do provedor de login. Confirme seus dados profissionais antes de publicar; sua foto pública é configurada separadamente.</p>
             {currentStatus && (
               <p className="mt-3 inline-block rounded-md bg-muted px-3 py-1 text-sm text-foreground">
                 Situação: <strong>{STATUS_LABEL[currentStatus]}</strong>
