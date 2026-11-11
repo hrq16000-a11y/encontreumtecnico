@@ -53,7 +53,12 @@ beforeEach(() => {
   mocks.query.maybeSingle.mockReset();
   mocks.query.in.mockResolvedValue({ data: [], error: null });
   mocks.client.from.mockClear();
-  mocks.client.rpc.mockReset();
+  mocks.client.rpc.mockImplementation((name: string, args?: { _ids?: string[] }) => Promise.resolve({
+    data: name === "eut_public_eligible_technician_ids"
+      ? (args?._ids ?? []).map(technician_id => ({ technician_id }))
+      : [],
+    error: null,
+  }));
 });
 
 describe("public technician profile lookup", () => {
@@ -67,7 +72,6 @@ describe("public technician profile lookup", () => {
   it("resolves a published profile by its human-readable slug", async () => {
     const public_slug = "tecnico-de-exemplo-curitiba-pr";
     mocks.query.maybeSingle.mockResolvedValue({ data: { id, public_slug, display_name: "Exemplo", city: "Curitiba", state_uf: "PR", specialties: [], service_slugs: [], neighborhood: null, region: null, bio: null }, error: null });
-    mocks.client.rpc.mockResolvedValue({ data: [], error: null });
     const result = await getApprovedTechnician({ data: { id: public_slug } });
     expect(mocks.query.eq).toHaveBeenCalledWith("public_slug", public_slug);
     expect(result?.id).toBe(id);
@@ -108,7 +112,6 @@ describe("public technician profile lookup", () => {
       bio: null,
     };
     mocks.query.maybeSingle.mockResolvedValue({ data: profile, error: null });
-    mocks.client.rpc.mockResolvedValue({ data: [], error: null });
     const result = await getApprovedTechnician({ data: { id } });
     expect(result).toEqual({ ...profile, online_now: false, pioneer_bronze: false, referral_highlight: false, coverage_cities: [] });
     const selectedFields = String(mocks.query.select.mock.calls[0]?.[0]);
