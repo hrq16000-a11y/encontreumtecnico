@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { GUIDE_PATHS } from "@/lib/public-guides";
@@ -197,4 +198,36 @@ describe("public SEO discovery integration — actual SSR and HTTP response cont
       expect(code).toContain("PublicSeoDirectory");
     }
   });
+});
+
+
+describe("dedicated SSR SEO Vitest suites (isolated CI regression)", () => {
+  it("runs the complete route, canonical, sitemap index and HTTP handler suites", () => {
+    // GitHub's path-filtered workflow is not dispatched on this isolated PR.
+    // Run these standalone Vitest files in a separate process to avoid
+    // shared hoisted mock state with technician lookup tests.
+    const files = [
+      "src/lib/public-seo-graph.test.ts",
+      "src/lib/public-sitemap.test.ts",
+      "src/lib/seo-public-pages.test.ts",
+      "src/lib/public-sitemap-index.test.ts",
+      "src/lib/public-sitemap-http.test.ts",
+      "src/components/public-seo-discovery.ssr.test.tsx",
+      "src/routes/public-seo-routes.test.tsx",
+      "src/components/public-technician-profile.test.tsx",
+    ];
+    const check = spawnSync("bunx", ["vitest", "run", ...files], {
+      cwd: process.cwd(), encoding: "utf8", timeout: 90_000,
+      maxBuffer: 4 * 1024 * 1024,
+    });
+    if (check.status !== 0) {
+      throw new Error("Standalone SEO suites failed (" + (check.status ?? "spawn error") +
+        "): " + (check.error?.message ?? "") +
+        "\\n" + (check.stdout || "").slice(-18_000) +
+        "\\n" + (check.stderr || "").slice(-12_000));
+    }
+    const summary = (check.stdout || "").split("\\n")
+      .filter(line => /Test Files|Tests |src\\/(?:lib|routes|components)\\//.test(line));
+    console.info("Isolated SEO suites passed:", summary.join(" | ").slice(0, 3000));
+  }, 100_000);
 });
