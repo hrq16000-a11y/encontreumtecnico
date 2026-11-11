@@ -1,7 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Search, MapPin, Briefcase, Star, TrendingUp, ShieldCheck, Zap, Menu, ArrowRight } from "lucide-react";
 import { useActiveCategories } from "@/hooks/use-active-categories";
+import { readUiTextDraft, saveUiTextDraft } from "@/lib/unsent-ui-draft";
 
 /**
  * Home2 é uma LP visual independente da Home1.
@@ -67,8 +68,14 @@ function Home2Footer() {
 function Home2Landing() {
   const navigate = useNavigate();
   const { categories, loading: catalogLoading } = useActiveCategories();
-  const [query, setQuery] = useState("");
-  const [city, setCity] = useState("");
+  const [draft] = useState(() => readUiTextDraft("home2"));
+  const [query, setQuery] = useState(draft?.["query"] ?? "");
+  const [city, setCity] = useState(draft?.["city"] ?? "");
+
+  useEffect(() => {
+    // Persist immediately: a route switch right after typing must not lose the last edit.
+    saveUiTextDraft("home2", { query, city });
+  }, [query, city]);
 
   function search(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
