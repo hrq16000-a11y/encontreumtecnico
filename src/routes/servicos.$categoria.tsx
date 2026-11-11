@@ -99,6 +99,10 @@ function ServiceCategoryPage() {
               className="inline-flex min-h-11 items-center rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground hover:bg-primary/90">
               Buscar todos os profissionais desta categoria →
             </Link>
+            <Link to="/area-cliente" search={{ modo: "regional", categoria: category.slug }}
+              className="inline-flex min-h-11 items-center rounded-xl border border-primary/30 px-4 text-sm font-semibold text-primary hover:bg-primary/5">
+              Guardar pedido da minha região
+            </Link>
             <a href="#orientacoes-da-especialidade"
               className="inline-flex min-h-11 items-center rounded-xl border border-border px-4 text-sm font-semibold text-primary hover:bg-muted/50">
               Informações para contratar
