@@ -157,7 +157,7 @@ function HomePage() {
                 id="busca-especialidade"
                 type="text"
                 value={specialty}
-                onChange={(e) => setSpecialty(e.target.value)}
+                onChange={(e) => { saveUiTextDraft("home", { specialty:e.target.value, city, uf:locationUf, neighborhood:locationNeighborhood }); setSpecialty(e.target.value); }}
                 placeholder="Especialidade (ex.: Computador)"
                 className="h-11 min-h-11 w-full shrink-0 sm:w-auto sm:flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
@@ -166,7 +166,7 @@ function HomePage() {
                 id="busca-cidade"
                 type="text"
                 value={city}
-                onChange={(e) => { cityEditedByUser.current = true; setCity(e.target.value); setLocationUf(""); setLocationNeighborhood(""); }}
+                onChange={(e) => { cityEditedByUser.current = true; saveUiTextDraft("home", { specialty, city:e.target.value, uf:"", neighborhood:"" }); setCity(e.target.value); setLocationUf(""); setLocationNeighborhood(""); }}
                 placeholder="Cidade ou região"
                 className="h-11 min-h-11 w-full shrink-0 sm:w-auto sm:flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
@@ -189,6 +189,7 @@ function HomePage() {
               </div>
               <CustomerLocationButton onLocated={(area, source) => {
                 if (source === "automatic" && city.trim()) return;
+                saveUiTextDraft("home", { specialty, city:area.city, uf:area.uf, neighborhood:area.neighborhood });
                 setCity(area.city);
                 setLocationUf(area.uf);
                 setLocationNeighborhood(area.neighborhood);
