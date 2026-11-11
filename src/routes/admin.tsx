@@ -14,7 +14,7 @@ import { AdminControlHub } from "@/components/admin-control-hub";
 import { AdminAdvertisingManager } from "@/components/admin-advertising-manager";
 import { AdminNavigation } from "@/components/admin-navigation";
 import { adminModuleTitle, type AdminSection } from "@/lib/admin-sections";
-import { ArrowRight, ShieldAlert } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -55,12 +55,23 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
   const [error, setError] = useState<string | null>(null);
 
   async function load() {
+    // A page only queries the records it needs. RLS remains authoritative.
+    // No global prefetch of private contacts when browsing sponsors or metrics.
+    const needsTechs = section === "inicio" || section === "tecnicos";
+    const needsRequests = section === "inicio" || section === "solicitacoes" || section === "clientes";
+    const needsMessages = section === "mensagens";
     const [t, r, m] = await Promise.all([
-      supabase.from("technicians").select("*").order("created_at", { ascending: true }),
-      supabase.from("service_requests").select("*").order("created_at", { ascending: false }).limit(500),
-      supabase.from("contact_messages").select("*").neq("status", "arquivada").order("created_at", { ascending: false }).limit(100),
+      needsTechs
+        ? supabase.from("technicians").select("*").order("created_at", { ascending: true })
+        : Promise.resolve({ data: [] as Tech[], error: null }),
+      needsRequests
+        ? supabase.from("service_requests").select("*").order("created_at", { ascending: false }).limit(500)
+        : Promise.resolve({ data: [] as Req[], error: null }),
+      needsMessages
+        ? supabase.from("contact_messages").select("*").neq("status", "arquivada").order("created_at", { ascending: false }).limit(100)
+        : Promise.resolve({ data: [] as Tables<"contact_messages">[], error: null }),
     ]);
-    if (t.error || r.error || m.error) setError("Não foi possível carregar os dados.");
+    setError(t.error || r.error || m.error ? "Não foi possível carregar os dados deste módulo." : null);
     setTechs(t.data ?? []);
     setReqs(r.data ?? []);
     setMsgs(m.data ?? []);
