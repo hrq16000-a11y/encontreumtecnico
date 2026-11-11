@@ -48,8 +48,8 @@ function Home(){
     <h1>Precisa de um técnico? <span>Encontre o profissional certo.</span></h1>
     <p>Pesquise por especialidade e região, conheça profissionais independentes e combine o atendimento diretamente com quem realiza o serviço.</p>
     <form className="hero-search" onSubmit={search} role="search" aria-label="Buscar técnicos">
-     <label className="search-entry"><ServiceIcon name="search" size={23}/><span><small>Qual serviço você precisa?</small><input name="q" value={service} onChange={e=>setService(e.target.value)} placeholder="Notebook, redes, impressora..." autoComplete="off"/></span></label>
-     <label className="search-entry city-entry"><ServiceIcon name="location" size={22}/><span><small>Onde será o atendimento?</small><input name="city" value={city} onChange={e=>setCity(e.target.value)} placeholder="Cidade (opcional)" autoComplete="address-level2"/></span></label>
+     <label className="search-entry"><ServiceIcon name="search" size={23}/><span><small>Qual serviço você precisa?</small><input name="q" value={service} onChange={e=>{saveUiTextDraft("lp2-home",{service:e.target.value,city});setService(e.target.value)}} placeholder="Notebook, redes, impressora..." autoComplete="off"/></span></label>
+     <label className="search-entry city-entry"><ServiceIcon name="location" size={22}/><span><small>Onde será o atendimento?</small><input name="city" value={city} onChange={e=>{saveUiTextDraft("lp2-home",{service,city:e.target.value});setCity(e.target.value)}} placeholder="Cidade (opcional)" autoComplete="address-level2"/></span></label>
      <button className="hero-search-button" type="submit"><ServiceIcon name="search" size={19}/> Buscar técnicos</button>
     </form>
     <div className="hero-popular"><span>Buscas populares:</span>{categories.slice(0,4).map(c=><Link key={c.name} to="/lp2/galeria" search={{q:c.search,city:''}}>{c.name}</Link>)}</div>

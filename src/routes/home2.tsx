@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
+import { readUiTextDraft, saveUiTextDraft } from "@/lib/unsent-ui-draft";
 import { Search, MapPin, Briefcase, Star, TrendingUp, ShieldCheck, Zap, Menu, ArrowRight } from "lucide-react";
 import { useActiveCategories } from "@/hooks/use-active-categories";
 
@@ -67,8 +68,17 @@ function Home2Footer() {
 function Home2Landing() {
   const navigate = useNavigate();
   const { categories, loading: catalogLoading } = useActiveCategories();
-  const [query, setQuery] = useState("");
-  const [city, setCity] = useState("");
+  const [initial] = useState(() => readUiTextDraft("home2"));
+  const [query, setQuery] = useState(initial?.["query"] ?? "");
+  const [city, setCity] = useState(initial?.["city"] ?? "");
+  function editQuery(next: string) {
+    saveUiTextDraft("home2", { query: next, city });
+    setQuery(next);
+  }
+  function editCity(next: string) {
+    saveUiTextDraft("home2", { query, city: next });
+    setCity(next);
+  }
 
   function search(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -101,7 +111,7 @@ function Home2Landing() {
               <label className="flex flex-1 items-center rounded-xl bg-white px-4 py-3">
                 <Search className="mr-3 h-5 w-5 text-zinc-400" aria-hidden="true" />
                 <span className="sr-only">Serviço procurado</span>
-                <select value={query} onChange={e => setQuery(e.target.value)} disabled={catalogLoading} aria-label="Especialidade procurada" className="w-full bg-transparent text-zinc-900 outline-none disabled:opacity-60">
+                <select value={query} onChange={e => editQuery(e.target.value)} disabled={catalogLoading} aria-label="Especialidade procurada" className="w-full bg-transparent text-zinc-900 outline-none disabled:opacity-60">
                   <option value="">Todas as especialidades</option>
                   {categories.map(c => <option key={c.slug} value={c.slug}>{c.label}</option>)}
                 </select>
@@ -109,7 +119,7 @@ function Home2Landing() {
               <label className="flex flex-1 items-center rounded-xl bg-white px-4 py-3">
                 <MapPin className="mr-3 h-5 w-5 text-zinc-400" aria-hidden="true" />
                 <span className="sr-only">Cidade</span>
-                <input type="text" value={city} onChange={e => setCity(e.target.value)} placeholder="Em qual cidade?" className="w-full bg-transparent text-zinc-900 outline-none placeholder:text-zinc-400" />
+                <input type="text" value={city} onChange={e => editCity(e.target.value)} placeholder="Em qual cidade?" className="w-full bg-transparent text-zinc-900 outline-none placeholder:text-zinc-400" />
               </label>
               <button type="submit" className="rounded-xl bg-emerald-600 px-8 py-3 font-bold text-white shadow-lg transition-colors hover:bg-emerald-500">Buscar agora</button>
             </form>

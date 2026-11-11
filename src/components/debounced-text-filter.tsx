@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { clearPendingFilter, readPendingFilter, savePendingFilter } from "@/lib/pending-search-filter";
 
 /**
  * Keeps typing local so TanStack does not re-run the server loader for every
@@ -18,7 +19,7 @@ type DebouncedTextFilterProps = {
 export function DebouncedTextFilter({
   id, label, value, placeholder, onCommit, onBlurTrack,
 }: DebouncedTextFilterProps) {
-  const [draft, setDraft] = useState(value);
+  const [draft, setDraft] = useState(() => readPendingFilter(id, value) ?? value);
   const focused = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latest = useRef({ value, onCommit });
@@ -30,17 +31,24 @@ export function DebouncedTextFilter({
     if (!focused.current) setDraft(value);
   }, [value]);
 
-  useEffect(() => () => {
-    if (timer.current !== null) clearTimeout(timer.current);
+  useEffect(() => {
+    // Restore any final keystroke that was pending when a route unmounted.
+    // Do not navigate while the browser merely loses focus (Alt+Tab).
+    if (draft !== value) {
+      timer.current = setTimeout(() => commit(draft), FILTER_DEBOUNCE_MS);
+    }
+    return () => { if (timer.current !== null) clearTimeout(timer.current); };
   }, []);
 
   function commit(next: string) {
     if (timer.current !== null) clearTimeout(timer.current);
     timer.current = null;
+    clearPendingFilter(id);
     if (next !== latest.current.value) latest.current.onCommit(next);
   }
 
   function change(next: string) {
+    savePendingFilter(id, latest.current.value, next);
     setDraft(next);
     if (timer.current !== null) clearTimeout(timer.current);
     timer.current = setTimeout(() => commit(next), FILTER_DEBOUNCE_MS);
