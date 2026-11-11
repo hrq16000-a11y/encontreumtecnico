@@ -13,7 +13,9 @@ export const Route = createFileRoute("/sitemap.xml")({
           return new Response(buildPublicSitemapIndexXml(graph), {
             headers: {
               "Content-Type": "application/xml; charset=utf-8",
-              "Cache-Control": "public, s-maxage=900, stale-while-revalidate=300",
+              "Cache-Control": "no-store, max-age=0",
+  "CDN-Cache-Control": "no-store",
+  "Vercel-CDN-Cache-Control": "no-store",
               "X-Content-Type-Options": "nosniff",
             },
           });
