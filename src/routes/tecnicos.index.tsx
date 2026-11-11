@@ -160,7 +160,7 @@ function TechniciansPage() {
           <div>
             <label htmlFor="filtro-uf" className="text-xs font-medium text-muted-foreground">Estado (UF)</label>
             <select id="filtro-uf" value={search.uf} onChange={(e) => { update({ uf: e.target.value }); trackFilter("uf", e.target.value); }}
-              className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
+              className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
               <option value="">Todos os estados</option>
               {BRAZIL_STATES.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
             </select>
@@ -230,7 +230,7 @@ function TechniciansPage() {
             <span><MapPin className="mr-1 inline h-4 w-4 text-primary" aria-hidden="true" />
               Você pode estar perto de <strong>{suggestedArea.city}/{suggestedArea.uf}</strong>. Estimativa por IP, não localização exata.</span>
             <Link to="/tecnicos" search={{especialidade:search.especialidade,cidade:suggestedArea.city,uf:suggestedArea.uf,bairro:suggestedArea.neighborhood,regiao:"",servico:search.servico,prioridade:"regiao"}}
-              className="inline-flex min-h-10 items-center rounded-lg bg-primary px-4 text-xs font-bold text-primary-foreground">Buscar na região</Link>
+              className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-xs font-bold text-primary-foreground">Buscar na região</Link>
           </div>
         )}
         <SponsoredPublicSlot slotKey="search.top" routePath="/tecnicos" />
