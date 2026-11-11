@@ -68,6 +68,7 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
   const pendingSubmission = useRef<{ fingerprint: string; id: string } | null>(null);
   const draftOwnerRef = useRef<string | null>(null);
+  const [draftRestoredOwnerId, setDraftRestoredOwnerId] = useState<string | null>(null);
   const [shareNow, setShareNow] = useState(false);
   const [technicianTarget, setTechnicianTarget] = useState<string | null>(tecnico ?? null);
   const [sendingId, setSendingId] = useState<string | null>(null);
@@ -79,6 +80,7 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
     // Never reuse a previous account's unsent form, confirmation or request ID.
     // Does not erase the same-tab triage draft, which is recovered below
     // only after a verified client role has loaded.
+    setDraftRestoredOwnerId(null);
     setForm({ title: "", description: "", category: "", city: "", region: "" });
     setMsg(null);
     setSaving(false);
@@ -93,24 +95,28 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
   useEffect(() => {
     if (!user || !roles.includes("cliente")) {
       draftOwnerRef.current = null;
+      setDraftRestoredOwnerId(null);
       return;
     }
     const existing = readProtectedDraft<ClientRequestDraft>("cliente", user.id);
     draftOwnerRef.current = user.id;
-    if (!existing || typeof existing.form.title !== "string" ||
-        typeof existing.form.description !== "string" ||
-        typeof existing.form.category !== "string" ||
-        typeof existing.form.city !== "string" ||
-        typeof existing.form.region !== "string") return;
-    setForm({
-      title: existing.form.title.slice(0, 120),
-      description: existing.form.description.slice(0, 2000),
-      category: existing.form.category.slice(0, 100),
-      city: existing.form.city.slice(0, 80),
-      region: existing.form.region.slice(0, 120),
-    });
-    setStep(existing.step as ClientRequestStep);
-    setMsg("Recuperamos seu rascunho nesta aba. Confira os dados antes de enviar.");
+    if (existing && typeof existing.form.title === "string" &&
+        typeof existing.form.description === "string" &&
+        typeof existing.form.category === "string" &&
+        typeof existing.form.city === "string" &&
+        typeof existing.form.region === "string") {
+      setForm({
+        title: existing.form.title.slice(0, 120),
+        description: existing.form.description.slice(0, 2000),
+        category: existing.form.category.slice(0, 100),
+        city: existing.form.city.slice(0, 80),
+        region: existing.form.region.slice(0, 120),
+      });
+      setStep(existing.step as ClientRequestStep);
+      setMsg("Recuperamos seu rascunho nesta aba. Confira os dados antes de enviar.");
+    }
+    // Never show editable blank inputs before this account's draft was checked.
+    setDraftRestoredOwnerId(user.id);
   }, [user?.id, roles.join(",")]);
 
   useEffect(() => {
@@ -414,6 +420,10 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
         ) : !user || !roles.includes("cliente") ? (
           <p className="mt-4 text-sm text-muted-foreground">
             <Link to={lp2 ? "/lp2/entrar" : "/entrar"} className="font-medium text-primary underline">Entre com uma conta de cliente</Link> para abrir e acompanhar suas solicitações.
+          </p>
+        ) : draftRestoredOwnerId !== user.id ? (
+          <p className="mt-4 text-sm text-muted-foreground" role="status" aria-live="polite" aria-busy="true">
+            Recuperando seu rascunho privado…
           </p>
         ) : (
           <>
