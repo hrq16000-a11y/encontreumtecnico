@@ -435,7 +435,6 @@ export function getRelatedGuides(slug: string): readonly PublicGuide[] {
     .filter((guide): guide is PublicGuide => guide !== null && guide.slug !== slug);
 }
 
-export const GUIDE_PATHS = [
-  "/guias",
-  ...GUIDES.map(guide => "/guias/" + guide.slug),
-] as const;
+// The historic navigation hub remains indexable; old article links 301 to
+// canonical service-category pages. Do not place redirect-only URLs in sitemap.
+export const GUIDE_PATHS = ["/guias"] as const;

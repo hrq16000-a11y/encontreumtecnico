@@ -29,7 +29,7 @@ export function GuideInlineHelpButton({ guide }: { guide: PublicGuide }) {
 
 export function GuideLeadCallout({ guide, compact = false }: { guide: PublicGuide; compact?: boolean }) {
   return (
-    <aside aria-label="Solicitar atendimento a partir do guia"
+    <aside aria-label="Solicitar atendimento nesta especialidade"
       className={"overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-r from-brand-navy to-primary p-5 text-white shadow-lg sm:p-7 " + (compact ? "my-6" : "mt-10")}>
       <p className="text-xs font-bold uppercase tracking-[.16em] text-teal-100">Atendimento guiado · Sem pagamento antecipado</p>
       <h2 className="mt-3 text-xl font-extrabold leading-snug text-white sm:text-2xl">

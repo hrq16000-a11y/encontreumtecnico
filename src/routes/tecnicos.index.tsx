@@ -20,6 +20,36 @@ import { openFreeHelp } from "@/lib/free-search-help";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { MapPin, ShieldCheck, UserRoundCheck, LifeBuoy } from "lucide-react";
 
+/** Small contextual help inside *filtered directory results*, not a second blog.
+ * Avoid importing the full editorial catalogue into the default search bundle.
+ */
+const CATEGORY_SEARCH_CONTEXT: Record<string, { title: string; advice: string }> = {
+  computadores: {
+    title: "Lentidão, diagnóstico e manutenção",
+    advice: "Anote travamentos, lentidão em programas e sinais de aquecimento. Confirme o backup antes de autorizar formatação ou troca de peças.",
+  },
+  cftv: {
+    title: "Câmeras, gravação e instalação",
+    advice: "Explique as áreas que precisam de cobertura, iluminação, armazenamento e infraestrutura. Respeite a privacidade dos ambientes.",
+  },
+  redes: {
+    title: "Wi-Fi, roteadores e conexão",
+    advice: "Informe onde a conexão falha, se ocorre em mais de um aparelho e se o cabo funciona. Evite divulgar senhas ou restaurar o roteador sem orientação.",
+  },
+  impressoras: {
+    title: "Impressora offline e manutenção",
+    advice: "Indique marca, modelo, tipo de conexão e mensagem de erro. Confira a fila de impressão sem expor documentos confidenciais.",
+  },
+  software: {
+    title: "Sistemas, backup e recuperação",
+    advice: "Identifique arquivos essenciais, programas e cópias testadas. Caso haja falha física no disco, evite testes repetidos que possam piorar a perda.",
+  },
+  climatizacao: {
+    title: "Ar-condicionado sem resfriamento",
+    advice: "Informe o modo selecionado, ventilação, modelo e sinais de falha. Não abra painéis elétricos nem manipule refrigerante sem profissional qualificado.",
+  },
+};
+
 const searchSchema = z.object({
   especialidade: fallback(z.string(), "Todas").default("Todas"),
   cidade: fallback(z.string(), "").default(""),
@@ -232,6 +262,21 @@ function TechniciansPage() {
             <Link to="/tecnicos" search={{especialidade:search.especialidade,cidade:suggestedArea.city,uf:suggestedArea.uf,bairro:suggestedArea.neighborhood,regiao:"",servico:search.servico,prioridade:"regiao"}}
               className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-xs font-bold text-primary-foreground">Buscar na região</Link>
           </div>
+        )}
+        {CATEGORY_SEARCH_CONTEXT[search.especialidade] && (
+          <aside aria-label="Orientações da especialidade selecionada"
+            className="mt-5 flex flex-col gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div>
+              <h2 className="font-bold text-foreground">{CATEGORY_SEARCH_CONTEXT[search.especialidade]?.title}</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+                {CATEGORY_SEARCH_CONTEXT[search.especialidade]?.advice}
+              </p>
+            </div>
+            <Link to="/servicos/$categoria" params={{ categoria: search.especialidade }}
+              className="inline-flex min-h-11 shrink-0 items-center rounded-xl border border-primary/30 px-4 text-sm font-semibold text-primary hover:bg-primary/10">
+              Ver informações e profissionais desta categoria →
+            </Link>
+          </aside>
         )}
         <SponsoredPublicSlot slotKey="search.top" routePath="/tecnicos" />
         <section aria-label="Transparência e confiança na busca" className="mt-6 grid gap-3 rounded-2xl border border-primary/15 bg-accent/50 p-4 sm:grid-cols-3">

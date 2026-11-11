@@ -25,12 +25,12 @@ describe("Guias — navegação, FAQ e desempenho mobile", () => {
   });
 
   it("navega pelos cinco títulos, FAQ e relacionados sem mudar de página ou perder rascunhos", () => {
-    const article = read("src/routes/guias.$slug.tsx");
+    const article = read("src/routes/servicos.$categoria.tsx");
     const nav = read("src/components/guide-reading-tools.tsx");
     expect(nav).toContain('href={"#secao-" + index}');
     expect(nav).toContain('href="#perguntas-frequentes"');
     expect(nav).toContain('href="#guias-relacionados"');
-    expect(nav).toContain("aria-label=\"Seções deste guia\"");
+    expect(nav).toContain("aria-label=\"Assuntos desta especialidade\"");
     expect(article).toContain('id={"secao-" + index}');
     expect(article).toContain('id="guias-relacionados"');
     expect(article).toContain("<GuideReadingNavigation guide={guide} />");
@@ -38,7 +38,7 @@ describe("Guias — navegação, FAQ e desempenho mobile", () => {
     expect(nav).toContain("<details");
     expect(nav).toContain("<summary");
     expect(nav).not.toContain("FAQPage");
-    expect(article).toContain('"@type": "Article"');
+    expect(article).toContain('"@type": "CollectionPage"');
   });
 
   it("captura intenção pelo funil existente, sem telefone exposto ou envio prematuro", () => {
@@ -56,14 +56,14 @@ describe("Guias — navegação, FAQ e desempenho mobile", () => {
   });
 
   it("usa HTML simples, alvos acessíveis e prioridades de imagem adequadas ao mobile", () => {
-    const article = read("src/routes/guias.$slug.tsx");
+    const article = read("src/routes/servicos.$categoria.tsx");
     const index = read("src/routes/guias.index.tsx");
     const nav = read("src/components/guide-reading-tools.tsx");
     expect(index).toContain('loading={index === 0 ? "eager" : "lazy"}');
     expect(index).toContain('fetchPriority={index === 0 ? "high" : "auto"}');
     expect(index).toContain('width={1200} height={630}');
     expect(index).toContain('decoding="async"');
-    expect(article).toContain('loading="eager" decoding="async" fetchPriority="high"');
+    expect(article).toContain('decoding="async" loading="lazy"');
     expect(article).toContain('width={1200} height={630}');
     expect(article).toContain('scroll-mt-28');
     expect(nav).toContain('min-h-11');

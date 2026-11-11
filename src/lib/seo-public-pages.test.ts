@@ -135,25 +135,37 @@ describe("SEO global do Encontre um Técnico", () => {
     for (const slug of [
       "climatizacao", "automacao", "cftv", "computadores", "comunicacoes",
       "eletrica", "design-grafico", "impressoras", "redes", "software",
-    ]) expect(services, slug).toContain('slug: "' + slug + '"');
+    ]) expect(read("src/lib/service-catalog.ts"), slug).toContain('slug: "' + slug + '"');
     expect(services).not.toContain("WhatsApp direto");
   });
 
-  it("publica somente guias autorais com canonical, dados Article e links para técnicos", () => {
+  it("publica seis categorias ricas, mantém os artigos e redireciona o legado sem conteúdo duplicado", () => {
     expect(GUIDES).toHaveLength(6);
     expect(new Set(GUIDES.map(guide => guide.slug)).size).toBe(GUIDES.length);
-    expect(GUIDE_PATHS).toHaveLength(GUIDES.length + 1);
+    expect(GUIDE_PATHS).toEqual(["/guias"]);
     const index = read("src/routes/guias.index.tsx");
-    const detail = read("src/routes/guias.$slug.tsx");
+    const legacy = read("src/routes/guias.$slug.tsx");
+    const category = read("src/routes/servicos.$categoria.tsx");
     const services = read("src/routes/servicos.tsx");
+    const catalog = read("src/lib/service-catalog.ts");
     const sitemap = buildPublicSitemapXml([]);
     expect(index).toContain('createFileRoute("/guias/")');
-    expect(detail).toContain('createFileRoute("/guias/$slug")');
-    expect(detail).toContain("throw notFound()");
-    expect(detail).toContain('"script:ld+json"');
-    expect(detail).toContain('rel: "canonical"');
-    expect(detail).toContain('especialidade: guide.categorySlug');
-    expect(services).toContain('to="/guias"');
+    expect(index).toContain('to="/servicos/$categoria"');
+    expect(legacy).toContain('createFileRoute("/guias/$slug")');
+    expect(legacy).toContain("throw notFound()");
+    expect(legacy).toContain("throw redirect({");
+    expect(legacy).toContain("statusCode: 301");
+    expect(legacy).toContain('to: "/servicos/$categoria"');
+    expect(category).toContain('createFileRoute("/servicos/$categoria")');
+    expect(category).toContain('"@type": "CollectionPage"');
+    expect(category).toContain('rel: "canonical"');
+    expect(category).toContain("listApprovedTechnicians({");
+    expect(category).toContain("technicians.slice(0, 6)");
+    expect(category).toContain('to="/tecnicos/$tecnicoId"');
+    expect(category).not.toContain("contact_phone");
+    expect(category).not.toContain("wa.me");
+    expect(services).toContain("getEnrichedServiceCategory(service.slug)");
+    expect(catalog).toContain("export const SERVICE_CATEGORIES");
     expect(SITE).toBe("https://www.encontreumtecnico.com.br");
     expect(sitemap).toContain('<loc>' + SITE + '/guias</loc>');
     for (const guide of GUIDES) {
@@ -162,8 +174,8 @@ describe("SEO global do Encontre um Técnico", () => {
       expect(guide.description.length).toBeGreaterThan(65);
       expect(guide.title.length).toBeGreaterThan(35);
       expect(guide.publishedAt).toBe("2026-11-11");
-      expect(guide.updatedAt).toBe("2026-11-11");
-      expect(sitemap).toContain('<loc>' + SITE + '/guias/' + guide.slug + '</loc>');
+      expect(sitemap).toContain('<loc>' + SITE + '/servicos/' + guide.categorySlug + '</loc>');
+      expect(sitemap).not.toContain('<loc>' + SITE + '/guias/' + guide.slug + '</loc>');
       expect(getPublishedGuide(guide.slug)?.title).toBe(guide.title);
       expect(getGuideArtwork(guide.categorySlug).src).toContain("/guias/");
       expect(getGuideArtwork(guide.categorySlug).alt.length).toBeGreaterThan(35);
@@ -172,9 +184,6 @@ describe("SEO global do Encontre um Técnico", () => {
     expect(getPublishedGuide("../admin")).toBeNull();
     expect(sitemap).not.toContain("/admin");
     expect(sitemap).not.toContain("/area-cliente");
-    for (const slug of ["wifi-caindo-sinal-fraco-como-identificar", "impressora-offline-fila-travada-o-que-fazer"]) {
-      expect(sitemap).toContain(SITE + "/guias/" + slug + "</loc>");
-    }
   });
   it("mostra somente cobertura declarada de perfis públicos e a inclui no sitemap", () => {
     const route = read("src/routes/cobertura.tsx");
@@ -190,14 +199,14 @@ describe("SEO global do Encontre um Técnico", () => {
   });
 
   it("mostra imagens originais, infográficos e CTAs intermediários ligados ao funil sem WhatsApp público", () => {
-    const article = read("src/routes/guias.$slug.tsx");
+    const article = read("src/routes/servicos.$categoria.tsx");
     const index = read("src/routes/guias.index.tsx");
     const visuals = read("src/components/guide-section-visual.tsx");
     const cta = read("src/components/guide-lead-callout.tsx");
     expect(article).toContain("<GuideSectionVisual categorySlug={guide.categorySlug} index={index} />");
     expect(article).toContain("index === 1 || index === 3");
     expect(article).toContain("<GuideLeadCallout guide={guide} compact />");
-    expect(article).toContain('to="/ecossistema"');
+    expect(article).toContain('to="/servicos"');
     expect(index).toContain('loading={index === 0 ? "eager" : "lazy"}');
     expect(cta).toContain("openFreeHelp");
     expect(cta).toContain('mode: "managed"');
@@ -235,7 +244,7 @@ describe("SEO global do Encontre um Técnico", () => {
   });
 
   it("gera conteúdo rico sobre backup e climatização com relacionamentos e leads contextuais", () => {
-    const article = read("src/routes/guias.$slug.tsx");
+    const article = read("src/routes/servicos.$categoria.tsx");
     const cta = read("src/components/guide-lead-callout.tsx");
     const visual = read("src/components/guide-section-visual.tsx");
     const guideSlugs = [
@@ -254,12 +263,12 @@ describe("SEO global do Encontre um Técnico", () => {
     expect(cta).toContain('climatizacao: "Climatização"');
     expect(cta).toContain("openFreeHelp");
     expect(article).toContain("getRelatedGuides(guide.slug)");
-    expect(article).toContain('to="/guias/$slug"');
+    expect(article).toContain('to="/servicos/$categoria"');
     expect(visual).toContain("software: BACKUP");
     expect(visual).toContain("climatizacao: CLIMATE");
   });
   it("integra FAQ e sumário contextual sem duplicar rotas, schema ou chamadas externas", () => {
-    const article = read("src/routes/guias.$slug.tsx");
+    const article = read("src/routes/servicos.$categoria.tsx");
     const faq = read("src/components/guide-reading-tools.tsx");
     const cta = read("src/components/guide-lead-callout.tsx");
     expect(article).toContain("<GuideReadingNavigation guide={guide} />");
@@ -274,11 +283,11 @@ describe("SEO global do Encontre um Técnico", () => {
     expect(buildPublicSitemapXml([])).not.toContain("/perguntas-frequentes");
   });
   it("limita correção de fontes aos artigos e mantém funil coerente com categorias publicadas", () => {
-    const article = read("src/routes/guias.$slug.tsx");
+    const article = read("src/routes/servicos.$categoria.tsx");
     const style = read("src/styles.css");
     const funnel = read("src/components/assistance-funnel.tsx");
     const cta = read("src/components/guide-lead-callout.tsx");
-    expect(article).toContain('className="eut-guide-stable-type mt-7"');
+    expect(article).toContain('className="eut-guide-stable-type mt-10 scroll-mt-28"');
     expect(style).toContain(".eut-guide-stable-type {");
     expect(style).toContain("font-family: system-ui");
     expect(style).toContain(".eut-guide-stable-type h1,");
@@ -292,7 +301,7 @@ describe("SEO global do Encontre um Técnico", () => {
 
   it("evita Google Fonts bloqueantes apenas nos seis guias, preservando AdSense, SEO e áreas privadas", () => {
     const root = read("src/routes/__root.tsx");
-    const guide = read("src/routes/guias.$slug.tsx");
+    const guide = read("src/routes/servicos.$categoria.tsx");
     expect(root).toContain("head: ({ matches }) => ({");
     expect(root).toContain("...(!isGuideDetailHeadMatch(matches) ? [");
     expect(root).toContain("fonts.googleapis.com/css2?family=Manrope");
@@ -301,7 +310,7 @@ describe("SEO global do Encontre um Técnico", () => {
     expect(root).toContain("href: appCss");
     expect(guide).toContain("eut-guide-stable-type");
     for (const published of GUIDES) {
-      expect(isGuideDetailHeadMatch([{ pathname: "/guias/" + published.slug }])).toBe(true);
+      expect(isGuideDetailHeadMatch([{ pathname: "/servicos/" + published.categorySlug }])).toBe(true);
     }
     for (const pathname of [
       "/", "/guias", "/admin", "/area-cliente", "/area-tecnico",
@@ -311,7 +320,7 @@ describe("SEO global do Encontre um Técnico", () => {
       expect(isGuideDetailHeadMatch([{ pathname }]), pathname).toBe(false);
     }
     expect(isGuideDetailHeadMatch([
-      { pathname: "/" }, { pathname: "/guias/computador-lento-o-que-verificar" },
+      { pathname: "/" }, { pathname: "/servicos/computadores" },
     ])).toBe(true);
     expect(isGuideDetailHeadMatch([])).toBe(false);
   });
