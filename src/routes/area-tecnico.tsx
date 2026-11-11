@@ -297,8 +297,13 @@ export function TechnicianAreaPage() {
             )}
           </div>
         ) : (
-          <>
-            <ConnectedGoogleIdentity user={user} />
+          <div className="grid min-w-0 gap-6 lg:grid-cols-[250px_minmax(0,1fr)]">
+            <TechnicianPanelNavigation active={panelTab} onChange={setPanelTab} />
+            <main id={technicianTabHref(panelTab).slice(1)} className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6"
+              aria-label={"Área do técnico: " + panelTab}>
+              {panelTab === "inicio" && (
+                <div>
+                  <ConnectedGoogleIdentity user={user} />
             <p className="mt-2 text-xs text-muted-foreground">Nome e foto são sugestões do provedor de login. Confirme seus dados profissionais antes de publicar; sua foto pública é configurada separadamente.</p>
             {currentStatus && (
               <p className="mt-3 inline-block rounded-md bg-muted px-3 py-1 text-sm text-foreground">
@@ -314,7 +319,31 @@ export function TechnicianAreaPage() {
                 Conferir meu perfil publicado
               </Link>
             )}
-            <details className="mt-4 rounded-xl border border-border bg-muted/20 p-4">
+            <div className="mt-7 grid gap-3 sm:grid-cols-2">
+              {([
+                { tab: "perfil", title: "Meu perfil profissional", detail: "Nome, cidade, especialidades e serviços", icon: UserRound },
+                { tab: "cobertura", title: "Regiões atendidas", detail: "Até cinco cidades validadas e raio", icon: MapPin },
+                { tab: "foto", title: "Foto pública", detail: avatarPath ? "Foto associada ao perfil" : "Adicionar minha foto com consentimento", icon: Camera },
+                { tab: "solicitacoes", title: "Solicitações", detail: "Disponibilidade e pedidos autorizados", icon: Inbox },
+              ] as const).map((card) => {
+                const Icon = card.icon;
+                return <a key={card.tab} href={technicianTabHref(card.tab)} onClick={() => setPanelTab(card.tab)}
+                  className="group flex min-h-28 gap-3 rounded-xl border border-border bg-background p-4 transition-colors hover:border-primary/40 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <Icon className="mt-0.5 h-6 w-6 shrink-0 text-primary" aria-hidden="true" />
+                  <span><strong className="block text-sm font-bold text-foreground">{card.title}</strong>
+                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">{card.detail}</span></span>
+                </a>;
+              })}
+            </div>
+            <p className="mt-6 rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm text-foreground">
+              <ShieldCheck className="mr-2 inline h-5 w-5 text-primary" aria-hidden="true" />
+              Seu cadastro é gratuito. A publicação depende dos dados profissionais que você confirmar.
+              O portal não certifica sua capacidade técnica e não divulga seu contato privado sem autorização.
+            </p>
+                </div>
+              )}
+              {panelTab === "recuperacao" && (
+            <details open className="mt-2 rounded-xl border border-border bg-muted/20 p-4">
               <summary className="cursor-pointer py-2 text-sm font-semibold text-primary">
                 Já tinha cadastro no portal antigo? Recuperar meus dados
               </summary>
@@ -336,7 +365,9 @@ export function TechnicianAreaPage() {
 
               </div>
             </details>
-            <form onSubmit={save} className="mt-6 grid gap-4" noValidate>
+              )}
+              {panelTab === "perfil" && (
+            <form onSubmit={save} className="mt-2 grid gap-4" noValidate>
               <div className="rounded-2xl border border-primary/20 bg-card p-4 shadow-sm sm:p-5">
                 <p className="text-xs font-semibold uppercase tracking-wide text-primary">Cadastro guiado · Passo {step} de 3</p>
                 <div className="mt-3 grid grid-cols-3 gap-2" role="progressbar"
