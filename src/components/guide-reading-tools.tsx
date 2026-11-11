@@ -25,7 +25,7 @@ export function GuideReadingNavigation({ guide }: { guide: PublicGuide }) {
         <li>
           <a href="#guias-relacionados"
             className="flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-semibold text-primary hover:bg-muted/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-            Leituras relacionadas ↓
+            Especialidades relacionadas ↓
           </a>
         </li>
       </ol>
