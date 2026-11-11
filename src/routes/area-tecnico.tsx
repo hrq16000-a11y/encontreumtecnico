@@ -23,6 +23,7 @@ import { TechnicianDirectRequests } from "@/components/technician-direct-request
 import { CustomerLocationButton } from "@/components/customer-location-button";
 import { suggestTechnicianArea } from "@/lib/customer-location";
 import { clearProtectedDraft, readProtectedDraft, saveProtectedDraft } from "@/lib/protected-session-draft";
+import { saveTechnicianDraftImmediately } from "@/lib/technician-live-draft";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
 import { registrationStepError, type RegistrationStep } from "@/lib/technician-registration-wizard";
@@ -93,6 +94,42 @@ export function TechnicianAreaPage() {
   const currentStatus = roles.includes("tecnico") && profileOwnerId === user?.id ? status : null;
   const profileReady = Boolean(user && roles.includes("tecnico")
     && profileOwnerId === user.id && !profileLoading && !profileError);
+
+  // Read the latest committed draft on tab backgrounding or a hard navigation.
+  // Account ownership and published-profile guards remain mandatory.
+  const latestFormRef = useRef(form);
+  const latestStepRef = useRef(step);
+  const canFlushDraftRef = useRef(false);
+  latestFormRef.current = form;
+  latestStepRef.current = step;
+  canFlushDraftRef.current = Boolean(profileReady && draftOwnerRef.current === user?.id);
+
+  function writeDraft(nextForm: typeof form, nextStep: RegistrationStep) {
+    const owner = user?.id ?? null;
+    const verified = Boolean(profileReady && owner && draftOwnerRef.current === owner
+      && currentUserRef.current === owner);
+    return saveTechnicianDraftImmediately(owner, verified, nextForm, nextStep);
+  }
+  function updateRegistration(nextForm: typeof form) {
+    writeDraft(nextForm, step); // Input event, before the route or browser tab changes.
+    setForm(nextForm);
+  }
+
+  useEffect(() => {
+    const flush = () => {
+      const owner = currentUserRef.current;
+      if (!canFlushDraftRef.current || !owner ||
+          JSON.stringify(latestFormRef.current) === serverFormBaselineRef.current) return;
+      saveTechnicianDraftImmediately(owner, true, latestFormRef.current, latestStepRef.current);
+    };
+    const onHidden = () => { if (document.visibilityState === "hidden") flush(); };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onHidden);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onHidden);
+    };
+  }, []);
 
   useEffect(() => {
     const version = ++loadVersion.current;
@@ -213,6 +250,7 @@ export function TechnicianAreaPage() {
   const catalog = { categories, services, catalogLoading, catalogError: Boolean(catalogError),
     servicesLoading, servicesError: Boolean(servicesError) };
   function moveToStep(next: RegistrationStep) {
+    writeDraft(form, next); // Preserve wizard stage before React renders.
     setMsg(null);
     setStep(next);
     // Focus the heading rather than jumping the viewport unexpectedly while typing.
@@ -453,7 +491,7 @@ export function TechnicianAreaPage() {
               {step === 1 && (
                 <div className="grid gap-4">
               <label className="text-sm font-medium text-foreground">Nome público
-                <input required minLength={2} maxLength={80} className={input} value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} />
+                <input required minLength={2} maxLength={80} className={input} value={form.display_name} onChange={(e) => updateRegistration({ ...form, display_name: e.target.value })} />
               </label>
               {regionalHint && <p className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
                  <strong className="text-foreground">Região aproximada: {regionalHint.city}/{regionalHint.uf}.</strong>
@@ -463,7 +501,9 @@ export function TechnicianAreaPage() {
                 purpose="technician"
                 autoIfGranted={!profileId && !form.state_uf && !form.city.trim() && !form.neighborhood.trim()}
                 onLocated={(area, source) => {
-                  setForm((current) => suggestTechnicianArea(current, area, source));
+                  // Use the current rendered form, not a stale pre-location state.
+                  const current = form;
+                  updateRegistration(suggestTechnicianArea(current, area, source));
                 }}
               />
               <p className="text-xs text-muted-foreground">
@@ -472,23 +512,23 @@ export function TechnicianAreaPage() {
               </p>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="text-sm font-medium text-foreground">Estado (UF)
-                  <select required className={input} value={form.state_uf} onChange={(e) => setForm({ ...form, state_uf: e.target.value, city: "", base_city_ibge_id: null })}>
+                  <select required className={input} value={form.state_uf} onChange={(e) => updateRegistration({ ...form, state_uf: e.target.value, city: "", base_city_ibge_id: null })}>
                     <option value="">Selecione o estado</option>
                     {BRAZIL_STATES.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
                   </select>
                 </label>
                 <MunicipalityPicker uf={form.state_uf} selectedId={form.base_city_ibge_id}
                   currentCityName={form.city}
-                  onSelect={(city) => setForm((current) => ({
-                    ...current, city: city.name, base_city_ibge_id: city.id,
-                  }))} />
+                  onSelect={(city) => updateRegistration({
+                    ...form, city: city.name, base_city_ibge_id: city.id,
+                  })} />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="text-sm font-medium text-foreground">Bairro de referência (opcional)
-                  <input maxLength={80} className={input} value={form.neighborhood} onChange={(e) => setForm({ ...form, neighborhood: e.target.value })} />
+                  <input maxLength={80} className={input} value={form.neighborhood} onChange={(e) => updateRegistration({ ...form, neighborhood: e.target.value })} />
                 </label>
                 <label className="text-sm font-medium text-foreground">Regiões e outros bairros atendidos
-                  <input maxLength={120} className={input} value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} />
+                  <input maxLength={120} className={input} value={form.region} onChange={(e) => updateRegistration({ ...form, region: e.target.value })} />
                 </label>
               </div>
                 </div>
@@ -504,7 +544,7 @@ export function TechnicianAreaPage() {
                     const on = form.specialties.includes(c.slug);
                     return (
                       <button type="button" key={c.slug} aria-pressed={on}
-                        onClick={() => setForm({ ...form, specialties: on ? form.specialties.filter((s) => s !== c.slug) : [...form.specialties, c.slug], service_slugs: on ? form.service_slugs.filter((slug) => services.find((service) => service.slug === slug)?.category_slug !== c.slug) : form.service_slugs })}
+                        onClick={() => updateRegistration({ ...form, specialties: on ? form.specialties.filter((s) => s !== c.slug) : [...form.specialties, c.slug], service_slugs: on ? form.service_slugs.filter((slug) => services.find((service) => service.slug === slug)?.category_slug !== c.slug) : form.service_slugs })}
                         className={`min-h-11 rounded-full border px-4 text-sm ${on ? "border-primary bg-primary text-primary-foreground" : "border-input text-foreground"}`}>
                         {c.label}
                       </button>
@@ -521,7 +561,7 @@ export function TechnicianAreaPage() {
                   {services.filter((service) => form.specialties.includes(service.category_slug)).map((service) => (
                     <label key={service.slug} className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
                       <input type="checkbox" className="h-4 w-4" checked={form.service_slugs.includes(service.slug)}
-                        onChange={(e) => setForm((old) => ({ ...old, service_slugs: e.target.checked ? [...old.service_slugs, service.slug] : old.service_slugs.filter((slug) => slug !== service.slug) }))} />
+                        onChange={(e) => updateRegistration({ ...form, service_slugs: e.target.checked ? [...form.service_slugs, service.slug] : form.service_slugs.filter((slug) => slug !== service.slug) })} />
                       <span>{service.label}</span>
                     </label>
                   ))}
@@ -559,7 +599,7 @@ export function TechnicianAreaPage() {
                 <label className="text-sm font-medium text-foreground">Apresentação profissional (somente texto)
                   <textarea maxLength={1000} rows={4} className={input} value={form.bio}
                     aria-invalid={Boolean(publicTextProblem(form.bio, "bio"))}
-                    onChange={(e) => setForm({ ...form, bio: e.target.value })}
+                    onChange={(e) => updateRegistration({ ...form, bio: e.target.value })}
                     placeholder="Descreva sua experiência, serviços e modo de atendimento. Não informe contatos." />
                 </label>
                 <p className="mt-1 text-xs text-muted-foreground">
