@@ -7,9 +7,10 @@ describe("proteção contra vazamento de contato em perfis públicos", () => {
     "SPAZZINI TECH (94) 99153-9307",
     "41 9      97     45   20    5 3",
     "41\n9\n97\n45 20\n53",
+    "4x1x9x9x7x4x5x2x0x5x3",
+    "quatro um nove nove sete quatro cinco dois zero cinco tres",
     "４１ ９ ９９１５３ ９３０７",
     "٩١ ٩٩٩٩٩-٩٩٩٩",
-    "Atuo há 10 anos em redes",
     "Contato: nove quatro nove nove oito sete seis",
     "Fale pelo w h a t s a p p",
     "Visite w w w . profissional . com",
@@ -23,6 +24,8 @@ describe("proteção contra vazamento de contato em perfis públicos", () => {
     "Sou profissional de manutenção de computadores, redes e CFTV.",
     "Atendo residências e empresas na região de Curitiba.",
     "Especialista em instalação e manutenção de impressoras.",
+    "Atuo há 15 anos na manutenção de notebooks e Windows 11.",
+    "Trabalho com redes Wi-Fi 6 e computadores em empresas.",
   ])("aceita apresentações simples: %s", (bio) => {
     expect(publicTextProblem(bio, "bio")).toBeNull();
   });
