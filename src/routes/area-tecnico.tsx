@@ -356,7 +356,7 @@ export function TechnicianAreaPage() {
     }
   }
 
-  const input = "mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-base text-foreground focus-visible:ring-2 focus-visible:ring-ring";
+  const input = "mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base text-foreground focus-visible:ring-2 focus-visible:ring-ring";
 
   return (
     <PageShell>
