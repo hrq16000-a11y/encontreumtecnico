@@ -42,7 +42,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
   const lp2 = useContext(LP2EmbeddedContext);
   const { user, roles, loading, rolesError, refreshRoles } = useAuth();
   const isAdmin = roles.includes("admin");
-  const [techs, setTechs] = useState<Tech[] | null>(null);
+  const [techCounts, setTechCounts] = useState<Record<string, number> | null>(null);
   const [reqs, setReqs] = useState<Req[]>([]);
   const [msgs, setMsgs] = useState<Tables<"contact_messages">[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -50,13 +50,20 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
   async function load() {
     // A page only queries the records it needs. RLS remains authoritative.
     // No global prefetch of private contacts when browsing sponsors or metrics.
-    const needsTechs = section === "inicio" || section === "tecnicos";
+    const needsTechs = section === "inicio";
     const needsRequests = section === "inicio" || section === "solicitacoes" || section === "clientes";
     const needsMessages = section === "mensagens";
     const [t, r, m] = await Promise.all([
       needsTechs
-        ? supabase.from("technicians").select("*").order("created_at", { ascending: true })
-        : Promise.resolve({ data: [] as Tech[], error: null }),
+        ? Promise.all((["aprovado", "pendente", "suspenso", "rejeitado"] as const).map(async (status) => {
+          const { count, error } = await supabase.from("technicians")
+            .select("id", { count: "exact", head: true }).eq("status", status);
+          return { status, count, error };
+        })).then((items) => ({
+          data: Object.fromEntries(items.map(({ status, count }) => [status, count ?? 0])),
+          error: items.find((item) => item.error)?.error ?? null,
+        }))
+        : Promise.resolve({ data: null, error: null }),
       needsRequests
         ? supabase.from("service_requests").select("*").order("created_at", { ascending: false }).limit(500)
         : Promise.resolve({ data: [] as Req[], error: null }),
@@ -65,7 +72,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
         : Promise.resolve({ data: [] as Tables<"contact_messages">[], error: null }),
     ]);
     setError(t.error || r.error || m.error ? "Não foi possível carregar os dados deste módulo." : null);
-    setTechs(t.data ?? []);
+    setTechCounts(t.data);
     setReqs(r.data ?? []);
     setMsgs(m.data ?? []);
   }
@@ -80,7 +87,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
   const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
   const acceptedMonth = reqs.filter((r) => r.accepted_at && new Date(r.accepted_at) >= monthStart).length;
   const openedMonth = reqs.filter((r) => new Date(r.created_at) >= monthStart).length;
-  const count = (s: Tech["status"]) => techs?.filter((t) => t.status === s).length ?? 0;
+  const count = (s: Tech["status"]) => techCounts?.[s] ?? 0;
   const stats = [
     { label: "Técnicos aprovados", value: count("aprovado") },
     { label: "Cadastros pendentes", value: count("pendente") },
@@ -131,7 +138,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
               {stats.map((s) => (
                 <div key={s.label} className="rounded-lg border border-border bg-card p-4">
                   <dt className="text-xs text-muted-foreground">{s.label}</dt>
-                  <dd className="mt-1 text-2xl font-bold text-card-foreground">{techs ? s.value : "…"}</dd>
+                  <dd className="mt-1 text-2xl font-bold text-card-foreground">{techCounts ? s.value : "…"}</dd>
                 </div>
               ))}
             </dl>
@@ -146,7 +153,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             {section === "catalogo" && <section aria-label="Categorias e serviços"><div id="admin-catalogo"><EutAdminManager /></div></section>}
             {section === "contas" && <section aria-label="Contas e bloqueios"><AdminAccountsManager /></section>}
             {section === "tecnicos" && <section aria-label="Gestão de técnicos">
-              <AdminTechnicianManager technicians={techs} onChanged={load} />
+              <AdminTechnicianManager />
             </section>}
             {section === "mensagens" && <section aria-label="Mensagens administrativas">
               <h2 id="admin-mensagens" className="mt-10 scroll-mt-20 text-lg font-semibold text-foreground">Mensagens de contato</h2>

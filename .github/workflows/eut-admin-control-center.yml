@@ -6,6 +6,8 @@ on:
       - 'src/components/admin-control-hub.tsx'
       - 'src/components/admin-navigation.tsx'
       - 'src/components/admin-technician-manager.tsx'
+      - 'src/lib/admin-technician-pagination.ts'
+      - 'src/lib/admin-technician-pagination.test.ts'
       - 'src/components/admin-accounts-manager.tsx'
       - 'src/lib/admin-account-moderation-contract.test.ts'
       - 'docs/sql/eut-admin-accounts-moderation-20261111.sql'
@@ -31,7 +33,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: Module navigation, RLS and privacy regression tests
-        run: bunx vitest run src/lib/admin-sections.test.ts src/lib/admin-management-contract.test.ts src/lib/admin-account-moderation-contract.test.ts
+        run: bunx vitest run src/lib/admin-sections.test.ts src/lib/admin-technician-pagination.test.ts src/lib/admin-management-contract.test.ts src/lib/admin-account-moderation-contract.test.ts
       - name: Verify anonymous cannot read privileged admin data (live, read-only)
         run: |
           node --input-type=module <<'NODE'
