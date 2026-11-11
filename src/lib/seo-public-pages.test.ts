@@ -267,7 +267,7 @@ describe("SEO global do Encontre um Técnico", () => {
     expect(cta).toContain('software: "Sistemas e software"');
     expect(cta).toContain('climatizacao: "Climatização"');
     expect(cta).toContain("openFreeHelp");
-    expect(article).toContain("getRelatedGuides(guide.slug)");
+    expect(article).toContain("getRelatedServiceCategories(category.slug)");
     expect(article).toContain('to="/servicos/$categoria"');
     expect(visual).toContain("software: BACKUP");
     expect(visual).toContain("climatizacao: CLIMATE");
