@@ -53,7 +53,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
     // A page only queries the records it needs. RLS remains authoritative.
     // No global prefetch of private contacts when browsing sponsors or metrics.
     const needsTechs = section === "inicio";
-    const needsRequests = section === "inicio" || section === "solicitacoes" || section === "clientes";
+    const needsRequests = section === "inicio" || section === "solicitacoes";
     const needsMessages = section === "mensagens";
     const [t, r, m] = await Promise.all([
       needsTechs
@@ -193,12 +193,16 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             </section>}
             {section === "clientes" && <section aria-labelledby="admin-clientes-titulo">
               <h2 id="admin-clientes-titulo" className="text-xl font-bold text-foreground">Clientes e solicitações</h2>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">As contas autenticadas de clientes podem ser consultadas, editadas e bloqueadas na gestão abaixo. As solicitações históricas permanecem separadas. Convites e exclusões definitivas exigem um fluxo específico de autorização.</p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">Gerencie os clientes por identidade confirmada, convite, nome e bloqueios auditados. Os dados de solicitações privadas são consultados somente no módulo Solicitações. Exclusões definitivas exigem procedimento próprio de privacidade.</p>
               <AdminMemberInvites initialRole="cliente" />
               <AdminAccountsManager initialFilter="clientes" />
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-border bg-muted/20 p-5"><p className="text-sm text-muted-foreground">Solicitações consultadas</p><p className="mt-1 text-3xl font-extrabold text-foreground">{reqs.length}</p></div>
-                <div className="rounded-xl border border-border bg-muted/20 p-5"><p className="text-sm text-muted-foreground">Solicitantes nessas solicitações</p><p className="mt-1 text-3xl font-extrabold text-foreground">{new Set(reqs.map((r) => r.client_id)).size}</p></div>
+              <div className="mt-5 rounded-xl border border-border bg-muted/20 p-5">
+                <h3 className="font-bold text-foreground">Solicitações em módulo protegido</h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Esta tela consulta apenas a lista administrativa de contas. Descrições dos problemas
+                  e identificadores de solicitantes não são carregados desnecessariamente aqui.
+                  Para consultar os atendimentos, abra o módulo Solicitações.
+                </p>
               </div>
               <div className="mt-5 rounded-xl border border-border bg-card p-5">
                 <h3 className="font-bold text-foreground">Atividades disponíveis</h3>
