@@ -2,6 +2,31 @@ import { Link } from "@tanstack/react-router";
 import { openFreeHelp } from "@/lib/free-search-help";
 import type { PublicGuide } from "@/lib/public-guides";
 
+function requestHelpForGuide(guide: PublicGuide): void {
+  openFreeHelp({
+    mode: "managed",
+    guideSlug: guide.slug,
+    service: ({
+      cftv: "CFTV e segurança",
+      computadores: "Computadores e notebooks",
+      redes: "Redes e Wi-Fi",
+      impressoras: "Impressoras",
+      software: "Sistemas e software",
+      climatizacao: "Climatização",
+    } as Record<string, string>)[guide.categorySlug] ?? guide.categoryName,
+  });
+}
+
+/** One compact additional conversion point; uses the very same persisted funnel. */
+export function GuideInlineHelpButton({ guide }: { guide: PublicGuide }) {
+  return (
+    <button type="button" onClick={() => requestHelpForGuide(guide)}
+      className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+      Descrever meu problema →
+    </button>
+  );
+}
+
 export function GuideLeadCallout({ guide, compact = false }: { guide: PublicGuide; compact?: boolean }) {
   return (
     <aside aria-label="Solicitar atendimento a partir do guia"
@@ -16,18 +41,7 @@ export function GuideLeadCallout({ guide, compact = false }: { guide: PublicGuid
       </p>
       <div className="mt-5 flex flex-wrap gap-3">
         <button type="button"
-          onClick={() => openFreeHelp({
-            mode: "managed",
-            guideSlug: guide.slug,
-            service: ({
-              cftv: "CFTV e segurança",
-              computadores: "Computadores e notebooks",
-              redes: "Redes e Wi-Fi",
-              impressoras: "Impressoras",
-              software: "Sistemas e software",
-              climatizacao: "Climatização",
-            } as Record<string, string>)[guide.categorySlug] ?? guide.categoryName,
-          })}
+          onClick={() => requestHelpForGuide(guide)}
           className="inline-flex min-h-12 items-center justify-center rounded-xl bg-white px-5 text-sm font-extrabold text-blue-950 hover:bg-teal-50">
           Solicitar atendimento agora →
         </button>
