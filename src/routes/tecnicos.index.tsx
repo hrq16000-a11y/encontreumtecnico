@@ -137,7 +137,7 @@ function TechniciansPage() {
                 update({ especialidade: e.target.value, servico: "" });
                 trackFilter("especialidade", e.target.value);
               }}
-              className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+              className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
               disabled={catalogLoading}
             >
               <option value="Todas">Todas as categorias</option>
@@ -150,7 +150,7 @@ function TechniciansPage() {
             <label htmlFor="filtro-servico" className="text-xs font-medium text-muted-foreground">Serviço específico</label>
             <select id="filtro-servico" value={services.some((service) => service.slug === search.servico) ? search.servico : ""}
               onChange={(e) => { update({ servico: e.target.value }); trackFilter("servico", e.target.value); }}
-              disabled={servicesLoading} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
+              disabled={servicesLoading} className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
               <option value="">Todos os serviços</option>
               {services.filter((service) => specialty === "Todas" || service.category_slug === specialty).map((service) => (
                 <option key={service.slug} value={service.slug}>{service.label}</option>

@@ -65,6 +65,36 @@ const CATALOGS: readonly NeighborhoodCatalog[] = [{
   "São Pedro",
   "Zacarias"
 ] as const,
+}, {
+  // Partial, provenance-checked subset of the SIGMU public dataset.
+  // A city having 75 bairros does not authorize guessing missing names.
+  // Prefeitura de Curitiba, GTMBAIBAIRRO, published 11/11/2026.
+  municipalityIbgeId: 4106902,
+  municipalityName: "Curitiba",
+  uf: "PR",
+  sourceName: "Prefeitura de Curitiba · Dados Abertos (SIGMU)",
+  sourceUrl: "https://dadosabertos.curitiba.pr.gov.br/conjuntodado/detalhe?chave=236fb6f7-f2a0-4b04-99b3-5be5eb34672d",
+  neighborhoods: [
+    "Centro",
+    "São Francisco",
+    "Centro Cívico",
+    "Alto da Glória",
+    "Alto da Rua XV",
+    "Cristo Rei",
+    "Jardim Botânico",
+    "Rebouças",
+    "Água Verde",
+    "Batel",
+    "Bigorrilho",
+    "Mercês",
+    "Bom Retiro",
+    "Ahú",
+    "Juvevê",
+    "Cabral",
+    "Hugo Lange",
+    "Jardim Social",
+    "Tarumã"
+  ] as const,
 }];
 
 export function neighborhoodCatalogFor(input: {

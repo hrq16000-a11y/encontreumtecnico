@@ -22,8 +22,9 @@ import { PioneerPhoneVerification } from "@/components/pioneer-phone-verificatio
 import { TechnicianDirectRequests } from "@/components/technician-direct-requests";
 import { CustomerLocationButton } from "@/components/customer-location-button";
 import { suggestTechnicianArea } from "@/lib/customer-location";
-import { safeNeighborhood, sameMunicipalityAsNeighborhood } from "@/lib/location-labels";
+import { placeKey, safeNeighborhood, sameMunicipalityAsNeighborhood } from "@/lib/location-labels";
 import { neighborhoodCatalogFor, neighborhoodOptions } from "@/lib/neighborhood-sources";
+import { changeTechnicianPlace, needsLocationDraftConfirmation } from "@/lib/technician-place-change";
 import { clearProtectedDraft, readProtectedDraft, saveProtectedDraft } from "@/lib/protected-session-draft";
 import { saveTechnicianDraftImmediately } from "@/lib/technician-live-draft";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
@@ -117,6 +118,12 @@ export function TechnicianAreaPage() {
   function updateRegistration(nextForm: typeof form) {
     writeDraft(nextForm, step); // Input event, before the route or browser tab changes.
     setForm(nextForm);
+  }
+
+  function selectBaseMunicipality(next: Pick<typeof form, "state_uf" | "city" | "base_city_ibge_id">) {
+    if (needsLocationDraftConfirmation(form, next) &&
+      !window.confirm("Ao trocar o município ou a UF, o bairro e as outras áreas informadas serão limpos porque pertencem à localidade anterior. Deseja continuar?")) return;
+    updateRegistration(changeTechnicianPlace(form, next));
   }
 
   useEffect(() => {
@@ -349,7 +356,7 @@ export function TechnicianAreaPage() {
     }
   }
 
-  const input = "mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-base text-foreground focus-visible:ring-2 focus-visible:ring-ring";
+  const input = "mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base text-foreground focus-visible:ring-2 focus-visible:ring-ring";
 
   return (
     <PageShell>
@@ -520,15 +527,15 @@ export function TechnicianAreaPage() {
               />
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="text-sm font-medium text-foreground">Estado (UF)
-                  <select required className={input} value={form.state_uf} onChange={(e) => updateRegistration({ ...form, state_uf: e.target.value, city: "", base_city_ibge_id: null })}>
+                  <select required className={input} value={form.state_uf} onChange={(e) => selectBaseMunicipality({ state_uf: e.target.value, city: "", base_city_ibge_id: null })}>
                     <option value="">Selecione o estado</option>
                     {BRAZIL_STATES.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
                   </select>
                 </label>
                 <MunicipalityPicker uf={form.state_uf} selectedId={form.base_city_ibge_id}
                   currentCityName={form.city}
-                  onSelect={(city) => updateRegistration({
-                    ...form, city: city.name, base_city_ibge_id: city.id,
+                  onSelect={(city) => selectBaseMunicipality({
+                    state_uf: form.state_uf, city: city.name, base_city_ibge_id: city.id,
                   })} />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -552,6 +559,29 @@ export function TechnicianAreaPage() {
                     onChange={(e) => updateRegistration({ ...form, region: e.target.value })} />
                 </label>
               </div>
+                  {bairroCatalog && (
+                    <details className="rounded-lg border border-border bg-muted/20">
+                      <summary className="flex min-h-11 cursor-pointer items-center px-3 text-sm text-primary">
+                        Ver sugestões de bairros ({neighborhoodOptions(bairroCatalog).length})
+                      </summary>
+                      <div className="max-h-52 overflow-y-auto border-t border-border p-2">
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          {neighborhoodOptions(bairroCatalog)
+                            .filter(bairro => !form.neighborhood.trim() || placeKey(bairro).includes(placeKey(form.neighborhood)))
+                            .map(bairro => (
+                              <button key={bairro} type="button"
+                                onClick={() => updateRegistration({ ...form, neighborhood: bairro })}
+                                className="min-h-11 break-words rounded-lg border border-border bg-card px-3 py-2 text-left text-sm text-foreground">
+                                {bairro}
+                              </button>
+                            ))}
+                        </div>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          Você pode digitar outro nome, mesmo que não esteja na lista.
+                        </p>
+                      </div>
+                    </details>
+                  )}
               {bairroCatalog && <p className="text-xs text-muted-foreground">
                 Sugestões da <a href={bairroCatalog.sourceUrl} target="_blank" rel="noopener noreferrer"
                   className="font-medium text-primary underline underline-offset-2">{bairroCatalog.sourceName}</a>.
