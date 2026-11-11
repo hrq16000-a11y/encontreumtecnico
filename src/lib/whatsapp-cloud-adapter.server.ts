@@ -39,17 +39,17 @@ function clean(value: string, max: number) {
 
 export function prepareWhatsAppCloudDelivery(env: WhatsAppEnvironment, lead: ConfirmedLeadForOperator) {
   // Never infer enablement from the presence of a token.
-  if (env.EUT_WHATSAPP_CLOUD_SEND_ENABLED !== "true") {
+  if (env["EUT_WHATSAPP_CLOUD_SEND_ENABLED"] !== "true") {
     return { status: "disabled" as const };
   }
   if (!lead.persisted || !lead.whatsappOptIn || !lead.outboxClaimedOnce || !uuid.test(lead.id)) {
     return { status: "blocked" as const, reason: "missing_proof" as const };
   }
-  const token = env.EUT_WHATSAPP_CLOUD_ACCESS_TOKEN ?? "";
-  const phoneId = env.EUT_WHATSAPP_CLOUD_PHONE_NUMBER_ID ?? "";
-  const recipient = env.EUT_WHATSAPP_CLOUD_RECIPIENT_E164 ?? "";
-  const approvedTemplate = env.EUT_WHATSAPP_CLOUD_APPROVED_TEMPLATE ?? "";
-  const apiVersion = env.EUT_WHATSAPP_CLOUD_API_VERSION ?? "";
+  const token = env["EUT_WHATSAPP_CLOUD_ACCESS_TOKEN"] ?? "";
+  const phoneId = env["EUT_WHATSAPP_CLOUD_PHONE_NUMBER_ID"] ?? "";
+  const recipient = env["EUT_WHATSAPP_CLOUD_RECIPIENT_E164"] ?? "";
+  const approvedTemplate = env["EUT_WHATSAPP_CLOUD_APPROVED_TEMPLATE"] ?? "";
+  const apiVersion = env["EUT_WHATSAPP_CLOUD_API_VERSION"] ?? "";
   if (!token || !phoneId || !recipient || !approvedTemplate || !apiVersion) {
     return { status: "blocked" as const, reason: "missing_configuration" as const };
   }
