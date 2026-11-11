@@ -26,6 +26,7 @@ import { clearProtectedDraft, readProtectedDraft, saveProtectedDraft } from "@/l
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
 import { registrationStepError, type RegistrationStep } from "@/lib/technician-registration-wizard";
+import { publicTextProblem } from "@/lib/public-profile-text";
 import { TechnicianPanelNavigation } from "@/components/technician-panel-navigation";
 import { technicianTabFromHash, technicianTabHref, type TechnicianPanelTab } from "@/lib/technician-panel-navigation";
 import { ArrowRight, ShieldCheck, MapPin, UserRound, Inbox, Camera } from "lucide-react";
@@ -240,6 +241,11 @@ export function TechnicianAreaPage() {
     const firstError = registrationStepError(1, form, catalog);
     const serviceError = registrationStepError(2, form, catalog);
     if (firstError || serviceError) { setMsg(firstError || serviceError); return; }
+    const publicTextError = publicTextProblem(form.bio, "bio")
+      || publicTextProblem(form.display_name, "identity")
+      || publicTextProblem(form.region, "identity")
+      || publicTextProblem(form.neighborhood, "identity");
+    if (publicTextError) { setMsg(publicTextError); return; }
     const savingOwner = user.id;
     if (!validMunicipality(form.state_uf, form.city)) return setMsg("Selecione a UF e informe uma cidade válida para sua área de atendimento.");
     if (catalogLoading || catalogError || !categories.length) return setMsg("O catálogo está indisponível. Não é possível validar especialidades agora.");
@@ -549,9 +555,19 @@ export function TechnicianAreaPage() {
                       poderão aparecer no perfil público. Nenhum contato privado é divulgado.
                     </p>
                   </div>
-              <label className="text-sm font-medium text-foreground">Apresentação
-                <textarea maxLength={1000} rows={4} className={input} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} />
-              </label>
+              <div>
+                <label className="text-sm font-medium text-foreground">Apresentação profissional (somente texto)
+                  <textarea maxLength={1000} rows={4} className={input} value={form.bio}
+                    aria-invalid={Boolean(publicTextProblem(form.bio, "bio"))}
+                    onChange={(e) => setForm({ ...form, bio: e.target.value })}
+                    placeholder="Descreva sua experiência, serviços e modo de atendimento. Não informe contatos." />
+                </label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Sem números, telefones, WhatsApp, e-mails, arrobas, links ou redes sociais, mesmo separados por espaços ou linhas.
+                  Seus contatos ficam apenas no campo privado do técnico.
+                </p>
+                {publicTextProblem(form.bio, "bio") && <p role="alert" className="mt-2 text-sm text-destructive">{publicTextProblem(form.bio, "bio")}</p>}
+              </div>
                 </div>
               )}
               {msg && <p role="alert" className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm text-foreground">{msg}</p>}
