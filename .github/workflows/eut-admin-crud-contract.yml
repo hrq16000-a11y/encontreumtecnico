@@ -23,5 +23,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Test admin change preview without database
         run: bunx vitest run src/lib/admin-technician-crud-intent.test.ts
-      - name: TypeScript check
+      - name: Generate TanStack routes and build
+        run: bun run build
+      - name: TypeScript check after route generation
         run: bunx tsc --noEmit --pretty false
