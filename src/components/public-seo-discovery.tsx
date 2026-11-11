@@ -11,7 +11,7 @@ export type PublicSeoLinks = {
 };
 
 /** Real, contextual HTML anchors, not JavaScript-only links or manufactured testimonials. */
-export function PublicProfileConnections({ links }: { links?: PublicSeoLinks }) {
+export function PublicProfileConnections({ links }: { links?: PublicSeoLinks | undefined }) {
   if (!links || (!links.city && !links.categories.length && !links.related.length)) return null;
   return <section aria-labelledby="tecnicos-relacionados" className="mt-7 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-7">
     <div className="flex items-center gap-2">
