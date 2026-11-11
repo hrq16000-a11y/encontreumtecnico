@@ -419,6 +419,22 @@ export function getPublishedGuide(slug: string): PublicGuide | null {
   return GUIDES.find(guide => guide.slug === slug) ?? null;
 }
 
+/** Relações editoriais específicas, sem backlinks automáticos para domínios externos. */
+const RELATED_GUIDES: Record<string, readonly string[]> = {
+  "backup-arquivos-antes-manutencao-computador": ["computador-lento-o-que-verificar"],
+  "ar-condicionado-nao-gela-verificacoes-seguras": ["instalacao-cameras-seguranca-como-planejar"],
+  "computador-lento-o-que-verificar": ["backup-arquivos-antes-manutencao-computador"],
+  "instalacao-cameras-seguranca-como-planejar": ["ar-condicionado-nao-gela-verificacoes-seguras"],
+  "wifi-caindo-sinal-fraco-como-identificar": ["computador-lento-o-que-verificar"],
+  "impressora-offline-fila-travada-o-que-fazer": ["wifi-caindo-sinal-fraco-como-identificar"],
+};
+
+export function getRelatedGuides(slug: string): readonly PublicGuide[] {
+  return (RELATED_GUIDES[slug] ?? [])
+    .map(related => getPublishedGuide(related))
+    .filter((guide): guide is PublicGuide => guide !== null && guide.slug !== slug);
+}
+
 export const GUIDE_PATHS = [
   "/guias",
   ...GUIDES.map(guide => "/guias/" + guide.slug),
