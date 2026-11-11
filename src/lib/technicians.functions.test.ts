@@ -58,6 +58,7 @@ beforeEach(() => {
   mocks.query.maybeSingle.mockReset();
   mocks.query.in.mockResolvedValue({ data: [], error: null });
   mocks.client.from.mockClear();
+  mocks.client.rpc.mockClear();
   mocks.client.rpc.mockImplementation((name: string, args?: { _ids?: string[] }) => Promise.resolve({
     data: name === "eut_public_eligible_technician_ids"
       ? (args?._ids ?? []).map(technician_id => ({ technician_id }))
