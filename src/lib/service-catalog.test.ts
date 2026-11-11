@@ -20,7 +20,7 @@ describe("Encontre um Técnico: conteúdo nas entranhas do catálogo", () => {
       expect(ENRICHED_CATEGORY_PATHS).toContain("/servicos/" + guide.categorySlug);
       expect(guide.introduction.length).toBeGreaterThan(170);
     }
-    for (const slug of ["automacao", "comunicacoes", "eletrica", "design-grafico"]) {
+    for (const slug of ["eletrica", "design-grafico"]) {
       expect(getEnrichedServiceCategory(slug)).toBeNull();
       expect(ENRICHED_CATEGORY_PATHS).not.toContain("/servicos/" + slug);
     }
