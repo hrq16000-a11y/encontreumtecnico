@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
+import { buildPublicSitemapXml } from "./public-sitemap";
 
 const read = (path: string) => readFileSync(path, "utf8");
 const site = "https://www.encontreumtecnico.com";
@@ -119,5 +120,19 @@ describe("SEO global do Encontre um Técnico", () => {
       expect(source).toContain('to: "' + to + '"');
       expect(source).toContain("statusCode: 301");
     }
+  });
+  it("inclui automaticamente perfis canônicos e protege as rotas privadas no sitemap", () => {
+    const xml = buildPublicSitemapXml(["/", "/tecnicos", "/admin", "/home2"], [
+      { public_slug: "tecnico-real-curitiba-pr", updated_at: "2026-11-11T12:00:00.000Z" },
+      { public_slug: "../invalido", updated_at: null },
+    ]);
+    expect(xml).toContain("https://www.encontreumtecnico.com/tecnicos/tecnico-real-curitiba-pr");
+    expect(xml).toContain("<lastmod>2026-11-11T12:00:00.000Z</lastmod>");
+    expect(xml).not.toContain("https://www.encontreumtecnico.com/admin");
+    expect(xml).not.toContain("https://www.encontreumtecnico.com/home2");
+    expect(xml).not.toContain("../invalido");
+    const datasource = read("src/lib/public-sitemap.ts");
+    expect(datasource).toContain('.eq("status", "aprovado")');
+    expect(datasource).toContain('.select("public_slug,updated_at")');
   });
 });
