@@ -13,6 +13,7 @@ describe("Falhas de publicação sem exposição de dados privados", () => {
   it("detecta registro existente e falha de integridade", () => {
     expect(technicianPublishErrorMessage({ code: "23505" })).toMatch(/Já existe/);
     expect(technicianPublishErrorMessage({ code: "23514" })).toMatch(/município/);
+    expect(technicianPublishErrorMessage({ code: "P0001" })).toMatch(/regra do cadastro/);
   });
   it("não exibe mensagem SQL, detalhes nem códigos arbitrários", () => {
     const raw = "password=secret; SELECT * FROM private_users";
