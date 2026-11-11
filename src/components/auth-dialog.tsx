@@ -36,6 +36,8 @@ export function AuthDialogProvider({ children }: { children: ReactNode }) {
     setIntent(initialIntent ?? readSignupIntent());
     setError(null);
     setInfo(null);
+    setPassword("");
+    setShowPassword(false);
     setOpen(true);
   };
 
@@ -178,7 +180,7 @@ export function AuthDialogProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={openAuth}>
       {children}
-      <Dialog open={open} onOpenChange={(value) => { if (!busy || !value) setOpen(value); }}>
+      <Dialog open={open} onOpenChange={(value) => { if (!busy || !value) { setOpen(value); if (!value) { setPassword(""); setShowPassword(false); } } }}>
         <DialogContent className="max-h-[min(92dvh,790px)] w-[calc(100vw-24px)] max-w-[480px] overflow-y-auto rounded-3xl border-border bg-card p-0 shadow-2xl">
           <div className="bg-gradient-to-br from-primary via-primary to-[oklch(0.30_0.10_245)] px-7 py-6 text-primary-foreground">
             <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-xs font-bold">
