@@ -10,6 +10,8 @@ on:
       - 'src/routes/tecnicos.index.tsx'
       - 'src/routes/area-cliente.tsx'
       - 'src/routes/area-tecnico.tsx'
+      - 'src/lib/neighborhood-sources.ts'
+      - 'src/lib/neighborhood-sources.test.ts'
       - 'src/components/page-placeholder.tsx'
       - 'src/components/customer-location-button.tsx'
       - 'src/styles.css'
@@ -26,7 +28,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: Coarse-region unit tests and GPS priority
-        run: bunx vitest run src/lib/regional-suggestion.test.ts
+        run: bunx vitest run src/lib/regional-suggestion.test.ts src/lib/neighborhood-sources.test.ts
       - name: Privacy and no implicit GPS prompts
         run: |
           node --input-type=module <<'NODE'
@@ -41,7 +43,7 @@ jobs:
             if((server+'\n'+hook).includes(prohibited))throw Error('Unsafe location data access '+prohibited);
           }
           if(!cache.includes('sessionStorage')||!cache.includes('6 * 60 * 60 * 1000')||
-             !page.includes('Estimativa aproximada; confira'))throw Error('Six-hour session privacy or city correction missing');
+             !page.includes('Município sugerido por IP; confira antes de buscar.'))throw Error('Six-hour session privacy or city correction missing');
           NODE
       - name: No WordPress live dependency
         run: node scripts/eut-wordpress-runtime-boundary.mjs
