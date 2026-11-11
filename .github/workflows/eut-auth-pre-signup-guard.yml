@@ -1,0 +1,23 @@
+name: EUT auth pre-signup guard gate
+on:
+  pull_request:
+    paths:
+      - 'docs/sql/eut-auth-before-user-created-guard-20261111.sql'
+      - 'docs/sql/eut-auth-hook-smoke-20261111.sql'
+      - 'docs/admin/EUT_AUTH_HOOK_HOMOLOGACAO_2026-11-11.md'
+      - 'src/lib/auth-pre-signup-guard-contract.test.ts'
+      - '.github/workflows/eut-auth-pre-signup-guard.yml'
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Verify private hook, tests and rollback strategy
+        run: bunx vitest run src/lib/auth-pre-signup-guard-contract.test.ts
+      - name: Verify TypeScript
+        run: bunx tsc --noEmit --pretty false
