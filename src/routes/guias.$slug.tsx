@@ -3,6 +3,7 @@ import { PageShell } from "@/components/page-placeholder";
 import { getPublishedGuide, getRelatedGuides } from "@/lib/public-guides";
 import { GuideSectionVisual } from "@/components/guide-section-visual";
 import { GuideLeadCallout } from "@/components/guide-lead-callout";
+import { GuideReadingNavigation, GuideFrequentlyAskedQuestions } from "@/components/guide-reading-tools";
 import { getGuideArtwork } from "@/lib/guide-artwork";
 import { SITE } from "@/lib/public-sitemap";
 
@@ -74,18 +75,19 @@ function GuidePage() {
           </header>
           <figure className="mt-7 overflow-hidden rounded-2xl border border-border bg-brand-navy shadow-xl">
             <img src={artwork.src} alt={artwork.alt}
-              width={1200} height={630} fetchPriority="high" className="h-auto w-full object-cover" />
+              width={1200} height={630} loading="eager" decoding="async" fetchPriority="high" className="h-auto w-full object-cover" />
             <figcaption className="border-t border-white/10 px-4 py-3 text-xs text-slate-100">
               Ilustração editorial e informativa, não diagnóstico ou projeto de instalação.
             </figcaption>
           </figure>
+          <GuideReadingNavigation guide={guide} />
           <GuideLeadCallout guide={guide} compact />
           <div className="mt-9 space-y-8">
             {guide.sections.map((section, index) => (
               <div key={section.heading}>
               <section aria-labelledby={"secao-" + index}
                 className="rounded-2xl border border-border bg-card p-5 sm:p-7">
-                <h2 id={"secao-" + index} className="text-xl font-bold text-card-foreground">{section.heading}</h2>
+                <h2 id={"secao-" + index} className="scroll-mt-28 text-xl font-bold text-card-foreground">{section.heading}</h2>
                 {section.paragraphs.map((paragraph) => (
                   <p key={paragraph} className="mt-4 text-sm leading-7 text-foreground sm:text-base">{paragraph}</p>
                 ))}
@@ -103,6 +105,7 @@ function GuidePage() {
               </div>
             ))}
           </div>
+          <GuideFrequentlyAskedQuestions guide={guide} />
           <aside className="mt-10 rounded-2xl border border-primary/20 bg-primary/5 p-6 sm:p-8">
             <h2 className="text-xl font-bold text-foreground">Próximo passo: encontre a especialidade adequada</h2>
             <p className="mt-3 text-sm leading-7 text-muted-foreground">{guide.finalAdvice}</p>
@@ -118,7 +121,7 @@ function GuidePage() {
             </div>
           </aside>
           <section aria-labelledby="guias-relacionados" className="mt-8 rounded-2xl border border-border bg-card p-5 sm:p-7">
-            <h2 id="guias-relacionados" className="text-xl font-bold text-foreground">Outros recursos para seu próximo passo</h2>
+            <h2 id="guias-relacionados" className="scroll-mt-28 text-xl font-bold text-foreground">Outros recursos para seu próximo passo</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">Aprenda mais, conheça a cobertura publicada e encontre outras iniciativas do ecossistema de serviços.</p>
             {relatedGuides.length > 0 && (
               <ul className="mt-4 space-y-3">
