@@ -1,6 +1,7 @@
 import { createContext, useContext, type ReactNode } from "react";
 import { SiteHeader } from "./site-header";
 import { SiteFooter } from "./site-footer";
+import { AdSenseDisplaySlot } from "./adsense-loader";
 import { CookieNotice } from "./cookie-notice";
 import { BackToTop } from "./back-to-top";
 import { FreeSearchHelp } from "./free-search-help";
@@ -20,6 +21,7 @@ export function PageShell({ children }: { children: ReactNode }) {
       <main id="conteudo-principal" tabIndex={-1} className="eut-soft-arrival flex-1">
         <PersistentPageShellContext.Provider value={true}>{children}</PersistentPageShellContext.Provider>
       </main>
+      <AdSenseDisplaySlot />
       <SiteFooter />
       <CookieNotice />
       <FreeSearchHelp />
