@@ -46,8 +46,10 @@ describe('LP2 operacional: mesma base, temas separados',()=>{
   for(const file of ['cadastro','acompanhar','meu-perfil','cliente','clientes','atividades','admin','entrar'])
     expect(read('src/routes/lp2/'+file+'.tsx')).toContain('noindex, nofollow')
   for(const file of ['index','galeria'])expect(read('src/routes/lp2/'+file+'.tsx')).toContain('canonical')
-  expect(read('src/routes/sitemap[.]xml.ts')).toContain('"/lp2"')
-  expect(read('src/routes/sitemap[.]xml.ts')).toContain('"/lp2/galeria"')
+  const publicSitemap=read('src/lib/public-sitemap.ts')
+  expect(read('src/routes/sitemap[.]xml.ts')).toContain('buildPublicSitemapXml(profiles)')
+  expect(publicSitemap).toContain('"/lp2"')
+  expect(publicSitemap).toContain('"/lp2/galeria"')
  })
  it('preserva CSS e imagens do template original sem afetar a home',()=>{
   const css=read('src/components/lp2/theme.css')
