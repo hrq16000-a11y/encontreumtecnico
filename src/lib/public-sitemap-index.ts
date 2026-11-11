@@ -71,7 +71,7 @@ export function buildPublicSitemapIndexXml(graph: GraphCatalog): string {
   const xml = '<?xml version="1.0" encoding="UTF-8"?>\n' +
     '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
     lines.join("\n") + "\n</sitemapindex>\n";
-  if (Buffer.byteLength(xml, "utf8") > MAX_SITEMAP_BYTES) {
+  if (new TextEncoder().encode(xml).byteLength > MAX_SITEMAP_BYTES) {
     throw new Error("Sitemap index exceeds maximum size");
   }
   return xml;
