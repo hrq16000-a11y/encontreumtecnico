@@ -165,6 +165,11 @@ describe("SEO global do Encontre um Técnico", () => {
     expect(category).not.toContain("contact_phone");
     expect(category).not.toContain("wa.me");
     expect(services).toContain("getEnrichedServiceCategory(service.slug)");
+    // The /servicos parent must yield to its category child. Otherwise TanStack
+    // emits the child head but renders the parent's HTML (duplicate canonical).
+    expect(services).toContain("if (isCategoryDetail) return <Outlet />");
+    expect(services).toContain('match.pathname.startsWith("/servicos/")');
+    expect(services).toContain("head: ({ matches }) =>");
     expect(catalog).toContain("export const SERVICE_CATEGORIES");
     expect(SITE).toBe("https://www.encontreumtecnico.com.br");
     expect(sitemap).toContain('<loc>' + SITE + '/guias</loc>');
