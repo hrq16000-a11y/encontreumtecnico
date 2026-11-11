@@ -52,8 +52,11 @@ export function AdminAccountsManager({ initialFilter = "todos" }: { initialFilte
   useEffect(() => {
     let active = true;
     setLoading(true);
-    void db.rpc("eut_admin_accounts_snapshot", { _search: search, _filter: filter, _page: page })
-      .then(({ data, error: queryError }) => {
+    void (async () => {
+      try {
+        const { data, error: queryError } = await db.rpc("eut_admin_accounts_snapshot", {
+          _search: search, _filter: filter, _page: page,
+        });
         if (!active) return;
         if (queryError || !data || !Array.isArray(data.accounts)) {
           setSnapshot(null);
@@ -62,9 +65,12 @@ export function AdminAccountsManager({ initialFilter = "todos" }: { initialFilte
           setSnapshot(data as Snapshot);
           setError(null);
         }
-      })
-      .catch(() => { if (active) { setSnapshot(null); setError("Falha de conexão. Tente novamente."); } })
-      .finally(() => { if (active) setLoading(false); });
+      } catch {
+        if (active) { setSnapshot(null); setError("Falha de conexão. Tente novamente."); }
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
     return () => { active = false; };
   }, [filter, page, search, version]);
 
