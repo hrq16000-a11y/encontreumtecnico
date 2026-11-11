@@ -1,3 +1,4 @@
+import { GUIDE_PATHS } from "@/lib/public-guides";
 import type { GraphCatalog } from "@/lib/public-seo-graph";
 import {
   buildPublicSitemapXml,
@@ -34,7 +35,7 @@ function latestDate(values: readonly (string | null | undefined)[]): string | nu
  */
 export function listPublicSitemapParts(graph: GraphCatalog): PublicSitemapPart[] {
   const parts: PublicSitemapPart[] = [
-    { kind: "base", path: "/sitemaps/base.xml", count: PUBLIC_PATHS.length, lastmod: null },
+    { kind: "base", path: "/sitemaps/base.xml", count: PUBLIC_PATHS.length + GUIDE_PATHS.length, lastmod: null },
   ];
   if (graph.cities.length) {
     parts.push({
