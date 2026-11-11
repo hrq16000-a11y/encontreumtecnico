@@ -41,9 +41,9 @@ export const Route = createFileRoute("/tecnicos/")({
       { property: "og:description", content: "Consulte técnicos com perfil público de CFTV, informática, redes e impressoras. Filtre por serviço, UF, cidade e bairro." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { property: "og:url", content: "https://www.encontreumtecnico.com/tecnicos" },
+      { property: "og:url", content: "https://www.encontreumtecnico.com.br/tecnicos" },
     ],
-    links: [{ rel: "canonical", href: "https://www.encontreumtecnico.com/tecnicos" }],
+    links: [{ rel: "canonical", href: "https://www.encontreumtecnico.com.br/tecnicos" }],
   }),
   component: TechniciansPage,
 });

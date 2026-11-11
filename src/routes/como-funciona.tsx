@@ -9,10 +9,10 @@ export const Route = createFileRoute("/como-funciona")({
       { property: "og:title", content: "Como funciona — Encontre um Técnico" },
       { property: "og:description", content: "Cadastre-se gratuitamente ou encontre um profissional. Sem verificação técnica ou intermediação de orçamento." },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "https://www.encontreumtecnico.com/como-funciona" },
+      { property: "og:url", content: "https://www.encontreumtecnico.com.br/como-funciona" },
       { name: "twitter:card", content: "summary" },
     ],
-    links: [{ rel: "canonical", href: "https://www.encontreumtecnico.com/como-funciona" }],
+    links: [{ rel: "canonical", href: "https://www.encontreumtecnico.com.br/como-funciona" }],
   }),
   component: HowItWorksPage,
 });

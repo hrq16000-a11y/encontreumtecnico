@@ -19,7 +19,7 @@ import { AdSenseLoader } from "../components/adsense-loader";
 import { isStandaloneVisualRoute } from "../lib/shared-shell-routing";
 
 // One stable, public, WordPress-independent image for every route's social preview.
-const SOCIAL_IMAGE = "https://www.encontreumtecnico.com/social-preview.jpg";
+const SOCIAL_IMAGE = "https://www.encontreumtecnico.com.br/social-preview.jpg";
 
 function NotFoundComponent() {
   return <FriendlyErrorState status={404} />;

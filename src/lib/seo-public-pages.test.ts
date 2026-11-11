@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 
 const read = (path: string) => readFileSync(path, "utf8");
-const site = "https://www.encontreumtecnico.com";
+const site = "https://www.encontreumtecnico.com.br";
 
 describe("SEO global do Encontre um Técnico", () => {
   it("declara canonical correto nas páginas públicas", () => {
@@ -39,7 +39,10 @@ describe("SEO global do Encontre um Técnico", () => {
 
   it("mantém sitemap com URLs canônicas e exclui rotas privadas", () => {
     const xml = read("src/routes/sitemap[.]xml.ts");
-    expect(xml).toContain('const SITE = "' + site + '"');
+    const builder = read("src/lib/public-sitemap.ts");
+    expect(builder).toContain('export const SITE = "' + site + '"');
+    expect(xml).toContain("buildPublicSitemapXml(profiles)");
+    expect(xml).toContain('.eq("status", "aprovado")');
     for (const pathname of [
       "/", "/tecnicos", "/lp2", "/lp2/galeria", "/servicos",
       "/como-funciona", "/faq", "/contato", "/politicas",
@@ -47,10 +50,10 @@ describe("SEO global do Encontre um Técnico", () => {
       "/pagamentos-e-reembolsos", "/condicoes-do-prestador",
       "/responsabilidades", "/seguranca", "/direitos-dos-titulares",
     ]) {
-      expect(xml, pathname).toContain('"' + pathname + '"');
+      expect(builder, pathname).toContain('"' + pathname + '"');
     }
     for (const path of ["/entrar", "/admin", "/area-cliente", "/area-tecnico", "/redefinir-senha", "/home2", "/tecnico/$slug"]) {
-      expect(xml).not.toContain('"' + path + '"');
+      expect(builder).not.toContain('"' + path + '"');
     }
     const robots = read("public/robots.txt");
     expect(robots).toContain("Sitemap: " + site + "/sitemap.xml");

@@ -24,7 +24,7 @@ export const Route = createFileRoute("/tecnicos/$tecnicoId")({
     const desc = name
       ? `${name}: ${loaderData.specialties.join(", ")} em ${loaderData.city}.`
       : "Perfil público do técnico, especialidades e regiões atendidas.";
-    const canonical = `https://www.encontreumtecnico.com/tecnicos/${loaderData?.public_slug ?? params.tecnicoId}`;
+    const canonical = `https://www.encontreumtecnico.com.br/tecnicos/${loaderData?.public_slug ?? params.tecnicoId}`;
     return {
       meta: [
         { title },

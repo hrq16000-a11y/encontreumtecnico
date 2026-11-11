@@ -6,6 +6,7 @@ import heroImg from "@/assets/tecnico-cftv-instalacao.jpg";
 import techImg from "@/assets/tecnica-informatica.jpg";
 import { PageShell } from "../components/page-placeholder";
 import { SponsoredPublicSlot } from "@/components/sponsored-public-slot";
+import { AdSensePublicUnit } from "@/components/adsense-public-unit";
 import { HomePublicProof } from "@/components/home-public-proof";
 import { HomeCommunityInvite } from "@/components/home-community-invite";
 import { ProblemAssistant } from "../components/problem-assistant";
@@ -23,7 +24,7 @@ import {
 } from "../components/home-rich";
 import { FindOneSection, JoinNetworkSection, CtaBand, ValuesSection, StepsSection } from "../components/home-sections";
 
-const SITE = "https://www.encontreumtecnico.com";
+const SITE = "https://www.encontreumtecnico.com.br";
 const TITLE = "Encontre um Técnico — Portal nacional de técnicos de CFTV e informática, sem custo para o profissional";
 const DESC = "Portal brasileiro que conecta clientes a técnicos de CFTV, informática, redes e impressoras com transparência: cadastro livre, sem cobrança ao profissional e sem leilão de preço.";
 
@@ -247,6 +248,8 @@ function HomePage() {
       </section>
 
       <Reveal><HowItWorksRich /></Reveal>
+
+      <AdSensePublicUnit />
 
       <section className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 lg:grid-cols-2">
         <img src={techImg} alt="Técnica de informática fazendo manutenção em computador e roteador" width={1280} height={960} loading="lazy" className="aspect-[4/3] w-full rounded-3xl object-cover shadow-soft" />

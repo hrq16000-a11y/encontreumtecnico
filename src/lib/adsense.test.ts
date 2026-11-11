@@ -10,8 +10,16 @@ describe("Google AdSense: verificação e privacidade", () => {
     expect(root).toContain('name: "google-adsense-account", content: "ca-pub-3762170279587706"');
     expect(ads).toBe("google.com, pub-3762170279587706, DIRECT, f08c47fec0942fa0\\n".replace("\\n", "\n"));
     expect(loader).toContain("pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=");
-    expect(loader).toContain('import.meta.env["VITE_EUT_ADSENSE_SERVING"] !== "true"');
+    expect(loader).toContain('import.meta.env["VITE_EUT_ADSENSE_SERVING"] !== "false"');
     expect(root).toContain("<AdSenseLoader />");
+    const home = readFileSync("src/routes/index.tsx", "utf8");
+    const unit = readFileSync("src/components/adsense-public-unit.tsx", "utf8");
+    expect(home).toContain("<AdSensePublicUnit />");
+    expect(unit).toContain('const CLIENT = "ca-pub-3762170279587706"');
+    expect(unit).toContain('const SLOT = "5328066374"');
+    expect(unit).toContain('data-ad-format="autorelaxed"');
+    expect(unit).toContain("hasAdvertisingConsent");
+
   });
   it("não carrega anúncios no admin, login, cadastro, pagamento nem telas pessoais", () => {
     for (const route of ["/", "/tecnicos", "/servicos", "/faq", "/galeria"]) {

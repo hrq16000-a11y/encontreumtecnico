@@ -21,10 +21,10 @@ export const Route = createFileRoute("/servicos")({
       { property: "og:title", content: "Serviços — Encontre um Técnico" },
       { property: "og:description", content: "Especialidades e serviços oferecidos pelos técnicos da plataforma." },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "https://www.encontreumtecnico.com/servicos" },
+      { property: "og:url", content: "https://www.encontreumtecnico.com.br/servicos" },
       { name: "twitter:card", content: "summary" },
     ],
-    links: [{ rel: "canonical", href: "https://www.encontreumtecnico.com/servicos" }],
+    links: [{ rel: "canonical", href: "https://www.encontreumtecnico.com.br/servicos" }],
   }),
   component: ServicesPage,
 });
