@@ -27,6 +27,8 @@ on:
       - 'src/lib/customer-location.test.ts'
       - 'src/lib/location-labels.ts'
       - 'src/lib/location-labels.test.ts'
+      - 'src/lib/neighborhood-sources.ts'
+      - 'src/lib/neighborhood-sources.test.ts'
       - '.github/workflows/eut-technician-location.yml'
 permissions:
   contents: read
@@ -39,7 +41,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: GPS, official municipalities, secure coverage and avatars
-        run: bunx vitest run src/lib/customer-location.test.ts src/lib/location-labels.test.ts src/lib/technician-registration-wizard.test.ts src/lib/municipality-coverage.test.ts src/lib/technicians.functions.test.ts src/lib/technician-panel-navigation.test.ts
+        run: bunx vitest run src/lib/customer-location.test.ts src/lib/location-labels.test.ts src/lib/neighborhood-sources.test.ts src/lib/technician-registration-wizard.test.ts src/lib/municipality-coverage.test.ts src/lib/technicians.functions.test.ts src/lib/technician-panel-navigation.test.ts
       - run: bun run build
       - name: TypeScript after route generation
         run: bunx tsc --noEmit --pretty false
