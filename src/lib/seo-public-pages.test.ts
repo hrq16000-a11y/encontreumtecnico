@@ -180,4 +180,44 @@ describe("SEO global do Encontre um Técnico", () => {
     expect(read("src/components/site-footer.tsx")).toContain('to="/cobertura"');
     expect(read("src/components/public-technician-profile.tsx")).toContain('to="/cobertura"');
   });
+
+  it("mostra imagens originais, infográficos e CTAs intermediários ligados ao funil sem WhatsApp público", () => {
+    const article = read("src/routes/guias.$slug.tsx");
+    const index = read("src/routes/guias.index.tsx");
+    const visuals = read("src/components/guide-section-visual.tsx");
+    const cta = read("src/components/guide-lead-callout.tsx");
+    expect(article).toContain("<GuideSectionVisual isCctv={isCctv} index={index} />");
+    expect(article).toContain("index === 1 || index === 3");
+    expect(article).toContain("<GuideLeadCallout guide={guide} compact />");
+    expect(article).toContain('to="/ecossistema"');
+    expect(index).toContain('loading="lazy"');
+    expect(cta).toContain("openFreeHelp");
+    expect(cta).toContain('mode: "managed"');
+    expect(cta).toContain("guideSlug: guide.slug");
+    expect(cta).not.toMatch(/wa[.]me|api[.]whatsapp[.]com/i);
+    expect(visuals).toContain("Infográfico ilustrativo");
+    for (const asset of [
+      "public/guias/computador-diagnostico-ilustrado.svg",
+      "public/guias/cftv-planejamento-ilustrado.svg",
+    ]) {
+      const svg = read(asset);
+      expect(svg).toContain("<svg");
+      expect(svg).toContain("<title");
+      expect(svg).toContain("<desc");
+      expect(svg).not.toMatch(/<script|<foreignObject|onload\s*=/i);
+    }
+  });
+
+  it("publica ecossistema editorial útil e impede página de troca de links sem contexto", () => {
+    const ecosystem = read("src/routes/ecossistema.tsx");
+    const sitemap = buildPublicSitemapXml([]);
+    expect(ecosystem).toContain('createFileRoute("/ecossistema")');
+    expect(ecosystem).toContain("Cada domínio mantém condições");
+    expect(ecosystem).toContain('rel: "canonical", href: SITE + "/ecossistema"');
+    for (const host of ["0web.com.br", "mestredosservicos.com.br", "encontreumprofissional.com.br", "precisodeum.com.br"]) {
+      expect(ecosystem).toContain(host);
+    }
+    expect(ecosystem).not.toContain("precisodeumprossional.com.br");
+    expect(sitemap).toContain("<loc>" + SITE + "/ecossistema</loc>");
+  });
 });
