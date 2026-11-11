@@ -120,6 +120,9 @@ describe("Encontre um Técnico: conteúdo nas entranhas do catálogo", () => {
     expect(directory).toContain('to="/servicos/$categoria"');
     expect(cta).toContain("openFreeHelp");
     expect(cta).toContain('guideSlug: guide.slug');
+    expect(cta).toContain('automacao: "Automação"');
+    expect(cta).toContain('comunicacoes: "Comunicações e telefonia"');
+    expect(funnel).toContain('"Automação", "Comunicações e telefonia", "Outro serviço"');
     expect(funnel).toContain("if (requestError) throw requestError;");
     expect(funnel.indexOf("setSavedWhatsAppLead(lead);"))
       .toBeGreaterThan(funnel.indexOf("if (requestError) throw requestError;"));
