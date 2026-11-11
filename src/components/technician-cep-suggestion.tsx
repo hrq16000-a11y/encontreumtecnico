@@ -32,7 +32,7 @@ export function TechnicianCepSuggestion({
       });
       if (!response.ok) throw new Error("cep-unavailable");
       const data = await response.json() as CepResult;
-      if (data.erro || !data.uf || !BRAZIL_STATES.includes(data.uf) || !/^\d{7}$/.test(data.ibge ?? "")) {
+      if (data.erro || !data.uf || !BRAZIL_STATES.some(uf => uf === data.uf) || !/^\d{7}$/.test(data.ibge ?? "")) {
         setMessage("CEP não localizado. Escolha seu município na lista oficial.");
         return;
       }
