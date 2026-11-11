@@ -18,7 +18,10 @@ export const Route = createFileRoute("/tecnicos/$tecnicoId")({
       to: "/tecnicos/$tecnicoId", params: { tecnicoId: technician.public_slug }, statusCode: 301,
     });
     // Only an approved canonical profile receives public contextual interlinks.
-    const seoLinks = await getSeoProfileLinks({ data: { slug: technician.public_slug } });
+    // Optional SEO graph must not make a legitimate technician profile disappear
+    // during a temporary directory/catalogue outage.
+    const seoLinks = await getSeoProfileLinks({ data: { slug: technician.public_slug } })
+      .catch(() => ({ city: null, categories: [], related: [] }));
     return { ...technician, seoLinks };
   },
   head: ({ loaderData, params }) => {
