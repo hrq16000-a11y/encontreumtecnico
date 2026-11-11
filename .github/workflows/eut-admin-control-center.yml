@@ -34,9 +34,9 @@ jobs:
           const page = readFileSync('src/routes/admin.tsx', 'utf8');
           const hub = readFileSync('src/components/admin-control-hub.tsx', 'utf8');
           const spec = readFileSync('docs/admin/PLANO-MESTRE-GESTAO-PATROCINIOS.md', 'utf8');
-          const path = r('src/routes/admin_.$secao.tsx');
-          const menu = r('src/components/admin-navigation.tsx');
-          const sections = r('src/lib/admin-sections.ts');
+          const path = readFileSync('src/routes/admin_.$secao.tsx', 'utf8');
+          const menu = readFileSync('src/components/admin-navigation.tsx', 'utf8');
+          const sections = readFileSync('src/lib/admin-sections.ts', 'utf8');
           const modules = [
             'tecnicos', 'clientes', 'solicitacoes', 'patrocinadores',
             'mensagens', 'catalogo', 'legado', 'reivindicacoes', 'metricas',
