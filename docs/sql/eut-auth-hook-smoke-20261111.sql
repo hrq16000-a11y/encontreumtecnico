@@ -17,6 +17,15 @@ BEGIN
     RAISE EXCEPTION 'Hook exposto indevidamente';
   END IF;
 
+  IF NOT has_schema_privilege('supabase_auth_admin','eut_moderation','USAGE') THEN
+    RAISE EXCEPTION 'Papel Supabase Auth nao possui acesso ao schema privado';
+  END IF;
+
+  v_result := eut_moderation.before_user_created_guard('{}'::jsonb);
+  IF v_result->'error'->>'http_code' IS DISTINCT FROM '400' THEN
+    RAISE EXCEPTION 'Payload sem user deveria ser recusado sem erro SQL';
+  END IF;
+
   -- Inspeção neutra: não encontra a identidade com e-mail inédito.
   v_result := eut_moderation.before_user_created_guard(
     jsonb_build_object('user', jsonb_build_object(
