@@ -117,11 +117,10 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
         draftOwnerRef.current !== user.id ||
         (!form.title.trim() && !form.description.trim())) return;
     const owner = user.id;
-    const timer = window.setTimeout(() => {
-      if (currentUserIdRef.current === owner && draftOwnerRef.current === owner)
-        saveProtectedDraft("cliente", owner, form, step);
-    }, 600);
-    return () => window.clearTimeout(timer);
+    // Sync same-tab storage after edits; a quick route change must not
+    // cancel the draft. Account ownership is rechecked before writing.
+    if (currentUserIdRef.current === owner && draftOwnerRef.current === owner)
+      saveProtectedDraft("cliente", owner, form, step);
   }, [user?.id, loading, roles.join(","), form, step]);
 
   useEffect(() => {

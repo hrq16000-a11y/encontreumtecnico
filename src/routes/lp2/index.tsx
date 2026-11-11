@@ -32,8 +32,8 @@ function Home(){
  const [service,setService]=useState(draft?.["service"]??'')
  const [city,setCity]=useState(draft?.["city"]??'')
  useEffect(()=>{
-   const timer=window.setTimeout(()=>saveUiTextDraft("lp2-home",{service,city}),400)
-   return ()=>window.clearTimeout(timer)
+   // Same-tab draft must survive a quick click immediately after typing.
+   saveUiTextDraft("lp2-home",{service,city})
  },[service,city])
  const technicians=Route.useLoaderData()
  const profiles=technicians.slice(0,4).map(fromPublicTechnician)

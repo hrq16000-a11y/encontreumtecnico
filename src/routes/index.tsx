@@ -103,10 +103,8 @@ function HomePage() {
   const [locationNeighborhood, setLocationNeighborhood] = useState(savedSearch?.["neighborhood"] ?? "");
   const cityEditedByUser = useRef(Boolean(savedSearch?.["city"]));
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      saveUiTextDraft("home", { specialty, city, uf: locationUf, neighborhood: locationNeighborhood });
-    }, 400);
-    return () => window.clearTimeout(timer);
+    // No cancelable timer: rapidly leaving the Home used to lose the last edit.
+    saveUiTextDraft("home", { specialty, city, uf: locationUf, neighborhood: locationNeighborhood });
   }, [specialty, city, locationUf, locationNeighborhood]);
   const { area: suggestedRegion, loading: regionLoading } = useRegionalSuggestion();
   useEffect(() => {

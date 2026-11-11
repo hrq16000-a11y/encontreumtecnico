@@ -202,12 +202,11 @@ export function TechnicianAreaPage() {
     const fingerprint = JSON.stringify(form);
     if (fingerprint === serverFormBaselineRef.current) return;
     const owner = user.id;
-    const timer = window.setTimeout(() => {
-      if (currentUserRef.current === owner && draftOwnerRef.current === owner &&
-          fingerprint !== serverFormBaselineRef.current)
-        saveProtectedDraft("tecnico", owner, form, step);
-    }, 650);
-    return () => window.clearTimeout(timer);
+    // The last edit cannot remain in a cancelable debounce when the user
+    // opens another screen. Keep ownership and published-profile checks.
+    if (currentUserRef.current === owner && draftOwnerRef.current === owner &&
+        fingerprint !== serverFormBaselineRef.current)
+      saveProtectedDraft("tecnico", owner, form, step);
   }, [user?.id, loading, roleKey, profileLoading, profileError, profileOwnerId, form, step]);
 
   const catalog = { categories, services, catalogLoading, catalogError: Boolean(catalogError),
