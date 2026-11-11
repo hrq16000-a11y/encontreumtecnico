@@ -31,7 +31,7 @@ function publicClient() {
           headers.delete("Authorization");
         }
         headers.set("apikey", key);
-        return fetch(input, { ...init, headers });
+        return fetch(input, { ...init, headers, cache: "no-store" });
       },
     },
   });
