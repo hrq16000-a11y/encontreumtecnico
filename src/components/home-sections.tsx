@@ -33,6 +33,7 @@ export function JoinNetworkSection() {
       <h2 className="mt-2 text-2xl font-extrabold text-foreground sm:text-3xl">Seu trabalho tem valor. Aqui não somos leilão!</h2>
       <p className="mt-3 max-w-[70ch] text-muted-foreground">
         O Encontre um Técnico aproxima clientes e profissionais independentes de todo o Brasil.
+        Nossa meta é construir a maior rede nacional de técnicos parceiros, valorizando cada profissional.
         Nada de disputar o menor lance: valorizamos conhecimento, experiência e negociação direta.
       </p>
       <div className="mt-5 max-w-3xl rounded-2xl border border-primary/25 bg-primary/5 p-5">
