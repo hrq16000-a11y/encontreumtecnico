@@ -65,6 +65,6 @@ describe("EUT restricted accounts and live Auth sessions", () => {
     expect(guide).toContain("PR #133");
     expect(guide).toContain("PR #139");
     expect(guide).toContain("PR #142");
-    expect(guide).toContain("ambiente isolado");
+    expect(guide).toContain("Ambiente isolado");
   });
 });
