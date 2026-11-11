@@ -123,4 +123,15 @@ describe("SEO global do Encontre um Técnico", () => {
       expect(source).toContain("statusCode: 301");
     }
   });
+  it("enriquece serviços reais e encaminha para a busca filtrada sem URLs artificiais", () => {
+    const services = read("src/routes/servicos.tsx");
+    expect(services).toContain('search={{ especialidade: service.slug, cidade: "", regiao: "" }}');
+    expect(services).toContain("Como encontrar o profissional adequado");
+    expect(services).toContain('https://www.encontreumtecnico.com.br/servicos');
+    for (const slug of [
+      "climatizacao", "automacao", "cftv", "computadores", "comunicacoes",
+      "eletrica", "design-grafico", "impressoras", "redes", "software",
+    ]) expect(services, slug).toContain('slug: "' + slug + '"');
+    expect(services).not.toContain("WhatsApp direto");
+  });
 });
