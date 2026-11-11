@@ -19,6 +19,7 @@ import { clearTechnicianTarget, recallTechnicianTarget, rememberTechnicianTarget
 import { containsObviousContact } from "@/lib/private-message-validation";
 import { accountScopedRows, canAcceptAccountResult } from "@/lib/account-scoped-queries";
 import { persistClientRequest } from "@/lib/client-request-save";
+import { saveClientRequestDraftImmediately } from "@/lib/client-request-live-draft";
 import { ownedRequestForAction } from "@/lib/client-request-action";
 import { clientRequestStepError, type ClientRequestDraft, type ClientRequestStep } from "@/lib/client-request-wizard";
 
@@ -218,7 +219,17 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
   const availableCategories = categories.map((entry) => entry.slug);
   const catalogUnavailable = catalogLoading || Boolean(catalogError) || categories.length === 0;
 
+  function saveLiveDraft(nextForm: ClientRequestDraft, nextStep: ClientRequestStep) {
+    const owner = user?.id ?? null;
+    const verifiedClient = Boolean(!loading && owner && roles.includes("cliente") &&
+      draftOwnerRef.current === owner && currentUserIdRef.current === owner);
+    // Saving inside the actual event prevents last-keystroke loss on a quick
+    // route switch or app backgrounding. Consent remains volatile.
+    saveClientRequestDraftImmediately(owner, verifiedClient, nextForm, nextStep);
+  }
+
   function moveToStep(next: ClientRequestStep) {
+    saveLiveDraft(form, next);
     setMsg(null);
     setStep(next);
     if (typeof window !== "undefined") {
@@ -226,7 +237,9 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
     }
   }
   function updateRequestField(key: keyof ClientRequestDraft, value: string) {
-    setForm((current) => ({ ...current, [key]: value }));
+    const nextForm = { ...form, [key]: value };
+    saveLiveDraft(nextForm, step);
+    setForm(nextForm);
     // A previous authorization was for the prior description/location,
     // never silently reuse consent for amended request details.
     setShareNow(false);
@@ -472,9 +485,14 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
                     {" "}Estimativa aproximada, não sua localização exata. Confira antes de enviar.
                   </p>}
                   <CustomerLocationButton onLocated={(area, source) => {
-                    setForm((old) => source === "automatic" && old.city.trim() ? old :
-                      { ...old, city: area.city, region: area.neighborhood });
-                    setShareNow(false);
+                    // Automatic hints never override a city the client typed.
+                    const nextForm = source === "automatic" && form.city.trim() ? form :
+                      { ...form, city: area.city, region: area.neighborhood };
+                    if (nextForm !== form) {
+                      saveLiveDraft(nextForm, step);
+                      setForm(nextForm);
+                      setShareNow(false);
+                    }
                   }} />
                   <label className="text-sm font-medium text-foreground">Cidade do atendimento
                     <input maxLength={80} className={input} value={form.city}
