@@ -14,6 +14,13 @@ type Technician = {
   email: string | null; masked_phone: string | null; has_phone: boolean;
   allow_paid_contact: boolean; blocked_account: boolean; blocked_phone: boolean;
 };
+type FullTechnician = {
+  id: string; public_slug: string | null; display_name: string; bio: string | null;
+  city: string; state_uf: string | null; neighborhood: string | null;
+  region: string | null; specialties: string[]; service_slugs: string[];
+  coverage_city_ids: number[]; service_radius_km: number | null;
+  created_at: string; updated_at: string;
+};
 type Block = {
   kind: "telefone" | "conta"; ref_id: string; user_id: string | null;
   label: string; reason: string; added_at: string;
@@ -51,6 +58,9 @@ const ACTION_LABELS: Record<AdminContactAction, string> = {
 /** Uses only existing admin-checked, audited RPCs. Never loads private contacts into SSR or storage. */
 export function AdminContactsDashboard({ adminId }: { adminId: string }) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [detail, setDetail] = useState<FullTechnician | null>(null);
+  const [detailError, setDetailError] = useState("");
+  const detailEpoch = useRef(0);
   const [filter, setFilter] = useState<Filter>("todos");
   const [draftSearch, setDraftSearch] = useState("");
   const [search, setSearch] = useState("");
@@ -96,6 +106,8 @@ export function AdminContactsDashboard({ adminId }: { adminId: string }) {
     setLoading(true);
     setError("");
     hidePhone();
+    detailEpoch.current++;
+    setDetail(null);
     void db.rpc("eut_admin_contacts_dashboard", {
       _search: search, _filter: filter, _page: page,
     }).then(({ data, error: rpcError }) => {
@@ -117,9 +129,27 @@ export function AdminContactsDashboard({ adminId }: { adminId: string }) {
   function choose(action: AdminContactAction, subject: Technician | null = null,
     block: Block | null = null, message: Message | null = null) {
     hidePhone();
+    setDetail(null);
     setPending({ action, subject, block, message });
     setReason(""); setPhoneToBlock(""); setMessageStatus("respondida");
     setError(""); setInfo("");
+  }
+
+  async function openDetail(tech: Technician) {
+    if (detail?.id === tech.id) { setDetail(null); return; }
+    const epoch = ++detailEpoch.current;
+    setDetail(null); setDetailError("");
+    try {
+      // Admin RLS still controls this read: never request private contact fields here.
+      const {data,error: dbError} = await db.from("technicians")
+        .select("id,public_slug,display_name,bio,city,state_uf,neighborhood,region,specialties,service_slugs,coverage_city_ids,service_radius_km,created_at,updated_at")
+        .eq("id",tech.id).maybeSingle();
+      if (epoch !== detailEpoch.current) return;
+      if (dbError || !data || data.id !== tech.id) throw Error("not confirmed");
+      setDetail(data as FullTechnician);
+    } catch {
+      if (epoch === detailEpoch.current) setDetailError("Não foi possível consultar a ficha. Verifique o acesso à tabela.");
+    }
   }
 
   async function reveal(subject: Technician) {
@@ -236,6 +266,7 @@ export function AdminContactsDashboard({ adminId }: { adminId: string }) {
         {info && <p role="status" className="mt-4 rounded-lg bg-primary/5 p-3 text-sm text-foreground">{info}</p>}
         {error && <p role="alert" className="mt-4 rounded-lg border border-destructive/40 p-3 text-sm text-destructive">{error}</p>}
         {loading && <p role="status" className="mt-4 text-sm">Carregando registros administrativos…</p>}
+        {detailError && <p role="alert" className="mt-3 text-sm text-destructive">{detailError}</p>}
         {snapshot && !loading && <p role="status" className="mt-4 text-xs text-muted-foreground">
           {snapshot.total} técnico(s) no filtro · página {page+1} de {totalPages}
         </p>}
@@ -256,6 +287,10 @@ export function AdminContactsDashboard({ adminId }: { adminId: string }) {
                 {!item.allow_paid_contact ? " · divulgação desautorizada" : ""}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
+                <button type="button" onClick={()=>void openDetail(item)}
+                  className="min-h-11 rounded-lg border border-input px-3 text-sm font-semibold text-foreground">
+                  {detail?.id===item.id ? "Fechar ficha" : "Ver ficha completa"}
+                </button>
                 {item.has_phone && <button type="button" disabled={busy} onClick={()=>void reveal(item)}
                   className="min-h-11 rounded-lg border border-input px-3 text-sm font-semibold text-foreground">
                   Ver número completo
@@ -272,6 +307,21 @@ export function AdminContactsDashboard({ adminId }: { adminId: string }) {
                   disabled={item.blocked_account||item.blocked_phone}
                   className="min-h-11 rounded-lg border border-input px-3 text-sm disabled:opacity-50">Reabrir revisão</button>}
               </div>
+              {detail?.id===item.id && <dl className="mt-4 grid gap-3 rounded-xl bg-muted/30 p-4 text-sm sm:grid-cols-2">
+                {[
+                  ["Nome completo de exibição",detail.display_name],
+                  ["Cidade / UF",[detail.city,detail.state_uf].filter(Boolean).join(" / ")],
+                  ["Bairro e região",[detail.neighborhood,detail.region].filter(Boolean).join(" · ")],
+                  ["Especialidades",(detail.specialties??[]).join(", ")],
+                  ["Serviços",(detail.service_slugs??[]).join(", ")],
+                  ["Códigos IBGE de cobertura",(detail.coverage_city_ids??[]).join(", ")],
+                  ["Raio de atendimento",detail.service_radius_km===null?"Não informado":detail.service_radius_km+" km"],
+                  ["Slug público",detail.public_slug||"Sem publicação"],
+                  ["Apresentação",detail.bio||"Não informada"],
+                  ["Atualizado em",new Date(detail.updated_at).toLocaleString("pt-BR")],
+                ].map(([label,value])=><div key={label}><dt className="font-semibold text-foreground">{label}</dt>
+                  <dd className="mt-1 break-words text-muted-foreground">{value||"Não informado"}</dd></div>)}
+              </dl>}
             </li>
           ))}
           {!snapshot.rows.length && <li className="py-4 text-sm text-muted-foreground">Nenhum contato encontrado neste filtro.</li>}
