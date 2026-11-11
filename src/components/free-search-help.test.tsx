@@ -10,26 +10,26 @@ vi.mock("./assistance-funnel", () => ({
 afterEach(() => { cleanup(); document.body.style.overflow = ""; });
 
 describe("Funil flutuante de atendimento", () => {
-  it("não abre de forma intrusiva e permanece acessível em qualquer página", () => {
+  it("não abre de forma intrusiva e permanece acessível em qualquer página", async () => {
     render(<FreeSearchHelp />);
     expect(screen.queryByRole("dialog")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /preciso de ajuda/i }));
     expect(screen.getByRole("dialog")).toBeTruthy();
-    expect(screen.getByTestId("guided-funnel").textContent).toContain("Etapa 1 de 3");
+    expect((await screen.findByTestId("guided-funnel")).textContent).toContain("Etapa 1 de 3");
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
   });
-  it("recebe contexto regional do fluxo sem resultados", () => {
+  it("recebe contexto regional do fluxo sem resultados", async () => {
     render(<FreeSearchHelp />);
     act(() => openFreeHelp({ city: "Curitiba", uf: "PR", service: "redes" }));
     expect(screen.getByRole("dialog")).toBeTruthy();
-    expect(screen.getByTestId("guided-funnel").textContent).toContain("Curitiba");
-    expect(screen.getByTestId("guided-funnel").textContent).toContain("redes");
+    expect((await screen.findByTestId("guided-funnel")).textContent).toContain("Curitiba");
+    expect((await screen.findByTestId("guided-funnel")).textContent).toContain("redes");
   });
-  it("abre o funil preservando o profissional selecionado", () => {
+  it("abre o funil preservando o profissional selecionado", async () => {
     render(<FreeSearchHelp />);
     act(() => openFreeHelp({ mode: "direct", technicianId: "b190db33-86e1-4cf4-b916-a1f4eac56720", technicianName: "Técnico selecionado", city: "Curitiba" }));
     expect(screen.getByRole("dialog")).toBeTruthy();
-    expect(screen.getByTestId("guided-funnel")).toBeTruthy();
+    expect((await screen.findByTestId("guided-funnel"))).toBeTruthy();
   });
 });
