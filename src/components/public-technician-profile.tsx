@@ -200,6 +200,7 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
             <Link to="/tecnicos" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-primary hover:underline"><ArrowLeft className="h-4 w-4" aria-hidden="true" /> Voltar à busca</Link>
           </aside>
         </div>
+        {/* SSR crawlable interlinks: no client-only navigation or private contacts. */}
         <PublicProfileConnections links={links} />
       </div>
 
