@@ -106,9 +106,11 @@ export function LegacyReviewQueue() {
     }
     setFeedback(null);
     setAction({ ids, type });
-    const current = managed[ids[0]];
+    const id = ids[0];
+    if (id === undefined) return;
+    const current = managed[id];
     setValue(type === "corrigir_nome"
-      ? current?.corrected_name ?? rows.find((r) => r.wp_post_id === ids[0])?.title ?? ""
+      ? current?.corrected_name ?? rows.find((r) => r.wp_post_id === id)?.title ?? ""
       : type === "anotar" ? current?.admin_notes ?? "" : "");
     setReason("");
   }
@@ -235,7 +237,7 @@ export function LegacyReviewQueue() {
                   <p className="mt-1 text-sm text-muted-foreground">{[row.location1,row.location2,row.location3].filter(Boolean).join(" · ")}</p>}
                 {row.demo_candidate && <p className="mt-2 text-xs font-bold text-destructive">Possível demonstração: não publicar nem restaurar.</p>}
                 {managed[row.wp_post_id]?.admin_notes &&
-                  <p className="mt-2 rounded-lg bg-muted p-2 text-xs text-foreground">Nota privada: {managed[row.wp_post_id].admin_notes}</p>}
+                  <p className="mt-2 rounded-lg bg-muted p-2 text-xs text-foreground">Nota privada: {managed[row.wp_post_id]?.admin_notes}</p>}
               </div>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
