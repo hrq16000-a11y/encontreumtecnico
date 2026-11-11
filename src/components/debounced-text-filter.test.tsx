@@ -1,10 +1,17 @@
 import { act, fireEvent, render, screen, cleanup } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { savePendingFilter, readPendingFilter } from "@/lib/pending-search-filter";
 import { DebouncedTextFilter, FILTER_DEBOUNCE_MS } from "./debounced-text-filter";
 
+beforeEach(() => {
+  sessionStorage.clear();
+  vi.spyOn(document, "hasFocus").mockReturnValue(true);
+});
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  vi.restoreAllMocks();
+  sessionStorage.clear();
 });
 
 function form(value = "", onCommit = vi.fn(), onBlurTrack = vi.fn()) {
@@ -55,6 +62,45 @@ describe("localidade: digitação sem consultas por tecla", () => {
     expect(input.value).toBe("Centro");
     view.rerender(form("Cristal", onCommit, onBlurTrack));
     expect(input.value).toBe("Cristal");
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+
+  it("recupera o último caractere na remontagem, sem ser apagado pelo valor anterior da URL", () => {
+    vi.useFakeTimers();
+    savePendingFilter("filtro-bairro", "", "Cristal", sessionStorage);
+    const onCommit = vi.fn();
+    render(form("", onCommit));
+    expect((screen.getByLabelText("Bairro") as HTMLInputElement).value).toBe("Cristal");
+    act(() => vi.advanceTimersByTime(FILTER_DEBOUNCE_MS));
+    expect(onCommit).toHaveBeenCalledWith("Cristal");
+  });
+
+  it("Alt+Tab conserva o texto e não faz nova consulta até a aba voltar", () => {
+    vi.useFakeTimers();
+    const onCommit = vi.fn();
+    render(form("", onCommit));
+    const field = screen.getByLabelText("Bairro") as HTMLInputElement;
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: "Boqueirão" } });
+    vi.mocked(document.hasFocus).mockReturnValue(false);
+    fireEvent.blur(field);
+    act(() => vi.advanceTimersByTime(FILTER_DEBOUNCE_MS * 2));
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(readPendingFilter("filtro-bairro", "")).toBe("Boqueirão");
+    vi.mocked(document.hasFocus).mockReturnValue(true);
+    act(() => fireEvent.focus(window));
+    act(() => vi.advanceTimersByTime(FILTER_DEBOUNCE_MS));
+    expect(onCommit).toHaveBeenCalledWith("Boqueirão");
+  });
+
+  it("histórico com filtro diferente tem prioridade e cancela commit antigo", () => {
+    vi.useFakeTimers();
+    savePendingFilter("filtro-bairro", "", "Cristal", sessionStorage);
+    const onCommit = vi.fn();
+    const view = render(form("", onCommit));
+    view.rerender(form("Centro", onCommit));
+    expect((screen.getByLabelText("Bairro") as HTMLInputElement).value).toBe("Centro");
+    act(() => vi.advanceTimersByTime(FILTER_DEBOUNCE_MS * 2));
     expect(onCommit).not.toHaveBeenCalled();
   });
 
