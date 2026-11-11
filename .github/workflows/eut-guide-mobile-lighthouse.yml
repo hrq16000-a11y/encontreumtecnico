@@ -1,0 +1,42 @@
+name: Guia mobile Lighthouse — medição somente leitura
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/eut-guide-mobile-lighthouse.cjs'
+      - '.github/workflows/eut-guide-mobile-lighthouse.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eut-guide-mobile-lab-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lighthouse-mobile:
+    name: Mobile Lighthouse — 6 URLs públicas
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Confirm Chrome available
+        run: |
+          command -v google-chrome || command -v chromium || command -v chromium-browser
+          google-chrome --version || chromium --version
+      - name: Install pinned Lighthouse major (CI only; no repo deps)
+        run: npm install --global lighthouse@12
+      - name: Collect six real mobile lab reports (public pages only)
+        run: node scripts/eut-guide-mobile-lighthouse.cjs
+      - name: Preserve reports to inspect regressions
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eut-guide-mobile-lighthouse-${{ github.run_id }}
+          path: artifacts/eut-mobile-lighthouse/
+          retention-days: 7
+          if-no-files-found: warn
