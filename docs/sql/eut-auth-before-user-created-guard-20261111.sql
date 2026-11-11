@@ -37,108 +37,27 @@ BEGIN
     ) INTO v_restricted;
   END IF;
 
-  -- Apenas número brasileiro COMPLETO: DDD + assinante, opcionalmente 55.
-  -- Equivalência exata 10/11 dígitos nacionais <=> 12/13 dígitos E.164.
-  -- Nunca comparar só DDD, prefixo ou últimos 4 dígitos.
-  -- O campo user.phone geralmente vem vazio no OAuth Google por e-mail;
-  -- nesse caso a moderação operacional após cadastro continua obrigatória.
-  IF v_phone ~ '^55[1-9][1-9][2-9][0-9]{7,8}
-
-  IF v_restricted THEN
-    RETURN jsonb_build_object('error', jsonb_build_object(
-      'http_code', 403,
-      'message', 'Não foi possível concluir seu cadastro. Consulte o suporte.'
-    ));
-  END IF;
-
-  RETURN '{}'::jsonb;
-END;
-$guard$;
-
--- Função em schema privado; só o serviço de autenticação pode executá-la.
-REVOKE ALL ON FUNCTION eut_moderation.before_user_created_guard(jsonb)
-  FROM PUBLIC, anon, authenticated;
-GRANT USAGE ON SCHEMA eut_moderation TO supabase_auth_admin;
-GRANT EXECUTE ON FUNCTION eut_moderation.before_user_created_guard(jsonb)
-  TO supabase_auth_admin;
-
-DO $assert$
-BEGIN
-  IF has_function_privilege('anon',
-       'eut_moderation.before_user_created_guard(jsonb)', 'EXECUTE')
-     OR has_function_privilege('authenticated',
-       'eut_moderation.before_user_created_guard(jsonb)', 'EXECUTE')
-     OR NOT has_function_privilege('supabase_auth_admin',
-       'eut_moderation.before_user_created_guard(jsonb)', 'EXECUTE') THEN
-    RAISE EXCEPTION 'Permissões inseguras do hook de pré-cadastro';
-  END IF;
-END;
-$assert$;
-COMMIT;
-
--- Ativação é separada (Supabase Dashboard > Authentication > Hooks):
--- Before User Created => Postgres => eut_moderation.before_user_created_guard.
--- NÃO habilitar até teste de email, Google OAuth, telefone, recuperação e rollback.
--- Limitação: não identifica uma pessoa que use e-mail E telefone diferentes.
--- A proteção de contas existentes continua nas RLS/RPCs/triggers da PR #138.
-
+  -- Apenas telefone BR completo, DDD + assinante; prefixo 55 é opcional.
+  -- Não comparar DDD isolado, prefixos ou sufixos de telefone.
+  -- Google OAuth pode não informar user.phone no primeiro cadastro.
+  IF v_phone ~ '^55[1-9][1-9][2-9][0-9]{7,8}$'
      AND length(v_phone) IN (12,13) THEN
     v_phone_e164 := v_phone;
     v_phone_national := substr(v_phone,3);
-  ELSIF v_phone ~ '^[1-9][1-9][2-9][0-9]{7,8}
-
-  IF v_restricted THEN
-    RETURN jsonb_build_object('error', jsonb_build_object(
-      'http_code', 403,
-      'message', 'Não foi possível concluir seu cadastro. Consulte o suporte.'
-    ));
-  END IF;
-
-  RETURN '{}'::jsonb;
-END;
-$guard$;
-
--- Função em schema privado; só o serviço de autenticação pode executá-la.
-REVOKE ALL ON FUNCTION eut_moderation.before_user_created_guard(jsonb)
-  FROM PUBLIC, anon, authenticated;
-GRANT USAGE ON SCHEMA eut_moderation TO supabase_auth_admin;
-GRANT EXECUTE ON FUNCTION eut_moderation.before_user_created_guard(jsonb)
-  TO supabase_auth_admin;
-
-DO $assert$
-BEGIN
-  IF has_function_privilege('anon',
-       'eut_moderation.before_user_created_guard(jsonb)', 'EXECUTE')
-     OR has_function_privilege('authenticated',
-       'eut_moderation.before_user_created_guard(jsonb)', 'EXECUTE')
-     OR NOT has_function_privilege('supabase_auth_admin',
-       'eut_moderation.before_user_created_guard(jsonb)', 'EXECUTE') THEN
-    RAISE EXCEPTION 'Permissões inseguras do hook de pré-cadastro';
-  END IF;
-END;
-$assert$;
-COMMIT;
-
--- Ativação é separada (Supabase Dashboard > Authentication > Hooks):
--- Before User Created => Postgres => eut_moderation.before_user_created_guard.
--- NÃO habilitar até teste de email, Google OAuth, telefone, recuperação e rollback.
--- Limitação: não identifica uma pessoa que use e-mail E telefone diferentes.
--- A proteção de contas existentes continua nas RLS/RPCs/triggers da PR #138.
-
+  ELSIF v_phone ~ '^[1-9][1-9][2-9][0-9]{7,8}$'
      AND length(v_phone) IN (10,11) THEN
     v_phone_national := v_phone;
     v_phone_e164 := '55'||v_phone;
   END IF;
-
   IF NOT v_restricted AND v_phone_e164 IS NOT NULL THEN
     SELECT EXISTS (
       SELECT 1 FROM eut_moderation.blocked_phones AS b
-      WHERE b.phone_digits IN (v_phone_e164,v_phone_national)
+       WHERE b.phone_digits IN (v_phone_e164,v_phone_national)
     ) OR EXISTS (
       SELECT 1 FROM eut_moderation.blocked_accounts AS b
-      JOIN auth.users AS u ON u.id = b.user_id
+      JOIN auth.users AS u ON u.id=b.user_id
       WHERE regexp_replace(coalesce(u.phone, ''), '[^0-9]', '', 'g')
-        IN (v_phone_e164,v_phone_national)
+         IN (v_phone_e164,v_phone_national)
     ) INTO v_restricted;
   END IF;
 
