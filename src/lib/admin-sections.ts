@@ -3,6 +3,7 @@ export const ADMIN_SECTIONS = [
   { key: "inicio", label: "Visão geral", description: "Indicadores atuais e acessos" },
   { key: "tecnicos", label: "Técnicos", description: "Moderação dos perfis cadastrados" },
   { key: "clientes", label: "Clientes", description: "Solicitantes e identificação privada" },
+  { key: "contas", label: "Contas e bloqueios", description: "Banir, desbanir e auditar identidades" },
   { key: "solicitacoes", label: "Solicitações", description: "Pedidos recentes" },
   { key: "patrocinadores", label: "Patrocinadores", description: "Campanhas, espaços e criativos" },
   { key: "mensagens", label: "Mensagens", description: "Atendimento e arquivamento" },

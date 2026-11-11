@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { openFreeHelp } from "@/lib/free-search-help";
 import { PublicTechnicianProfile } from "./public-technician-profile";
 import type { PublicTechnician } from "@/lib/technicians.functions";
 
@@ -7,6 +8,7 @@ vi.mock("@tanstack/react-router", () => ({
   Link: ({ to, params, children }: { to: string; params?: { tecnicoId?: string }; children: React.ReactNode }) =>
     <a href={to.replace("$tecnicoId", params?.tecnicoId ?? "")}>{children}</a>,
 }));
+vi.mock("@/lib/free-search-help", () => ({ openFreeHelp: vi.fn() }));
 vi.mock("@/hooks/use-active-categories", () => ({
   useActiveCategories: () => ({ categories: [] }),
   categoryLabel: (slug: string) => slug,
@@ -46,7 +48,12 @@ describe("Perfil técnico premium sem prova social fabricada", () => {
     expect(screen.getByText("2")).toBeTruthy();
     expect(screen.getByText("3")).toBeTruthy();
     expect(screen.getAllByText("Descrever meu problema").length).toBeGreaterThan(0);
-    expect(container.textContent).toContain("A compra de acesso ao contato ainda não está disponível");
+    expect(container.textContent).toContain("O pagamento está pausado");
+    expect(container.querySelector('a[href^="/acesso-contato/"]')).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Solicitar contato via atendimento/i }));
+    expect(openFreeHelp).toHaveBeenCalledWith(expect.objectContaining({
+      mode: "direct", technicianId: profile.id, technicianName: profile.display_name,
+    }));
     expect(container.textContent).not.toMatch(/5 estrelas|avaliado por clientes|técnico verificado/i);
     expect(container.textContent).not.toMatch(/\+55\d{10,11}/);
   });

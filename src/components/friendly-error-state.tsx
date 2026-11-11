@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from "react";
+import { useContext, useState, type FormEvent } from "react";
+import { PersistentPageShellContext } from "./page-placeholder";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, Clock3, Home, LockKeyhole, MapPin, RefreshCw, Search, SearchX, Wrench } from "lucide-react";
 import logo from "@/assets/logo-branco.png";
@@ -18,6 +19,8 @@ export function FriendlyErrorState({ status, onRetry }: FriendlyErrorStateProps)
   const content = FRIENDLY_ERROR_COPY[status];
   const navigate = useNavigate();
   const [city, setCity] = useState("");
+  const embeddedInPortal = useContext(PersistentPageShellContext);
+  const ContentTag = embeddedInPortal ? "div" : "main";
   const Symbol = status === 404 ? SearchX : status === 403 ? LockKeyhole : status === 503 ? Clock3 : Wrench;
 
   const retry = () => {
@@ -43,7 +46,7 @@ export function FriendlyErrorState({ status, onRetry }: FriendlyErrorStateProps)
   };
 
   return (
-    <div className="relative isolate flex min-h-[100svh] flex-col overflow-hidden bg-[#10263b] text-white">
+    <div className={"relative isolate flex flex-col overflow-hidden bg-[#10263b] text-white " + (embeddedInPortal ? "min-h-[70svh]" : "min-h-[100svh]")}>
       <title>{content.label} | Encontre um Técnico</title>
       <meta name="robots" content="noindex,nofollow" />
 
@@ -64,16 +67,16 @@ export function FriendlyErrorState({ status, onRetry }: FriendlyErrorStateProps)
         }}
       />
 
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 py-5 sm:px-8 sm:py-7">
+      {!embeddedInPortal && <header className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 py-5 sm:px-8 sm:py-7">
         <Link to="/" aria-label="Encontre um Técnico — início" className="inline-flex shrink-0 items-center rounded-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#49d0fa]">
           <img src={logo} alt="Encontre um Técnico" className="h-10 w-auto max-w-[220px] object-contain sm:h-12" width={220} height={50} />
         </Link>
         <Link to="/tecnicos" className="hidden items-center gap-2 text-sm font-semibold text-white/85 transition hover:text-white sm:inline-flex">
           Ver profissionais <ArrowRight size={16} aria-hidden="true" />
         </Link>
-      </header>
+      </header>}
 
-      <main className="mx-auto flex w-full max-w-6xl flex-1 items-center justify-center px-5 py-12 text-center sm:px-8">
+      <ContentTag className="mx-auto flex w-full max-w-6xl flex-1 items-center justify-center px-5 py-12 text-center sm:px-8">
         <section aria-labelledby="friendly-error-title" className="w-full max-w-3xl">
           <div className="mb-3 flex items-center justify-center gap-2 text-sm font-bold tracking-[.2em] text-[#69d9ff] uppercase">
             <Symbol size={18} aria-hidden="true" />
@@ -150,14 +153,14 @@ export function FriendlyErrorState({ status, onRetry }: FriendlyErrorStateProps)
             </Link>
           </p>
         </section>
-      </main>
+      </ContentTag>
 
-      <footer className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 border-t border-white/15 px-5 py-6 text-xs text-[#acc9dd] sm:px-8">
+      {!embeddedInPortal && <footer className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 border-t border-white/15 px-5 py-6 text-xs text-[#acc9dd] sm:px-8">
         <span>Encontre um Técnico · Precisou? Encontrou!</span>
         <Link to="/" className="inline-flex shrink-0 items-center gap-1 hover:text-white">
           <ArrowLeft size={14} aria-hidden="true" /> Início
         </Link>
-      </footer>
+      </footer>}
     </div>
   );
 }

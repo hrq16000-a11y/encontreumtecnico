@@ -22,6 +22,7 @@ import { PioneerPhoneVerification } from "@/components/pioneer-phone-verificatio
 import { TechnicianDirectRequests } from "@/components/technician-direct-requests";
 import { CustomerLocationButton } from "@/components/customer-location-button";
 import { suggestTechnicianArea } from "@/lib/customer-location";
+import { clearProtectedDraft, readProtectedDraft, saveProtectedDraft } from "@/lib/protected-session-draft";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
 import { registrationStepError, type RegistrationStep } from "@/lib/technician-registration-wizard";
@@ -80,6 +81,8 @@ export function TechnicianAreaPage() {
   }, []);
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
   const loadVersion = useRef(0);
+  const draftOwnerRef = useRef<string | null>(null);
+  const serverFormBaselineRef = useRef<string>("");
   const currentUserRef = useRef<string | null>(null);
   currentUserRef.current = user?.id ?? null;
   const roleKey = roles.join(",");
@@ -92,11 +95,15 @@ export function TechnicianAreaPage() {
 
   useEffect(() => {
     const version = ++loadVersion.current;
-    setForm({
+    const initial = {
       display_name: user ? googleIdentityHint(user).fullName.slice(0, 80) : "",
       state_uf: "", city: "", neighborhood: "", region: "", bio: "",
-      specialties: [], service_slugs: [], base_city_ibge_id: null,
-    });
+      specialties: [] as string[], service_slugs: [] as string[],
+      base_city_ibge_id: null as number | null,
+    };
+    serverFormBaselineRef.current = JSON.stringify(initial);
+    draftOwnerRef.current = null;
+    setForm(initial);
     setStatus(null);
     setProfileId(null);
     setProfileSlug(null);
@@ -123,7 +130,7 @@ export function TechnicianAreaPage() {
         if (error) {
           setProfileError(true);
         } else if (data) {
-          setForm({
+          const loadedForm = {
             display_name: data.display_name,
             state_uf: data.state_uf ?? "",
             city: data.city,
@@ -132,8 +139,10 @@ export function TechnicianAreaPage() {
             bio: data.bio ?? "",
             specialties: data.specialties ?? [],
             service_slugs: data.service_slugs ?? [],
-            base_city_ibge_id: null,
-          });
+            base_city_ibge_id: null as number | null,
+          };
+          serverFormBaselineRef.current = JSON.stringify(loadedForm);
+          setForm(loadedForm);
           setSavedCoverageIds(data.coverage_city_ids ?? []);
           setSavedRadius(data.service_radius_km ?? null);
           setAvatarPath(data.avatar_path ?? null);
@@ -154,6 +163,52 @@ export function TechnicianAreaPage() {
       loadVersion.current++;
     };
   }, [user?.id, roleKey, reloadCounter]);
+
+  useEffect(() => {
+    if (!user || !roles.includes("tecnico")) {
+      draftOwnerRef.current = null;
+      return;
+    }
+    if (profileLoading || profileError || profileOwnerId !== user.id ||
+        draftOwnerRef.current === user.id) return;
+    const existing = readProtectedDraft<typeof form>("tecnico", user.id);
+    draftOwnerRef.current = user.id;
+    if (!existing) return;
+    const value = existing.form;
+    if (typeof value.display_name !== "string" || typeof value.state_uf !== "string" ||
+        typeof value.city !== "string" || typeof value.neighborhood !== "string" ||
+        typeof value.region !== "string" || typeof value.bio !== "string" ||
+        !Array.isArray(value.specialties) || !Array.isArray(value.service_slugs) ||
+        !value.specialties.every(item => typeof item === "string") ||
+        !value.service_slugs.every(item => typeof item === "string")) return;
+    setForm({
+      display_name: value.display_name.slice(0, 80),
+      state_uf: value.state_uf.slice(0, 2),
+      city: value.city.slice(0, 80),
+      neighborhood: value.neighborhood.slice(0, 80),
+      region: value.region.slice(0, 120),
+      bio: value.bio.slice(0, 1000),
+      specialties: value.specialties.slice(0, 20),
+      service_slugs: value.service_slugs.slice(0, 40),
+      base_city_ibge_id: typeof value.base_city_ibge_id === "number" ? value.base_city_ibge_id : null,
+    });
+    setStep(Math.max(1, Math.min(3, existing.step)) as RegistrationStep);
+    setMsg("Rascunho do cadastro recuperado nesta aba. Confira antes de publicar.");
+  }, [user?.id, roleKey, profileLoading, profileError, profileOwnerId]);
+
+  useEffect(() => {
+    if (!user || loading || !roles.includes("tecnico") || profileLoading ||
+        profileError || profileOwnerId !== user.id || draftOwnerRef.current !== user.id) return;
+    const fingerprint = JSON.stringify(form);
+    if (fingerprint === serverFormBaselineRef.current) return;
+    const owner = user.id;
+    const timer = window.setTimeout(() => {
+      if (currentUserRef.current === owner && draftOwnerRef.current === owner &&
+          fingerprint !== serverFormBaselineRef.current)
+        saveProtectedDraft("tecnico", owner, form, step);
+    }, 650);
+    return () => window.clearTimeout(timer);
+  }, [user?.id, loading, roleKey, profileLoading, profileError, profileOwnerId, form, step]);
 
   const catalog = { categories, services, catalogLoading, catalogError: Boolean(catalogError),
     servicesLoading, servicesError: Boolean(servicesError) };
@@ -214,6 +269,8 @@ export function TechnicianAreaPage() {
       } else if (data?.state === "bloqueado_por_seguranca") {
         setMsg("Seu perfil tem uma restrição de segurança e não pode ser reativado automaticamente. Entre em contato.");
       } else if (data?.state === "publicado") {
+        serverFormBaselineRef.current = JSON.stringify(form);
+        clearProtectedDraft("tecnico", savingOwner);
         setStatus("aprovado");
         if (typeof data.technician_id === "string") {
           setProfileId(data.technician_id);

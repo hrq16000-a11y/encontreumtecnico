@@ -7,6 +7,7 @@ import {
   HeadContent,
   Scripts,
   type ErrorComponentProps,
+  useRouterState,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
@@ -14,6 +15,8 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { FriendlyErrorState } from "../components/friendly-error-state";
 import { AuthDialogProvider } from "../components/auth-dialog";
+import { PageShell } from "../components/page-placeholder";
+import { isStandaloneVisualRoute } from "../lib/shared-shell-routing";
 
 // One stable, public, WordPress-independent image for every route's social preview.
 const SOCIAL_IMAGE = "https://www.encontreumtecnico.com/social-preview.jpg";
@@ -114,12 +117,24 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: state => state.location.pathname });
+  // Full-screen friendly 404/403/500 pages own their chrome.
+  // Do not nest an extra header, footer or main around error boundaries.
+  const hasRouteError = useRouterState({
+    select: state => state.matches.some(match => match.status === "notFound" || match.status === "error"),
+  });
 
   return (
     <QueryClientProvider client={queryClient}>
       <AuthDialogProvider>
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+      {isStandaloneVisualRoute(pathname) || hasRouteError ? (
+        // LP2 and Home2 intentionally own their themes and navigation.
         <Outlet />
+      ) : (
+        // Header, auth indicator, footer and the unsent help wizard survive
+        // route changes. Each nested PageShell now renders content only.
+        <PageShell><Outlet /></PageShell>
+      )}
       </AuthDialogProvider>
     </QueryClientProvider>
   );

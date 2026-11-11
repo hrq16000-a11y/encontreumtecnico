@@ -7,13 +7,13 @@ import {
 const read = (path: string) => readFileSync(path, "utf8");
 
 describe("Central administrativa: URLs próprias e RLS intacta", () => {
-  it("oferece dez seções únicas, uma home e nove módulos reais", () => {
+  it("oferece onze seções únicas, uma home e dez módulos reais", () => {
     expect(ADMIN_SECTIONS.map((x) => x.key)).toEqual([
-      "inicio", "tecnicos", "clientes", "solicitacoes",
+      "inicio", "tecnicos", "clientes", "contas", "solicitacoes",
       "patrocinadores", "mensagens", "catalogo",
       "legado", "reivindicacoes", "metricas",
     ]);
-    expect(new Set(ADMIN_SECTIONS.map((x) => x.key)).size).toBe(10);
+    expect(new Set(ADMIN_SECTIONS.map((x) => x.key)).size).toBe(11);
     expect(adminModulePath("inicio")).toBe("/admin");
     for (const entry of ADMIN_SECTIONS.filter((x) => x.key !== "inicio")) {
       expect(validAdminModule(entry.key)).toBe(true);
@@ -51,10 +51,11 @@ describe("Central administrativa: URLs próprias e RLS intacta", () => {
       "<AdminAdvertisingManager />", "<EutAdminManager />",
       "<LegacyReviewQueue />", "<LegacyClaimReview />",
       "<SearchMetrics />", "contact_messages",
-      'supabase.from("technicians").update({ status',
+      '<AdminTechnicianManager technicians={techs} onChanged={load} />',
     ]) expect(page).toContain(source);
     expect(page).not.toContain("auth.admin.deleteUser");
     expect(page).not.toContain("service_role");
-    expect(page).toContain("O gerenciamento completo de identidades, banimentos e exclusões");
+    expect(page).toContain('<AdminAccountsManager initialFilter="clientes" />');
+    expect(page).toContain('section === "contas"');
   });
 });
