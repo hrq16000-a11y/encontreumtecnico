@@ -15,7 +15,10 @@ export function stagePublicDirectoryBatch(input) {
     "/almirante-tamandare-pr/tecnico-de-informatica": { city: "Almirante Tamandaré", ibge: 4100400 },
     "/paranagua-pr/tecnico-de-informatica": { city: "Paranaguá", ibge: 4118204 },
   };
-  const scope = origin === "guiafix" ? authorizedScopes[url.pathname] : null;
+  // Preserve the original Encontrey-only Almirante scope without querying that site.
+  const scope = origin === "guiafix" ? authorizedScopes[url.pathname]
+    : origin === "encontrey" && input.city === "Almirante Tamandaré" && input.city_ibge === 4100400
+      ? { city: "Almirante Tamandaré", ibge: 4100400 } : null;
   if (input.category !== "tecnico-de-informatica" || input.uf !== "PR" ||
       !scope || input.city !== scope.city || input.city_ibge !== scope.ibge)
     throw Error("Apenas fonte, categoria e município do lote autorizado");
