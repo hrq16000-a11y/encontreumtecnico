@@ -15,6 +15,7 @@ import { AdminAdvertisingManager } from "@/components/admin-advertising-manager"
 import { AdminNavigation } from "@/components/admin-navigation";
 import { AdminTechnicianManager } from "@/components/admin-technician-manager";
 import { AdminAccountsManager } from "@/components/admin-accounts-manager";
+import { AdminInvitesManager } from "@/components/admin-invites-manager";
 import { adminModuleTitle, type AdminSection } from "@/lib/admin-sections";
 import { ArrowRight } from "lucide-react";
 
@@ -144,7 +145,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             {section === "legado" && <section aria-label="Acervo WordPress"><div id="admin-legado"><LegacyReviewQueue /></div></section>}
             {section === "reivindicacoes" && <section aria-label="Reivindicações"><div id="admin-reivindicacoes"><LegacyClaimReview /></div></section>}
             {section === "catalogo" && <section aria-label="Categorias e serviços"><div id="admin-catalogo"><EutAdminManager /></div></section>}
-            {section === "contas" && <section aria-label="Contas e bloqueios"><AdminAccountsManager /></section>}
+            {section === "contas" && <section aria-label="Contas e bloqueios"><AdminAccountsManager /><AdminInvitesManager /></section>}
             {section === "tecnicos" && <section aria-label="Gestão de técnicos">
               <AdminTechnicianManager technicians={techs} onChanged={load} />
             </section>}
