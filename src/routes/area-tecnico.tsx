@@ -32,6 +32,7 @@ import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
 import { registrationStepError, type RegistrationStep } from "@/lib/technician-registration-wizard";
 import { publicTextProblem } from "@/lib/public-profile-text";
+import { technicianPublishErrorMessage } from "@/lib/technician-publish-error";
 import { TechnicianPanelNavigation } from "@/components/technician-panel-navigation";
 import { technicianTabFromHash, technicianTabHref, type TechnicianPanelTab } from "@/lib/technician-panel-navigation";
 import { ArrowRight, ShieldCheck, MapPin, UserRound, Inbox, Camera } from "lucide-react";
@@ -332,8 +333,7 @@ export function TechnicianAreaPage() {
       });
       if (currentUserRef.current !== savingOwner) return;
       if (error) {
-        const reference = typeof error.code === "string" && /^[A-Z0-9]{4,8}$/.test(error.code) ? ` (referência ${error.code})` : "";
-        setMsg(`Não foi possível publicar${reference}. Seus dados continuam neste dispositivo. Tente novamente; se persistir, acesse o suporte pelo funil de ajuda.`);
+        setMsg(technicianPublishErrorMessage(error));
       } else if (data?.state === "bloqueado_por_seguranca") {
         setMsg("Seu perfil tem uma restrição de segurança e não pode ser reativado automaticamente. Entre em contato.");
       } else if (data?.state === "publicado") {
