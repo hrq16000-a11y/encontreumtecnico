@@ -99,8 +99,8 @@ GRANT EXECUTE ON FUNCTION
 -- existing owner/admin policies and does NOT grant SELECT by itself.
 -- This assumes a permissive public policy already allows approved rows.
 CREATE POLICY eut_public_visibility_anon_guard
-  AS RESTRICTIVE FOR SELECT TO anon
   ON public.technicians
+  AS RESTRICTIVE FOR SELECT TO anon
   USING (
     status = 'aprovado'::public.approval_status
     AND eut_visibility.eut_public_technician_eligible(id)
