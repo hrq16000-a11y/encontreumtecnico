@@ -2,6 +2,7 @@ import {createFileRoute,Link,useNavigate} from '@tanstack/react-router'
 import {listApprovedTechnicians} from '../../lib/technicians.functions'
 import {useEffect,useMemo,useRef,useState} from 'react'
 import {readUiTextDraft,saveUiTextDraft} from '../../lib/unsent-ui-draft'
+import {restoreGalleryDraft,galleryDraftForUrl} from '../../lib/gallery-search-draft'
 import type {FormEvent} from 'react'
 import {ServiceIcon} from '../../components/lp2/ServiceIcon'
 import {LegacyPublicArchive} from '../../components/legacy-public-archive'
@@ -15,10 +16,10 @@ export const Route=createFileRoute('/lp2/galeria')({
 })
 function Gallery(){
  const profiles=Route.useLoaderData(),search=Route.useSearch(),navigate=useNavigate()
- const [saved]=useState(()=>readUiTextDraft("lp2-gallery"))
- const [query,setQuery]=useState(search.q || saved?.["query"] || ''),[city,setCity]=useState(search.city || saved?.["city"] || ''),[uf,setUf]=useState(saved?.["uf"] || ''),[sort,setSort]=useState(saved?.["sort"] === 'complete' ? 'complete' : 'name'),[limit,setLimit]=useState(24),[showUnlocated,setShowUnlocated]=useState(false)
+ const [initial]=useState(()=>restoreGalleryDraft(search,readUiTextDraft("lp2-gallery")))
+ const [query,setQuery]=useState(initial.query),[city,setCity]=useState(initial.city),[uf,setUf]=useState(initial.uf),[sort,setSort]=useState(initial.sort),[limit,setLimit]=useState(24),[showUnlocated,setShowUnlocated]=useState(false)
  const lastUrl=useRef({q:search.q,city:search.city})
- function remember(next:{query:string;city:string;uf:string;sort:string}){saveUiTextDraft("lp2-gallery",next)}
+ function remember(next:{query:string;city:string;uf:string;sort:string}){saveUiTextDraft("lp2-gallery",galleryDraftForUrl(search,next))}
  useEffect(()=>{
    // Only explicit URL changes override unfinished typing; do not reset on mount.
    if(lastUrl.current.q === search.q && lastUrl.current.city === search.city) return
