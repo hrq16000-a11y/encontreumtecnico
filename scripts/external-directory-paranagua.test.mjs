@@ -37,7 +37,8 @@ test("Catálogo não mistura referências externas com profissionais aprovados",
   assert.match(refs, /não é enviada automaticamente/);
   assert.match(refs, /mode: "managed"/);
   assert.doesNotMatch(refs, /wa\.me|tel:|mailto:|technician_id|approved|aprovado/);
-  assert.match(category, /category\.slug === "computadores"/);
+  assert.match(category, /const PUBLIC_EXTERNAL_REFERENCES_ENABLED = false/);
+  assert.match(category, /PUBLIC_EXTERNAL_REFERENCES_ENABLED && category\.slug === "computadores"/);
   assert.match(category, /<ParanaguaExternalReferences/);
   assert.match(category, /listApprovedTechnicians/);
 });
