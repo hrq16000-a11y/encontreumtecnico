@@ -10,11 +10,17 @@ export function stagePublicDirectoryBatch(input) {
     ? "encontrey" : null;
   if (url.protocol !== "https:" || !origin || url.username || url.password ||
       url.search || url.hash) throw Error("Origem não permitida");
-  if (input.category !== "tecnico-de-informatica" || input.uf !== "PR" ||
-      input.city !== "Almirante Tamandaré" || input.city_ibge !== 4100400)
-    throw Error("Apenas categoria e município do lote autorizado");
-  if (origin === "guiafix" && url.pathname !== "/almirante-tamandare-pr/tecnico-de-informatica")
-    throw Error("Página de categoria divergente");
+  // Separate approved city/category scopes. Never infer a service area from a name.
+  const scopes = {
+    "/almirante-tamandare-pr/tecnico-de-informatica": { city: "Almirante Tamandaré", uf: "PR", ibge: 4100400 },
+    "/cruzeiro-do-sul-ac/tecnico-de-informatica": { city: "Cruzeiro do Sul", uf: "AC", ibge: 1200203 },
+  };
+  const scope = origin === "guiafix" ? scopes[url.pathname]
+    : origin === "encontrey" && input.city === "Almirante Tamandaré" && input.uf === "PR"
+      ? scopes["/almirante-tamandare-pr/tecnico-de-informatica"] : null;
+  if (input.category !== "tecnico-de-informatica" || !scope ||
+      input.uf !== scope.uf || input.city !== scope.city || input.city_ibge !== scope.ibge)
+    throw Error("Apenas cidade/UF/categoria e fonte autorizadas");
   if (!Array.isArray(input.listings) || input.listings.length > 2500)
     throw Error("Lote inválido ou grande demais");
   const normal = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
