@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { readUiTextDraft, saveUiTextDraft } from "@/lib/unsent-ui-draft";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { triageProblem, type TriageResult } from "../lib/problem-triage.functions";
@@ -7,8 +8,14 @@ import { saveTriageDraft } from "../lib/triage-draft";
 export function ProblemAssistant() {
   const navigate = useNavigate();
   const triage = useServerFn(triageProblem);
-  const [description, setDescription] = useState("");
+  const [description, setDescription] = useState(() => readUiTextDraft("problem")?.description ?? "");
   const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      saveUiTextDraft("problem", { description });
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [description]);
   const [result, setResult] = useState<TriageResult | null>(null);
 
   async function onSubmit(e: React.FormEvent) {
