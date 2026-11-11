@@ -1,5 +1,5 @@
 /** 
- * The six editorial detail pages use a stable system font already.
+ * The six enriched service-category pages use a stable system font already.
  * Google Fonts stylesheet is render-blocking even when its families are unused
  * in the article; omit it only on public /guias/:slug pages.
  * Never change fonts on /guias index, auth, admin, Home2, or user panels.
