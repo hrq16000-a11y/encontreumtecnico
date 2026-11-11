@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
   LayoutDashboard, Wrench, UsersRound, ClipboardList, Megaphone,
-  MailOpen, Tags, Archive, UserCheck, ChartNoAxesCombined, Menu, X,
+  MailOpen, Tags, Archive, UserCheck, ChartNoAxesCombined, Menu, X, ShieldBan,
 } from "lucide-react";
 import { ADMIN_SECTIONS, type AdminSection } from "@/lib/admin-sections";
 
@@ -10,6 +10,7 @@ const ICONS = {
   inicio: LayoutDashboard,
   tecnicos: Wrench,
   clientes: UsersRound,
+  contas: ShieldBan,
   solicitacoes: ClipboardList,
   patrocinadores: Megaphone,
   mensagens: MailOpen,

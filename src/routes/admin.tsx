@@ -14,6 +14,7 @@ import { AdminControlHub } from "@/components/admin-control-hub";
 import { AdminAdvertisingManager } from "@/components/admin-advertising-manager";
 import { AdminNavigation } from "@/components/admin-navigation";
 import { AdminTechnicianManager } from "@/components/admin-technician-manager";
+import { AdminAccountsManager } from "@/components/admin-accounts-manager";
 import { adminModuleTitle, type AdminSection } from "@/lib/admin-sections";
 import { ArrowRight } from "lucide-react";
 
@@ -143,6 +144,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             {section === "legado" && <section aria-label="Acervo WordPress"><div id="admin-legado"><LegacyReviewQueue /></div></section>}
             {section === "reivindicacoes" && <section aria-label="Reivindicações"><div id="admin-reivindicacoes"><LegacyClaimReview /></div></section>}
             {section === "catalogo" && <section aria-label="Categorias e serviços"><div id="admin-catalogo"><EutAdminManager /></div></section>}
+            {section === "contas" && <section aria-label="Contas e bloqueios"><AdminAccountsManager /></section>}
             {section === "tecnicos" && <section aria-label="Gestão de técnicos">
               <AdminTechnicianManager technicians={techs} onChanged={load} />
             </section>}
@@ -179,7 +181,8 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             </section>}
             {section === "clientes" && <section aria-labelledby="admin-clientes-titulo">
               <h2 id="admin-clientes-titulo" className="text-xl font-bold text-foreground">Clientes e solicitações</h2>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">Consulta limitada aos clientes que registraram solicitações no portal atual. O gerenciamento completo de identidades, banimentos e exclusões será habilitado somente com ações autorizadas e auditoria.</p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">As contas autenticadas de clientes podem ser consultadas, editadas e bloqueadas na gestão abaixo. As solicitações históricas permanecem separadas. Convites e exclusões definitivas exigem um fluxo específico de autorização.</p>
+              <AdminAccountsManager initialFilter="clientes" />
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-xl border border-border bg-muted/20 p-5"><p className="text-sm text-muted-foreground">Solicitações consultadas</p><p className="mt-1 text-3xl font-extrabold text-foreground">{reqs.length}</p></div>
                 <div className="rounded-xl border border-border bg-muted/20 p-5"><p className="text-sm text-muted-foreground">Solicitantes nessas solicitações</p><p className="mt-1 text-3xl font-extrabold text-foreground">{new Set(reqs.map((r) => r.client_id)).size}</p></div>

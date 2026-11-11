@@ -6,6 +6,9 @@ on:
       - 'src/components/admin-control-hub.tsx'
       - 'src/components/admin-navigation.tsx'
       - 'src/components/admin-technician-manager.tsx'
+      - 'src/components/admin-accounts-manager.tsx'
+      - 'src/lib/admin-account-moderation-contract.test.ts'
+      - 'docs/sql/eut-admin-accounts-moderation-20261111.sql'
       - 'src/components/legacy-review-queue.tsx'
       - 'src/components/site-header.tsx'
       - 'src/lib/admin-management-contract.test.ts'
@@ -28,7 +31,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: Module navigation, RLS and privacy regression tests
-        run: bunx vitest run src/lib/admin-sections.test.ts src/lib/admin-management-contract.test.ts
+        run: bunx vitest run src/lib/admin-sections.test.ts src/lib/admin-management-contract.test.ts src/lib/admin-account-moderation-contract.test.ts
       - name: Build TanStack
         run: bun run build
       - name: TypeScript check
@@ -44,7 +47,7 @@ jobs:
           const menu = readFileSync('src/components/admin-navigation.tsx', 'utf8');
           const sections = readFileSync('src/lib/admin-sections.ts', 'utf8');
           const modules = [
-            'tecnicos', 'clientes', 'solicitacoes', 'patrocinadores',
+            'tecnicos', 'clientes', 'contas', 'solicitacoes', 'patrocinadores',
             'mensagens', 'catalogo', 'legado', 'reivindicacoes', 'metricas',
           ];
           for (const key of modules) {
