@@ -43,7 +43,7 @@ const categories = [{ slug: "redes", label: "Redes" }, { slug: "cftv", label: "C
 const graphFromApproved = (rows: SyntheticTechnician[]) =>
   buildPublicGraph(rows.filter(row => row.status === "aprovado"), cities, categories);
 
-const urls = (xml: string | null) => [...(xml ?? "").matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => m[1]);
+const urls = (xml: string | null) => [...(xml ?? "").matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => m[1] ?? "");
 
 describe("SEO público: simulação não destrutiva de suspensão e atualização", () => {
   it("exige filtro real de status aprovado nas fontes de perfil e sitemap", () => {
