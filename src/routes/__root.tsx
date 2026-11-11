@@ -117,10 +117,15 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const pathname = useRouterState({ select: state => state.location.pathname });
+  // Full-screen friendly 404/403/500 pages own their chrome.
+  // Do not nest an extra header, footer or main around error boundaries.
+  const hasRouteError = useRouterState({
+    select: state => state.matches.some(match => match.status === "notFound" || match.status === "error"),
+  });
 
   return (
     <QueryClientProvider client={queryClient}>
-      {isStandaloneVisualRoute(pathname) ? (
+      {isStandaloneVisualRoute(pathname) || hasRouteError ? (
         // LP2 and Home2 intentionally own their themes and navigation.
         <Outlet />
       ) : (
