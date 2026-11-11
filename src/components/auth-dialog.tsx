@@ -109,11 +109,13 @@ export function AuthDialogProvider({ children }: { children: ReactNode }) {
     const canPopup = sameOrigin && desktop && window.top === window;
     // Open synchronously in the click handler, before the async OAuth request.
     const popup = canPopup
-      ? window.open("about:blank", "eut-google-login", "popup=yes,width=520,height=720,scrollbars=yes,resizable=yes")
+      ? window.open("about:blank", "_blank", "popup=yes,width=520,height=720,scrollbars=yes,resizable=yes")
       : null;
     if (popup) {
       // A reused named popup may already be on Google's origin.
       try {
+        // sessionStorage survives the cross-site roundtrip, unlike window.name.
+        popup.sessionStorage.setItem("eut-google-popup-auth", "1");
         popup.document.title = "Entrar com Google — Encontre um Técnico";
         popup.document.body.innerHTML = '<p style="font:16px system-ui;padding:28px">Abrindo autenticação segura do Google…</p>';
       } catch { /* cross-origin popup: navigation still works */ }
