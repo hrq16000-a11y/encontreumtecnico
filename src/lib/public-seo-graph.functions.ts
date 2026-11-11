@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { setResponseHeader } from "@tanstack/react-start/server";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { readPublicEligibleRows, type PublicEligibilityRpc } from "@/lib/public-eligibility";
@@ -12,9 +13,10 @@ const BATCH = 500;
 const MAX_PROFILE_PAGES = 100; // Up to 50,000 public profiles, with one sentinel page to detect overflow.
 const MUNICIPALITY_BATCH = 1000;
 const MAX_MUNICIPALITY_PAGES = 7; // 5,571 IBGE municipalities currently catalogued.
-const CACHE_MS = 5 * 60_000;
-let cached: Promise<GraphCatalog> | null = null;
-let cacheExpiresAt = 0;
+// Static IBGE reference data may be reused, but technician eligibility never is.
+const REFERENCE_CATALOG_CACHE_MS = 5 * 60_000;
+let referenceCatalog: Promise<Awaited<ReturnType<typeof loadReferenceCatalog>>> | null = null;
+let referenceCatalogExpiresAt = 0;
 
 function publicClient() {
   const url = process.env["SUPABASE_URL"];
@@ -33,6 +35,42 @@ function publicClient() {
       },
     },
   });
+}
+
+async function loadReferenceCatalog() {
+  const db = publicClient();
+  const cities: { name: string; uf: string }[] = [];
+  for (let page = 0; page < MAX_MUNICIPALITY_PAGES; page++) {
+    const { data, error } = await db.from("eut_ibge_municipalities")
+      .select("name,uf")
+      .order("id", { ascending: true })
+      .range(page * MUNICIPALITY_BATCH, (page + 1) * MUNICIPALITY_BATCH - 1);
+    if (error) throw new Error("Could not validate IBGE municipalities");
+    cities.push(...(data ?? []));
+    if ((data ?? []).length < MUNICIPALITY_BATCH) break;
+    if (page === MAX_MUNICIPALITY_PAGES - 1) throw new Error("Municipality catalog requires pagination update");
+  }
+
+  const { data: activeCategories, error: categoryError } = await db
+    .from("eut_service_categories").select("slug,label")
+    .eq("active", true).limit(1000);
+  if (categoryError) throw new Error("Could not validate active categories");
+
+  return { cities, activeCategories: activeCategories ?? [] };
+}
+
+function getCachedReferenceCatalog(): ReturnType<typeof loadReferenceCatalog> {
+  if (referenceCatalog && Date.now() < referenceCatalogExpiresAt) return referenceCatalog;
+  const pending = loadReferenceCatalog().catch((error: unknown) => {
+    if (referenceCatalog === pending) {
+      referenceCatalog = null;
+      referenceCatalogExpiresAt = 0;
+    }
+    throw error;
+  });
+  referenceCatalog = pending;
+  referenceCatalogExpiresAt = Date.now() + REFERENCE_CATALOG_CACHE_MS;
+  return pending;
 }
 
 async function loadGraphUncached(): Promise<GraphCatalog> {
@@ -57,36 +95,17 @@ async function loadGraphUncached(): Promise<GraphCatalog> {
     if ((data ?? []).length < BATCH) break;
   }
 
-  const cities: { name: string; uf: string }[] = [];
-  for (let page = 0; page < MAX_MUNICIPALITY_PAGES; page++) {
-    const { data, error } = await db.from("eut_ibge_municipalities")
-      .select("name,uf")
-      .order("id", { ascending: true })
-      .range(page * MUNICIPALITY_BATCH, (page + 1) * MUNICIPALITY_BATCH - 1);
-    if (error) throw new Error("Could not validate IBGE municipalities");
-    cities.push(...(data ?? []));
-    if ((data ?? []).length < MUNICIPALITY_BATCH) break;
-    if (page === MAX_MUNICIPALITY_PAGES - 1) throw new Error("Municipality catalog requires pagination update");
-  }
-
-  const { data: activeCategories, error: categoryError } = await db
-    .from("eut_service_categories").select("slug,label")
-    .eq("active", true).limit(1000);
-  if (categoryError) throw new Error("Could not validate active categories");
-
-  return buildPublicGraph(profiles, cities, activeCategories ?? []);
+  const { cities, activeCategories } = await getCachedReferenceCatalog();
+  return buildPublicGraph(profiles, cities, activeCategories);
 }
 
-/** Five-minute, public-only in-memory cache; no cookie, UUID or private contacts. */
+/**
+ * A new HTTP request always rechecks eligibility against the backend.
+ * No stale-but-public profiles, ban decisions, or public graphs are memoized.
+ * Only municipality/category reference data can be cached briefly.
+ */
 export function getPublicGraphSnapshot(): Promise<GraphCatalog> {
-  if (cached && Date.now() < cacheExpiresAt) return cached;
-  cached = loadGraphUncached().catch((error: unknown) => {
-    cached = null;
-    cacheExpiresAt = 0;
-    throw error;
-  });
-  cacheExpiresAt = Date.now() + CACHE_MS;
-  return cached;
+  return loadGraphUncached();
 }
 
 export const getSeoCity = createServerFn({ method: "GET" })
@@ -95,6 +114,7 @@ export const getSeoCity = createServerFn({ method: "GET" })
     city: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(75),
   }).parse(input))
   .handler(async ({ data }) => {
+    setResponseHeader("Cache-Control", "no-store");
     const graph = await getPublicGraphSnapshot();
     const city = graph.cities.find((c) => c.uf.toLowerCase() === data.uf && c.slug === data.city);
     if (!city) return null;
@@ -108,6 +128,7 @@ export const getSeoCity = createServerFn({ method: "GET" })
 export const getSeoCategory = createServerFn({ method: "GET" })
   .inputValidator((input) => z.object({ category: z.string().max(96) }).parse(input))
   .handler(async ({ data }) => {
+    setResponseHeader("Cache-Control", "no-store");
     if (!validGraphSlug(data.category)) return null;
     const graph = await getPublicGraphSnapshot();
     const category = graph.categories.find((c) => c.slug === data.category);
@@ -124,6 +145,7 @@ export const getSeoCategory = createServerFn({ method: "GET" })
 export const getSeoProfileLinks = createServerFn({ method: "GET" })
   .inputValidator((input) => z.object({ slug: z.string().min(1).max(96) }).parse(input))
   .handler(async ({ data }) => {
+    setResponseHeader("Cache-Control", "no-store");
     if (!validGraphSlug(data.slug)) return { city: null, categories: [], related: [] };
     const graph = await getPublicGraphSnapshot();
     const current = graph.profiles.find((p) => p.public_slug === data.slug);
