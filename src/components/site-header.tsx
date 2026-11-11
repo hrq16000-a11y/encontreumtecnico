@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, CircleHelp, House, LogIn, Menu, Search, Wrench, X } from "lucide-react";
+import { ArrowRight, CircleHelp, House, LogIn, Menu, Search, Wrench, X, UserRound } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 import logo from "@/assets/logo-marinho.png";
 
 const NAV_ITEMS = [
@@ -15,6 +16,13 @@ const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:rin
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const { user, roles, loading } = useAuth();
+  // Server-controlled roles. Never infer admin privileges from the e-mail.
+  const accountPath = roles.includes("admin") ? "/admin" as const
+    : roles.includes("tecnico") ? "/area-tecnico" as const
+    : roles.includes("cliente") ? "/area-cliente" as const
+    : "/entrar" as const;
+  const signedIn = !loading && Boolean(user);
 
   useEffect(() => {
     const update = () => setScrolled(window.scrollY > 35);
@@ -61,15 +69,24 @@ export function SiteHeader() {
         </nav>
 
         <div className="hidden items-center gap-2 lg:flex">
-          <Link to="/entrar"
-            className={"inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-sm font-semibold text-foreground transition-colors hover:bg-accent " + FOCUS}>
-            <LogIn className="h-4 w-4" aria-hidden="true" />
-            Entrar
-          </Link>
-          <Link to="/area-tecnico"
-            className={"inline-flex min-h-11 items-center gap-1.5 rounded-full border border-primary/25 bg-card px-4 text-sm font-semibold text-primary shadow-sm transition-colors hover:border-primary hover:bg-accent " + FOCUS}>
-            Sou técnico
-          </Link>
+          {signedIn ? (
+            <Link to={accountPath}
+              className={"inline-flex min-h-11 items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 text-sm font-semibold text-primary transition-colors hover:bg-primary/15 " + FOCUS}>
+              <UserRound className="h-4 w-4" aria-hidden="true" />
+              Minha conta
+            </Link>
+          ) : (
+            <>
+              <Link to="/entrar"
+                className={"inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-sm font-semibold text-foreground transition-colors hover:bg-accent " + FOCUS}>
+                <LogIn className="h-4 w-4" aria-hidden="true" /> Entrar
+              </Link>
+              <Link to="/area-tecnico"
+                className={"inline-flex min-h-11 items-center gap-1.5 rounded-full border border-primary/25 bg-card px-4 text-sm font-semibold text-primary shadow-sm transition-colors hover:border-primary hover:bg-accent " + FOCUS}>
+                Sou técnico
+              </Link>
+            </>
+          )}
           <Link to="/tecnicos"
             className={"inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-md motion-reduce:transform-none " + FOCUS}>
             <Search className="h-4 w-4" aria-hidden="true" />
@@ -106,7 +123,7 @@ export function SiteHeader() {
                 );
               })}
             </ul>
-            <div className="mt-4 grid grid-cols-2 gap-2 border-t border-border pt-4">
+            {!signedIn && <div className="mt-4 grid grid-cols-2 gap-2 border-t border-border pt-4">
               <Link to="/area-cliente" onClick={() => setOpen(false)}
                 className={"inline-flex min-h-12 items-center justify-center rounded-xl border border-input bg-card px-3 text-center text-sm font-semibold text-foreground " + FOCUS}>
                 Sou cliente
@@ -115,11 +132,11 @@ export function SiteHeader() {
                 className={"inline-flex min-h-12 items-center justify-center rounded-xl border border-primary/30 bg-accent px-3 text-center text-sm font-semibold text-primary " + FOCUS}>
                 Sou técnico
               </Link>
-            </div>
-            <Link to="/entrar" onClick={() => setOpen(false)}
+            </div>}
+            <Link to={signedIn ? accountPath : "/entrar"} onClick={() => setOpen(false)}
               className={"mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm " + FOCUS}>
-              <LogIn className="h-4 w-4" aria-hidden="true" />
-              Entrar ou criar conta
+              {signedIn ? <UserRound className="h-4 w-4" aria-hidden="true" /> : <LogIn className="h-4 w-4" aria-hidden="true" />}
+              {signedIn ? "Minha conta" : "Entrar ou criar conta"}
             </Link>
             <p className="mt-3 text-center text-xs text-muted-foreground">Cadastro gratuito para profissionais · contato privado protegido</p>
           </div>
@@ -138,10 +155,10 @@ export function SiteHeader() {
         activeProps={{ className: "flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg bg-primary/10 py-2 text-xs font-semibold text-primary" }}>
         <Search className="h-5 w-5" aria-hidden="true" /> Buscar
       </Link>
-      <Link to="/entrar"
+      <Link to={signedIn ? accountPath : "/entrar"}
         className={"flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg py-2 text-xs font-medium text-muted-foreground " + FOCUS}
         activeProps={{ className: "flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg bg-primary/10 py-2 text-xs font-semibold text-primary" }}>
-        <LogIn className="h-5 w-5" aria-hidden="true" /> Minha área
+        {signedIn ? <UserRound className="h-5 w-5" aria-hidden="true" /> : <LogIn className="h-5 w-5" aria-hidden="true" />} Minha área
       </Link>
     </nav>
     </>

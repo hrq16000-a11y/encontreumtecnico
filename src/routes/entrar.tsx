@@ -5,6 +5,7 @@ import { PageShell } from "../components/page-placeholder";
 import { signInWithGoogle, useAuth, type Role } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { safeLegacyClaimReturnPath } from "@/lib/legacy-claim-validation";
+import { authReturnUrl } from "@/lib/auth-domain";
 import { canAttemptNewAccountRole } from "@/lib/onboarding-legacy-fallback";
 
 export const Route = createFileRoute("/entrar")({
@@ -40,7 +41,7 @@ function EmailPasswordForm({ onError }: { onError: (m: string | null) => void })
     if (mode === "recuperar") {
       try {
         const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-          redirectTo: `${window.location.origin}/redefinir-senha`,
+          redirectTo: authReturnUrl("/redefinir-senha", window.location.origin),
         });
         if (error) onError("Não foi possível enviar a recuperação agora. Tente novamente.");
         else setInfo("Se houver uma conta com este e-mail, você receberá instruções para redefinir sua senha.");
@@ -56,7 +57,7 @@ function EmailPasswordForm({ onError }: { onError: (m: string | null) => void })
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
-          options: { emailRedirectTo: `${window.location.origin}/entrar` },
+          options: { emailRedirectTo: authReturnUrl("/entrar", window.location.origin) },
         });
         if (error) {
           onError(error.message.includes("registered") ? "Este e-mail já tem conta. Use Entrar." : "Não foi possível criar a conta.");
