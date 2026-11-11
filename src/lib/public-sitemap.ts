@@ -62,7 +62,7 @@ export function buildPublicSitemapXml(
   // an incomplete sitemap. The next scaling milestone is sitemap indexes.
   if (lines.length > 50_000) throw new Error("Split public sitemap into a sitemap index");
   const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${lines.join("\n")}\n</urlset>\n`;
-  if (Buffer.byteLength(xml, "utf8") > 50 * 1024 * 1024) {
+  if (new TextEncoder().encode(xml).byteLength > 50 * 1024 * 1024) {
     throw new Error("Split sitemap before 50 MB XML limit");
   }
   return xml;
