@@ -12,7 +12,7 @@ type DebouncedTextFilterProps = {
   label: string;
   value: string;
   placeholder: string;
-  list?: string;
+  list?: string | undefined;
   onCommit: (value: string) => void;
   onBlurTrack: (value: string) => void;
 };
