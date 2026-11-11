@@ -27,11 +27,13 @@ beforeEach(() => {
 });
 
 describe("HTTP real das respostas de sitemap segmentado (sem Supabase/produção)", () => {
-  it("retorna Response 200 XML e cache para uma página que existe", async () => {
+  it("retorna Response 200 XML sem cache de perfil moderado", async () => {
     const response = await publicSitemapPartResponse("tecnicos", 1);
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("application/xml; charset=utf-8");
-    expect(response.headers.get("cache-control")).toContain("s-maxage=900");
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    expect(response.headers.get("cdn-cache-control")).toBe("no-store");
+    expect(response.headers.get("vercel-cdn-cache-control")).toBe("no-store");
     expect(await response.text()).toContain(
       "<loc>https://www.encontreumtecnico.com.br/tecnicos/tecnica-curitiba</loc>",
     );
@@ -50,6 +52,19 @@ describe("HTTP real das respostas de sitemap segmentado (sem Supabase/produção
     expect(response.status).toBe(503);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(await response.text()).not.toContain("read-only database");
+  });
+
+  it("em duas requisições consecutivas não repete uma URL banida no XML", async () => {
+    const before = await publicSitemapPartResponse("tecnicos", 1);
+    expect((await before.text())).toContain("/tecnicos/tecnica-curitiba");
+    mocks.getPublicGraphSnapshot.mockResolvedValue({
+      profiles: [], cities: [], categories: [],
+    });
+    const after = await publicSitemapPartResponse("tecnicos", 1);
+    expect(after.status).toBe(404);
+    expect(after.headers.get("cache-control")).toBe("no-store");
+    expect(await after.text()).not.toContain("tecnica-curitiba");
+    expect(mocks.getPublicGraphSnapshot).toHaveBeenCalledTimes(2);
   });
 
   it("não publica sitemaps vazios de cidades e categorias", async () => {
