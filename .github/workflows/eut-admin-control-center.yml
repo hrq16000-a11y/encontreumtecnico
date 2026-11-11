@@ -12,7 +12,12 @@ on:
       - 'src/lib/admin-technician-pagination.ts'
       - 'src/lib/admin-technician-pagination.test.ts'
       - 'src/components/admin-accounts-manager.tsx'
-      - 'src/lib/admin-account-moderation-contract.test.ts'
+      - 'src/components/admin-member-invites.tsx'
+      - 'src/components/member-invite-acceptance.tsx'
+      - 'src/lib/admin-member-invite-contract.test.ts'
+      - 'docs/sql/eut-admin-member-invitations-20261111.sql'
+      - 'src/routes/entrar.tsx'
+      - 'src/lib/admin-account-moderation-contract.test.ts src/lib/admin-member-invite-contract.test.ts'
       - 'docs/sql/eut-admin-accounts-moderation-20261111.sql'
       - 'src/components/legacy-review-queue.tsx'
       - 'src/components/site-header.tsx'
@@ -53,6 +58,8 @@ jobs:
             { name: 'Private admin accounts directory', path: '/rest/v1/rpc/eut_admin_accounts_snapshot',
               method: 'POST', body: JSON.stringify({ _search: '', _filter: 'todos', _page: 0 }) },
             { name: 'Immutable admin audit table', path: '/rest/v1/eut_admin_management_log?select=id&limit=1', method: 'GET' },
+            { name: 'Private member invitation snapshot', path: '/rest/v1/rpc/eut_admin_member_invites_snapshot', method: 'POST', body: '{}' },
+            { name: 'Private recipient invitation lookup', path: '/rest/v1/rpc/eut_my_member_invitation', method: 'POST', body: '{}' },
           ];
           for (const probe of probes) {
             const response = await fetch(base + probe.path, {
