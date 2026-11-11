@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - 'src/routes/entrar.tsx'
+      - 'src/routes/redefinir-senha.tsx'
+      - 'src/routes/redefinir-senha.test.tsx'
+      - 'src/components/auth-dialog.tsx'
       - 'src/lib/onboarding-legacy-fallback.ts'
       - 'src/lib/onboarding-legacy-fallback.test.ts'
       - 'src/hooks/use-auth.tsx'
@@ -35,7 +38,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: Test live-auth hook against account switching, signout and stale roles
-        run: bun run test src/hooks/use-auth.test.tsx src/lib/account-scoped-queries.test.ts src/lib/auth-domain.test.ts src/lib/google-identity-hint.test.ts
+        run: bun run test src/hooks/use-auth.test.tsx src/lib/account-scoped-queries.test.ts src/lib/auth-domain.test.ts src/lib/google-identity-hint.test.ts src/routes/redefinir-senha.test.tsx
       - name: Build app and generate TanStack route tree
         run: bun run build
       - name: TypeScript after TanStack route generation
