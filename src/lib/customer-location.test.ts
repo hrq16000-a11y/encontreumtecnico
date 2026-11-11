@@ -2,18 +2,40 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { parseBrazilianDeviceLocation, suggestTechnicianArea } from "./customer-location";
 
-describe("detecção de bairro/cidade por GPS com privacidade", () => {
+describe("GPS informa município, mas nunca inventa bairro", () => {
   it("normaliza município e UF a partir de GPS autorizado no Brasil", () => {
     expect(parseBrazilianDeviceLocation({
       countryCode: "BR", city: "Tubarão", principalSubdivisionCode: "BR-SC",
       locality: "Passo do Gado", latitude: -28.45, longitude: -49.02,
-    })).toEqual({ city: "Tubarão", uf: "SC", neighborhood: "Passo do Gado" });
+    })).toEqual({ city: "Tubarão", uf: "SC", neighborhood: "" });
   });
   it("não inventa bairro quando a API repete o nome da cidade", () => {
     expect(parseBrazilianDeviceLocation({
       countryCode: "BR", city: "Curitiba", principalSubdivisionCode: "PR", locality: "curitiba",
     })).toEqual({ city: "Curitiba", uf: "PR", neighborhood: "" });
   });
+  it("não usa localidade municipal como bairro e não toma metrópole por município", () => {
+    expect(parseBrazilianDeviceLocation({
+      countryCode: "BR", city: "Curitiba", principalSubdivisionCode: "BR-PR",
+      locality: "São José dos Pinhais",
+    })).toEqual({ city: "Curitiba", uf: "PR", neighborhood: "" });
+    expect(parseBrazilianDeviceLocation({
+      countryCode: "BR", city: "Região Metropolitana de Curitiba",
+      locality: "São José dos Pinhais", principalSubdivisionCode: "BR-PR",
+    })).toBeNull();
+  });
+
+  it("mantém Jardim Itália digitado manualmente mesmo após nova consulta GPS", () => {
+    const current = { state_uf: "PR", city: "São José dos Pinhais",
+      neighborhood: "Jardim Itália", region: "Centro" };
+    expect(suggestTechnicianArea(current, {
+      uf: "PR", city: "São José dos Pinhais", neighborhood: "São José dos Pinhais",
+    }, "automatic")).toBe(current);
+    expect(suggestTechnicianArea(current, {
+      uf: "PR", city: "São José dos Pinhais", neighborhood: "",
+    }, "manual")).toEqual(current);
+  });
+
   it("recusa UF inválida, país estrangeiro ou cidade desconhecida", () => {
     for (const value of [
       null, { countryCode: "AR", city: "Posadas", principalSubdivisionCode: "AR-M" },
@@ -21,12 +43,12 @@ describe("detecção de bairro/cidade por GPS com privacidade", () => {
       { countryCode: "BR", city: "Tubarão", principalSubdivisionCode: "BR-ZZ" },
     ]) expect(parseBrazilianDeviceLocation(value)).toBeNull();
   });
-  it("preenche UF, cidade e bairro no primeiro cadastro técnico sem adivinhar serviços", () => {
+  it("preenche UF e cidade sem inferir bairro automaticamente", () => {
     const draft = { display_name: "Profissional", state_uf: "", city: "", neighborhood: "",
       region: "Centro e bairros vizinhos", specialties: ["redes"] };
     const located = suggestTechnicianArea(draft,
       { uf: "PR", city: "Curitiba", neighborhood: "Água Verde" }, "automatic");
-    expect(located).toEqual({ ...draft, state_uf: "PR", city: "Curitiba", neighborhood: "Água Verde" });
+    expect(located).toEqual({ ...draft, state_uf: "PR", city: "Curitiba", neighborhood: "" });
     expect(located.region).toBe("Centro e bairros vizinhos");
     expect(located.specialties).toEqual(["redes"]);
   });
@@ -55,7 +77,7 @@ describe("detecção de bairro/cidade por GPS com privacidade", () => {
     expect(tech).toContain('suggestTechnicianArea(current, area, source)');
     expect(tech).toContain('autoIfGranted={!profileId');
     expect(button).toContain("cidade, UF e");
-    expect(button).toContain("bairro informados poderão aparecer no perfil público");
+    expect(button).toContain("Bairro não é identificado com segurança");
     expect(button).toContain("BigDataCloud");
     expect(button).toContain("coordenadas e IP");
     expect(tech).toContain('activationDb.rpc("eut_publish_my_technician"');
