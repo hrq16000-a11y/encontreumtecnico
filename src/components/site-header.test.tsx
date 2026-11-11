@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { SiteHeader } from "./site-header";
 const navState = vi.hoisted(() => ({ pathname: "/" }));
 const authState = vi.hoisted(() => ({
@@ -33,7 +33,7 @@ describe("Cabeçalho do novo portal", () => {
     expect(authDialog.open).toHaveBeenCalledWith("cadastrar", "cliente");
     expect(screen.queryByRole("navigation", { name: "Navegação móvel" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Abrir menu" }));
-    fireEvent.click(screen.getByRole("button", { name: "Sou técnico" }));
+    fireEvent.click(within(screen.getByRole("navigation", { name: "Navegação móvel" })).getByRole("button", { name: "Sou técnico" }));
     expect(authDialog.open).toHaveBeenCalledWith("cadastrar", "tecnico");
     fireEvent.click(screen.getByRole("button", { name: "Abrir menu" }));
     fireEvent.click(screen.getByRole("button", { name: "Entrar ou criar conta" }));
