@@ -1,3 +1,4 @@
+import { GUIDE_PATHS } from "@/lib/public-guides";
 /** Public sitemap builder. Never accept names, phones or private legacy records. */
 export const SITE = "https://www.encontreumtecnico.com.br";
 
@@ -17,7 +18,7 @@ export type PublicSitemapProfile = {
 };
 
 export function buildPublicSitemapXml(profiles: readonly PublicSitemapProfile[]): string {
-  const lines = PUBLIC_PATHS.map((path) =>
+  const lines = [...PUBLIC_PATHS, ...GUIDE_PATHS].map((path) =>
     `  <url><loc>${SITE}${path}</loc></url>`);
   const seen = new Set<string>();
   for (const profile of profiles) {
