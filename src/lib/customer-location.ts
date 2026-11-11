@@ -20,8 +20,12 @@ export function suggestTechnicianArea<T extends {
   const city = isBroadRegionalLabel(area.city) ? "" : area.city;
   const keptCity = city || form.city;
   const sameCity = !city || placeKey(city) === placeKey(form.city);
-  const neighborhood = safeNeighborhood(area.neighborhood, keptCity) ||
-    (sameCity ? safeNeighborhood(form.neighborhood, keptCity) : "");
+  // Automatic/session hints never supply a verified bairro. Keep a draft
+  // only for the same municipality; manual GPS suggestions cannot erase it.
+  const neighborhood = source === "automatic"
+    ? (sameCity ? safeNeighborhood(form.neighborhood, keptCity) : "")
+    : safeNeighborhood(area.neighborhood, keptCity) ||
+      (sameCity ? safeNeighborhood(form.neighborhood, keptCity) : "");
   return { ...form, state_uf: area.uf, city: keptCity, neighborhood };
 }
 
