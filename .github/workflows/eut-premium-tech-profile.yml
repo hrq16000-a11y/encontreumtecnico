@@ -5,6 +5,8 @@ on:
       - 'src/routes/tecnicos.$tecnicoId.tsx'
       - 'src/components/public-technician-profile.tsx'
       - 'src/components/public-technician-profile.test.tsx'
+      - 'src/lib/location-labels.ts'
+      - 'src/lib/location-labels.test.ts'
       - 'src/components/back-to-top.tsx'
       - '.github/workflows/eut-premium-tech-profile.yml'
 permissions:
@@ -18,7 +20,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: UI behavior, factual badges, privacy
-        run: bunx vitest run src/components/public-technician-profile.test.tsx
+        run: bunx vitest run src/components/public-technician-profile.test.tsx src/lib/location-labels.test.ts
       - name: WordPress runtime independence
         run: node scripts/eut-wordpress-runtime-boundary.mjs
       - name: Generate TanStack routes and build
