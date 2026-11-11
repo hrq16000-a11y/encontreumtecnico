@@ -10,6 +10,9 @@ export function technicianPublishErrorMessage(error: PublishError): string {
   if (code === "PGRST202" || code === "42883") {
     return `O serviço de publicação está temporariamente indisponível. Não altere seus dados: tente novamente mais tarde. ${recovery}`;
   }
+  if (code === "P0001") {
+    return `O servidor recusou a publicação por uma regra do cadastro. Seus dados foram preservados na aba; não crie outra conta. Solicite suporte para identificar a restrição.`;
+  }
   if (code === "23503" || code === "23514" || code === "22P02" || code === "23502") {
     return `O servidor recusou uma informação obrigatória do cadastro. Revise município, categorias e serviços. ${recovery}`;
   }
