@@ -140,7 +140,7 @@ BEGIN
  PERFORM set_config('eut.admin_reason',reason,true);
  FOR profile IN SELECT wp_post_id FROM public.legacy_review_profiles
   WHERE source_key='wordpress_20261108' AND wp_post_id=ANY(p_ids)
-  ORDER BY wp_post_id FOR UPDATE LOOP
+  ORDER BY wp_post_id LOOP
   IF new_state IS NOT NULL THEN
    INSERT INTO public.eut_legacy_profile_management(source_key,wp_post_id,record_state,updated_by)
    VALUES('wordpress_20261108',profile.wp_post_id,new_state,admin_id)

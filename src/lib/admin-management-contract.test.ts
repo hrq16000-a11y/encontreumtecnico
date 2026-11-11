@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 const sql = readFileSync("docs/sql/eut-admin-management-actions-20261111.sql", "utf8");
+const employers = readFileSync("docs/sql/eut-admin-legacy-employer-overlay-20261111.sql", "utf8");
 const admin = readFileSync("src/routes/admin.tsx", "utf8");
 const technicians = readFileSync("src/components/admin-technician-manager.tsx", "utf8");
 const legacy = readFileSync("src/components/legacy-review-queue.tsx", "utf8");
@@ -53,6 +54,19 @@ describe("Admin management hardening", () => {
     expect(legacy).toContain("Editar nome");
     expect(legacy).toContain("não ativa contas nem expõe contatos");
     expect(legacy).not.toContain('db.from("legacy_review_profiles").delete');
+    expect(sql).not.toContain("ORDER BY wp_post_id FOR UPDATE LOOP");
+    expect(legacy).toContain('kind === "candidate" ? "eut_legacy_profile_management" : "eut_legacy_employer_management"');
+    for (const guard of [
+      "CREATE TABLE IF NOT EXISTS public.eut_legacy_employer_management",
+      "eut_legacy_guard_employer",
+      "eut_admin_audit_legacy_employer",
+      "Registros de demonstração só podem ser arquivados",
+      "table_name:=CASE profile.kind",
+      "SECURITY INVOKER SET search_path=''",
+    ]) expect(employers).toContain(guard);
+    expect(employers).not.toContain("ORDER BY wp_post_id FOR UPDATE");
+    expect(employers).toContain("ON CONFLICT(source_key,wp_post_id)");
+    expect(employers).toContain("RETURN jsonb_build_object('updated',count_items,'action',p_action,'published',false)");
   });
   it("closes menus on outside tap and Escape while preserving desktop navigation", () => {
     for (const source of [nav,header]) {

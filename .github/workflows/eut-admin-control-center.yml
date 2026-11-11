@@ -10,6 +10,7 @@ on:
       - 'src/components/site-header.tsx'
       - 'src/lib/admin-management-contract.test.ts'
       - 'docs/sql/eut-admin-management-actions-20261111.sql'
+      - 'docs/sql/eut-admin-legacy-employer-overlay-20261111.sql'
       - 'src/lib/admin-sections.ts'
       - 'src/lib/admin-sections.test.ts'
       - 'src/routes/admin_.$secao.tsx'
