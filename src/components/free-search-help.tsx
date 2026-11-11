@@ -1,6 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { LifeBuoy, X } from "lucide-react";
-import { AssistanceFunnel } from "./assistance-funnel";
+// The complete wizard (regional hint, Supabase, drafts and validation) is only
+// needed after an explicit help request. Keep the global event listener and
+// floating CTA mounted so cross-route requests and open drafts are preserved.
+const LazyAssistanceFunnel = lazy(() =>
+  import("./assistance-funnel").then(({ AssistanceFunnel }) => ({ default: AssistanceFunnel })),
+);
 import { type FreeHelpContext } from "@/lib/free-search-help";
 
 /** Global guided service intake. Opens on explicit click or regional zero-results.
@@ -56,7 +61,13 @@ export function FreeSearchHelp() {
               <h2 id="eut-help-title" className="mt-2 pr-10 text-2xl font-black text-white">Precisou de um técnico? Encontrou o caminho.</h2>
               <p className="mt-2 text-sm text-white/85">Escolha acesso direto ou suporte da equipe. Sem divulgação de telefones privados.</p>
             </div>
-            <AssistanceFunnel key={JSON.stringify(context)} context={context} onClose={() => setOpen(false)} />
+            <Suspense fallback={
+              <div role="status" aria-live="polite" className="px-5 py-8 text-sm text-muted-foreground">
+                Carregando atendimento seguro…
+              </div>
+            }>
+              <LazyAssistanceFunnel key={JSON.stringify(context)} context={context} onClose={() => setOpen(false)} />
+            </Suspense>
           </section>
         </div>
       )}
