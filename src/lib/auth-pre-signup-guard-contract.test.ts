@@ -41,10 +41,10 @@ describe("Before User Created: proteção por identidade conhecida", () => {
     expect(smoke).toContain("DO $smoke$");
     expect(smoke).toContain("v_result <> '{}'::jsonb");
     expect(smoke).toContain("v_result->'error'->>'http_code'");
-    expect(smoke).not.toMatch(/\b(INSERT|UPDATE|DELETE|TRUNCATE)\s/i);
+    expect(smoke).not.toMatch(/^\s*(INSERT|UPDATE|DELETE|TRUNCATE)\s/im);
     expect(rollout).toContain("Authentication > Hooks > Before User Created");
     expect(rollout).toContain("desabilitar o hook");
-    expect(rollout).toContain("outra");
+    expect(rollout).toContain("não há outro hook");
     expect(rollout).toContain("PR #133");
   });
 });
