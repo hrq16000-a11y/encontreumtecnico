@@ -22,7 +22,7 @@ import { PioneerPhoneVerification } from "@/components/pioneer-phone-verificatio
 import { TechnicianDirectRequests } from "@/components/technician-direct-requests";
 import { CustomerLocationButton } from "@/components/customer-location-button";
 import { suggestTechnicianArea } from "@/lib/customer-location";
-import { safeNeighborhood, sameMunicipalityAsNeighborhood } from "@/lib/location-labels";
+import { placeKey, safeNeighborhood, sameMunicipalityAsNeighborhood } from "@/lib/location-labels";
 import { neighborhoodCatalogFor, neighborhoodOptions } from "@/lib/neighborhood-sources";
 import { changeTechnicianPlace, needsLocationDraftConfirmation } from "@/lib/technician-place-change";
 import { clearProtectedDraft, readProtectedDraft, saveProtectedDraft } from "@/lib/protected-session-draft";
@@ -547,17 +547,27 @@ export function TechnicianAreaPage() {
                   {bairroCatalog && <datalist id="eut-bairro-profissional">
                     {neighborhoodOptions(bairroCatalog).map(bairro => <option key={bairro} value={bairro} />)}
                   </datalist>}
+                  {sameMunicipalityAsNeighborhood(form.neighborhood, form.city) && (
+                    <span role="status" className="mt-1 block text-xs text-amber-800 dark:text-amber-300">
+                      O preenchimento anterior era o município, não um bairro. Informe o bairro real, se desejar.
+                    </span>
+                  )}
+                </label>
+                <label className="text-sm font-medium text-foreground">Outros bairros ou regiões atendidos (opcional)
+                  <input maxLength={120} className={input} value={form.region}
+                    placeholder="Somente locais adicionais, sem repetir o município"
+                    onChange={(e) => updateRegistration({ ...form, region: e.target.value })} />
+                </label>
+              </div>
                   {bairroCatalog && (
-                    <details className="mt-2 rounded-lg border border-border bg-muted/20">
+                    <details className="rounded-lg border border-border bg-muted/20">
                       <summary className="flex min-h-11 cursor-pointer items-center px-3 text-sm text-primary">
                         Ver sugestões de bairros ({neighborhoodOptions(bairroCatalog).length})
                       </summary>
                       <div className="max-h-52 overflow-y-auto border-t border-border p-2">
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                           {neighborhoodOptions(bairroCatalog)
-                            .filter(bairro => !form.neighborhood.trim() ||
-                              bairro.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase("pt-BR")
-                                .includes(form.neighborhood.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase("pt-BR").trim()))
+                            .filter(bairro => !form.neighborhood.trim() || placeKey(bairro).includes(placeKey(form.neighborhood)))
                             .map(bairro => (
                               <button key={bairro} type="button"
                                 onClick={() => updateRegistration({ ...form, neighborhood: bairro })}
@@ -572,18 +582,6 @@ export function TechnicianAreaPage() {
                       </div>
                     </details>
                   )}
-                  {sameMunicipalityAsNeighborhood(form.neighborhood, form.city) && (
-                    <span role="status" className="mt-1 block text-xs text-amber-800 dark:text-amber-300">
-                      O preenchimento anterior era o município, não um bairro. Informe o bairro real, se desejar.
-                    </span>
-                  )}
-                </label>
-                <label className="text-sm font-medium text-foreground">Outros bairros ou regiões atendidos (opcional)
-                  <input maxLength={120} className={input} value={form.region}
-                    placeholder="Somente locais adicionais, sem repetir o município"
-                    onChange={(e) => updateRegistration({ ...form, region: e.target.value })} />
-                </label>
-              </div>
               {bairroCatalog && <p className="text-xs text-muted-foreground">
                 Sugestões da <a href={bairroCatalog.sourceUrl} target="_blank" rel="noopener noreferrer"
                   className="font-medium text-primary underline underline-offset-2">{bairroCatalog.sourceName}</a>.
