@@ -1,0 +1,24 @@
+name: EUT session safety gate
+on:
+  pull_request:
+    paths:
+      - 'docs/sql/eut-sensitive-session-gates-20261111.sql'
+      - 'docs/admin/EUT_SESSION_GATES_2026-11-11.md'
+      - 'src/lib/eut-sensitive-session-contract.test.ts'
+      - '.github/workflows/eut-session-safety.yml'
+permissions:
+  contents: read
+jobs:
+  session-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Validate session safety contract
+        run: bunx vitest run src/lib/eut-sensitive-session-contract.test.ts
+      - name: Build and generate TanStack route types
+        run: bun run build
+      - name: Verify TypeScript after generation
+        run: bunx tsc --noEmit --pretty false

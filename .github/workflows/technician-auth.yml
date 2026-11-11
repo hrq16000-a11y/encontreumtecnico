@@ -70,7 +70,7 @@ jobs:
           ]) {
             if (!auth.includes(v)) throw Error('Session ordering / stale query protection missing: '+v);
           }
-          if (!signin.includes('Recarregar minha área') || !signin.includes('params.has("error")')) {
+          if (!signin.includes('Recarregar minha área') || !signin.includes('hasOAuthCallbackError(window.location.search, window.location.hash)')) {
             throw Error('OAuth error and failed role recovery UI missing');
           }
           const reset = readFileSync('src/routes/redefinir-senha.tsx','utf8');

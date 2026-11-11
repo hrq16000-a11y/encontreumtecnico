@@ -14,6 +14,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { FriendlyErrorState } from "../components/friendly-error-state";
+import { AuthDialogProvider } from "../components/auth-dialog";
 import { PageShell } from "../components/page-placeholder";
 import { isStandaloneVisualRoute } from "../lib/shared-shell-routing";
 
@@ -125,6 +126,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <AuthDialogProvider>
       {isStandaloneVisualRoute(pathname) || hasRouteError ? (
         // LP2 and Home2 intentionally own their themes and navigation.
         <Outlet />
@@ -133,6 +135,7 @@ function RootComponent() {
         // route changes. Each nested PageShell now renders content only.
         <PageShell><Outlet /></PageShell>
       )}
+      </AuthDialogProvider>
     </QueryClientProvider>
   );
 }
