@@ -58,7 +58,9 @@ const DANGEROUS_CONTACT = /(?:@|https?:\/\/|www\.|wa\.me|(?:\+?\d[\d\s().-]{8,}\
 
 export function normalizeBrazilPhoneE164(input: string): string | null {
   const digits = input.replace(/\D/g, "");
-  const normalized = digits.startsWith("55") ? digits : "55" + digits;
+  // A Brazilian area code 55 is valid; distinguish national (10/11 digits) from E.164.
+  const normalized = digits.length === 10 || digits.length === 11
+    ? "55" + digits : digits.length === 12 || digits.length === 13 ? digits : "";
   // Matches the actual database check constraint.
   return /^55[1-9]{2}[2-9][0-9]{7,8}$/.test(normalized)
     ? "+" + normalized : null;
@@ -80,13 +82,15 @@ export function prepareAdminTechnicianEdit(
   if (!city) issues.push("Selecione a cidade-base por código do catálogo oficial IBGE.");
   const coverage = draft.coverageCityIds;
   const distinctCities = new Set(coverage);
-  if (coverage.length < 1 || coverage.length > 5 || distinctCities.size !== coverage.length ||
+  if ((guard.technicianStatus === "aprovado" && (coverage.length < 1 || coverage.length > 5)) ||
+      (guard.technicianStatus !== "aprovado" && coverage.length !== 0) ||
+      distinctCities.size !== coverage.length ||
       coverage.some(id => !Number.isInteger(id) || !catalog.cities.some(c => c.id === id)))
     issues.push("Selecione de uma a cinco cidades oficiais, sem repetições.");
-  if (city && !distinctCities.has(city.id))
+  if (city && guard.technicianStatus === "aprovado" && !distinctCities.has(city.id))
     issues.push("A cidade-base precisa integrar a cobertura.");
-  if (guard.technicianStatus !== "aprovado" && coverage.length > 0)
-    issues.push("Cobertura só pode ser definida para perfil aprovado.");
+  if (guard.technicianStatus !== "aprovado" && draft.radiusKm !== null)
+    issues.push("Raio de atendimento requer perfil aprovado.");
   if (draft.radiusKm !== null && !VALID_RADIUS.has(draft.radiusKm))
     issues.push("Selecione um raio permitido pelo banco.");
   const neighborhood = draft.neighborhood?.trim() || null;
@@ -151,6 +155,7 @@ export function prepareReversibleArchive(draft: ArchiveDraft):
   { ok: true; kind: "preview_only"; operation: "archive" | "restore"; willPublish: false; preservesBan: true } |
   { ok: false; issue: string } {
   if (!UUID.test(draft.technicianId) ||
+      !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d/.test(draft.expectedUpdatedAt) ||
       !Number.isFinite(Date.parse(draft.expectedUpdatedAt)))
     return { ok: false, issue: "Identificador ou revisão inválidos." };
   if (draft.reason.trim().length < 8 || draft.reason.trim().length > 400 ||
