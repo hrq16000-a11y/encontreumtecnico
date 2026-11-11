@@ -1,12 +1,15 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Tables } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { TechnicianAvatar } from "@/components/technician-avatar";
 import { publicTextProblem } from "@/lib/public-profile-text";
+import { useActiveCategories } from "@/hooks/use-active-categories";
+import { BRAZIL_STATES } from "@/lib/service-taxonomy";
+import { adminPageRange, cleanAdminSearch } from "@/lib/admin-technician-pagination";
 import { Check, Pencil, RotateCcw, ShieldAlert, UserRoundX, X } from "lucide-react";
 
-type Technician = Tables<"technicians">;
+type Technician = Pick<Tables<"technicians">, "id" | "status" | "display_name" | "bio" | "region" | "city" | "state_uf" | "specialties" | "avatar_path" | "created_at">;
 type Status = Technician["status"];
 type Action = "editar" | "aprovar" | "suspender" | "reativar" | "rejeitar" | "revisar";
 const db = supabase as unknown as SupabaseClient;
@@ -19,11 +22,87 @@ const actionLabels: Record<Action, string> = {
   reativar: "Reativar perfil", rejeitar: "Rejeitar perfil", revisar: "Enviar para revisão",
 };
 
-export function AdminTechnicianManager({
-  technicians, onChanged,
-}: { technicians: Technician[] | null; onChanged: () => Promise<void> }) {
+export function AdminTechnicianManager() {
   const [status, setStatus] = useState<Status>("aprovado");
   const [search, setSearch] = useState("");
+  const [draftSearch, setDraftSearch] = useState("");
+  const [uf, setUf] = useState("");
+  const [city, setCity] = useState("");
+  const [category, setCategory] = useState("");
+  const [sort, setSort] = useState<"newest" | "oldest" | "name">("newest");
+  const [page, setPage] = useState(0);
+  const [rows, setRows] = useState<Technician[] | null>(null);
+  const [total, setTotal] = useState(0);
+  const [counts, setCounts] = useState<Record<Status, number | null>>({
+    pendente: null, aprovado: null, suspenso: null, rejeitado: null,
+  });
+  const [loadingRows, setLoadingRows] = useState(false);
+  const [readError, setReadError] = useState<string | null>(null);
+  const [reload, setReload] = useState(0);
+  const { categories } = useActiveCategories();
+  // Search only after typing settles. Every page is queried on the server.
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      setPage(0);
+      setSearch(draftSearch.trim());
+    }, 300);
+    return () => window.clearTimeout(id);
+  }, [draftSearch]);
+
+  useEffect(() => {
+    let active = true;
+    setRows(null);
+    setReadError(null);
+    setLoadingRows(true);
+    void (async () => {
+      const [from, to] = adminPageRange(page);
+      let query = supabase.from("technicians")
+        .select("id,status,display_name,bio,region,city,state_uf,specialties,avatar_path,created_at", { count: "exact" })
+        .eq("status", status);
+      const term = cleanAdminSearch(search);
+      if (term) query = query.ilike("display_name", `%${term}%`);
+      const municipality = cleanAdminSearch(city);
+      if (municipality) query = query.ilike("city", `%${municipality}%`);
+      if (uf) query = query.eq("state_uf", uf);
+      if (category) query = query.contains("specialties", [category]);
+      const ordered = query.order(sort === "name" ? "display_name" : "created_at",
+        { ascending: sort === "name" || sort === "oldest" })
+        .order("id", { ascending: true }).range(from, to);
+      const { data, count, error } = await ordered;
+      if (!active) return;
+      if (error) {
+        setRows(null);
+        setReadError("Não foi possível carregar esta página de técnicos. Verifique a sessão administrativa.");
+      } else {
+        setRows((data ?? []) as Technician[]);
+        setTotal(count ?? 0);
+      }
+      setLoadingRows(false);
+    })().catch(() => {
+      if (active) {
+        setRows(null);
+        setLoadingRows(false);
+        setReadError("Falha de conexão na busca administrativa. Tente novamente.");
+      }
+    });
+    return () => { active = false; };
+  }, [status, search, city, uf, category, sort, page, reload]);
+
+  useEffect(() => {
+    let active = true;
+    void Promise.all(TABS.map(async (tab) => {
+      const { count, error } = await supabase.from("technicians")
+        .select("id", { count: "exact", head: true }).eq("status", tab.key);
+      return { status: tab.key, count: error ? null : count };
+    })).then((values) => {
+      if (!active) return;
+      setCounts(Object.fromEntries(values.map((item) => [item.status, item.count])) as Record<Status, number | null>);
+    }).catch(() => {
+      if (active) setCounts({ pendente: null, aprovado: null, suspenso: null, rejeitado: null });
+    });
+    return () => { active = false; };
+  }, [reload]);
+
   const [target, setTarget] = useState<{ technician: Technician; action: Action } | null>(null);
   const [draft, setDraft] = useState({ display_name: "", bio: "", region: "" });
   const [reason, setReason] = useState("");
@@ -67,7 +146,7 @@ export function AdminTechnicianManager({
       if (error) throw error;
       if (!data || data.id !== target.technician.id)
         throw new Error("Servidor não confirmou a atualização solicitada.");
-      await onChanged();
+      setReload((value) => value + 1);
       setTarget(null);
       setFeedback(`Alteração confirmada no banco: ${data.name} · ${data.status}. Auditoria registrada.`);
     } catch (error) {
@@ -77,10 +156,8 @@ export function AdminTechnicianManager({
       setBusy(false);
     }
   }
-  const filtered = (technicians ?? []).filter((t) =>
-    t.status === status && (!search.trim() ||
-      [t.display_name, t.city, t.region ?? "", t.state_uf ?? ""]
-        .some((v) => v.toLocaleLowerCase("pt-BR").includes(search.trim().toLocaleLowerCase("pt-BR")))));
+  const filtered = rows ?? [];
+  const pages = Math.max(1, Math.ceil(total / 25));
   return <section aria-label="Gestão administrativa de técnicos">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
@@ -95,15 +172,43 @@ export function AdminTechnicianManager({
       </span>
     </div>
     <label className="mt-5 block text-sm font-semibold text-foreground" htmlFor="admin-busca-tecnicos">Buscar técnico</label>
-    <input id="admin-busca-tecnicos" value={search} onChange={(e) => setSearch(e.target.value)} maxLength={100}
-      placeholder="Nome, cidade ou região"
+    <input id="admin-busca-tecnicos" value={draftSearch} onChange={(e) => setDraftSearch(e.target.value)} maxLength={80}
+      placeholder="Buscar por nome profissional"
       className="mt-2 min-h-12 w-full rounded-xl border border-input bg-background px-4 text-foreground" />
+    <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <label className="grid gap-1 text-xs font-semibold text-foreground">Estado
+        <select value={uf} onChange={(e) => { setUf(e.target.value); setPage(0); }}
+          className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm">
+          <option value="">Todos os estados</option>
+          {BRAZIL_STATES.map((state) => <option key={state} value={state}>{state}</option>)}
+        </select>
+      </label>
+      <label className="grid gap-1 text-xs font-semibold text-foreground">Município
+        <input value={city} maxLength={80} onChange={(e) => { setCity(e.target.value); setPage(0); }}
+          placeholder="Ex.: Curitiba" className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm" />
+      </label>
+      <label className="grid gap-1 text-xs font-semibold text-foreground">Especialidade
+        <select value={category} onChange={(e) => { setCategory(e.target.value); setPage(0); }}
+          className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm">
+          <option value="">Todas as categorias</option>
+          {categories.map((entry) => <option key={entry.slug} value={entry.slug}>{entry.label}</option>)}
+        </select>
+      </label>
+      <label className="grid gap-1 text-xs font-semibold text-foreground">Ordenação
+        <select value={sort} onChange={(e) => { setSort(e.target.value as typeof sort); setPage(0); }}
+          className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm">
+          <option value="newest">Mais recentes</option>
+          <option value="oldest">Mais antigos</option>
+          <option value="name">Nome A–Z</option>
+        </select>
+      </label>
+    </div>
     <div role="tablist" aria-label="Status dos técnicos" className="mt-4 flex gap-2 overflow-x-auto pb-2">
       {TABS.map((tab) => <button key={tab.key} type="button" role="tab"
-        aria-selected={status === tab.key} onClick={() => { setStatus(tab.key); setTarget(null); }}
+        aria-selected={status === tab.key} onClick={() => { setStatus(tab.key); setPage(0); setTarget(null); }}
         className={"min-h-11 shrink-0 rounded-full border px-4 text-sm font-semibold " +
           (status === tab.key ? "border-primary bg-primary text-primary-foreground" : "border-input text-foreground hover:bg-accent")}>
-        {tab.label} ({technicians?.filter((t) => t.status === tab.key).length ?? 0})
+        {tab.label} ({counts[tab.key] ?? "…"})
       </button>)}
     </div>
     {feedback && <p role="status" className="mt-3 rounded-xl border border-border bg-muted/60 p-4 text-sm text-foreground">{feedback}</p>}
@@ -147,7 +252,8 @@ export function AdminTechnicianManager({
         <Check className="h-4 w-4" /> {busy ? "Gravando no banco…" : "Confirmar e registrar"}
       </button>
     </form>}
-    {technicians === null ? <p role="status" className="mt-5 text-sm text-muted-foreground">Carregando técnicos…</p>
+    {readError && <p role="alert" className="mt-4 rounded-lg border border-destructive/30 p-3 text-sm text-destructive">{readError}</p>}
+    {loadingRows || rows === null ? <p role="status" className="mt-5 text-sm text-muted-foreground">Carregando página de técnicos…</p>
       : filtered.length === 0 ? <p className="mt-5 rounded-xl border border-border p-6 text-sm text-muted-foreground">Nenhum técnico encontrado neste filtro.</p>
       : <ul className="mt-5 grid gap-3">{filtered.map((technician) => (
         <li key={technician.id} className="rounded-xl border border-border bg-background p-4">
@@ -170,5 +276,18 @@ export function AdminTechnicianManager({
           </div>
         </li>
       ))}</ul>}
+    <nav aria-label="Paginação administrativa de técnicos" className="mt-5 flex flex-wrap items-center justify-between gap-3">
+      <p className="text-sm text-muted-foreground" role="status">
+        {total.toLocaleString("pt-BR")} resultado(s) · Página {page + 1} de {pages} · 25 por página
+      </p>
+      <div className="flex gap-2">
+        <button type="button" disabled={loadingRows || page === 0}
+          onClick={() => { setPage((p) => Math.max(0, p - 1)); setTarget(null); }}
+          className="min-h-11 rounded-lg border border-input px-4 text-sm disabled:opacity-40">Anterior</button>
+        <button type="button" disabled={loadingRows || page + 1 >= pages}
+          onClick={() => { setPage((p) => p + 1); setTarget(null); }}
+          className="min-h-11 rounded-lg border border-input px-4 text-sm disabled:opacity-40">Próximo</button>
+      </div>
+    </nav>
   </section>;
 }

@@ -50,7 +50,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
   async function load() {
     // A page only queries the records it needs. RLS remains authoritative.
     // No global prefetch of private contacts when browsing sponsors or metrics.
-    const needsTechs = section === "inicio" || section === "tecnicos";
+    const needsTechs = section === "inicio";
     const needsRequests = section === "inicio" || section === "solicitacoes" || section === "clientes";
     const needsMessages = section === "mensagens";
     const [t, r, m] = await Promise.all([
@@ -146,7 +146,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             {section === "catalogo" && <section aria-label="Categorias e serviços"><div id="admin-catalogo"><EutAdminManager /></div></section>}
             {section === "contas" && <section aria-label="Contas e bloqueios"><AdminAccountsManager /></section>}
             {section === "tecnicos" && <section aria-label="Gestão de técnicos">
-              <AdminTechnicianManager technicians={techs} onChanged={load} />
+              <AdminTechnicianManager />
             </section>}
             {section === "mensagens" && <section aria-label="Mensagens administrativas">
               <h2 id="admin-mensagens" className="mt-10 scroll-mt-20 text-lg font-semibold text-foreground">Mensagens de contato</h2>
