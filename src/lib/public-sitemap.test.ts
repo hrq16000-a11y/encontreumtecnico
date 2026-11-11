@@ -32,9 +32,15 @@ describe("Sitemap dinâmico com técnicos publicados", () => {
   });
   it("declara consulta pública, somente aprovados, paginação, 503 e cache curto", () => {
     const handler = readFileSync("src/routes/sitemap[.]xml.ts", "utf8");
-    expect(handler).toContain('.select("public_slug,updated_at")');
-    expect(handler).toContain('.eq("status", "aprovado")');
-    expect(handler).toContain('.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)');
+    const graph = readFileSync("src/lib/public-seo-graph.functions.ts", "utf8");
+    const shards = readFileSync("src/lib/public-sitemap-index.ts", "utf8");
+    expect(handler).toContain("getPublicGraphSnapshot()");
+    expect(handler).toContain("buildPublicSitemapIndexXml(graph)");
+    expect(graph).toContain('.eq("status", "aprovado")');
+    expect(graph).toContain('.range(page * BATCH, (page + 1) * BATCH - 1)');
+    expect(shards).toContain("buildPublicSitemapPartXml");
+    const child = readFileSync("src/routes/sitemaps.tecnicos.{$pagina}[.]xml.ts", "utf8");
+    expect(child).toContain('publicSitemapPartResponse("tecnicos", Number(raw))');
     expect(handler).toContain("status: 503");
     expect(handler).toContain("s-maxage=900");
     expect(handler).not.toContain("SERVICE_ROLE");
