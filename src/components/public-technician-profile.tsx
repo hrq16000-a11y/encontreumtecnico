@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import type { PublicTechnician } from "@/lib/technicians.functions";
 import { TechnicianAvatar } from "@/components/technician-avatar";
+import { formatPublicLocation, placeKey } from "@/lib/location-labels";
 import { categoryLabel, useActiveCategories } from "@/hooks/use-active-categories";
 import { serviceLabel, useActiveServices } from "@/hooks/use-active-services";
 
@@ -16,7 +17,10 @@ import { serviceLabel, useActiveServices } from "@/hooks/use-active-services";
 export function PublicTechnicianProfile({ technician: t }: { technician: PublicTechnician }) {
   const { categories } = useActiveCategories();
   const { services } = useActiveServices();
-  const location = [t.city + (t.state_uf ? "/" + t.state_uf : ""), t.neighborhood, t.region].filter(Boolean).join(" · ");
+  const location = formatPublicLocation(t);
+  const additionalCities = (t.coverage_cities ?? []).filter((c, i, all) =>
+    (placeKey(c.name) !== placeKey(t.city) || c.uf !== t.state_uf) &&
+    all.findIndex(x => placeKey(x.name) === placeKey(c.name) && x.uf === c.uf) === i);
   const topCategories = t.specialties.slice(0, 4);
   const extraCategories = Math.max(0, t.specialties.length - topCategories.length);
 
@@ -117,22 +121,19 @@ export function PublicTechnicianProfile({ technician: t }: { technician: PublicT
                   <h2 id="titulo-atendimento" className="mt-1 text-xl font-bold text-card-foreground sm:text-2xl">Onde este técnico atende</h2>
                 </div>
               </div>
-              <p className="mt-4 text-sm text-foreground">
-                <strong>Cidade-base:</strong> {t.city}{t.state_uf ? " · " + t.state_uf : ""}
-              </p>
               {t.service_radius_km != null && (
                 <p className="mt-3 rounded-xl bg-accent/60 p-3 text-sm font-semibold text-foreground">
                   Raio declarado: até {t.service_radius_km} km em linha reta, aproximadamente, a partir
                   do centro de referência da cidade-base.
                 </p>
               )}
-              {(t.coverage_cities?.length ?? 0) > 0 ? (
+              {additionalCities.length > 0 ? (
                 <>
                   <h3 className="mt-5 text-sm font-semibold text-foreground">
-                    Municípios de atendimento declarados ({t.coverage_cities?.length}/5)
+                    Outros municípios atendidos ({additionalCities.length})
                   </h3>
                   <ul className="mt-3 flex flex-wrap gap-2">
-                    {t.coverage_cities?.map(city => (
+                    {additionalCities.map(city => (
                       <li key={city.id} className="rounded-full border border-primary/20 bg-primary/5 px-3 py-2 text-sm font-medium text-primary">
                         {city.name}/{city.uf}
                       </li>
@@ -140,7 +141,7 @@ export function PublicTechnicianProfile({ technician: t }: { technician: PublicT
                   </ul>
                 </>
               ) : <p className="mt-3 text-sm text-muted-foreground">
-                Cidades adicionais e raio ainda não declarados neste perfil.
+                Outros municípios não informados neste perfil.
               </p>}
               <p className="mt-4 border-t border-border pt-4 text-xs leading-5 text-muted-foreground">
                 Os nomes são selecionados do catálogo de municípios com códigos IBGE. A área é declarada
