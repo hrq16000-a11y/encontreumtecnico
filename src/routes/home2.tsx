@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { readUiTextDraft, saveUiTextDraft } from "@/lib/unsent-ui-draft";
 import { Search, MapPin, Briefcase, Star, TrendingUp, ShieldCheck, Zap, Menu, ArrowRight } from "lucide-react";
 import { useActiveCategories } from "@/hooks/use-active-categories";
@@ -68,9 +68,19 @@ function Home2Footer() {
 function Home2Landing() {
   const navigate = useNavigate();
   const { categories, loading: catalogLoading } = useActiveCategories();
-  const [initial] = useState(() => readUiTextDraft("home2"));
-  const [query, setQuery] = useState(initial?.["query"] ?? "");
-  const [city, setCity] = useState(initial?.["city"] ?? "");
+  // SSR and the first client render must agree. Restore the same-tab draft
+  // only after hydration, before exposing editable fields.
+  const [query, setQuery] = useState("");
+  const [city, setCity] = useState("");
+  const [draftReady, setDraftReady] = useState(false);
+  useEffect(() => {
+    const saved = readUiTextDraft("home2");
+    if (saved) {
+      setQuery(saved["query"] ?? "");
+      setCity(saved["city"] ?? "");
+    }
+    setDraftReady(true);
+  }, []);
   function editQuery(next: string) {
     saveUiTextDraft("home2", { query: next, city });
     setQuery(next);
@@ -107,6 +117,12 @@ function Home2Landing() {
                 Busque por especialidade e cidade para descobrir profissionais da sua região.
               </p>
             </div>
+            {!draftReady ? (
+              <div role="status" aria-live="polite" aria-busy="true"
+                className="flex min-h-16 items-center justify-center rounded-2xl border border-white/20 bg-white/10 px-5 py-4 text-sm text-zinc-200">
+                Recuperando sua busca…
+              </div>
+            ) : (
             <form onSubmit={search} role="search" className="flex flex-col gap-2 rounded-2xl border border-white/20 bg-white/10 p-2 shadow-2xl backdrop-blur-md md:flex-row">
               <label className="flex flex-1 items-center rounded-xl bg-white px-4 py-3">
                 <Search className="mr-3 h-5 w-5 text-zinc-400" aria-hidden="true" />
@@ -123,6 +139,7 @@ function Home2Landing() {
               </label>
               <button type="submit" className="rounded-xl bg-emerald-600 px-8 py-3 font-bold text-white shadow-lg transition-colors hover:bg-emerald-500">Buscar agora</button>
             </form>
+            )}
             <div className="flex flex-wrap justify-center gap-4 text-sm text-zinc-300">
               <span>Populares:</span>
               {categories.slice(0, 5).map(cat => <Link key={cat.slug} to="/tecnicos" search={{ especialidade: cat.slug, cidade: "", regiao: "" }} className="underline decoration-zinc-500 underline-offset-4 hover:text-emerald-400">{cat.label}</Link>)}
