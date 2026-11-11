@@ -33,7 +33,7 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 import { Route } from "./redefinir-senha";
-const ResetPage = Route.component as React.ComponentType;
+const ResetPage = (Route as unknown as { component: React.ComponentType }).component;
 
 describe("recuperação de senha do Encontre um Técnico", () => {
   beforeEach(() => {
