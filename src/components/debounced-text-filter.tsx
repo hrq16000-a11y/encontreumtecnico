@@ -48,22 +48,8 @@ export function DebouncedTextFilter({
     latestDraft.current = value;
   }, [id, value]);
 
-  useEffect(() => {
-    // Resume only when foregrounded. Mount restoration must not be discarded
-    // by the URL-sync effect before the visitor can review the last edit.
-    const resume = () => {
-      if (!inactive() && latestDraft.current !== latest.current.value) {
-        schedule(latestDraft.current);
-      }
-    };
-    if (draft !== value) resume();
-    window.addEventListener("focus", resume);
-    document.addEventListener("visibilitychange", resume);
-    return () => {
-      if (timer.current !== null) clearTimeout(timer.current);
-      window.removeEventListener("focus", resume);
-      document.removeEventListener("visibilitychange", resume);
-    };
+  useEffect(() => () => {
+    if (timer.current !== null) clearTimeout(timer.current);
   }, []);
 
   function commit(next: string) {
@@ -89,10 +75,7 @@ export function DebouncedTextFilter({
         id={id}
         type="text"
         value={draft}
-        onFocus={() => {
-          focused.current = true;
-          if (latestDraft.current !== latest.current.value) schedule(latestDraft.current);
-        }}
+        onFocus={() => { focused.current = true; }}
         onChange={(event) => change(event.target.value)}
         onBlur={() => {
           focused.current = false;
@@ -104,6 +87,9 @@ export function DebouncedTextFilter({
           }
           commit(draft);
           onBlurTrack(draft);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && !inactive()) commit(draft);
         }}
         placeholder={placeholder}
         className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground"
