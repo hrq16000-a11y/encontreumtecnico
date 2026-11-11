@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { canRevealAdminContact, validateAdminContactAction, type AdminContactAction } from "./admin-contact-controls";
 const uuid="b190db33-86e1-4cf4-b916-a1f4eac56720";
-const base={reason:"Solicitação administrativa autorizada",userId:uuid,phone:"",blockId:null,messageId:null,messageStatus:"respondida"};
+const base: { reason: string; userId: string | null; phone: string; blockId: string | null; messageId: string | null; messageStatus: string } =
+  {reason:"Solicitação administrativa autorizada",userId:uuid,phone:"",blockId:null,messageId:null,messageStatus:"respondida"};
 const validate=(action:AdminContactAction, overrides:Partial<typeof base>={}) =>
   validateAdminContactAction({...base,...overrides,action});
 
