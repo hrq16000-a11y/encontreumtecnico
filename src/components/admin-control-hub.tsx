@@ -14,6 +14,7 @@ const SHORTCUTS: AdminShortcut[] = [
   { key: "legado", name: "Acervo WordPress", description: "Conferir registros importados sem publicá-los" },
   { key: "reivindicacoes", name: "Reivindicações", description: "Analisar pedidos de titularidade" },
   { key: "tecnicos", name: "Técnicos cadastrados", description: "Aprovar, suspender e revisar perfis ativos" },
+  { key: "contas", name: "Contas e bloqueios", description: "Consultar identidades, banir/desbanir contas e telefones com auditoria" },
   { key: "solicitacoes", name: "Solicitações", description: "Acompanhar demandas dos clientes" },
   { key: "mensagens", name: "Mensagens", description: "Responder e arquivar contatos" },
   { key: "metricas", name: "Buscas e indicadores", description: "Consultar estatísticas com consentimento" },
