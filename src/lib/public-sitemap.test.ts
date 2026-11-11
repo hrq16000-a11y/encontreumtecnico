@@ -30,7 +30,7 @@ describe("Sitemap dinâmico com técnicos publicados", () => {
     expect(xml).toContain(SITE + "/guias/computador-lento-o-que-verificar</loc>");
     expect(xml).toContain(SITE + "/guias/instalacao-cameras-seguranca-como-planejar</loc>");
   });
-  it("declara consulta pública, somente aprovados, paginação, 503 e cache curto", () => {
+  it("declara consulta pública, somente aprovados, paginação, 503 e cache bloqueado em dados moderados", () => {
     const handler = readFileSync("src/routes/sitemap[.]xml.ts", "utf8");
     const graph = readFileSync("src/lib/public-seo-graph.functions.ts", "utf8");
     const shards = readFileSync("src/lib/public-sitemap-index.ts", "utf8");
@@ -42,7 +42,9 @@ describe("Sitemap dinâmico com técnicos publicados", () => {
     const child = readFileSync("src/routes/sitemaps.tecnicos.{$pagina}[.]xml.ts", "utf8");
     expect(child).toContain('publicSitemapPartResponse("tecnicos", Number(raw))');
     expect(handler).toContain("status: 503");
-    expect(handler).toContain("s-maxage=900");
+    expect(handler).toContain('"Cache-Control": "no-store, max-age=0"');
+    expect(handler).toContain('"CDN-Cache-Control": "no-store"');
+    expect(handler).not.toContain("s-maxage=900");
     expect(handler).not.toContain("SERVICE_ROLE");
     expect(handler).not.toContain("contact_phone");
     expect(handler).not.toContain("auth.users");
