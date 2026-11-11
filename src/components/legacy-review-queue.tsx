@@ -66,7 +66,7 @@ export function LegacyReviewQueue() {
       const list = (data ?? []) as LegacyProfile[];
       const ids = list.map((item) => item.wp_post_id);
       const overlay = ids.length
-        ? await db.from("eut_legacy_profile_management")
+        ? await db.from(kind === "candidate" ? "eut_legacy_profile_management" : "eut_legacy_employer_management")
           .select("wp_post_id,record_state,corrected_name,admin_notes")
           .eq("source_key", "wordpress_20261108").in("wp_post_id", ids)
         : { data: [], error: null };
@@ -96,8 +96,8 @@ export function LegacyReviewQueue() {
       setFeedback("Escolha de 1 a 20 fichas para esta ação.");
       return;
     }
-    if (type === "restaurar" && rows.some((r) => ids.includes(r.wp_post_id) && r.demo_candidate)) {
-      setFeedback("Registros de demonstração não podem ser restaurados.");
+    if (type !== "arquivar" && rows.some((r) => ids.includes(r.wp_post_id) && r.demo_candidate)) {
+      setFeedback("Registros de demonstração só podem ser arquivados.");
       return;
     }
     if (["corrigir_nome", "anotar"].includes(type) && ids.length !== 1) {
@@ -235,22 +235,22 @@ export function LegacyReviewQueue() {
                 {row.specialty_title && <p className="mt-2 text-sm text-foreground">{row.specialty_title}</p>}
                 {[row.location1,row.location2,row.location3].filter(Boolean).length > 0 &&
                   <p className="mt-1 text-sm text-muted-foreground">{[row.location1,row.location2,row.location3].filter(Boolean).join(" · ")}</p>}
-                {row.demo_candidate && <p className="mt-2 text-xs font-bold text-destructive">Possível demonstração: não publicar nem restaurar.</p>}
+                {row.demo_candidate && <p className="mt-2 text-xs font-bold text-destructive">Possível demonstração: pode arquivar, mas não restaurar, editar ou publicar.</p>}
                 {managed[row.wp_post_id]?.admin_notes &&
                   <p className="mt-2 rounded-lg bg-muted p-2 text-xs text-foreground">Nota privada: {managed[row.wp_post_id]?.admin_notes}</p>}
               </div>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
-              <button type="button" onClick={()=>chooseAction([row.wp_post_id],"corrigir_nome")}
+              <button type="button" disabled={row.demo_candidate} onClick={()=>chooseAction([row.wp_post_id],"corrigir_nome")}
                 className="inline-flex min-h-10 items-center gap-1 rounded-lg border border-input px-3 text-xs font-semibold text-foreground"><Pencil className="h-4 w-4" /> Editar nome</button>
-              <button type="button" onClick={()=>chooseAction([row.wp_post_id],"anotar")}
+              <button type="button" disabled={row.demo_candidate} onClick={()=>chooseAction([row.wp_post_id],"anotar")}
                 className="inline-flex min-h-10 items-center gap-1 rounded-lg border border-input px-3 text-xs font-semibold text-foreground">Anotar</button>
               {archived ? <button type="button" disabled={row.demo_candidate}
                 onClick={()=>chooseAction([row.wp_post_id],"restaurar")}
                 className="inline-flex min-h-10 items-center gap-1 rounded-lg border border-input px-3 text-xs font-semibold text-foreground disabled:opacity-40"><RotateCcw className="h-4 w-4" /> Restaurar revisão</button> : <button type="button"
                 onClick={()=>chooseAction([row.wp_post_id],"arquivar")}
                 className="inline-flex min-h-10 items-center gap-1 rounded-lg border border-input px-3 text-xs font-semibold text-foreground"><Archive className="h-4 w-4" /> Arquivar</button>}
-              {!archived && state!=="em_revisao" && <button type="button" onClick={()=>chooseAction([row.wp_post_id],"revisar")}
+              {!archived && state!=="em_revisao" && <button type="button" disabled={row.demo_candidate} onClick={()=>chooseAction([row.wp_post_id],"revisar")}
                 className="inline-flex min-h-10 items-center gap-1 rounded-lg border border-input px-3 text-xs font-semibold text-foreground">Revisar</button>}
             </div>
           </li>;
