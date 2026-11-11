@@ -4,6 +4,7 @@ on:
     paths:
       - '.github/workflows/eut-browser-smoke.yml'
       - 'scripts/eut-browser-smoke.cjs'
+      - 'src/routes/tecnicos.index.tsx'
   workflow_dispatch:
 permissions:
   contents: read
@@ -16,6 +17,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Assert location touch targets in the reviewed source
+        run: |
+          node <<'NODE'
+          const { readFileSync } = require('node:fs');
+          const assert = require('node:assert/strict');
+          const src = readFileSync('src/routes/tecnicos.index.tsx', 'utf8');
+          assert.match(src, /id="filtro-uf"[\\s\\S]{0,240}min-h-11/);
+          assert.match(src, /min-h-11[^"]*">Buscar na região/);
+          console.log('UF select and regional search touch targets: >= 44px in source');
+          NODE
       - name: Install isolated Chromium runner
         run: |
           mkdir -p "$RUNNER_TEMP/eut-browser"
