@@ -30,7 +30,7 @@ describe("Encontre um Técnico: conteúdo nas entranhas do catálogo", () => {
   it("indexa páginas de especialidade, não as URLs antigas de artigos 301", () => {
     const sitemap = buildPublicSitemapXml([]);
     expect(GUIDE_PATHS).toEqual(["/guias"]);
-    expect(sitemap.match(/<loc>/g)).toHaveLength(26);
+    expect(sitemap.match(/<loc>/g)).toHaveLength(28);
     expect(sitemap).toContain(SITE + "/guias</loc>");
     for (const guide of GUIDES) {
       expect(sitemap).toContain(SITE + "/servicos/" + guide.categorySlug + "</loc>");
