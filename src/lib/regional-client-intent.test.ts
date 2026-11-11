@@ -41,6 +41,7 @@ describe("Funil regional privado, sem cadastro fictício", () => {
     const route = readFileSync("src/routes/area-cliente.tsx", "utf8");
     const category = readFileSync("src/routes/servicos.$categoria.tsx", "utf8");
     expect(category).toContain('search={{ modo: "regional", categoria: category.slug }}');
+    expect(category).toContain("Sou profissional — cadastrar gratuitamente");
     expect(route).toContain("technician_id: effectiveTechnicianTarget");
     expect(route).toContain("const shouldShare = directShare");
     expect(route).toContain("clearTechnicianTarget()");
