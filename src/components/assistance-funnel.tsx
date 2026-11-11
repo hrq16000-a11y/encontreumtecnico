@@ -9,7 +9,7 @@ import type { FreeHelpContext } from "@/lib/free-search-help";
 import { clearAssistanceDraft, readAssistanceDraft, saveAssistanceDraft, type AssistanceDraft } from "@/lib/assistance-draft";
 
 const input = "mt-1 min-h-11 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
-const services = ["Computadores e notebooks", "Redes e Wi-Fi", "CFTV e segurança", "Impressoras", "Sistemas e software", "Climatização", "Outro serviço"];
+const services = ["Computadores e notebooks", "Redes e Wi-Fi", "CFTV e segurança", "Impressoras", "Sistemas e software", "Climatização", "Automação", "Comunicações e telefonia", "Outro serviço"];
 
 export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContext; onClose: () => void }) {
   const navigate = useNavigate();
