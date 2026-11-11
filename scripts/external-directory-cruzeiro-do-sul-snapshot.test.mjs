@@ -29,7 +29,7 @@ test("Cruzeiro do Sul: somente os 53 nomes da única captura ficam em quarentena
       "verified", "rating", "review_count", "available_now"
     ]) assert.equal(Object.hasOwn(candidate, forbidden), false);
     const normalized = candidate.public_name.normalize("NFD")
-      .replace(/[\\u0300-\\u036f]/g, "").toLowerCase().trim();
+      .replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
     assert(!names.has(normalized));
     names.add(normalized);
   }
