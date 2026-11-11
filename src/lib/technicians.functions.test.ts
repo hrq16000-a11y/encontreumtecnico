@@ -34,6 +34,11 @@ vi.mock("@tanstack/react-start", () => ({
   }),
 }));
 
+// These tests invoke server functions outside TanStack's request context.
+vi.mock("@tanstack/react-start/server", () => ({
+  setResponseHeader: vi.fn(),
+}));
+
 vi.mock("@supabase/supabase-js", () => ({
   createClient: () => mocks.client,
 }));
