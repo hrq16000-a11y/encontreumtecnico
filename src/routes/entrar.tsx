@@ -27,6 +27,13 @@ export const Route = createFileRoute("/entrar")({
   component: SignInPage,
 });
 
+/** Per-window marker persists across Google redirects even if browser resets window.name. */
+function isGooglePopup(): boolean {
+  if (typeof window === "undefined" || !window.opener) return false;
+  try { return sessionStorage.getItem("eut-google-popup-auth") === "1"; }
+  catch { return false; }
+}
+
 function EmailPasswordForm({ onError }: { onError: (m: string | null) => void }) {
   const [mode, setMode] = useState<"entrar" | "cadastrar" | "recuperar">("entrar");
   const [email, setEmail] = useState("");
@@ -137,7 +144,7 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
     const params = new URLSearchParams(window.location.search);
     if (params.has("error") || params.has("error_code")) {
       setError("O login com Google não foi concluído. Nenhuma conta antiga foi alterada. Tente entrar novamente.");
-      if (window.name === "eut-google-login" && window.opener) {
+      if (isGooglePopup()) {
         window.opener.postMessage({ type: "eut:google-oauth-error" }, window.location.origin);
         window.close();
       }
@@ -230,14 +237,14 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
   // OAuth popup may authenticate on this same origin. The opener verifies the
   // Supabase session itself; never send access tokens through postMessage.
   useEffect(() => {
-    if (loading || !user || window.name !== "eut-google-login" || !window.opener) return;
+    if (loading || !user || !isGooglePopup()) return;
     window.opener.postMessage({ type: "eut:google-oauth-complete" }, window.location.origin);
     window.close();
   }, [loading, user?.id]);
 
   useEffect(() => {
     // Do not navigate the popup into a technician/admin dashboard.
-    if (window.name === "eut-google-login" && window.opener) return;
+    if (isGooglePopup()) return;
     if (loading || !user || roles.length === 0) return;
     let active = true;
     async function continueLogin() {
