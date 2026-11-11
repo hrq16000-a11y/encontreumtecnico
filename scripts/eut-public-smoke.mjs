@@ -3,17 +3,17 @@
 // Never authenticates, alters DNS, deploys, or accesses private data.
 const allowed = new Set([
   "https://encontreumtecnico.vercel.app",
-  "https://www.encontreumtecnico.com",
+  "https://www.encontreumtecnico.com.br",
   "https://encontreumtecnico.com",
   "https://www.encontreumtecnico.com.br",
   "https://encontreumtecnico.com.br",
 ]);
-const rawOrigin = process.env.EUT_SMOKE_ORIGIN || "https://www.encontreumtecnico.com";
+const rawOrigin = process.env.EUT_SMOKE_ORIGIN || "https://www.encontreumtecnico.com.br";
 const origin = new URL(rawOrigin).origin;
 if (!allowed.has(origin) || rawOrigin !== origin) {
   throw new Error("EUT_SMOKE_ORIGIN deve ser a origem oficial sem caminho ou credenciais.");
 }
-const socialImage = "https://www.encontreumtecnico.com/social-preview.jpg";
+const socialImage = "https://www.encontreumtecnico.com.br/social-preview.jpg";
 const routes = [
   ["/", 200], ["/entrar", 200], ["/tecnicos", 200],
   ["/area-tecnico", 200], ["/area-cliente", 200],
