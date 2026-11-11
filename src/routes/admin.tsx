@@ -3,6 +3,7 @@ import { useContext, useEffect, useState } from "react";
 import { PageShell, LP2EmbeddedContext } from "../components/page-placeholder";
 import { RequestCard, type Req } from "../components/request-list";
 import { useAuth } from "@/hooks/use-auth";
+import { ConnectedGoogleIdentity } from "@/components/connected-google-identity";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { SearchMetrics } from "@/components/search-metrics";
@@ -95,6 +96,7 @@ export function AdminPage() {
           <p className="mt-4 text-sm text-muted-foreground">Sua conta não tem acesso de administrador.</p>
         ) : (
           <>
+            <ConnectedGoogleIdentity user={user} />
             {error && <p role="alert" className="mt-2 text-sm text-destructive">{error}</p>}
             <dl className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
               {stats.map((s) => (

@@ -6,6 +6,7 @@ import { zodValidator } from "@tanstack/zod-adapter";
 import { PageShell, LP2EmbeddedContext } from "../components/page-placeholder";
 import { RequestCard, type Req } from "../components/request-list";
 import { useAuth } from "@/hooks/use-auth";
+import { ConnectedGoogleIdentity } from "@/components/connected-google-identity";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveCategories } from "@/hooks/use-active-categories";
 import { LegacyAccountActivation } from "@/components/legacy-account-activation";
@@ -356,6 +357,7 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
           </p>
         ) : (
           <>
+            <ConnectedGoogleIdentity user={user} />
             <h2 className="mt-6 text-lg font-semibold text-foreground">Registrar minha necessidade</h2>
             <p className="mt-2 text-sm text-muted-foreground">
               Em quatro passos, você descreve o serviço, informa apenas sua região
