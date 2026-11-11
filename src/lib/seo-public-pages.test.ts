@@ -197,7 +197,7 @@ describe("SEO global do Encontre um Técnico", () => {
     expect(article).toContain("index === 1 || index === 3");
     expect(article).toContain("<GuideLeadCallout guide={guide} compact />");
     expect(article).toContain('to="/ecossistema"');
-    expect(index).toContain('loading="lazy"');
+    expect(index).toContain('loading={index === 0 ? "eager" : "lazy"}');
     expect(cta).toContain("openFreeHelp");
     expect(cta).toContain('mode: "managed"');
     expect(cta).toContain("guideSlug: guide.slug");
@@ -256,5 +256,20 @@ describe("SEO global do Encontre um Técnico", () => {
     expect(article).toContain('to="/guias/$slug"');
     expect(visual).toContain("software: BACKUP");
     expect(visual).toContain("climatizacao: CLIMATE");
+  });
+  it("integra FAQ e sumário contextual sem duplicar rotas, schema ou chamadas externas", () => {
+    const article = read("src/routes/guias.$slug.tsx");
+    const faq = read("src/components/guide-reading-tools.tsx");
+    const cta = read("src/components/guide-lead-callout.tsx");
+    expect(article).toContain("<GuideReadingNavigation guide={guide} />");
+    expect(article).toContain("<GuideFrequentlyAskedQuestions guide={guide} />");
+    expect(faq).toContain('href={"#secao-" + index}');
+    expect(faq).toContain('href="#perguntas-frequentes"');
+    expect(faq).toContain("<details");
+    expect(faq).toContain("<summary");
+    expect(faq).not.toContain("FAQPage");
+    expect(cta).toContain("requestHelpForGuide(guide)");
+    expect(cta).not.toContain("api.whatsapp.com");
+    expect(buildPublicSitemapXml([])).not.toContain("/perguntas-frequentes");
   });
 });
