@@ -8,7 +8,7 @@ import { saveTriageDraft } from "../lib/triage-draft";
 export function ProblemAssistant() {
   const navigate = useNavigate();
   const triage = useServerFn(triageProblem);
-  const [description, setDescription] = useState(() => readUiTextDraft("problem")?.description ?? "");
+  const [description, setDescription] = useState(() => readUiTextDraft("problem")?.["description"] ?? "");
   const [loading, setLoading] = useState(false);
   useEffect(() => {
     const timer = window.setTimeout(() => {

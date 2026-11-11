@@ -29,8 +29,8 @@ type Activity={id:string;titulo:string;especialidade:string;cidade:string;uf:str
 function Home(){
  const navigate=useNavigate()
  const [draft]=useState(()=>readUiTextDraft("lp2-home"))
- const [service,setService]=useState(draft?.service??'')
- const [city,setCity]=useState(draft?.city??'')
+ const [service,setService]=useState(draft?.["service"]??'')
+ const [city,setCity]=useState(draft?.["city"]??'')
  useEffect(()=>{
    const timer=window.setTimeout(()=>saveUiTextDraft("lp2-home",{service,city}),400)
    return ()=>window.clearTimeout(timer)

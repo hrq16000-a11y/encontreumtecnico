@@ -35,7 +35,7 @@ export function readAssistanceDraft(technicianId?: string, storage?: Storage, no
   try {
     const raw = getStorage(storage)?.getItem(key(technicianId));
     if (!raw || raw.length > MAX_LEN) return null;
-    const obj = JSON.parse(raw) as Record<string, unknown>;
+    const obj = JSON.parse(raw) as AssistanceDraft & { savedAt: number };
     if (typeof obj.savedAt !== "number" || !Number.isFinite(obj.savedAt) ||
         obj.savedAt > now + 60_000 || now - obj.savedAt > TTL ||
         (obj.mode !== null && obj.mode !== "direct" && obj.mode !== "managed") ||

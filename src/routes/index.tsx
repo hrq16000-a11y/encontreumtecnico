@@ -95,11 +95,11 @@ const CHIPS = [
 function HomePage() {
   const navigate = useNavigate();
   const [savedSearch] = useState(() => readUiTextDraft("home"));
-  const [specialty, setSpecialty] = useState(savedSearch?.specialty ?? "");
-  const [city, setCity] = useState(savedSearch?.city ?? "");
-  const [locationUf, setLocationUf] = useState(savedSearch?.uf ?? "");
-  const [locationNeighborhood, setLocationNeighborhood] = useState(savedSearch?.neighborhood ?? "");
-  const cityEditedByUser = useRef(Boolean(savedSearch?.city));
+  const [specialty, setSpecialty] = useState(savedSearch?.["specialty"] ?? "");
+  const [city, setCity] = useState(savedSearch?.["city"] ?? "");
+  const [locationUf, setLocationUf] = useState(savedSearch?.["uf"] ?? "");
+  const [locationNeighborhood, setLocationNeighborhood] = useState(savedSearch?.["neighborhood"] ?? "");
+  const cityEditedByUser = useRef(Boolean(savedSearch?.["city"]));
   useEffect(() => {
     const timer = window.setTimeout(() => {
       saveUiTextDraft("home", { specialty, city, uf: locationUf, neighborhood: locationNeighborhood });

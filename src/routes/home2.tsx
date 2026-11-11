@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { Search, MapPin, Briefcase, Star, TrendingUp, ShieldCheck, Zap, Menu, ArrowRight } from "lucide-react";
 import { useActiveCategories } from "@/hooks/use-active-categories";
@@ -65,14 +65,17 @@ function Home2Footer() {
 }
 
 function Home2Landing() {
+  const navigate = useNavigate();
   const { categories, loading: catalogLoading } = useActiveCategories();
   const [query, setQuery] = useState("");
   const [city, setCity] = useState("");
 
   function search(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const params = new URLSearchParams({ especialidade: query.trim() || "Todas", cidade: city, regiao: "" });
-    window.location.assign("/tecnicos?" + params.toString());
+    void navigate({
+      to: "/tecnicos",
+      search: { especialidade: query.trim() || "Todas", cidade: city.trim(), regiao: "" },
+    });
   }
 
 

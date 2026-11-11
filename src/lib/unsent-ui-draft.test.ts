@@ -17,6 +17,6 @@ describe("navigation draft for non-sensitive search fields", () => {
     saveUiTextDraft("lp2-home", { city: "Curitiba" }, sessionStorage);
     clearUiTextDraft("home", sessionStorage);
     expect(readUiTextDraft("home", sessionStorage)).toBeNull();
-    expect(readUiTextDraft("lp2-home", sessionStorage)?.city).toBe("Curitiba");
+    expect(readUiTextDraft("lp2-home", sessionStorage)?.["city"]).toBe("Curitiba");
   });
 });
