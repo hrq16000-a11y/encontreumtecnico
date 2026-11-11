@@ -3,6 +3,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { showMobileQuickTabs } from "@/lib/navigation-safety";
 import { ArrowRight, CircleHelp, House, LogIn, Menu, Search, Wrench, X, UserRound } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { useAuthDialog } from "@/components/auth-dialog";
 import logo from "@/assets/logo-marinho.png";
 
 const NAV_ITEMS = [
@@ -18,6 +19,7 @@ export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { user, roles, loading } = useAuth();
+  const openAuth = useAuthDialog();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const showQuickTabs = showMobileQuickTabs(pathname);
   // Server-controlled roles. Never infer admin privileges from the e-mail.
@@ -80,14 +82,14 @@ export function SiteHeader() {
             </Link>
           ) : (
             <>
-              <Link to="/entrar"
+              <button type="button" onClick={() => openAuth?.("entrar")}
                 className={"inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-sm font-semibold text-foreground transition-colors hover:bg-accent " + FOCUS}>
                 <LogIn className="h-4 w-4" aria-hidden="true" /> Entrar
-              </Link>
-              <Link to="/area-tecnico"
+              </button>
+              <button type="button" onClick={() => openAuth?.("cadastrar", "tecnico")}
                 className={"inline-flex min-h-11 items-center gap-1.5 rounded-full border border-primary/25 bg-card px-4 text-sm font-semibold text-primary shadow-sm transition-colors hover:border-primary hover:bg-accent " + FOCUS}>
                 Sou técnico
-              </Link>
+              </button>
             </>
           )}
           <Link to="/tecnicos"
@@ -127,20 +129,22 @@ export function SiteHeader() {
               })}
             </ul>
             {!signedIn && <div className="mt-4 grid grid-cols-2 gap-2 border-t border-border pt-4">
-              <Link to="/area-cliente" onClick={() => setOpen(false)}
+              <button type="button" onClick={() => { setOpen(false); openAuth?.("cadastrar", "cliente"); }}
                 className={"inline-flex min-h-12 items-center justify-center rounded-xl border border-input bg-card px-3 text-center text-sm font-semibold text-foreground " + FOCUS}>
                 Sou cliente
-              </Link>
-              <Link to="/area-tecnico" onClick={() => setOpen(false)}
+              </button>
+              <button type="button" onClick={() => { setOpen(false); openAuth?.("cadastrar", "tecnico"); }}
                 className={"inline-flex min-h-12 items-center justify-center rounded-xl border border-primary/30 bg-accent px-3 text-center text-sm font-semibold text-primary " + FOCUS}>
                 Sou técnico
-              </Link>
+              </button>
             </div>}
-            <Link to={signedIn ? accountPath : "/entrar"} onClick={() => setOpen(false)}
+            {signedIn ? <Link to={accountPath} onClick={() => setOpen(false)}
               className={"mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm " + FOCUS}>
-              {signedIn ? <UserRound className="h-4 w-4" aria-hidden="true" /> : <LogIn className="h-4 w-4" aria-hidden="true" />}
-              {signedIn ? "Minha conta" : "Entrar ou criar conta"}
-            </Link>
+              <UserRound className="h-4 w-4" aria-hidden="true" /> Minha conta
+            </Link> : <button type="button" onClick={() => { setOpen(false); openAuth?.("entrar"); }}
+              className={"mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm " + FOCUS}>
+              <LogIn className="h-4 w-4" aria-hidden="true" /> Entrar ou criar conta
+            </button>}
             <p className="mt-3 text-center text-xs text-muted-foreground">Cadastro gratuito para profissionais · contato privado protegido</p>
           </div>
         </nav>
@@ -158,11 +162,14 @@ export function SiteHeader() {
         activeProps={{ className: "flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg bg-primary/10 py-2 text-xs font-semibold text-primary" }}>
         <Search className="h-5 w-5" aria-hidden="true" /> Buscar
       </Link>
-      <Link to={signedIn ? accountPath : "/entrar"}
+      {signedIn ? <Link to={accountPath}
         className={"flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg py-2 text-xs font-medium text-muted-foreground " + FOCUS}
         activeProps={{ className: "flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg bg-primary/10 py-2 text-xs font-semibold text-primary" }}>
-        {signedIn ? <UserRound className="h-5 w-5" aria-hidden="true" /> : <LogIn className="h-5 w-5" aria-hidden="true" />} Minha área
-      </Link>
+        <UserRound className="h-5 w-5" aria-hidden="true" /> Minha área
+      </Link> : <button type="button" onClick={() => openAuth?.("entrar")}
+        className={"flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg py-2 text-xs font-medium text-muted-foreground " + FOCUS}>
+        <LogIn className="h-5 w-5" aria-hidden="true" /> Minha área
+      </button>}
     </nav>}
     </>
   );
