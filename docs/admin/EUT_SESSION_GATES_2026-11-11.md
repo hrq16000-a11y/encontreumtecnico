@@ -19,7 +19,7 @@ Cinco políticas `AS RESTRICTIVE` exigem sessão operacional para leitura de ped
 Cinco gatilhos são a segunda barreira para alterações oriundas de RPCs privilegiadas: perfil, presença, respostas diretas, compartilhamento e indicações. Validam o ator e, nos fluxos de interação, os participantes. O administrador com sessão válida continua podendo **suspender ou revisar** o perfil de uma conta banida. A operação de colocar presença offline continua permitida como medida de segurança.
 
 ## Homologação / rollback
-1. Preservar as PRs #133 (popup Google), #139 (Auth Hook) e #142 (convites), todas sem fusão nesta rodada.
+1. Preservar a PR #133 (popup Google), a PR #139 (Auth Hook) e a PR #142 (convites), todas sem fusão nesta rodada.
 2. Rodar Vitest, build TanStack e TypeScript no GitHub; validar o SQL em transação e confirmar rollback (sem política/gatilho persistido).
 3. **Ambiente isolado**: entrar com contas legítimas técnico, cliente e admin; confirmar pedidos, painel, geolocalização, galeria, upload, mensagens e cadastro WordPress. Simular banimento de **conta de teste** em sessão aberta; conferir falha no banco para perfis, presença, respostas, claims, indicações e compartilhamento, mantendo suporte acessível.
 4. Simular revogação da sessão de teste pela API autorizada; validar que JWT existente não passa pelas RPCs/RLS protegidas. Testar restabelecimento e desbanimento.
