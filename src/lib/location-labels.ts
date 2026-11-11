@@ -10,8 +10,8 @@ export function placeKey(raw: string | null | undefined): string {
 export function sameMunicipalityAsNeighborhood(neighborhood: string | null | undefined,
   city: string | null | undefined): boolean {
   const a = placeKey(neighborhood), b = placeKey(city);
-  return Boolean(a && b && (a === b || a === placeKey((city ?? "") + "/PR") ||
-    /^[a-z\s-]+\/([a-z]{2})$/i.test(neighborhood ?? "") && a.split("/")[0] === b));
+  const withoutUf = a.replace(/\s*\/[a-z]{2}$/, "").trim();
+  return Boolean(a && b && (a === b || withoutUf === b));
 }
 
 export function safeNeighborhood(neighborhood: string | null | undefined,
