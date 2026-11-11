@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { openFreeHelp } from "@/lib/free-search-help";
 import {
   ArrowLeft, ArrowRight, BadgeInfo, BriefcaseBusiness, Check,
   ChevronRight, Handshake, LockKeyhole, MapPin, Medal,
@@ -180,10 +181,10 @@ export function PublicTechnicianProfile({ technician: t }: { technician: PublicT
                 <Link to="/area-cliente" search={{ tecnico: t.id }} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-center text-sm font-bold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-md motion-reduce:transform-none">
                   Descrever meu problema <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
-                <Link to="/acesso-contato/$tecnicoId" params={{ tecnicoId: t.id }} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-accent/50 px-4 text-center text-sm font-semibold text-primary transition-colors hover:bg-accent">
-                  Ver condições de contato <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                </Link>
-                <p className="border-t border-border pt-3 text-xs leading-5 text-muted-foreground">A descrição é opcional e depende do consentimento do cliente. Nenhum número é revelado aqui. A compra de acesso ao contato ainda não está disponível.</p>
+                <button type="button" onClick={() => openFreeHelp({ mode: "direct", technicianId: t.id, technicianName: t.display_name, service: t.service_slugs[0] || "" })} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-accent/50 px-4 text-center text-sm font-semibold text-primary transition-colors hover:bg-accent">
+                  Solicitar contato via atendimento <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                </button>
+                <p className="border-t border-border pt-3 text-xs leading-5 text-muted-foreground">A descrição é opcional e depende do consentimento do cliente. Nenhum número é revelado aqui. O pagamento está pausado. O funil registra seu interesse sem liberar telefone privado.</p>
               </div>
             </div>
             <Link to="/tecnicos" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-primary hover:underline"><ArrowLeft className="h-4 w-4" aria-hidden="true" /> Voltar à busca</Link>
@@ -195,9 +196,9 @@ export function PublicTechnicianProfile({ technician: t }: { technician: PublicT
         <Link to="/area-cliente" search={{ tecnico: t.id }} className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-3 text-center text-xs font-bold text-primary-foreground sm:text-sm">
           <MessageSquareText className="h-4 w-4 shrink-0" aria-hidden="true" /> Descrever problema
         </Link>
-        <Link to="/acesso-contato/$tecnicoId" params={{ tecnicoId: t.id }} className="inline-flex min-h-12 flex-1 items-center justify-center gap-1 rounded-xl border border-primary/25 bg-accent px-3 text-center text-xs font-bold text-primary sm:text-sm">
-          <LockKeyhole className="h-4 w-4 shrink-0" aria-hidden="true" /> Ver condições
-        </Link>
+        <button type="button" onClick={() => openFreeHelp({ mode: "direct", technicianId: t.id, technicianName: t.display_name, service: t.service_slugs[0] || "" })} className="inline-flex min-h-12 flex-1 items-center justify-center gap-1 rounded-xl border border-primary/25 bg-accent px-3 text-center text-xs font-bold text-primary sm:text-sm">
+          <LockKeyhole className="h-4 w-4 shrink-0" aria-hidden="true" /> Pedir contato
+        </button>
       </nav>
     </div>
   );

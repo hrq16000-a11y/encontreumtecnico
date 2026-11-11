@@ -3,6 +3,9 @@ export type FreeHelpContext = {
   uf?: string;
   neighborhood?: string;
   service?: string;
+  technicianId?: string;
+  technicianName?: string;
+  mode?: "direct" | "managed";
 };
 
 const clean = (value: unknown) =>

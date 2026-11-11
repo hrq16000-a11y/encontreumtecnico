@@ -4,12 +4,15 @@ on:
     paths:
       - 'src/components/free-search-help.tsx'
       - 'src/components/free-search-help.test.tsx'
+      - 'src/components/assistance-funnel.tsx'
+      - 'src/lib/assistance-intent.ts'
+      - 'src/lib/assistance-intent.test.ts'
       - 'src/lib/free-search-help.ts'
-      - 'src/components/contact-form.tsx'
       - 'src/components/page-placeholder.tsx'
       - 'src/routes/tecnicos.index.tsx'
       - 'src/routes/contato.tsx'
-      - 'src/routes/como-funciona.tsx'
+      - 'src/routes/acesso-contato.$tecnicoId.tsx'
+      - 'src/components/public-technician-profile.tsx'
       - '.github/workflows/eut-free-assisted-search.yml'
 permissions:
   contents: read
@@ -21,31 +24,31 @@ jobs:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
-      - name: Free help popup, regional context and contact privacy
-        run: bunx vitest run src/components/free-search-help.test.tsx
-      - name: No paid-contact bypass or fake public reputation
+      - name: Funnel steps, contextual routing and privacy tests
+        run: bunx vitest run src/components/free-search-help.test.tsx src/lib/assistance-intent.test.ts
+      - name: No paid-contact bypass or fake reputation
         run: |
           node --input-type=module <<'NODE'
           import {readFileSync} from 'node:fs';
           const ui=readFileSync('src/components/free-search-help.tsx','utf8');
+          const funnel=readFileSync('src/components/assistance-funnel.tsx','utf8');
           const search=readFileSync('src/routes/tecnicos.index.tsx','utf8');
-          const contact=readFileSync('src/components/contact-form.tsx','utf8');
-          const how=readFileSync('src/routes/contato.tsx','utf8');
-          if(!ui.includes('ContactForm')||!contact.includes('.from("contact_messages").insert('))
-            throw Error('Free-help route must save to the existing private admin inbox');
-          if(!ui.includes('O telefone de nenhum técnico é liberado') ||
-             /eut_reveal_paid_technician_contact|service_role|phone_e164|wa\.me\//i.test(ui))
-            throw Error('Unsafe free contact bypass');
+          const contact=readFileSync('src/routes/contato.tsx','utf8');
+          if(!ui.includes('AssistanceFunnel')||!funnel.includes('.from("contact_messages").insert('))
+            throw Error('Guided intake must persist to the existing private admin inbox');
+          if(!funnel.includes('Nenhum telefone privado')||
+             /eut_reveal_paid_technician_contact|service_role|phone_e164|wa\.me\//i.test(ui+funnel))
+            throw Error('Unsafe contact bypass');
           if(!search.includes('technicians.length === 0')||!search.includes('openFreeHelp')||
-             !search.includes('sessionStorage'))throw Error('Regional no-results popup missing or intrusive');
-          if(!how.includes('gratuita nesta primeira fase'))throw Error('Old paid-only support claim not updated');
-          for(const word of ['avaliados por','estrelas comprovadas','certificado pela plataforma']) {
+             !search.includes('sessionStorage'))throw Error('Regional no-results funnel missing');
+          if(contact.includes('<ContactForm')||!contact.includes('atendimento guiado'))
+            throw Error('Generic public contact form was not replaced');
+          for(const word of ['avaliados por','estrelas comprovadas','certificado pela plataforma'])
             if(search.includes(word))throw Error('Fictitious social proof');
-          }
           NODE
-      - name: No WordPress runtime
+      - name: WordPress-free runtime
         run: node scripts/eut-wordpress-runtime-boundary.mjs
-      - name: TanStack build / generated routes
+      - name: TanStack build
         run: bun run build
       - name: TypeScript
         run: bunx tsc --noEmit --pretty false
