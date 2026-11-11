@@ -50,7 +50,11 @@ jobs:
             'Ficar online','Ficar offline']) {
             if(!presence.includes(term))throw Error('Online presence guard missing: '+term);
           }
-          if(!panel.includes('currentStatus === "aprovado" && <TechnicianPresence') ||
+          const requestsTab=panel.indexOf('panelTab === "solicitacoes"');
+          const approvedInTab=panel.indexOf('currentStatus === "aprovado" ? (',requestsTab);
+          const approvalElse=panel.indexOf(') : (',approvedInTab);
+          if(requestsTab<0 || approvedInTab<requestsTab || approvalElse<approvedInTab ||
+             !panel.slice(approvedInTab,approvalElse).includes('<TechnicianPresence userId={user.id} />') ||
              !panel.includes('profileOwnerId === user?.id') ||
              !panel.includes('roles.includes("tecnico")') ||
              panel.includes('A aprovação dependerá da conferência administrativa')) {
