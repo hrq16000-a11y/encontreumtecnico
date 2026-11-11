@@ -1,19 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageShell } from "../components/page-placeholder";
 import { SponsoredPublicSlot } from "@/components/sponsored-public-slot";
+import { SERVICE_CATEGORIES, getEnrichedServiceCategory } from "@/lib/service-catalog";
 
-const SERVICES = [
-  { slug: "climatizacao", name: "Climatização", description: "Instalação e manutenção de ar-condicionado. Informe o modelo, a necessidade e o ambiente de atendimento." },
-  { slug: "automacao", name: "Automação", description: "Sensores, controles e automação residencial ou comercial. Descreva os dispositivos e a integração desejada." },
-  { slug: "cftv", name: "Câmeras e segurança eletrônica", description: "Instalação de câmeras, gravadores, monitoramento e configuração de acesso remoto." },
-  { slug: "computadores", name: "Computadores e notebooks", description: "Diagnóstico, montagem, atualização e reparos. Informe os sintomas e os equipamentos." },
-  { slug: "comunicacoes", name: "Comunicações e telefonia", description: "Interfonia e telefonia IP. Consulte os serviços específicos informados pelo prestador." },
-  { slug: "eletrica", name: "Elétrica", description: "Instalações e reparos elétricos. Confirme a habilitação técnica adequada antes de contratar." },
-  { slug: "design-grafico", name: "Serviços gráficos", description: "Artes e serviços gráficos. Confira o escopo declarado por cada profissional." },
-  { slug: "impressoras", name: "Impressoras", description: "Configuração de impressoras, rede e manutenção. Informe a marca, o modelo e a falha." },
-  { slug: "redes", name: "Redes e conectividade", description: "Configuração de Wi-Fi, roteadores e rede cabeada. Explique o ambiente e os pontos afetados." },
-  { slug: "software", name: "Sistemas e software", description: "Instalação de programas, backup, formatação e limpeza de vírus. Proteja dados importantes antes da intervenção." },
-];
+const SERVICES = SERVICE_CATEGORIES;
 
 export const Route = createFileRoute("/servicos")({
   head: () => ({
@@ -46,13 +36,22 @@ function ServicesPage() {
             <li key={service.slug} className="flex flex-col rounded-xl border border-border bg-card p-5">
               <h2 className="font-semibold text-card-foreground">{service.name}</h2>
               <p className="mt-2 flex-1 text-sm leading-6 text-muted-foreground">{service.description}</p>
-              <Link
-                to="/tecnicos"
-                search={{ especialidade: service.slug, cidade: "", regiao: "" }}
-                className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-primary hover:underline"
-              >
-                Encontrar técnicos desta especialidade →
-              </Link>
+              {getEnrichedServiceCategory(service.slug) ? (
+                <Link
+                  to="/servicos/$categoria" params={{ categoria: service.slug }}
+                  className="mt-4 inline-flex min-h-11 items-center text-sm font-bold text-primary hover:underline"
+                >
+                  Ver especialidade, profissionais e orientações →
+                </Link>
+              ) : (
+                <Link
+                  to="/tecnicos"
+                  search={{ especialidade: service.slug, cidade: "", regiao: "" }}
+                  className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-primary hover:underline"
+                >
+                  Encontrar técnicos desta especialidade →
+                </Link>
+              )}
             </li>
           ))}
         </ul>
@@ -70,11 +69,11 @@ function ServicesPage() {
         <aside className="mt-8 rounded-2xl border border-primary/20 bg-primary/5 p-6">
           <h2 className="text-lg font-bold text-foreground">Antes de solicitar um atendimento</h2>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Leia orientações práticas sobre lentidão de computadores e preparação para instalar câmeras,
-            incluindo cuidados com dados e como descrever suas necessidades.
+            As informações práticas agora ficam dentro de cada especialidade, junto à busca de profissionais.
+            A navegação de assuntos conecta computadores, câmeras, redes, impressoras e outras necessidades reais.
           </p>
           <Link to="/guias" className="mt-4 inline-flex min-h-11 items-center text-sm font-bold text-primary hover:underline">
-            Ler guias técnicos gratuitos →
+            Navegar pelos assuntos das especialidades →
           </Link>
         </aside>
         <p className="mt-6 text-center text-sm text-muted-foreground">
