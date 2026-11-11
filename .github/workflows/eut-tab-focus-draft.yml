@@ -6,6 +6,8 @@ on:
       - 'src/hooks/use-auth.test.tsx'
       - 'src/lib/protected-session-draft.ts'
       - 'src/lib/protected-session-draft.test.ts'
+      - 'src/lib/client-request-live-draft.ts'
+      - 'src/lib/client-request-live-draft.test.ts'
       - 'src/routes/area-cliente.tsx'
       - 'src/routes/area-tecnico.tsx'
       - '.github/workflows/eut-tab-focus-draft.yml'
@@ -20,7 +22,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: Same-account auth refocus and scoped drafts
-        run: bunx vitest run src/hooks/use-auth.test.tsx src/lib/protected-session-draft.test.ts
+        run: bunx vitest run src/hooks/use-auth.test.tsx src/lib/protected-session-draft.test.ts src/lib/client-request-live-draft.test.ts src/lib/client-request-wizard.test.ts
       - name: No cross-account draft or auth regressions
         run: |
           node --input-type=module <<'NODE'
