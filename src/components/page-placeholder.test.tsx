@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 vi.mock("./site-header", () => ({ SiteHeader: () => <header data-testid="global-header" /> }));
 vi.mock("./site-footer", () => ({ SiteFooter: () => <footer data-testid="global-footer" /> }));
+vi.mock("./adsense-loader", () => ({ AdSenseDisplaySlot: () => <section data-testid="public-ad" /> }));
 vi.mock("./cookie-notice", () => ({ CookieNotice: () => <div data-testid="global-cookie-notice" /> }));
 vi.mock("./back-to-top", () => ({ BackToTop: () => <div data-testid="global-scroll" /> }));
 vi.mock("./free-search-help", () => ({ FreeSearchHelp: () => <div data-testid="global-help" /> }));
