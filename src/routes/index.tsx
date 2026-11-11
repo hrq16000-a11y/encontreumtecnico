@@ -24,7 +24,7 @@ import {
 } from "../components/home-rich";
 import { FindOneSection, JoinNetworkSection, CtaBand, ValuesSection, StepsSection } from "../components/home-sections";
 
-const SITE = "https://www.encontreumtecnico.com";
+const SITE = "https://www.encontreumtecnico.com.br";
 const TITLE = "Encontre um Técnico — Portal nacional de técnicos de CFTV e informática, sem custo para o profissional";
 const DESC = "Portal brasileiro que conecta clientes a técnicos de CFTV, informática, redes e impressoras com transparência: cadastro livre, sem cobrança ao profissional e sem leilão de preço.";
 
