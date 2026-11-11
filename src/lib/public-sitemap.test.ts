@@ -25,6 +25,7 @@ describe("sitemap público automático", () => {
       [{ public_slug: "../admin", updated_at: null }, { public_slug: "nome<private>", updated_at: null },
        { public_slug: "valido-pr", updated_at: "invalid-date" }]);
     expect(xml).not.toContain("evil.example");
+    expect(xml).not.toContain("<loc>https://www.encontreumtecnico.com/admin</loc>");
     expect(xml).not.toContain("nome&lt;private&gt;");
     expect(xml).not.toContain("/entrar?x=1");
     expect(xml).not.toContain("../admin");
