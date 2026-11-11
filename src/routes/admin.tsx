@@ -12,6 +12,9 @@ import { LegacyClaimReview } from "@/components/legacy-claim-review";
 import { EutAdminManager } from "@/components/eut-admin-manager";
 import { AdminControlHub } from "@/components/admin-control-hub";
 import { AdminAdvertisingManager } from "@/components/admin-advertising-manager";
+import { AdminNavigation } from "@/components/admin-navigation";
+import { adminModuleTitle, type AdminSection } from "@/lib/admin-sections";
+import { ArrowRight, ShieldAlert } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -38,8 +41,12 @@ const TABS: { key: TStatus; label: string }[] = [
 ];
 
 export function AdminPage() {
+  return <AdminWorkspace section="inicio" />;
+}
+
+export function AdminWorkspace({ section }: { section: AdminSection }) {
   const lp2 = useContext(LP2EmbeddedContext);
-  const { user, roles, loading } = useAuth();
+  const { user, roles, loading, rolesError, refreshRoles } = useAuth();
   const isAdmin = roles.includes("admin");
   const [techs, setTechs] = useState<Tech[] | null>(null);
   const [reqs, setReqs] = useState<Req[]>([]);
@@ -64,7 +71,7 @@ export function AdminPage() {
     if (error) setError("Não foi possível atualizar a mensagem.");
     else load();
   }
-  useEffect(() => { if (isAdmin) load(); }, [isAdmin]);
+  useEffect(() => { if (isAdmin) void load(); }, [isAdmin, section]);
 
   async function setStatus(id: string, status: TStatus) {
     const { error } = await supabase.from("technicians").update({ status, reviewed_at: new Date().toISOString() }).eq("id", id);
@@ -86,16 +93,39 @@ export function AdminPage() {
 
   return (
     <PageShell>
-      <section className="mx-auto max-w-5xl px-4 py-10">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Painel administrativo</h1>
+      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+        <div className="mb-7 rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card p-6 shadow-sm sm:p-8">
+        <p className="text-xs font-bold uppercase tracking-widest text-primary">Gestão protegida · Encontre um Técnico</p>
+          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">{section === "inicio" ? "Painel administrativo" : adminModuleTitle(section)}</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+            Administração organizada por módulo. A navegação não modifica permissões nem publica registros históricos.
+          </p>
+        </div>
         {loading ? (
           <p className="mt-4 text-sm text-muted-foreground">Carregando…</p>
         ) : !user ? (
           <p className="mt-4 text-sm text-muted-foreground"><Link to={lp2 ? "/lp2/entrar" : "/entrar"} className="text-primary underline">Entre</Link> com uma conta de administrador.</p>
+        ) : rolesError ? (
+          <div role="alert" className="max-w-2xl rounded-2xl border border-destructive/30 bg-card p-6 shadow-sm">
+            <h2 className="text-lg font-bold text-foreground">Não foi possível confirmar suas permissões</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Sua sessão continua conectada. Não é necessário criar outra conta.</p>
+            <button type="button" onClick={() => void refreshRoles()}
+              className="mt-4 min-h-12 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground">Tentar novamente</button>
+          </div>
         ) : !isAdmin ? (
-          <p className="mt-4 text-sm text-muted-foreground">Sua conta não tem acesso de administrador.</p>
+          <div className="max-w-2xl rounded-2xl border border-border bg-card p-6 shadow-sm">
+            <h2 className="text-lg font-bold text-foreground">Esta conta não possui permissão de administrador</h2>
+            <p className="mt-2 text-sm text-muted-foreground">As áreas administrativas são privadas. Se você é cliente ou técnico, utilize sua própria área sem repetir o login.</p>
+            <Link to={roles.includes("tecnico") ? "/area-tecnico" : roles.includes("cliente") ? "/area-cliente" : "/entrar"}
+              className="mt-4 inline-flex min-h-12 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground">
+              Abrir minha área <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </div>
         ) : (
-          <>
+          <div className="grid min-w-0 gap-6 lg:grid-cols-[250px_minmax(0,1fr)]">
+            <AdminNavigation active={section} />
+            <main className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6"
+              aria-label={"Módulo administrativo: " + adminModuleTitle(section)}>
             <ConnectedGoogleIdentity user={user} />
             {error && <p role="alert" className="mt-2 text-sm text-destructive">{error}</p>}
             <dl className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -173,7 +203,8 @@ export function AdminPage() {
             ) : (
               <ul className="mt-3 grid gap-3">{reqs.slice(0, 50).map((r) => <RequestCard key={r.id} r={r} />)}</ul>
             )}
-          </>
+            </main>
+          </div>
         )}
       </section>
     </PageShell>
