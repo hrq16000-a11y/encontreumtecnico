@@ -12,12 +12,13 @@ type DebouncedTextFilterProps = {
   label: string;
   value: string;
   placeholder: string;
+  list?: string | undefined;
   onCommit: (value: string) => void;
   onBlurTrack: (value: string) => void;
 };
 
 export function DebouncedTextFilter({
-  id, label, value, placeholder, onCommit, onBlurTrack,
+  id, label, value, placeholder, list, onCommit, onBlurTrack,
 }: DebouncedTextFilterProps) {
   const [draft, setDraft] = useState(() => readPendingFilter(id, value) ?? value);
   const focused = useRef(false);
@@ -73,6 +74,7 @@ export function DebouncedTextFilter({
       </label>
       <input
         id={id}
+        list={list}
         type="text"
         value={draft}
         onFocus={() => { focused.current = true; }}

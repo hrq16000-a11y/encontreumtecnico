@@ -23,6 +23,7 @@ import { TechnicianDirectRequests } from "@/components/technician-direct-request
 import { CustomerLocationButton } from "@/components/customer-location-button";
 import { suggestTechnicianArea } from "@/lib/customer-location";
 import { safeNeighborhood, sameMunicipalityAsNeighborhood } from "@/lib/location-labels";
+import { neighborhoodCatalogFor, neighborhoodOptions } from "@/lib/neighborhood-sources";
 import { clearProtectedDraft, readProtectedDraft, saveProtectedDraft } from "@/lib/protected-session-draft";
 import { saveTechnicianDraftImmediately } from "@/lib/technician-live-draft";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
@@ -93,6 +94,7 @@ export function TechnicianAreaPage() {
   const { area: regionalHint } = useRegionalSuggestion();
   const { cities: officialBaseCities } = useMunicipalities(form.state_uf);
   const baseMunicipality = officialBaseCities.find((city) => city.id === form.base_city_ibge_id) ?? null;
+  const bairroCatalog = neighborhoodCatalogFor({ city: form.city, uf: form.state_uf, municipalityIbgeId: form.base_city_ibge_id });
   const currentStatus = roles.includes("tecnico") && profileOwnerId === user?.id ? status : null;
   const profileReady = Boolean(user && roles.includes("tecnico")
     && profileOwnerId === user.id && !profileLoading && !profileError);
@@ -531,9 +533,13 @@ export function TechnicianAreaPage() {
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="text-sm font-medium text-foreground">Bairro de referência (opcional)
-                  <input maxLength={80} className={input} value={safeNeighborhood(form.neighborhood, form.city)}
+                  <input maxLength={80} className={input} list={bairroCatalog ? "eut-bairro-profissional" : undefined}
+                    value={safeNeighborhood(form.neighborhood, form.city)}
                     placeholder="Ex.: Jardim Itália"
                     onChange={(e) => updateRegistration({ ...form, neighborhood: e.target.value })} />
+                  {bairroCatalog && <datalist id="eut-bairro-profissional">
+                    {neighborhoodOptions(bairroCatalog).map(bairro => <option key={bairro} value={bairro} />)}
+                  </datalist>}
                   {sameMunicipalityAsNeighborhood(form.neighborhood, form.city) && (
                     <span role="status" className="mt-1 block text-xs text-amber-800 dark:text-amber-300">
                       O preenchimento anterior era o município, não um bairro. Informe o bairro real, se desejar.
@@ -546,6 +552,11 @@ export function TechnicianAreaPage() {
                     onChange={(e) => updateRegistration({ ...form, region: e.target.value })} />
                 </label>
               </div>
+              {bairroCatalog && <p className="text-xs text-muted-foreground">
+                Sugestões da <a href={bairroCatalog.sourceUrl} target="_blank" rel="noopener noreferrer"
+                  className="font-medium text-primary underline underline-offset-2">{bairroCatalog.sourceName}</a>.
+                Pode digitar outra denominação; a lista não confirma o endereço.
+              </p>}
                 </div>
               )}
               {step === 2 && (
