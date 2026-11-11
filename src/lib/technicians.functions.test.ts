@@ -103,6 +103,32 @@ describe("public technician profile lookup", () => {
     }
   });
 
+  it("returns null for approved technician when moderation RPC revokes eligibility", async () => {
+    const profile = { id, public_slug: "qa-revoked-curitiba",
+      display_name: "Profissional sintético", city: "Curitiba",
+      state_uf: "PR", specialties: ["redes"], service_slugs: [] };
+    mocks.query.maybeSingle.mockResolvedValue({ data: profile, error: null });
+    let revoked = false;
+    mocks.client.rpc.mockImplementation((name: string, args?: { _ids?: string[] }) =>
+      Promise.resolve({ data: name === "eut_public_eligible_technician_ids" && !revoked
+          ? (args?._ids ?? []).map(technician_id => ({ technician_id })) : [],
+        error: null }));
+    expect((await getApprovedTechnician({ data: { id } }))?.public_slug).toBe(profile.public_slug);
+    revoked = true;
+    expect(await getApprovedTechnician({ data: { id } })).toBeNull();
+    expect(mocks.client.rpc).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not turn moderation RPC outage into a false 404", async () => {
+    mocks.query.maybeSingle.mockResolvedValue({ data: {
+      id, public_slug: "qa-checks-curitiba", display_name: "Profissional sintético",
+      specialties: [], city: "Curitiba", state_uf: "PR",
+    }, error: null });
+    mocks.client.rpc.mockResolvedValue({ data: null, error: { code: "PGRST202" } });
+    await expect(getApprovedTechnician({ data: { id } }))
+      .rejects.toThrow("Public technician eligibility unavailable");
+  });
+
   it("returns only public fields when an approved profile exists", async () => {
     const profile = {
       id,

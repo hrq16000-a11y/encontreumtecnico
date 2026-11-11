@@ -165,7 +165,12 @@ describe("Elegibilidade pública moderada: simulação RPC sem SQL real", () => 
     expect(migration).toContain("eut_moderation.blocked_accounts");
     expect(migration).toContain("eut_moderation.blocked_phones");
     expect(migration).toContain("eut_technician_private_contacts");
-    expect(migration).toContain("DROP POLICY IF EXISTS");
+    expect(migration).toContain("AS RESTRICTIVE FOR SELECT TO anon");
+    expect(migration).toContain("eut_visibility.eut_public_technician_eligible(id)");
+    expect(migration).toContain("LANGUAGE sql STABLE SECURITY INVOKER");
+    expect(migration).toContain("REVOKE ALL ON SCHEMA eut_visibility FROM PUBLIC");
+    expect(migration).not.toContain("CREATE OR REPLACE FUNCTION public.eut_public_technician_eligible");
+    expect(migration).not.toContain('DROP POLICY IF EXISTS "Public reads approved"');
     expect(adapter).toContain("eut_public_eligible_technician_ids");
     expect(list.match(/readPublicEligibleRows\(/g)).toHaveLength(2);
     expect(graph).toContain("readPublicEligibleRows(");
