@@ -171,4 +171,18 @@ describe("Elegibilidade pública moderada: simulação RPC sem SQL real", () => 
     expect(graph).toContain("readPublicEligibleRows(");
     expect(adapter).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
   });
+  it("limita RPC a 500 IDs por lote e nunca agrega IDs que não foram solicitados", async () => {
+    const rows = Array.from({ length: 501 }, (_, i) => ({ id: "qa-batch-" + i }));
+    const rpc = vi.fn(async (_name: string, params: { _ids: string[] }) => ({
+      data: [...params._ids.map(technician_id => ({ technician_id })), { technician_id: "qa-nao-solicitado" }],
+      error: null,
+    }));
+    const filtered = await readPublicEligibleRows({ rpc }, rows);
+    expect(rpc).toHaveBeenCalledTimes(2);
+    expect(rpc.mock.calls[0]?.[1]._ids).toHaveLength(500);
+    expect(rpc.mock.calls[1]?.[1]._ids).toHaveLength(1);
+    expect(filtered).toHaveLength(501);
+    expect(filtered.some(row => row.id === "qa-nao-solicitado")).toBe(false);
+  });
+
 });
