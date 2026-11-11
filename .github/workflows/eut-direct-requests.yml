@@ -10,6 +10,9 @@ on:
       - 'src/lib/client-request-action.test.ts'
       - 'src/lib/client-request-wizard.ts'
       - 'src/lib/client-request-wizard.test.ts'
+      - 'src/lib/client-technician-picker.ts'
+      - 'src/lib/client-technician-picker.test.ts'
+      - 'src/components/client-technician-picker.tsx'
       - 'docs/sql/eut-direct-flow-readiness-readonly.sql'
       - 'src/routes/area-tecnico.tsx'
       - 'src/routes/area-cliente.tsx'
@@ -35,7 +38,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: Test isolation between accounts and stale queries
-        run: bun run test src/lib/account-scoped-queries.test.ts src/lib/client-request-action.test.ts src/lib/client-request-wizard.test.ts
+        run: bun run test src/lib/account-scoped-queries.test.ts src/lib/client-request-action.test.ts src/lib/client-request-wizard.test.ts src/lib/client-technician-picker.test.ts
       - name: Verify opt-in contract and no private contacts
         run: |
           node --input-type=module <<'NODE'
