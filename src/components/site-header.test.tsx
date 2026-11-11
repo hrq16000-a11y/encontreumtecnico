@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { SiteHeader } from "./site-header";
+const authState = vi.hoisted(() => ({
+  value: { user: null as { id: string } | null,
+    roles: [] as Array<"admin" | "tecnico" | "cliente">, loading: false },
+}));
+vi.mock("@/hooks/use-auth", () => ({ useAuth: () => authState.value }));
+
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ to, children, onClick, ...props }: {
@@ -8,7 +14,7 @@ vi.mock("@tanstack/react-router", () => ({
   }) => <a href={to} onClick={onClick} aria-label={typeof props["aria-label"] === "string" ? props["aria-label"] : undefined}>{children}</a>,
 }));
 
-afterEach(() => cleanup());
+afterEach(() => { cleanup(); authState.value = { user: null, roles: [], loading: false }; });
 
 describe("Cabeçalho do novo portal", () => {
   it("abre o menu móvel com destinos públicos e caminhos de cadastro preservados", () => {
@@ -45,5 +51,28 @@ describe("Cabeçalho do novo portal", () => {
     const menu = screen.getByRole("navigation", { name: "Navegação móvel" });
     fireEvent.click(menu.querySelector('a[href="/tecnicos"]')!);
     expect(screen.queryByRole("navigation", { name: "Navegação móvel" })).toBeNull();
+  });
+});
+
+describe("menu autenticado e direcionamento para painel do papel real", () => {
+  it.each([
+    ["admin", "/admin"],
+    ["tecnico", "/area-tecnico"],
+    ["cliente", "/area-cliente"],
+  ] as const)("exibe Minha conta para %s no painel %s", (role, path) => {
+    authState.value = { user: { id: "account-1" }, roles: [role], loading: false };
+    render(<SiteHeader />);
+    expect(screen.getAllByText("Minha conta").length).toBeGreaterThan(0);
+    const desktop = screen.getAllByText("Minha conta").find((el) => el.closest("a")?.getAttribute("href") === path);
+    expect(desktop).toBeTruthy();
+    expect(screen.queryByText("Sou técnico")).toBeNull();
+    const quick = screen.getByRole("navigation", { name: "Acesso rápido no celular" });
+    expect(quick.querySelector(`a[href="${path}"]`)).toBeTruthy();
+  });
+  it("conta autenticada sem papel volta ao registro seguro", () => {
+    authState.value = { user: { id: "unclassified" }, roles: [], loading: false };
+    render(<SiteHeader />);
+    expect(screen.getAllByText("Minha conta").some((el) =>
+      el.closest("a")?.getAttribute("href") === "/entrar")).toBe(true);
   });
 });
