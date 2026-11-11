@@ -9,6 +9,12 @@ on:
       - 'src/routes/sitemap[.]xml.ts'
       - 'src/lib/public-sitemap.ts'
       - 'src/lib/public-sitemap.test.ts'
+      - 'src/lib/public-seo-graph.ts'
+      - 'src/lib/public-seo-graph.functions.ts'
+      - 'src/lib/public-seo-graph.test.ts'
+      - 'src/routes/cidades.$uf.$cidade.tsx'
+      - 'src/routes/categorias.$categoria.tsx'
+      - 'src/components/public-seo-discovery.tsx'
       - 'src/components/text-page.tsx'
       - 'src/routes/lp2/index.tsx'
       - 'src/routes/lp2/galeria.tsx'
@@ -48,7 +54,7 @@ jobs:
       - name: Install dependencies (locked)
         run: bun install --frozen-lockfile
       - name: SEO regression tests
-        run: bunx vitest run src/lib/seo-public-pages.test.ts src/lib/public-sitemap.test.ts src/lib/social-preview.test.ts src/lib/technician-id.test.ts src/lib/technicians.functions.test.ts src/lib/technician-slug-migration.test.ts
+        run: bunx vitest run src/lib/seo-public-pages.test.ts src/lib/public-sitemap.test.ts src/lib/public-seo-graph.test.ts src/lib/social-preview.test.ts src/lib/technician-id.test.ts src/lib/technicians.functions.test.ts src/lib/technician-slug-migration.test.ts
       - name: Build TanStack
         run: bun run build
       - name: TypeScript check
