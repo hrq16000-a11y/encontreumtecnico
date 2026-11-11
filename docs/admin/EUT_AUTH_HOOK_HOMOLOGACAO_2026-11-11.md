@@ -22,3 +22,16 @@ A PR #138 aplica bloqueios operacionais para contas e telefones conhecidos, incl
 - Nenhum dado de lista de banidos é retornado pelo hook: apenas mensagem genérica orientando o suporte.
 
 Referência oficial: https://supabase.com/docs/guides/auth/auth-hooks/before-user-created-hook
+
+## Rodada 4/5 — refinamento e evidências em 11/11/2026
+
+- O contrato de saída do hook foi reconferido com a documentação oficial do Supabase: `'{}'::jsonb` permite continuar; um `error` com `http_code` recusa uma nova conta.
+- A consulta ao banco EUT encontrou **um número restrito brasileiro em formato de 13 dígitos, com prefixo 55**, e **zero contas com bloqueio por UUID** no momento da inspeção. Nenhum número completo foi exposto nos relatórios.
+- A função agora compara o número brasileiro completo, reconhecendo as duas representações equivalentes (10/11 dígitos nacionais ou 12/13 com `55`); não usa sufixo, DDD isolado, nome, IP ou metadados editáveis.
+- O teste SQL executa consultas ao bloqueio real **somente leitura**. Cenários: e-mail de QA inédito, telefone restrito com e sem `55`, DDD diferente com mesmo assinante, DDD isolado, telefone em `user_metadata` que não deve autorizar bloqueio, payload malformado e permissões declaradas para o papel do Auth.
+- A operação `SET ROLE supabase_auth_admin` não é autorizada na conexão administrativa disponível. Isso **não significa que o hook esteja inválido**, mas impede comprovar nesta rodada sua execução efetiva dentro de GoTrue. Confirmar no ambiente isolado, não ativar diretamente em produção.
+- O cenário de e-mail pertencente a conta bloqueada por UUID não pôde ser testado contra registro real, pois atualmente não há contas com esse bloqueio. Exige usuário **sintético** em ambiente de teste, sem banir identidades reais.
+- Foram usados `BEGIN`, testes e `ROLLBACK`, sempre verificando que não restou função instalada nem alteração em contas ou telefones bloqueados. Não houve criação de usuário, alteração de DNS, hook ativo, merge ou deploy.
+- **Antes de qualquer ativação:** confirmar que nenhum hook existente será substituído, executar E2E com usuário de teste permitido e restrito, verificar login Google/e-mail/telefone e recuperação, confirmar o acesso por `supabase_auth_admin`, e ter rollback via desligamento do hook já ensaiado.
+
+As PRs #133 (popup), #142 (convites) e #145 (sessões) continuam independentes; combinar apenas depois de revisão integrada da main na rodada 5/5.
