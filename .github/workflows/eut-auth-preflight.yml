@@ -10,6 +10,11 @@ on:
       - 'src/hooks/use-auth.test.tsx'
       - 'src/lib/auth-domain.ts'
       - 'src/lib/auth-domain.test.ts'
+      - 'src/lib/google-identity-hint.ts'
+      - 'src/lib/google-identity-hint.test.ts'
+      - 'src/lib/signup-intent.ts'
+      - 'src/components/connected-google-identity.tsx'
+      - 'src/routes/cadastro.tsx'
       - 'docs/sql/eut-project-owner-bootstrap.sql'
       - '.github/workflows/eut-auth-preflight.yml'
   workflow_dispatch:
@@ -30,7 +35,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: Test live-auth hook against account switching, signout and stale roles
-        run: bun run test src/hooks/use-auth.test.tsx src/lib/account-scoped-queries.test.ts src/lib/auth-domain.test.ts
+        run: bun run test src/hooks/use-auth.test.tsx src/lib/account-scoped-queries.test.ts src/lib/auth-domain.test.ts src/lib/google-identity-hint.test.ts
       - name: Build app and generate TanStack route tree
         run: bun run build
       - name: TypeScript after TanStack route generation
