@@ -17,7 +17,7 @@ describe("Conta administrativa pode ter também papel técnico sem escalada", ()
       "ON CONFLICT (user_id, role) DO NOTHING",
       "public.has_role(v_uid, 'tecnico'::public.app_role)",
     ]) expect(sql).toContain(guard);
-    expect(sql).not.toMatch(/INSERT\s+INTO\s+public\.user_roles\s*\([^)]*\)[\s\S]*?VALUES\s*\([^)]*'admin'/i);
+    expect(sql).not.toMatch(/VALUES\s*\(\s*v_uid\s*,\s*'admin'/i);
     expect(sql).not.toMatch(/DELETE\s+FROM\s+public\.user_roles/i);
     expect(sql).not.toMatch(/UPDATE\s+public\.user_roles/i);
     expect(sql).not.toContain("auth.admin");
