@@ -4,7 +4,7 @@ type LeadFields = {
   mode: AssistanceMode;
   name: string; email: string; service: string; when: string;
   problem: string; city: string; uf: string; neighborhood: string;
-  technicianId?: string; technicianName?: string;
+  technicianId?: string | undefined; technicianName?: string | undefined;
 };
 
 /** Must never grant access, store card data or submit to a technician directly. */
