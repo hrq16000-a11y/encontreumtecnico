@@ -20,7 +20,7 @@ export function MemberInviteAcceptance({
   useEffect(() => {
     let active = true;
     setInvitation(null);
-    void db.rpc("eut_my_member_invitation").then(({ data, error: queryError }) => {
+    void Promise.resolve(db.rpc("eut_my_member_invitation")).then(({ data, error: queryError }) => {
       if (!active) return;
       if (!queryError && data?.pending && (data.target_role === "tecnico" || data.target_role === "cliente")) {
         setInvitation(data as Invitation);
