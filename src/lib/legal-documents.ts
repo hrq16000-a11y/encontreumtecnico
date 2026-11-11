@@ -109,6 +109,7 @@ export const legalDocuments: Record<LegalDocumentKey, LegalDocumentData> = {
         "paragraphs": [
           "Serviços técnicos de hospedagem, banco de dados, autenticação, análises autorizadas e processamento de pagamento poderão atuar como operadores de dados conforme a sua função, com acesso restrito ao necessário. Contatos são compartilhados com clientes apenas nas condições comunicadas na aquisição.",
           "Não comercializamos uma base irrestrita de contatos de prestadores. Eventuais transferências internacionais ligadas à infraestrutura devem observar as exigências aplicáveis da LGPD.",
+          "Atendimento por WhatsApp: após registrar uma solicitação, o visitante pode optar por abrir o WhatsApp com uma mensagem preenchida que contém nome, e-mail, categoria, urgência, localidade informada e descrição do pedido. O compartilhamento com o mensageiro é voluntário e depende de o visitante confirmar o envio no aplicativo. O registro na plataforma não equivale a uma mensagem enviada ou entregue no WhatsApp, cujo tratamento segue também as políticas do próprio serviço.",
           "Publicidade: a conta Google AdSense ca-pub-3762170279587706 foi configurada para verificação. A veiculação de anúncios do Google, quando ativada, depende da opção Publicidade no aviso de cookies, além das regras aplicáveis do provedor. O Google poderá tratar informações técnicas do dispositivo e da navegação conforme suas próprias políticas de publicidade."
         ]
       },
