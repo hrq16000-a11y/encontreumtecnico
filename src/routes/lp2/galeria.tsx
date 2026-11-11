@@ -10,7 +10,7 @@ const getProfiles=async()=> (await listApprovedTechnicians({data:{especialidade:
 const specialties=['Notebook','Computador','Redes','Wi-Fi','Impressora','Suporte remoto','Servidor','Celular']
 export const Route=createFileRoute('/lp2/galeria')({
  validateSearch:(search:Record<string,unknown>)=>({q:typeof search['q']==='string'?search['q'].slice(0,90):'',city:typeof search['city']==='string'?search['city'].slice(0,90):''}),
- loader:()=>getProfiles(),head:()=>({meta:[{title:'Buscar técnicos — LP2 Encontre um Técnico'},{name:'description',content:'Busque técnicos aprovados por especialidade, cidade e estado na plataforma Encontre um Técnico.'},{property:'og:url',content:'https://www.encontreumtecnico.com/lp2/galeria'}],links:[{rel:'canonical',href:'https://www.encontreumtecnico.com/lp2/galeria'}]}),component:Gallery
+ loader:()=>getProfiles(),head:()=>({meta:[{title:'Buscar técnicos — LP2 Encontre um Técnico'},{name:'description',content:'Busque técnicos aprovados por especialidade, cidade e estado na plataforma Encontre um Técnico.'},{property:'og:url',content:'https://www.encontreumtecnico.com.br/lp2/galeria'}],links:[{rel:'canonical',href:'https://www.encontreumtecnico.com.br/lp2/galeria'}]}),component:Gallery
 })
 function Gallery(){
  const profiles=Route.useLoaderData(),search=Route.useSearch(),navigate=useNavigate()
