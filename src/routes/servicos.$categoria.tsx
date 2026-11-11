@@ -8,6 +8,7 @@ import { getRelatedGuides } from "@/lib/public-guides";
 import { getEnrichedServiceCategory } from "@/lib/service-catalog";
 import { listApprovedTechnicians } from "@/lib/technicians.functions";
 import { SITE } from "@/lib/public-sitemap";
+import { ParanaguaExternalReferences } from "@/components/paranagua-external-references";
 
 export const Route = createFileRoute("/servicos/$categoria")({
   loader: async ({ params }) => {
@@ -143,6 +144,8 @@ function ServiceCategoryPage() {
             Abrir a busca por especialidade e localidade →
           </Link>
         </section>
+
+        {category.slug === "computadores" && <ParanaguaExternalReferences />}
 
         <article id="orientacoes-da-especialidade" className="eut-guide-stable-type mt-10 scroll-mt-28">
           <div className="max-w-4xl">
