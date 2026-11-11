@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 
 const read = (path: string) => readFileSync(path, "utf8");
-const site = "https://www.encontreumtecnico.com";
+const site = "https://www.encontreumtecnico.com.br";
 
 describe("SEO global do Encontre um Técnico", () => {
   it("declara canonical correto nas páginas públicas", () => {
