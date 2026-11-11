@@ -16,6 +16,14 @@ export const GUIDE_ARTWORK = {
     src: "/guias/impressora-offline-fila-ilustrado.svg",
     alt: "Ilustração de impressora com documento, fila de impressão e verificação de conexão",
   },
+  software: {
+    src: "/guias/backup-seguro-manutencao-ilustrado.svg",
+    alt: "Ilustração de notebook com documentos, cópia para armazenamento separado e verificação de backup",
+  },
+  climatizacao: {
+    src: "/guias/ar-condicionado-nao-gela-ilustrado.svg",
+    alt: "Ilustração de aparelho de ar-condicionado, circulação de ar e termômetro para avaliação segura",
+  },
 } as const;
 
 export function getGuideArtwork(categorySlug: string) {
