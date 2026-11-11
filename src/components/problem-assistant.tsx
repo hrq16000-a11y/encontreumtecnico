@@ -55,7 +55,7 @@ export function ProblemAssistant() {
         <textarea
           id="descricao-problema"
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={(e) => { saveUiTextDraft("problem", { description: e.target.value }); setDescription(e.target.value); }}
           maxLength={1000}
           rows={4}
           placeholder="Ex.: Meu notebook não liga desde ontem, moro em Campinas, no Cambuí."

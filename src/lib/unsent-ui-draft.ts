@@ -1,7 +1,7 @@
 /** Short-lived local drafts for NON-SENSITIVE search text, scoped to one tab.
  * Passwords, client account data, raw GPS coordinates and card fields are excluded.
  */
-export type UiDraftSlot = "home" | "problem" | "lp2-home" | "lp2-gallery";
+export type UiDraftSlot = "home" | "home2" | "problem" | "lp2-home" | "lp2-gallery";
 const PREFIX = "eut-ui-text-v1:";
 const TTL = 45 * 60 * 1000;
 const MAX = 3500;
