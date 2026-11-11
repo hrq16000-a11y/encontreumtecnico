@@ -4,6 +4,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { TechnicianAvatar } from "@/components/technician-avatar";
 import { publicTextProblem } from "@/lib/public-profile-text";
+import { clearAdminPublicDraft, readAdminPublicDraft, saveAdminPublicDraft, type AdminPublicFields } from "@/lib/admin-public-profile-draft";
 import { useActiveCategories } from "@/hooks/use-active-categories";
 import { BRAZIL_STATES } from "@/lib/service-taxonomy";
 import { adminPageRange, cleanAdminSearch } from "@/lib/admin-technician-pagination";
@@ -22,7 +23,7 @@ const actionLabels: Record<Action, string> = {
   reativar: "Reativar perfil", rejeitar: "Rejeitar perfil", revisar: "Enviar para revisão",
 };
 
-export function AdminTechnicianManager() {
+export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string }) {
   const [status, setStatus] = useState<Status>("aprovado");
   const [search, setSearch] = useState("");
   const [draftSearch, setDraftSearch] = useState("");
@@ -112,15 +113,29 @@ export function AdminTechnicianManager() {
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
 
+  function publicBaseline(technician: Technician): AdminPublicFields {
+    return { display_name: technician.display_name, bio: technician.bio ?? "", region: technician.region ?? "" };
+  }
+
   function choose(technician: Technician, action: Action) {
+    const baseline = publicBaseline(technician);
+    const recovered = action === "editar"
+      ? readAdminPublicDraft(adminOwnerId, technician.id, baseline) : null;
     setTarget({ technician, action });
-    setDraft({
-      display_name: technician.display_name,
-      bio: technician.bio ?? "",
-      region: technician.region ?? "",
-    });
+    setDraft(recovered ?? baseline);
+    // Reasons for moderation are deliberately never stored or restored.
     setReason("");
-    setFeedback(null);
+    setFeedback(recovered ? "Rascunho público recuperado nesta aba. Informe novamente o motivo obrigatório antes de salvar." : null);
+  }
+
+  function updatePublicDraft(next: AdminPublicFields) {
+    if (target?.action === "editar") {
+      const baseline = publicBaseline(target.technician);
+      if (!saveAdminPublicDraft(adminOwnerId, target.technician.id, baseline, next)) {
+        clearAdminPublicDraft(adminOwnerId, target.technician.id);
+      }
+    }
+    setDraft(next);
   }
 
   async function submit(event: FormEvent) {
@@ -149,6 +164,7 @@ export function AdminTechnicianManager() {
       if (error) throw error;
       if (!data || data.id !== target.technician.id)
         throw new Error("Servidor não confirmou a atualização solicitada.");
+      if (target.action === "editar") clearAdminPublicDraft(adminOwnerId, target.technician.id);
       setReload((value) => value + 1);
       setTarget(null);
       setFeedback(`Alteração confirmada no banco: ${data.name} · ${data.status}. Auditoria registrada.`);
@@ -226,27 +242,30 @@ export function AdminTechnicianManager() {
           <h3 className="font-bold text-foreground">{actionLabels[target.action]}</h3>
           <p className="mt-1 text-sm text-muted-foreground">{target.technician.display_name} · {target.technician.city}</p>
         </div>
-        <button type="button" onClick={() => setTarget(null)} aria-label="Cancelar edição"
+        <button type="button" onClick={() => {
+          if (target.action === "editar") clearAdminPublicDraft(adminOwnerId, target.technician.id);
+          setTarget(null);
+        }} aria-label="Cancelar edição"
           className="rounded-lg border border-input p-2 text-foreground"><X className="h-5 w-5" /></button>
       </div>
       {target.action === "editar" && <div className="grid gap-3">
         <label className="text-sm font-medium text-foreground">Nome profissional
           <input value={draft.display_name} required minLength={3} maxLength={80}
-            onChange={(e) => setDraft((d) => ({ ...d, display_name: e.target.value }))}
+            onChange={(e) => updatePublicDraft({ ...draft, display_name: e.target.value })}
             className="mt-1 min-h-11 w-full rounded-lg border border-input bg-background px-3 text-foreground" />
         </label>
         <label className="text-sm font-medium text-foreground">Região declarada
           <input value={draft.region} maxLength={100}
-            onChange={(e) => setDraft((d) => ({ ...d, region: e.target.value }))}
+            onChange={(e) => updatePublicDraft({ ...draft, region: e.target.value })}
             className="mt-1 min-h-11 w-full rounded-lg border border-input bg-background px-3 text-foreground" />
         </label>
         <label className="text-sm font-medium text-foreground">Apresentação profissional
           <textarea rows={3} value={draft.bio} maxLength={1500}
             aria-invalid={Boolean(publicTextProblem(draft.bio, "bio"))}
-            onChange={(e) => setDraft((d) => ({ ...d, bio: e.target.value }))}
+            onChange={(e) => updatePublicDraft({ ...draft, bio: e.target.value })}
             className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-3 text-foreground" />
         </label>
-        <p className="text-xs text-muted-foreground">A apresentação pública não aceita números, telefones, WhatsApp, links, redes sociais nem e-mails, mesmo fragmentados. Contatos ficam no registro privado.</p>
+        <p className="text-xs text-muted-foreground">A apresentação pública não aceita números, telefones, WhatsApp, links, redes sociais nem e-mails, mesmo fragmentados. Contatos ficam no registro privado. Rascunhos de texto público permanecem por até 15 minutos nesta aba; justificativas e contatos não são armazenados.</p>
         {publicTextProblem(draft.bio, "bio") && <p role="alert" className="text-sm text-destructive">{publicTextProblem(draft.bio, "bio")}</p>}
         <p className="text-xs text-muted-foreground">Cidade-base, serviços e raio permanecem sujeitos às validações do cadastro profissional.</p>
       </div>}
