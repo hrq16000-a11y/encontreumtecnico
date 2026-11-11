@@ -1,3 +1,4 @@
+import { ENRICHED_CATEGORY_PATHS } from "@/lib/service-catalog";
 import { GUIDE_PATHS } from "@/lib/public-guides";
 import { PUBLIC_PATHS } from "@/lib/public-sitemap";
 import { readFileSync } from "node:fs";
@@ -86,7 +87,7 @@ describe("Grafo público de interlinks indexáveis", () => {
     expect(xml).not.toContain("/cidades/rs/regiao-metropolitana");
     expect(xml).not.toContain("/categorias/categoria-inativa");
     expect(xml).not.toContain("/area-cliente");
-    expect(xml.match(/<loc>/g)).toHaveLength(PUBLIC_PATHS.length + GUIDE_PATHS.length + 5 + 2 + 2);
+    expect(xml.match(/<loc>/g)).toHaveLength(PUBLIC_PATHS.length + GUIDE_PATHS.length + ENRICHED_CATEGORY_PATHS.length + 5 + 2 + 2);
   });
 
   it("preserva retornos HTTP 404 reais para cidades/categorias não publicadas", () => {

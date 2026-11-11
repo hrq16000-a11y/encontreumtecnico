@@ -45,8 +45,11 @@ describe("SEO global do Encontre um Técnico", () => {
     const xml = read("src/routes/sitemap[.]xml.ts");
     const builder = read("src/lib/public-sitemap.ts");
     expect(builder).toContain('export const SITE = "' + site + '"');
-    expect(xml).toContain("buildPublicSitemapXml(profiles)");
-    expect(xml).toContain('.eq("status", "aprovado")');
+    const graph = read("src/lib/public-seo-graph.functions.ts");
+    expect(xml).toContain("getPublicGraphSnapshot()");
+    expect(xml).toContain("buildPublicSitemapIndexXml(graph)");
+    expect(graph).toContain('.eq("status", "aprovado")');
+    expect(graph).toContain("readPublicEligibleRows(");
     for (const pathname of [
       "/", "/tecnicos", "/lp2", "/lp2/galeria", "/servicos",
       "/como-funciona", "/faq", "/contato", "/politicas",
