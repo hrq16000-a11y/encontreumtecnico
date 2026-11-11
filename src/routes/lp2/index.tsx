@@ -9,7 +9,7 @@ import {profileRoute,fromPublicTechnician} from '../../components/lp2/directory'
 
 export const Route=createFileRoute('/lp2/')({
  loader:()=>listApprovedTechnicians({data:{especialidade:'Todas',cidade:'',regiao:'',servico:'',uf:'',bairro:''}}),
- head:()=>({meta:[{title:'Encontre um Técnico — Profissionais independentes | LP2'},{name:'description',content:'Encontre técnicos cadastrados e aprovados, por especialidade e cidade. Busque, cadastre-se ou envie uma solicitação de serviço pela interface LP2.'},{property:'og:url',content:'https://www.encontreumtecnico.com/lp2'}],links:[{rel:'canonical',href:'https://www.encontreumtecnico.com/lp2'}]}),
+ head:()=>({meta:[{title:'Encontre um Técnico — Profissionais independentes | LP2'},{name:'description',content:'Encontre técnicos cadastrados e aprovados, por especialidade e cidade. Busque, cadastre-se ou envie uma solicitação de serviço pela interface LP2.'},{property:'og:url',content:'https://www.encontreumtecnico.com.br/lp2'}],links:[{rel:'canonical',href:'https://www.encontreumtecnico.com.br/lp2'}]}),
  component:Home
 })
 
