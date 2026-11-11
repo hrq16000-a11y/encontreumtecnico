@@ -14,6 +14,7 @@ import { CustomerLocationButton } from "@/components/customer-location-button";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { ClientTechnicianPicker } from "@/components/client-technician-picker";
 import { consumeTriageDraft } from "@/lib/triage-draft";
+import { clearProtectedDraft, readProtectedDraft, saveProtectedDraft } from "@/lib/protected-session-draft";
 import { clearTechnicianTarget, recallTechnicianTarget, rememberTechnicianTarget } from "@/lib/selected-technician-target";
 import { containsObviousContact } from "@/lib/private-message-validation";
 import { accountScopedRows, canAcceptAccountResult } from "@/lib/account-scoped-queries";
@@ -65,6 +66,7 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
   const [step, setStep] = useState<ClientRequestStep>(1);
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
   const pendingSubmission = useRef<{ fingerprint: string; id: string } | null>(null);
+  const draftOwnerRef = useRef<string | null>(null);
   const [shareNow, setShareNow] = useState(false);
   const [technicianTarget, setTechnicianTarget] = useState<string | null>(tecnico ?? null);
   const [sendingId, setSendingId] = useState<string | null>(null);
@@ -86,6 +88,41 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
     setShareNow(false);
     pendingSubmission.current = null;
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!user || !roles.includes("cliente")) {
+      draftOwnerRef.current = null;
+      return;
+    }
+    const existing = readProtectedDraft<ClientRequestDraft>("cliente", user.id);
+    draftOwnerRef.current = user.id;
+    if (!existing || typeof existing.form.title !== "string" ||
+        typeof existing.form.description !== "string" ||
+        typeof existing.form.category !== "string" ||
+        typeof existing.form.city !== "string" ||
+        typeof existing.form.region !== "string") return;
+    setForm({
+      title: existing.form.title.slice(0, 120),
+      description: existing.form.description.slice(0, 2000),
+      category: existing.form.category.slice(0, 100),
+      city: existing.form.city.slice(0, 80),
+      region: existing.form.region.slice(0, 120),
+    });
+    setStep(existing.step as ClientRequestStep);
+    setMsg("Recuperamos seu rascunho nesta aba. Confira os dados antes de enviar.");
+  }, [user?.id, roles.join(",")]);
+
+  useEffect(() => {
+    if (!user || loading || !roles.includes("cliente") ||
+        draftOwnerRef.current !== user.id ||
+        (!form.title.trim() && !form.description.trim())) return;
+    const owner = user.id;
+    const timer = window.setTimeout(() => {
+      if (currentUserIdRef.current === owner && draftOwnerRef.current === owner)
+        saveProtectedDraft("cliente", owner, form, step);
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [user?.id, loading, roles.join(","), form, step]);
 
   useEffect(() => {
     // Keep the selected public UUID across a Google/email login redirect.
@@ -288,6 +325,7 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
         setMsg("Necessidade guardada somente na sua área privada. Nenhum técnico recebeu este registro.");
       }
       pendingSubmission.current = null;
+      clearProtectedDraft("cliente", owner);
       window.__lovableEvents?.track?.("project.service_requested", {
         category: form.category, direct_to_technician: shouldShare,
       });
