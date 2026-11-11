@@ -1,0 +1,30 @@
+name: EUT functional auth smoke (isolated, no deploy)
+on:
+  pull_request:
+    paths:
+      - 'src/components/eut-functional-auth-smoke.test.tsx'
+      - 'src/components/eut-functional-invites-smoke.test.tsx'
+      - 'src/lib/eut-functional-safety-contract.test.ts'
+      - 'docs/sql/eut-functional-auth-smoke-20261111.sql'
+      - 'docs/sql/eut-sensitive-session-gates-20261111.sql'
+      - 'docs/admin/EUT_HOMOLOGACAO_FUNCIONAL_2026-11-11.md'
+      - '.github/workflows/eut-functional-auth-smoke.yml'
+permissions:
+  contents: read
+concurrency:
+  group: eut-functional-auth-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  functional-auth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Simulated technician/client onboarding and invitations without user creation
+        run: bunx vitest run src/components/eut-functional-auth-smoke.test.tsx src/components/eut-functional-invites-smoke.test.tsx src/lib/eut-functional-safety-contract.test.ts
+      - name: TanStack build to verify connected routes
+        run: bun run build
+      - name: TypeScript after generated route tree
+        run: bunx tsc --noEmit --pretty false
