@@ -1,6 +1,7 @@
 import {
   Activity, Cable, Camera, CheckCircle2, ClipboardCheck, CloudUpload, Cpu,
   HardDrive, LockKeyhole, Monitor, ShieldAlert, ShieldCheck, Video, Wifi, Wrench, Printer, FileClock, Router, Signal, FileCheck, Smartphone, AlertTriangle, Network, ScrollText, Settings,
+  Snowflake, Thermometer, Wind, Fan, Laptop, HardDriveUpload,
   type LucideIcon,
 } from "lucide-react";
 
@@ -63,11 +64,28 @@ const PRINTERS: VisualConfig[] = [
   { label: "Pedido com informações úteis", subtitle: "Modelo, mensagem e localidade ajudam na triagem", color: "from-indigo-950 via-blue-800 to-sky-700", Icon: ClipboardCheck, symbols: [Printer, ScrollText, CheckCircle2], stages: ["Modelo", "Sintoma", "Suporte"] },
 ];
 
+const BACKUP: VisualConfig[] = [
+  { label: "Quais arquivos são essenciais?", subtitle: "Priorize documentos, projetos e arquivos de trabalho", color: "from-sky-950 via-blue-800 to-teal-600", Icon: Laptop, symbols: [Laptop, HardDrive, ClipboardCheck], stages: ["Localizar", "Organizar", "Priorizar"] },
+  { label: "Cópia independente", subtitle: "Sincronização não é sempre um backup recuperável", color: "from-indigo-950 via-blue-900 to-cyan-700", Icon: CloudUpload, symbols: [HardDrive, CloudUpload, ShieldCheck], stages: ["Origem", "Destino", "Versões"] },
+  { label: "Copiar e verificar", subtitle: "Testar alguns arquivos copiados evita falsa segurança", color: "from-slate-950 via-sky-800 to-teal-700", Icon: HardDriveUpload, symbols: [HardDrive, HardDriveUpload, CheckCircle2], stages: ["Copiar", "Abrir", "Conferir"] },
+  { label: "Proteja as credenciais", subtitle: "Restrinja o acesso e preserve a privacidade dos dados", color: "from-blue-950 via-indigo-900 to-cyan-700", Icon: LockKeyhole, symbols: [LockKeyhole, ShieldCheck, ClipboardCheck], stages: ["Acesso", "Escopo", "Revisão"] },
+  { label: "Pedido com prioridade aos dados", subtitle: "Explique os riscos antes de autorizar a intervenção", color: "from-slate-950 via-blue-800 to-teal-700", Icon: ClipboardCheck, symbols: [Laptop, ClipboardCheck, ShieldCheck], stages: ["Sintomas", "Backup", "Orçamento"] },
+];
+const CLIMATE: VisualConfig[] = [
+  { label: "Modo e condições", subtitle: "Observe o modo e o ambiente, sem presumir a causa", color: "from-cyan-950 via-sky-800 to-teal-600", Icon: Thermometer, symbols: [Snowflake, Thermometer, CheckCircle2], stages: ["Modo", "Ambiente", "Aguardar"] },
+  { label: "Circulação de ar", subtitle: "Não abra painéis técnicos para realizar verificações", color: "from-slate-950 via-cyan-800 to-blue-700", Icon: Wind, symbols: [Fan, Wind, ShieldCheck], stages: ["Filtro", "Obstáculo", "Fluxo"] },
+  { label: "Sinais para interromper o uso", subtitle: "Evite riscos elétricos e intervenções no refrigerante", color: "from-blue-950 via-slate-800 to-orange-700", Icon: AlertTriangle, symbols: [Thermometer, AlertTriangle, ShieldCheck], stages: ["Sintoma", "Desligar", "Avaliar"] },
+  { label: "Histórico do equipamento", subtitle: "Modelo, manutenção e sintomas orientam a triagem", color: "from-sky-950 via-blue-800 to-teal-700", Icon: ClipboardCheck, symbols: [Fan, Settings, ClipboardCheck], stages: ["Modelo", "Histórico", "Relato"] },
+  { label: "Atendimento qualificado", subtitle: "O orçamento deve esclarecer diagnóstico e escopo", color: "from-indigo-950 via-blue-800 to-cyan-700", Icon: Wrench, symbols: [ClipboardCheck, Wrench, CheckCircle2], stages: ["Solicitar", "Avaliar", "Combinar"] },
+];
+
 const SECTION_VISUALS: Record<string, VisualConfig[]> = {
   computadores: COMPUTER,
   cftv: CCTV,
   redes: NETWORK,
   impressoras: PRINTERS,
+  software: BACKUP,
+  climatizacao: CLIMATE,
 };
 
 export function GuideSectionVisual({ categorySlug, index }: { categorySlug: string; index: number }) {
