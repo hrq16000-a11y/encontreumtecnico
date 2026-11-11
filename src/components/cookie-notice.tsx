@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 
 const KEY = "eut-cookie-consent";
-type Consent = { necessary: true; functional: boolean; analytics: boolean };
+type Consent = { necessary: true; functional: boolean; analytics: boolean; advertising: boolean };
 
 export function CookieNotice() {
   const [open, setOpen] = useState(false);
   const [custom, setCustom] = useState(false);
   const [functional, setFunctional] = useState(false);
   const [analytics, setAnalytics] = useState(false);
+  const [advertising, setAdvertising] = useState(false);
 
   useEffect(() => {
     if (!localStorage.getItem(KEY)) setOpen(true);
@@ -17,9 +18,11 @@ export function CookieNotice() {
         const saved = JSON.parse(localStorage.getItem(KEY) || "{}") as Partial<Consent>;
         setFunctional(saved.functional === true);
         setAnalytics(saved.analytics === true);
+        setAdvertising(saved.advertising === true);
       } catch {
         setFunctional(false);
         setAnalytics(false);
+        setAdvertising(false);
       }
       setCustom(true);
       setOpen(true);
@@ -41,7 +44,7 @@ export function CookieNotice() {
       <div className="mx-auto max-w-6xl">
         <p className="text-sm font-semibold text-foreground">Valorizamos sua privacidade</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Cookies necessários mantêm as funções essenciais. Cookies opcionais podem oferecer recursos funcionais e análises;
+          Cookies necessários mantêm as funções essenciais. Cookies opcionais podem oferecer recursos funcionais, análises e anúncios do Google AdSense;
           você pode escolher as categorias e mudar de preferência a qualquer momento.{" "}
           <Link to="/cookies" className="text-primary underline">Política de cookies</Link>
           {" · "}
@@ -59,12 +62,15 @@ export function CookieNotice() {
             <label className="flex items-center gap-2 text-foreground">
               <input type="checkbox" checked={analytics} onChange={(e) => setAnalytics(e.target.checked)} /> Análise
             </label>
+            <label className="flex items-center gap-2 text-foreground">
+              <input type="checkbox" checked={advertising} onChange={(e) => setAdvertising(e.target.checked)} /> Publicidade (Google AdSense)
+            </label>
           </div>
         )}
 
         <div className="mt-3 flex flex-wrap gap-2">
           {custom ? (
-            <button type="button" onClick={() => save({ necessary: true, functional, analytics })}
+            <button type="button" onClick={() => save({ necessary: true, functional, analytics, advertising })}
               className="h-9 rounded-md border border-primary px-4 text-sm font-medium text-primary">
               Salvar minhas preferências
             </button>
@@ -74,11 +80,11 @@ export function CookieNotice() {
               Personalizar
             </button>
           )}
-          <button type="button" onClick={() => save({ necessary: true, functional: false, analytics: false })}
+          <button type="button" onClick={() => save({ necessary: true, functional: false, analytics: false, advertising: false })}
             className="h-9 rounded-md border border-primary px-4 text-sm font-medium text-primary">
             Rejeitar
           </button>
-          <button type="button" onClick={() => save({ necessary: true, functional: true, analytics: true })}
+          <button type="button" onClick={() => save({ necessary: true, functional: true, analytics: true, advertising: true })}
             className="h-9 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">
             Aceitar todos
           </button>
