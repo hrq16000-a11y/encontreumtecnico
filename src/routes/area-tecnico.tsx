@@ -501,7 +501,9 @@ export function TechnicianAreaPage() {
                 purpose="technician"
                 autoIfGranted={!profileId && !form.state_uf && !form.city.trim() && !form.neighborhood.trim()}
                 onLocated={(area, source) => {
-                  updateRegistration(suggestTechnicianArea(form, area, source));
+                  // Use the current rendered form, not a stale pre-location state.
+                  const current = form;
+                  updateRegistration(suggestTechnicianArea(current, area, source));
                 }}
               />
               <p className="text-xs text-muted-foreground">
