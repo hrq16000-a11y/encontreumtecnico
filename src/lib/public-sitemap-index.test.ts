@@ -1,3 +1,4 @@
+import { GUIDE_PATHS } from "@/lib/public-guides";
 import { describe, expect, it } from "vitest";
 import { buildPublicGraph, type GraphCatalog, type GraphProfile } from "@/lib/public-seo-graph";
 import { PUBLIC_PATHS, SITE } from "@/lib/public-sitemap";
@@ -31,7 +32,7 @@ describe("Índice dinâmico de sitemap e rotas filhas", () => {
       "/sitemaps/base.xml", "/sitemaps/cidades.xml",
       "/sitemaps/categorias.xml", "/sitemaps/tecnicos/1.xml",
     ]);
-    expect(parts.map(p => p.count)).toEqual([PUBLIC_PATHS.length, 1, 1, 3]);
+    expect(parts.map(p => p.count)).toEqual([PUBLIC_PATHS.length + GUIDE_PATHS.length, 1, 1, 3]);
     const xml = buildPublicSitemapIndexXml(graph);
     expect(xml).toContain("<sitemapindex");
     expect(xml.match(/<sitemap>/g)).toHaveLength(4);
@@ -48,7 +49,7 @@ describe("Índice dinâmico de sitemap e rotas filhas", () => {
     const cities = buildPublicSitemapPartXml(graph, "cidades");
     const categories = buildPublicSitemapPartXml(graph, "categorias");
     const professionals = buildPublicSitemapPartXml(graph, "tecnicos", 1);
-    expect(base?.match(/<url>/g)).toHaveLength(17);
+    expect(base?.match(/<url>/g)).toHaveLength(PUBLIC_PATHS.length + GUIDE_PATHS.length);
     expect(cities?.match(/<url>/g)).toHaveLength(1);
     expect(categories?.match(/<url>/g)).toHaveLength(1);
     expect(professionals?.match(/<url>/g)).toHaveLength(3);
