@@ -14,7 +14,7 @@ Consulta somente leitura ao Supabase EUT: **5 técnicos aprovados** e com slug, 
 - Source server-only via `SUPABASE_URL` + `SUPABASE_PUBLISHABLE_KEY`, com `status = aprovado`; não há `service_role`, tabelas de contatos privados, SQL de escrita, Auth Hook ou dependência da API WordPress.
 - `buildPublicGraph` deduplica slugs, valida município IBGE e categoria ativa, aplica a proteção de nome público e não aceita combinação bairro×cidade×serviço inventada.
 - Cache em memória por instância (5 minutos), cabeçalho do sitemap `s-maxage=900`: atualizações **eventuais**, sem promise de indexação ou atualização instantânea.
-- Até 10.000 perfis aprovados em páginas de 500; acima do limite o endpoint sinaliza **503**, nunca publica sitemap incompleto com HTTP 200. **Antes de 10k** migrar para arquivos de sitemap paginados e índice de sitemaps, observando teto do Google de 50k URLs/50 MB por arquivo.
+- Na PR filha #166, o `/sitemap.xml` passa a ser um índice, com shards por tipo e lotes de 1.000 perfis. A fonte de leitura foi ampliada para até 50.000 perfis aprovados em páginas de 500, com consulta sentinela contra truncamento. Acima desse limite, o backend sinaliza **503**, em vez de fingir que publicou tudo. **Isso é um teto técnico, não homologação de desempenho com 50 mil contas**; medir carga e particionar leituras antes de escalar.
 - `getSeoCity` e `getSeoCategory` retornam null e as rotas respondem HTTP 404 quando não houver profissional real com correspondência; `head` define canonicals sem parâmetros.
 - É necessário homologar SSR e SEO via HTML real em Preview (200/404, canônicas, links `<a href>`, sitemap XML), testes com alterações no cadastro e um cenário de retirada de aprovação.
 - CUIDADO: `status=aprovado` é a fronteira pública existente no diretório. Verificar que todos os banimentos persistentes também retiram efetivamente da consulta pública de técnicos. Não alegar invisibilidade de conta banida sem teste server-side integrado ao controle de moderação.
@@ -23,7 +23,7 @@ Consulta somente leitura ao Supabase EUT: **5 técnicos aprovados** e com slug, 
 ## Pendente
 1. Confirmar, em ambiente controlado, acesso anônimo aos dados de catálogo/IBGE e detalhes da moderação, sem expor números.
 2. Validar CI, build e sitemap XML; verificar uma URL com cidade reconhecida, uma categoria com técnicos e duas URLs 404.
-3. Revisar UX mobile e possível carga do grafo com mais de 1.000/10.000 técnicos; implantar índice de sitemaps paginados antes de atingir o limite atual.
+3. Revisar UX mobile e carga do grafo em amostras de 15 mil, 30 mil e 50 mil técnicos; o índice foi preparado, mas precisa de Preview e testes de desempenho antes de ativação.
 4. Reconciliar alterações da `main` que continuam chegando de outras rodadas. Não forçar merge/rebase nem publicar sem gates.
 5. Concluir PRs pendentes de autenticação e PR #156 AdSense separadamente; não alterar DNS, Lovable, Vercel, WordPress, 20 demos ou dados reais nesta rodada.
 
