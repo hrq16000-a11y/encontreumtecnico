@@ -1,6 +1,8 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { PageShell } from "@/components/page-placeholder";
 import { getPublishedGuide } from "@/lib/public-guides";
+import { GuideSectionVisual } from "@/components/guide-section-visual";
+import { GuideLeadCallout } from "@/components/guide-lead-callout";
 import { SITE } from "@/lib/public-sitemap";
 
 export const Route = createFileRoute("/guias/$slug")({
@@ -45,6 +47,8 @@ export const Route = createFileRoute("/guias/$slug")({
 
 function GuidePage() {
   const guide = Route.useLoaderData();
+  const isCctv = guide.categorySlug === "cftv";
+  const hero = isCctv ? "/guias/cftv-planejamento-ilustrado.svg" : "/guias/computador-diagnostico-ilustrado.svg";
   return (
     <PageShell>
       <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
@@ -64,9 +68,20 @@ function GuidePage() {
               Conteúdo editorial do Encontre um Técnico · Publicado em {new Date(guide.publishedAt + "T12:00:00Z").toLocaleDateString("pt-BR", { timeZone: "UTC" })} · Orientação informativa, sem diagnóstico ou endosso de prestadores.
             </p>
           </header>
+          <figure className="mt-7 overflow-hidden rounded-2xl border border-border bg-brand-navy shadow-xl">
+            <img src={hero} alt={isCctv
+              ? "Ilustração original com câmeras, zonas de cobertura, cabos e gravador de imagens"
+              : "Ilustração original de bancada de manutenção com monitor, computador e ferramentas"}
+              width={1200} height={630} fetchPriority="high" className="h-auto w-full object-cover" />
+            <figcaption className="border-t border-white/10 px-4 py-3 text-xs text-slate-100">
+              Ilustração editorial e informativa, não diagnóstico ou projeto de instalação.
+            </figcaption>
+          </figure>
+          <GuideLeadCallout guide={guide} compact />
           <div className="mt-9 space-y-8">
             {guide.sections.map((section, index) => (
-              <section key={section.heading} aria-labelledby={"secao-" + index}
+              <div key={section.heading}>
+              <section aria-labelledby={"secao-" + index}
                 className="rounded-2xl border border-border bg-card p-5 sm:p-7">
                 <h2 id={"secao-" + index} className="text-xl font-bold text-card-foreground">{section.heading}</h2>
                 {section.paragraphs.map((paragraph) => (
@@ -80,7 +95,10 @@ function GuidePage() {
                     </ul>
                   </div>
                 )}
+                <GuideSectionVisual isCctv={isCctv} index={index} />
               </section>
+              {(index === 1 || index === 3) && <GuideLeadCallout guide={guide} compact />}
+              </div>
             ))}
           </div>
           <aside className="mt-10 rounded-2xl border border-primary/20 bg-primary/5 p-6 sm:p-8">
@@ -97,6 +115,15 @@ function GuidePage() {
               </Link>
             </div>
           </aside>
+          <section aria-labelledby="guias-relacionados" className="mt-8 rounded-2xl border border-border bg-card p-5 sm:p-7">
+            <h2 id="guias-relacionados" className="text-xl font-bold text-foreground">Outros recursos para seu próximo passo</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">Aprenda mais, conheça a cobertura publicada e encontre outras iniciativas do ecossistema de serviços.</p>
+            <div className="mt-4 flex flex-wrap gap-4 text-sm">
+              <Link to="/guias" className="font-semibold text-primary hover:underline">Outros guias →</Link>
+              <Link to="/cobertura" className="font-semibold text-primary hover:underline">Cobertura declarada →</Link>
+              <Link to="/ecossistema" className="font-semibold text-primary hover:underline">Ecossistema de soluções →</Link>
+            </div>
+          </section>
           <p className="mt-5 text-xs leading-6 text-muted-foreground">
             A disponibilidade, a área de atendimento e os serviços são declarados pelo profissional.
             O portal não avalia nem certifica a competência técnica e não disponibiliza contatos privados livremente.
