@@ -25,6 +25,9 @@ import { suggestTechnicianArea } from "@/lib/customer-location";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
 import { registrationStepError, type RegistrationStep } from "@/lib/technician-registration-wizard";
+import { TechnicianPanelNavigation } from "@/components/technician-panel-navigation";
+import { technicianTabFromHash, technicianTabHref, type TechnicianPanelTab } from "@/lib/technician-panel-navigation";
+import { ArrowRight, ShieldCheck, MapPin, UserRound, Inbox, Camera } from "lucide-react";
 
 export const Route = createFileRoute("/area-tecnico")({
   head: () => ({
@@ -46,7 +49,7 @@ const activationDb = supabase as unknown as SupabaseClient;
 
 export function TechnicianAreaPage() {
   const lp2 = useContext(LP2EmbeddedContext);
-  const { user, roles, loading } = useAuth();
+  const { user, roles, loading, rolesError, refreshRoles } = useAuth();
   const { categories, loading: catalogLoading, error: catalogError } = useActiveCategories();
   const { services, loading: servicesLoading, error: servicesError } = useActiveServices();
   const [form, setForm] = useState({
@@ -66,6 +69,15 @@ export function TechnicianAreaPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [step, setStep] = useState<RegistrationStep>(1);
+  const [panelTab, setPanelTab] = useState<TechnicianPanelTab>("inicio");
+  useEffect(() => {
+    // Both canonical and isolated LP2 routes remain functional. Hash changes
+    // create deep links without reloading the account or losing form state.
+    const syncTab = () => setPanelTab(technicianTabFromHash(window.location.hash));
+    syncTab();
+    window.addEventListener("hashchange", syncTab);
+    return () => window.removeEventListener("hashchange", syncTab);
+  }, []);
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
   const loadVersion = useRef(0);
   const currentUserRef = useRef<string | null>(null);
@@ -227,15 +239,47 @@ export function TechnicianAreaPage() {
 
   return (
     <PageShell>
-      <section className="mx-auto max-w-2xl px-4 py-10">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Área do técnico</h1>
+      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+        <div className="mb-7 rounded-3xl border border-primary/15 bg-gradient-to-br from-primary/10 via-card to-card p-6 shadow-sm sm:p-8">
+          <p className="text-xs font-bold uppercase tracking-widest text-primary">Meu espaço profissional</p>
+          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">Painel do técnico</h1>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">Perfil, cobertura, solicitações e indicações organizados por área. Cadastro livre, sem mensalidade e sem intermediação.</p>
+        </div>
         {loading ? (
-          <p className="mt-4 text-sm text-muted-foreground">Carregando…</p>
-        ) : !user || !roles.includes("tecnico") ? (
-          <p className="mt-4 text-sm text-muted-foreground">
-            Entre com uma conta de técnico para editar seu cadastro.{" "}
-            <Link to={lp2 ? "/lp2/entrar" : "/entrar"} className="font-medium text-primary underline">Entrar</Link>
-          </p>
+          <div role="status" className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">
+            Carregando sua conta com segurança…
+          </div>
+        ) : !user ? (
+          <div className="max-w-2xl rounded-2xl border border-border bg-card p-6 shadow-sm">
+            <h2 className="text-xl font-bold text-card-foreground">Entre para acessar seu painel</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Seu painel não fica disponível sem autenticação. Após o Google ou e-mail, sua conta será reconhecida e você poderá continuar o cadastro.</p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Link to={lp2 ? "/lp2/entrar" : "/entrar"} className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground">
+                Entrar na minha conta <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+              <Link to="/cadastro" className="inline-flex min-h-12 items-center rounded-xl border border-input px-5 py-3 text-sm font-semibold text-foreground">
+                Primeiro acesso
+              </Link>
+            </div>
+          </div>
+        ) : rolesError ? (
+          <div role="alert" className="max-w-2xl rounded-2xl border border-destructive/30 bg-card p-6 shadow-sm">
+            <h2 className="text-lg font-bold text-card-foreground">Não conseguimos consultar suas permissões</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Sua sessão continua conectada. Não é necessário criar outra conta nem fazer login novamente.</p>
+            <button type="button" onClick={() => void refreshRoles()} className="mt-4 min-h-12 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground">
+              Tentar carregar meu painel novamente
+            </button>
+          </div>
+        ) : !roles.includes("tecnico") ? (
+          <div className="max-w-2xl rounded-2xl border border-border bg-card p-6 shadow-sm">
+            <h2 className="text-lg font-bold text-card-foreground">Sua conta está conectada</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Esta conta ainda não possui uma área de técnico. Não precisa entrar novamente: escolha sua função no cadastro ou abra a área já associada.</p>
+            <Link to={roles.includes("admin") ? "/admin" : roles.includes("cliente") ? "/area-cliente" : "/entrar"}
+              className="mt-4 inline-flex min-h-12 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground">
+              {roles.includes("admin") ? "Abrir administração" : roles.includes("cliente") ? "Abrir área do cliente" : "Confirmar meu tipo de conta"}
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </div>
         ) : !profileReady ? (
           <div className="mt-4 rounded-lg border border-border p-4">
             {profileError ? (
@@ -253,8 +297,13 @@ export function TechnicianAreaPage() {
             )}
           </div>
         ) : (
-          <>
-            <ConnectedGoogleIdentity user={user} />
+          <div className="grid min-w-0 gap-6 lg:grid-cols-[250px_minmax(0,1fr)]">
+            <TechnicianPanelNavigation active={panelTab} onChange={setPanelTab} />
+            <main id={technicianTabHref(panelTab).slice(1)} className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6"
+              aria-label={"Área do técnico: " + panelTab}>
+              {panelTab === "inicio" && (
+                <div>
+                  <ConnectedGoogleIdentity user={user} />
             <p className="mt-2 text-xs text-muted-foreground">Nome e foto são sugestões do provedor de login. Confirme seus dados profissionais antes de publicar; sua foto pública é configurada separadamente.</p>
             {currentStatus && (
               <p className="mt-3 inline-block rounded-md bg-muted px-3 py-1 text-sm text-foreground">
@@ -270,7 +319,31 @@ export function TechnicianAreaPage() {
                 Conferir meu perfil publicado
               </Link>
             )}
-            <details className="mt-4 rounded-xl border border-border bg-muted/20 p-4">
+            <div className="mt-7 grid gap-3 sm:grid-cols-2">
+              {([
+                { tab: "perfil", title: "Meu perfil profissional", detail: "Nome, cidade, especialidades e serviços", icon: UserRound },
+                { tab: "cobertura", title: "Regiões atendidas", detail: "Até cinco cidades validadas e raio", icon: MapPin },
+                { tab: "foto", title: "Foto pública", detail: avatarPath ? "Foto associada ao perfil" : "Adicionar minha foto com consentimento", icon: Camera },
+                { tab: "solicitacoes", title: "Solicitações", detail: "Disponibilidade e pedidos autorizados", icon: Inbox },
+              ] as const).map((card) => {
+                const Icon = card.icon;
+                return <a key={card.tab} href={technicianTabHref(card.tab)} onClick={() => setPanelTab(card.tab)}
+                  className="group flex min-h-28 gap-3 rounded-xl border border-border bg-background p-4 transition-colors hover:border-primary/40 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <Icon className="mt-0.5 h-6 w-6 shrink-0 text-primary" aria-hidden="true" />
+                  <span><strong className="block text-sm font-bold text-foreground">{card.title}</strong>
+                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">{card.detail}</span></span>
+                </a>;
+              })}
+            </div>
+            <p className="mt-6 rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm text-foreground">
+              <ShieldCheck className="mr-2 inline h-5 w-5 text-primary" aria-hidden="true" />
+              Seu cadastro é gratuito. A publicação depende dos dados profissionais que você confirmar.
+              O portal não certifica sua capacidade técnica e não divulga seu contato privado sem autorização.
+            </p>
+                </div>
+              )}
+              {panelTab === "recuperacao" && (
+            <details open className="mt-2 rounded-xl border border-border bg-muted/20 p-4">
               <summary className="cursor-pointer py-2 text-sm font-semibold text-primary">
                 Já tinha cadastro no portal antigo? Recuperar meus dados
               </summary>
@@ -292,7 +365,9 @@ export function TechnicianAreaPage() {
 
               </div>
             </details>
-            <form onSubmit={save} className="mt-6 grid gap-4" noValidate>
+              )}
+              {panelTab === "perfil" && (
+            <form onSubmit={save} className="mt-2 grid gap-4" noValidate>
               <div className="rounded-2xl border border-primary/20 bg-card p-4 shadow-sm sm:p-5">
                 <p className="text-xs font-semibold uppercase tracking-wide text-primary">Cadastro guiado · Passo {step} de 3</p>
                 <div className="mt-3 grid grid-cols-3 gap-2" role="progressbar"
@@ -444,47 +519,82 @@ export function TechnicianAreaPage() {
                 )}
               </div>
             </form>
-            {currentStatus === "aprovado" && profileId && (
-              <>
-                <p className="mt-5 text-sm text-muted-foreground">
-                  Depois de publicar ou atualizar a cidade-base acima, configure seu raio e até cinco
-                  municípios atendidos, incluindo a base. Cadastros anteriores são preservados.
-                </p>
-                <TechnicianCoverageEditor userId={user.id} baseMunicipality={baseMunicipality}
-                  savedCityIds={savedCoverageIds} savedRadius={savedRadius} />
-                <TechnicianAvatarEditor userId={user.id} name={form.display_name}
-                  avatarPath={avatarPath} onSaved={setAvatarPath} />
-              </>
-            )}
-            <details className="mt-6 rounded-xl border border-border p-4">
-              <summary className="cursor-pointer py-2 text-sm font-semibold text-primary">
-                Gerenciar contatos, presença, pedidos e oportunidades
-              </summary>
-              <div className="mt-4 space-y-5">
-            {currentStatus === "aprovado" && <TechnicianPresence userId={user.id} />}
-            <TechnicianPrivateContact userId={user.id} />
-            <PioneerPhoneVerification userId={user.id} />
-            {currentStatus === "aprovado" && <TechnicianDirectRequests userId={user.id} />}
-            <TechnicianMissions userId={user.id} />
-
-              </div>
-            </details>
-            {currentStatus === "aprovado" && (
-              <div className="mt-8 rounded-lg border border-border bg-muted/20 p-5">
-                <h2 className="text-base font-semibold text-foreground">Contato direto, sem intermediação</h2>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Seu perfil aparece na busca conforme seus serviços e sua região.
-                  O número privado não é exibido livremente: clientes terão acesso controlado
-                  somente após a liberação do pagamento de conveniência.
-                  Pedidos individuais só aparecem aqui quando o cliente escolhe este perfil e autoriza o compartilhamento. Não há distribuição automática.
-                </p>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  O pagamento por contato ainda está em integração. Não haverá contatos adquiridos
-                  ou cobranças fictícias durante esta etapa.
-                </p>
-              </div>
-            )}
-          </>
+              )}
+              {panelTab === "cobertura" && (
+                <section aria-labelledby="area-cobertura-titulo">
+                  <h2 id="area-cobertura-titulo" className="text-2xl font-bold text-foreground">Minha cobertura</h2>
+                  <p className="mt-2 text-sm text-muted-foreground">Defina as localidades oficiais onde atua. O raio é declarado e não informa a localização exata da sua residência.</p>
+                  {currentStatus === "aprovado" && profileId ? (
+                    <TechnicianCoverageEditor userId={user.id} baseMunicipality={baseMunicipality}
+                      savedCityIds={savedCoverageIds} savedRadius={savedRadius} />
+                  ) : (
+                    <div className="mt-5 rounded-xl border border-border bg-muted/30 p-5">
+                      <p className="text-sm text-foreground">Publique primeiro seu perfil profissional com uma cidade-base válida para liberar o editor de regiões.</p>
+                      <a href={technicianTabHref("perfil")} onClick={() => setPanelTab("perfil")} className="mt-3 inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground">Completar meu perfil</a>
+                    </div>
+                  )}
+                </section>
+              )}
+              {panelTab === "foto" && (
+                <section aria-labelledby="area-foto-titulo">
+                  <h2 id="area-foto-titulo" className="text-2xl font-bold text-foreground">Foto do perfil</h2>
+                  <p className="mt-2 text-sm text-muted-foreground">A foto pública precisa ser enviada e autorizada por você. A foto privada do Google não será publicada automaticamente.</p>
+                  {currentStatus === "aprovado" && profileId ? (
+                    <TechnicianAvatarEditor userId={user.id} name={form.display_name}
+                      avatarPath={avatarPath} onSaved={setAvatarPath} />
+                  ) : (
+                    <div className="mt-5 rounded-xl border border-border bg-muted/30 p-5">
+                      <p className="text-sm text-foreground">Publique primeiro seu perfil para enviar a foto profissional.</p>
+                      <a href={technicianTabHref("perfil")} onClick={() => setPanelTab("perfil")} className="mt-3 inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground">Ir ao cadastro</a>
+                    </div>
+                  )}
+                </section>
+              )}
+              {panelTab === "solicitacoes" && (
+                <section aria-labelledby="area-solicitacoes-titulo" className="space-y-5">
+                  <div>
+                    <h2 id="area-solicitacoes-titulo" className="text-2xl font-bold text-foreground">Solicitações e disponibilidade</h2>
+                    <p className="mt-2 text-sm text-muted-foreground">Somente pedidos que o cliente optou por compartilhar com seu perfil. Sem leilão de serviços e sem distribuição automática.</p>
+                  </div>
+                  {currentStatus === "aprovado" ? (
+                    <>
+                      <TechnicianPresence userId={user.id} />
+                      <TechnicianDirectRequests userId={user.id} />
+                    </>
+                  ) : (
+                    <div className="rounded-xl border border-border bg-muted/30 p-5 text-sm text-foreground">
+                      Publique seu perfil para receber pedidos autorizados e informar disponibilidade.
+                      <a href={technicianTabHref("perfil")} onClick={() => setPanelTab("perfil")} className="mt-3 block font-bold text-primary underline">Abrir meu perfil profissional</a>
+                    </div>
+                  )}
+                </section>
+              )}
+              {panelTab === "indicacoes" && (
+                <section aria-labelledby="area-indicacoes-titulo">
+                  <h2 id="area-indicacoes-titulo" className="text-2xl font-bold text-foreground">Missões e indicações</h2>
+                  <p className="mt-2 text-sm text-muted-foreground">Convide técnicos de forma voluntária. Destaque só após indicações qualificadas, sem comissão financeira automática.</p>
+                  <TechnicianMissions userId={user.id} />
+                </section>
+              )}
+              {panelTab === "configuracoes" && (
+                <section aria-labelledby="area-seguranca-titulo" className="space-y-5">
+                  <div>
+                    <h2 id="area-seguranca-titulo" className="text-2xl font-bold text-foreground">Minha segurança e contatos</h2>
+                    <p className="mt-2 text-sm text-muted-foreground">Telefone e confirmações ficam em sua área privada. Nenhum contato completo é mostrado automaticamente no perfil público.</p>
+                  </div>
+                  <TechnicianPrivateContact userId={user.id} />
+                  <PioneerPhoneVerification userId={user.id} />
+                  <div className="rounded-xl border border-border bg-muted/30 p-5">
+                    <h3 className="text-base font-bold text-foreground">Contratação direta, sem intermediação</h3>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Seu contato privado não é exibido livremente. O pagamento por contato ainda está em integração;
+                      não exibimos aquisições nem cobranças fictícias nesta fase.
+                    </p>
+                  </div>
+                </section>
+              )}
+            </main>
+          </div>
         )}
       </section>
     </PageShell>

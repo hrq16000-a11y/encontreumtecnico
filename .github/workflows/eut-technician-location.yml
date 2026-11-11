@@ -3,6 +3,9 @@ on:
   pull_request:
     paths:
       - 'src/routes/area-tecnico.tsx'
+      - 'src/components/technician-panel-navigation.tsx'
+      - 'src/lib/technician-panel-navigation.ts'
+      - 'src/lib/technician-panel-navigation.test.ts'
       - 'src/lib/technician-registration-wizard.ts'
       - 'src/lib/technician-registration-wizard.test.ts'
       - 'src/lib/municipality-coverage.test.ts'
@@ -34,7 +37,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: GPS, official municipalities, secure coverage and avatars
-        run: bunx vitest run src/lib/customer-location.test.ts src/lib/technician-registration-wizard.test.ts src/lib/municipality-coverage.test.ts src/lib/technicians.functions.test.ts
+        run: bunx vitest run src/lib/customer-location.test.ts src/lib/technician-registration-wizard.test.ts src/lib/municipality-coverage.test.ts src/lib/technicians.functions.test.ts src/lib/technician-panel-navigation.test.ts
       - run: bun run build
       - name: TypeScript after route generation
         run: bunx tsc --noEmit --pretty false
