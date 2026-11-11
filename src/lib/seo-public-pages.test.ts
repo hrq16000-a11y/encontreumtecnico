@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { GUIDES, GUIDE_PATHS, getPublishedGuide, getRelatedGuides } from "./public-guides";
 import { getGuideArtwork } from "./guide-artwork";
 import { buildPublicSitemapXml, SITE } from "./public-sitemap";
+import { isGuideDetailHeadMatch } from "./guide-font-loading";
 
 const read = (path: string) => readFileSync(path, "utf8");
 const site = "https://www.encontreumtecnico.com.br";
@@ -287,5 +288,31 @@ describe("SEO global do Encontre um Técnico", () => {
     expect(funnel).toContain("if (requestError) throw requestError;");
     expect(funnel.indexOf("setSavedWhatsAppLead(lead);")).toBeGreaterThan(funnel.indexOf("if (requestError) throw requestError;"));
     expect(funnel).not.toContain("verifyMetaWebhookSignature");
+  });
+
+  it("evita Google Fonts bloqueantes apenas nos seis guias, preservando AdSense, SEO e áreas privadas", () => {
+    const root = read("src/routes/__root.tsx");
+    const guide = read("src/routes/guias.$slug.tsx");
+    expect(root).toContain("head: ({ matches }) => ({");
+    expect(root).toContain("...(!isGuideDetailHeadMatch(matches) ? [");
+    expect(root).toContain("fonts.googleapis.com/css2?family=Manrope");
+    expect(root).toContain("google-adsense-account");
+    expect(root).toContain("<AdSenseLoader />");
+    expect(root).toContain("href: appCss");
+    expect(guide).toContain("eut-guide-stable-type");
+    for (const published of GUIDES) {
+      expect(isGuideDetailHeadMatch([{ pathname: "/guias/" + published.slug }])).toBe(true);
+    }
+    for (const pathname of [
+      "/", "/guias", "/admin", "/area-cliente", "/area-tecnico",
+      "/entrar", "/servicos", "/home2", "/lp2",
+      "/guias/slug/invalido", "/guias/../admin",
+    ]) {
+      expect(isGuideDetailHeadMatch([{ pathname }]), pathname).toBe(false);
+    }
+    expect(isGuideDetailHeadMatch([
+      { pathname: "/" }, { pathname: "/guias/computador-lento-o-que-verificar" },
+    ])).toBe(true);
+    expect(isGuideDetailHeadMatch([])).toBe(false);
   });
 });
