@@ -50,6 +50,7 @@ END $assert$;
 -- of this contract, even if a user attempts to send them.
 DO $assert$
 DECLARE invalid_field boolean:=false; invalid_type boolean:=false;
+        phone_hidden boolean:=false; email_hidden boolean:=false;
 BEGIN
  BEGIN
    UPDATE public.eut_technician_drafts
@@ -62,6 +63,18 @@ BEGIN
      WHERE owner_id='00000000-0000-4000-8000-000000000011';
  EXCEPTION WHEN SQLSTATE '23514' THEN invalid_type:=true; END;
  IF NOT invalid_type THEN RAISE EXCEPTION 'Wrong array types accepted'; END IF;
+ BEGIN
+   UPDATE public.eut_technician_drafts
+     SET draft=draft||'{"bio":"Contato 41999998888"}'::jsonb
+     WHERE owner_id='00000000-0000-4000-8000-000000000011';
+ EXCEPTION WHEN SQLSTATE '23514' THEN phone_hidden:=true; END;
+ IF NOT phone_hidden THEN RAISE EXCEPTION 'Phone embedded in bio was accepted'; END IF;
+ BEGIN
+   UPDATE public.eut_technician_drafts
+     SET draft=draft||'{"region":"teste@example.com"}'::jsonb
+     WHERE owner_id='00000000-0000-4000-8000-000000000011';
+ EXCEPTION WHEN SQLSTATE '23514' THEN email_hidden:=true; END;
+ IF NOT email_hidden THEN RAISE EXCEPTION 'Email embedded in region was accepted'; END IF;
 END $assert$;
 
 \echo 'Draft QA: cross-tenant and cross-role isolation'
