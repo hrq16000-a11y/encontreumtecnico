@@ -39,6 +39,29 @@ $body$;
 -- Keep this out of the Data API. Do not grant usage on eut_moderation to app roles.
 REVOKE ALL ON FUNCTION eut_moderation.eut_purge_expired_technician_drafts(integer)
   FROM PUBLIC, anon, authenticated;
+
+-- Prerequisite, provisioned OUT OF BAND by the database administrator:
+-- dedicated role eut_draft_maint with a secret stored only in a protected
+-- GitHub Actions environment. No credential or CREATE ROLE in this file.
+-- Fail closed until such a role is provisioned.
+DO $guard$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='eut_draft_maint') THEN
+    RAISE EXCEPTION 'Dedicated maintenance role not provisioned' USING ERRCODE='42501';
+  END IF;
+END;
+$guard$;
+
+GRANT USAGE ON SCHEMA public,eut_moderation TO eut_draft_maint;
+GRANT SELECT(owner_id,expires_at),DELETE ON public.eut_technician_drafts TO eut_draft_maint;
+CREATE POLICY eut_draft_maintenance_select_expired
+  ON public.eut_technician_drafts FOR SELECT TO eut_draft_maint
+  USING (expires_at <= clock_timestamp());
+CREATE POLICY eut_draft_maintenance_delete_expired
+  ON public.eut_technician_drafts FOR DELETE TO eut_draft_maint
+  USING (expires_at <= clock_timestamp());
+GRANT EXECUTE ON FUNCTION eut_moderation.eut_purge_expired_technician_drafts(integer)
+  TO eut_draft_maint;
 COMMIT;
 
 -- Deployment prerequisite (not executable code): a privileged maintenance job
