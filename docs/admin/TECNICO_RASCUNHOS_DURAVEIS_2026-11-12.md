@@ -21,7 +21,7 @@ Consultas somente leitura no banco dedicado, sem abrir nomes, e-mails, telefones
 - RLS obrigatória com `auth.uid() = owner_id` **e papel `tecnico`**. Papéis `cliente`, `anon` e outros técnicos não leem, gravam ou removem rascunhos.
 - Payload JSON com **lista fechada de campos** (nome de exibição, UF, município, bairro, região, bio, categorias, serviços e ID IBGE), limite de **7.500 bytes**, etapas 1–3. **Proibidos** número de telefone, contato pago, e-mail, tokens OAuth, pagamentos, localização GPS e campos desconhecidos.
 - Versão monotônica para proteger concorrência entre abas: tentativa de sobrescrever uma revisão ultrapassada gera erro, não apaga a versão mais recente.
-- Validade renovada **pelo relógio do servidor**: 30 dias a partir do último salvamento. O usuário não pode falsificar `expires_at`; a leitura de rascunhos vencidos é impedida por RLS. **Ainda é necessário homologar limpeza física periódica dos expirados** antes de produção.
+- Validade renovada **pelo relógio do servidor**: 30 dias a partir do último salvamento. O usuário não pode falsificar `expires_at`. **A recuperação deve filtrar `expires_at > now()`**; a RLS permite ao titular ver o próprio rascunho vencido **para poder excluí-lo**, mas o gatilho impede atualizá-lo ou revalidá-lo. **É obrigatório homologar limpeza física periódica dos expirados** antes de produção.
 - Nenhuma alteração na RPC de publicação; o rascunho **não ativa nem aprova** o perfil.
 - SQL arquivado **somente em `docs/sql/`**, não em `supabase/migrations/`, e jamais executado contra produção nesta rodada.
 
