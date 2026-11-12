@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'docs/sql/eut-technician-drafts-rls-staging-proposal-20261112.sql'
+      - 'docs/sql/eut-technician-draft-retention-staging-proposal-20261112.sql'
       - 'docs/sql/tests/eut-technician-draft-ephemeral-*.sql'
       - 'docs/admin/TECNICO_RASCUNHOS_DURAVEIS_2026-11-12.md'
       - '.github/workflows/eut-technician-draft-rls-staging.yml'
@@ -17,7 +18,7 @@ jobs:
     timeout-minutes: 12
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:17-alpine
         env:
           POSTGRES_USER: eut_draft_fixture
           POSTGRES_PASSWORD: ephemeral_only_not_a_secret
@@ -42,9 +43,13 @@ jobs:
         run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-technician-draft-ephemeral-schema-20261112.sql
       - name: Install DRAFT SQL in disposable PostgreSQL only
         run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/eut-technician-drafts-rls-staging-proposal-20261112.sql
+      - name: Install private cleanup function in disposable PostgreSQL only
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/eut-technician-draft-retention-staging-proposal-20261112.sql
       - name: Verify owner RLS, rejection, revision, retention and revocation
         run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-technician-draft-ephemeral-assertions-20261112.sql
       - name: Ensure no production migration was created
         run: |
           test ! -f supabase/migrations/eut-technician-drafts-rls-staging-proposal-20261112.sql
           test -f docs/sql/eut-technician-drafts-rls-staging-proposal-20261112.sql
+          test -f docs/sql/eut-technician-draft-retention-staging-proposal-20261112.sql
+          test ! -f supabase/migrations/eut-technician-draft-retention-staging-proposal-20261112.sql
