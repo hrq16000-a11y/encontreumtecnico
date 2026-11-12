@@ -1,10 +1,12 @@
--- STAGING REVIEW DRAFT ONLY — NOT EXECUTED. 
+-- HISTORICAL SQL CONTRACT — migration eut_public_eligibility_guarded_ssr_20261112 applied to EUT dedicated database.
+-- This reference is not an idempotent replay script. Do not re-run on the active database. 
 -- Public eligibility defense in depth, no real user/phone writes.
 -- MUST validate actual grants, existing SELECT policies, function owner,
 -- PostgREST exposed schemas, and RLS interaction before ANY deployment.
 -- The restricted helper schema must NOT be included in Data API exposed schemas.
 --
--- Administrative reads/ownership are deliberately left unchanged for now.
+-- Owner/admin authenticated reads remain available through a separate restrictive policy.
+-- The active migration includes preflight checks, explicit role guards and schema cache refresh.
 -- Public SSR, RPC and sitemap clients MUST use an anonymous publishable-key
 -- client with no end-user session. A separate staging test is required to
 -- check authenticated direct REST access and decide compatible guardrails.
@@ -46,7 +48,7 @@ AS $$
         JOIN eut_moderation.blocked_phones AS blocked
           ON blocked.phone_digits =
             pg_catalog.regexp_replace(
-              pg_catalog.coalesce(contact.phone_e164, ''),
+              coalesce(contact.phone_e164, ''),
               '[^0-9]', '', 'g'
             )
         WHERE contact.user_id = t.user_id
@@ -105,6 +107,17 @@ CREATE POLICY eut_public_visibility_anon_guard
     status = 'aprovado'::public.approval_status
     AND eut_visibility.eut_public_technician_eligible(id)
   );
+
+-- Authenticated public reads also exclude banned profiles; owner/admin
+-- management remains accessible through the original ownership policies.
+CREATE POLICY eut_public_visibility_auth_guard
+ ON public.technicians
+ AS RESTRICTIVE FOR SELECT TO authenticated
+ USING (
+   eut_visibility.eut_public_technician_eligible(id)
+   OR auth.uid() = user_id
+   OR public.has_role(auth.uid(), 'admin'::public.app_role)
+ );
 
 COMMIT;
 
