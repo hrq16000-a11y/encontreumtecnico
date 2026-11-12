@@ -12,6 +12,7 @@ import { LegacyClaimReview } from "@/components/legacy-claim-review";
 import { EutAdminManager } from "@/components/eut-admin-manager";
 import { AdminControlHub } from "@/components/admin-control-hub";
 import { AdminCommandOverview } from "@/components/admin-command-overview";
+import { AdminAllocationPlanner } from "@/components/admin-allocation-planner";
 import { AdminAdvertisingManager } from "@/components/admin-advertising-manager";
 import { AdminNavigation } from "@/components/admin-navigation";
 import { AdminTechnicianManager } from "@/components/admin-technician-manager";
@@ -154,6 +155,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
               </ul>
             )}
             </section>}
+            {section === "solicitacoes" && <AdminAllocationPlanner requests={reqs} />}
             {section === "solicitacoes" && <section aria-label="Solicitações registradas">
               <h2 id="admin-solicitacoes" className="mt-10 scroll-mt-20 text-lg font-semibold text-foreground">Solicitações recentes</h2>
             {reqs.length === 0 ? (
