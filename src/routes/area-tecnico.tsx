@@ -31,6 +31,7 @@ import { saveTechnicianDraftImmediately } from "@/lib/technician-live-draft";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
 import { registrationStepError, type RegistrationStep } from "@/lib/technician-registration-wizard";
+import { hydrateTechnicianOfficialCity } from "@/lib/technician-official-city-hydration";
 import { publicTextProblem } from "@/lib/public-profile-text";
 import { technicianPublishErrorMessage } from "@/lib/technician-publish-error";
 import { TechnicianPanelNavigation } from "@/components/technician-panel-navigation";
@@ -269,6 +270,19 @@ export function TechnicianAreaPage() {
         fingerprint !== serverFormBaselineRef.current)
       saveProtectedDraft("tecnico", owner, form, step);
   }, [user?.id, loading, roleKey, profileLoading, profileError, profileOwnerId, form, step]);
+
+  // Existing profiles and pre-IBGE drafts can reopen directly on step 3.
+  // The official picker only mounts on step 1, so reconcile the same-city IBGE
+  // identity here after restoring this authenticated owner's draft.
+  useEffect(() => {
+    if (!user || !profileReady || draftRestoredOwnerId !== user.id ||
+        form.base_city_ibge_id !== null || officialBaseCities.length === 0) return;
+    const owner = user.id;
+    setForm(current => currentUserRef.current === owner
+      ? hydrateTechnicianOfficialCity(current, officialBaseCities, form.state_uf)
+      : current);
+  }, [user?.id, profileReady, draftRestoredOwnerId, form.state_uf,
+      form.city, form.base_city_ibge_id, officialBaseCities]);
 
   const catalog = { categories, services, catalogLoading, catalogError: Boolean(catalogError),
     servicesLoading, servicesError: Boolean(servicesError) };
