@@ -67,13 +67,14 @@ describe("Google popup return coordination", () => {
     vi.useFakeTimers();
     const popup = { closed: true } as Window;
     const onClosed = vi.fn(), onVerified = vi.fn(), onFailure = vi.fn();
-    const verify = vi.fn().mockResolvedValueOnce(false).mockResolvedValue(true);
+    const verify = vi.fn().mockResolvedValue(true);
     watchGooglePopupReturn({
       popup, origin: window.location.origin, nonce: "qa-nonce", verifySession: verify,
       onVerified, onFailure, onClosed,
     });
     await vi.advanceTimersByTimeAsync(650);
     expect(onClosed).toHaveBeenCalledOnce();
+    expect(verify).not.toHaveBeenCalled(); // Closing the popup alone is not callback proof.
     window.localStorage.setItem("eut-google-popup-result:qa-nonce", "complete");
     window.dispatchEvent(new StorageEvent("storage", { key: "eut-google-popup-result:qa-nonce", newValue: "complete", storageArea: window.localStorage }));
     await flush();
