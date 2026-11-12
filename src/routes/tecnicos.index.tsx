@@ -205,6 +205,7 @@ function TechniciansPage() {
             </select>
           </div>
           <DebouncedTextFilter
+            key={`filtro-cidade-${search.uf}`}
             id="filtro-cidade"
             label="Cidade"
             value={search.cidade}
@@ -213,6 +214,7 @@ function TechniciansPage() {
             onBlurTrack={(value) => trackFilter("cidade", value)}
           />
           <DebouncedTextFilter
+            key={`filtro-bairro-${search.uf}`}
             id="filtro-bairro"
             label="Bairro"
             list={bairroCatalog ? "eut-bairro-diretorio" : undefined}
@@ -229,6 +231,7 @@ function TechniciansPage() {
               target="_blank" rel="noopener noreferrer">prefeitura</a>; você pode digitar outra denominação.
           </div>}
           <DebouncedTextFilter
+            key={`filtro-regiao-${search.uf}`}
             id="filtro-regiao"
             label="Região"
             value={search.regiao}
