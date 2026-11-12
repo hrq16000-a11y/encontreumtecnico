@@ -34,7 +34,7 @@ export function NationalCoverage() {
             <Home className="h-4 w-4" aria-hidden /> Rede nacional de atendimento
           </span>
           <h3 id="cobertura-nacional" className="mt-3 text-2xl font-bold text-foreground md:text-3xl">
-            Atendimento domiciliar nas capitais e em cidades de parceiros
+            Busque técnicos nas capitais e em outras cidades
           </h3>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
             Consulte profissionais por localidade e especialidade. A disponibilidade de atendimento domiciliar
