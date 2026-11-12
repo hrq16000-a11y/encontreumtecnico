@@ -2,6 +2,8 @@ import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-r
 import { PageShell } from "../components/page-placeholder";
 import { SponsoredPublicSlot } from "@/components/sponsored-public-slot";
 import { SERVICE_CATEGORIES, getEnrichedServiceCategory } from "@/lib/service-catalog";
+import { getExactGuideArtwork } from "@/lib/guide-artwork";
+import { ArrowUpRight, Wrench } from "lucide-react";
 
 const SERVICES = SERVICE_CATEGORIES;
 
@@ -36,29 +38,48 @@ function ServicesPage() {
           a plataforma não certifica a habilitação técnica nem garante disponibilidade.
         </p>
         <SponsoredPublicSlot slotKey="services.content_1" routePath="/servicos" />
-        <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {SERVICES.map((service) => (
-            <li key={service.slug} className="flex flex-col rounded-xl border border-border bg-card p-5">
-              <h2 className="font-semibold text-card-foreground">{service.name}</h2>
-              <p className="mt-2 flex-1 text-sm leading-6 text-muted-foreground">{service.description}</p>
-              {getEnrichedServiceCategory(service.slug) ? (
-                <Link
-                  to="/servicos/$categoria" params={{ categoria: service.slug }}
-                  className="mt-4 inline-flex min-h-11 items-center text-sm font-bold text-primary hover:underline"
-                >
-                  Ver especialidade, profissionais e orientações →
-                </Link>
-              ) : (
-                <Link
-                  to="/tecnicos"
-                  search={{ especialidade: service.slug, cidade: "", regiao: "" }}
-                  className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-primary hover:underline"
-                >
-                  Encontrar técnicos desta especialidade →
-                </Link>
-              )}
-            </li>
-          ))}
+        <ul className="mt-7 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {SERVICES.map(service => {
+            const artwork = getExactGuideArtwork(service.slug);
+            const enriched = getEnrichedServiceCategory(service.slug);
+            return (
+              <li key={service.slug}
+                className="group flex min-w-0 flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-sm transition-[box-shadow,border-color] motion-safe:duration-200 hover:border-primary/50 hover:shadow-soft focus-within:border-primary/60">
+                <div className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-accent via-secondary to-muted">
+                  {artwork ? (
+                    <img src={artwork.src} alt={artwork.alt} width={1200} height={630}
+                      loading="lazy" decoding="async"
+                      className="h-full w-full object-cover motion-safe:transition-transform motion-safe:duration-500 motion-safe:group-hover:scale-[1.035] motion-reduce:transform-none" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center" role="img"
+                      aria-label={"Ícone ilustrativo da área " + service.name}>
+                      <Wrench aria-hidden="true" className="h-14 w-14 text-primary/70" />
+                    </div>
+                  )}
+                  <span className="absolute bottom-3 left-3 rounded-full border border-white/40 bg-brand-navy/85 px-3 py-1.5 text-xs font-semibold text-brand-navy-foreground">
+                    Ilustração da especialidade
+                  </span>
+                </div>
+                <div className="flex flex-1 flex-col p-5">
+                  <h2 className="text-lg font-bold text-card-foreground">{service.name}</h2>
+                  <p className="mt-2 flex-1 text-sm leading-6 text-muted-foreground">{service.description}</p>
+                  {enriched ? (
+                    <Link to="/servicos/$categoria" params={{ categoria: service.slug }}
+                      className="mt-4 inline-flex min-h-11 items-center gap-2 self-start rounded-xl px-1 text-sm font-bold text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+                      Ver orientações e profissionais
+                      <ArrowUpRight className="h-4 w-4 motion-safe:transition-transform motion-safe:duration-200 motion-safe:group-hover:translate-x-0.5 motion-reduce:transform-none" aria-hidden="true" />
+                    </Link>
+                  ) : (
+                    <Link to="/tecnicos" search={{ especialidade: service.slug, cidade: "", regiao: "" }}
+                      className="mt-4 inline-flex min-h-11 items-center gap-2 self-start rounded-xl px-1 text-sm font-semibold text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+                      Encontrar técnicos desta área
+                      <ArrowUpRight className="h-4 w-4 motion-safe:transition-transform motion-safe:duration-200 motion-safe:group-hover:translate-x-0.5 motion-reduce:transform-none" aria-hidden="true" />
+                    </Link>
+                  )}
+                </div>
+              </li>
+            );
+          })}
         </ul>
         <section aria-labelledby="orientacoes-servicos" className="mt-10 rounded-2xl border border-border bg-muted/30 p-6 sm:p-8">
           <h2 id="orientacoes-servicos" className="text-xl font-bold text-foreground">Como encontrar o profissional adequado</h2>

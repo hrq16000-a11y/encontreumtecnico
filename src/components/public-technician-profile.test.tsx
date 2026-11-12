@@ -5,8 +5,8 @@ import { PublicTechnicianProfile } from "./public-technician-profile";
 import type { PublicTechnician } from "@/lib/technicians.functions";
 
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ to, params, children }: { to: string; params?: { tecnicoId?: string }; children: React.ReactNode }) =>
-    <a href={to.replace("$tecnicoId", params?.tecnicoId ?? "")}>{children}</a>,
+  Link: ({ to, params, children }: { to: string; params?: { tecnicoId?: string; categoria?: string }; children: React.ReactNode }) =>
+    <a href={to.replace("$tecnicoId", params?.tecnicoId ?? "").replace("$categoria", params?.categoria ?? "")}>{children}</a>,
 }));
 vi.mock("@/lib/free-search-help", () => ({ openFreeHelp: vi.fn() }));
 vi.mock("@/hooks/use-active-categories", () => ({
@@ -72,5 +72,30 @@ describe("Perfil técnico premium sem prova social fabricada", () => {
     rerender(<PublicTechnicianProfile technician={{ ...profile, pioneer_bronze: true, referral_highlight: true }} />);
     expect(screen.getByText("Pioneiro Bronze")).toBeTruthy();
     expect(screen.getByText("Destaque por indicações")).toBeTruthy();
+  });
+});
+
+describe("Ilustrações editoriais, não portfólio inventado", () => {
+  it("mostra apenas desenhos de áreas declaradas, sem sugerir trabalho executado", () => {
+    const { container } = render(<PublicTechnicianProfile technician={profile} />);
+    expect(screen.getByText("Explore as especialidades declaradas")).toBeTruthy();
+    expect(screen.getByText(/não fotos de trabalhos, equipamentos ou instalações deste profissional/)).toBeTruthy();
+    const gallery = screen.getByRole("list", { name: "Ilustrações educativas das áreas declaradas" });
+    expect(gallery.querySelectorAll("img")).toHaveLength(2);
+    expect(gallery.querySelectorAll('a[href="/servicos/computadores"]')).toHaveLength(1);
+    expect(gallery.querySelectorAll('a[href="/servicos/redes"]')).toHaveLength(1);
+    for (const img of gallery.querySelectorAll("img")) {
+      expect(img.getAttribute("loading")).toBe("lazy");
+      expect(img.getAttribute("width")).toBe("1200");
+      expect(img.getAttribute("height")).toBe("630");
+    }
+    expect(container.textContent).not.toMatch(/portfólio de obras|trabalhos realizados|avaliação verificada/i);
+    expect(container.querySelector('a[href^="/acesso-contato/"]')).toBeNull();
+  });
+
+  it("não inventa galeria quando não há uma ilustração correspondente", () => {
+    render(<PublicTechnicianProfile technician={{ ...profile, specialties: ["eletrica"] }} />);
+    expect(screen.queryByText("Explore as especialidades declaradas")).toBeNull();
+    expect(screen.queryByRole("list", { name: "Ilustrações educativas das áreas declaradas" })).toBeNull();
   });
 });

@@ -5,12 +5,19 @@ const css = readFileSync("src/styles.css", "utf8");
 const brand = css.slice(css.indexOf("/* Brand palette (WCAG AA)"));
 const light = brand.match(/:root\s*\{([^}]+)\}/)?.[1] ?? "";
 const dark = brand.match(/\.dark\s*\{([^}]+)\}/)?.[1] ?? "";
+const publicLight = brand.match(/:root:not\(\.dark\) \.eut-public-calm\s*\{([^}]+)\}/)?.[1] ?? "";
 
 type Lch = [number, number, number];
 function token(section: string, name: string): Lch {
   const match = section.match(new RegExp("--" + name + ":\\s*oklch\\(([\\d.]+) ([\\d.]+) ([\\d.]+)\\)"));
   if (!match) throw new Error("Missing semantic color: " + name);
   return [Number(match[1]), Number(match[2]), Number(match[3])];
+}
+function publicToken(name: string): Lch {
+  // Inherited semantic tokens retain their base light value. Public pages
+  // override only soft surfaces, never the foreground/primary contrast pairs.
+  const override = publicLight.match(new RegExp("--" + name + ":\\s*oklch\\(([\\d.]+) ([\\d.]+) ([\\d.]+)\\)"));
+  return override ? [Number(override[1]), Number(override[2]), Number(override[3])] : token(light, name);
 }
 // OKLCH -> linear sRGB (CSS Color 4), clip into the display gamut, then WCAG 2.x luminance.
 function luminance([L, C, H]: Lch): number {
@@ -67,4 +74,23 @@ describe("contraste global EUT — WCAG AA", () => {
       expect(ratio(token(section, "input"), token(section, "card"))).toBeGreaterThanOrEqual(3);
     });
   }
+});
+
+describe("conforto visual público — WCAG AA sem alterar admin ou dark", () => {
+  it("define superfícies escopadas sem tocar em foreground/primary", () => {
+    expect(publicLight.length).toBeGreaterThan(100);
+    for (const name of ["background", "card", "muted", "accent", "secondary", "border"]) {
+      expect(publicLight).toContain("--" + name + ":");
+    }
+    expect(publicLight).not.toMatch(/--foreground:/);
+    expect(publicLight).not.toMatch(/--primary:/);
+  });
+  for (const [fg, bg] of textPairs) {
+    it("público: " + fg + " / " + bg + " >= 4.5:1", () => {
+      expect(ratio(publicToken(fg), publicToken(bg))).toBeGreaterThanOrEqual(4.5);
+    });
+  }
+  it("links públicos: primary/background >= 4.5:1", () => {
+    expect(ratio(publicToken("primary"), publicToken("background"))).toBeGreaterThanOrEqual(4.5);
+  });
 });

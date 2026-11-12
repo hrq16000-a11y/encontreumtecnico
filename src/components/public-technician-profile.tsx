@@ -11,6 +11,8 @@ import { PublicProfileConnections, type PublicSeoLinks } from "@/components/publ
 import { formatPublicLocation, placeKey } from "@/lib/location-labels";
 import { categoryLabel, useActiveCategories } from "@/hooks/use-active-categories";
 import { serviceLabel, useActiveServices } from "@/hooks/use-active-services";
+import { getDeclaredServiceIllustrations } from "@/lib/guide-artwork";
+import { getEnrichedServiceCategory } from "@/lib/service-catalog";
 
 /** Presentation only: uses fields from the published and sanitized technician
  * profile. Never loads or guesses private contacts, ratings or endorsements.
@@ -24,6 +26,10 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
     all.findIndex(x => placeKey(x.name) === placeKey(c.name) && x.uf === c.uf) === i);
   const topCategories = t.specialties.slice(0, 4);
   const extraCategories = Math.max(0, t.specialties.length - topCategories.length);
+  // Only editorial artwork for already-declared areas. Never suggest it is a
+  // photo/gallery of work performed by this person.
+  const illustratedSpecialties = getDeclaredServiceIllustrations(t.specialties)
+    .filter(item => Boolean(getEnrichedServiceCategory(item.slug)));
 
   return (
     <div className="relative min-h-screen overflow-clip bg-gradient-to-b from-accent/60 via-background to-background pb-28 lg:pb-10">
@@ -98,6 +104,33 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
               <div className="mt-5 flex flex-wrap gap-2">
                 {t.specialties.length ? t.specialties.map(slug => <span key={slug} className="rounded-xl border border-border bg-muted/60 px-3 py-2 text-sm font-medium text-foreground">{categoryLabel(slug, categories)}</span>) : <p className="text-sm text-muted-foreground">Ainda não há especialidades informadas neste perfil.</p>}
               </div>
+              {illustratedSpecialties.length > 0 && (
+                <div className="mt-6 border-t border-border pt-5">
+                  <h3 className="text-sm font-bold text-foreground">Explore as especialidades declaradas</h3>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    Ilustrações editoriais dos assuntos, não fotos de trabalhos, equipamentos ou instalações deste profissional.
+                  </p>
+                  <ul aria-label="Ilustrações educativas das áreas declaradas"
+                    className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {illustratedSpecialties.map(item => (
+                      <li key={item.slug}>
+                        <Link to="/servicos/$categoria" params={{ categoria: item.slug }}
+                          className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-muted/30 transition-[border-color,box-shadow] motion-safe:duration-200 hover:border-primary/50 hover:shadow-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+                          <div className="aspect-[16/9] overflow-hidden bg-accent/30">
+                            <img src={item.src} alt={item.alt} width={1200} height={630}
+                              loading="lazy" decoding="async"
+                              className="h-full w-full object-cover motion-safe:transition-transform motion-safe:duration-500 motion-safe:group-hover:scale-[1.035] motion-reduce:transform-none" />
+                          </div>
+                          <span className="flex min-h-11 items-center justify-between gap-2 px-3 py-2 text-xs font-bold text-primary">
+                            {categoryLabel(item.slug, categories)}
+                            <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </section>
             <section id="servicos" aria-labelledby="titulo-servicos" className="eut-card-lift rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
               <div className="flex items-start gap-3">
