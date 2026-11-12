@@ -74,6 +74,8 @@ describe("AdSense display unit 9606076941", () => {
       .toBe("ca-pub-3762170279587706");
     expect(document.querySelector(publisherUnit)?.getAttribute("data-ad-format")).toBe("auto");
     expect(document.querySelector(publisherUnit)?.getAttribute("data-full-width-responsive")).toBe("true");
+    // Reserve height before Google asynchronously fills this optional placement.
+    expect((document.querySelector(publisherUnit) as HTMLElement).style.minHeight).toBe("250px");
     expect((window as Window & { adsbygoogle?: object[] }).adsbygoogle).toHaveLength(1);
   });
 
