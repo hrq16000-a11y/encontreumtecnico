@@ -41,7 +41,7 @@ describe("Adapter staged durable draft: never active before backend QA", () => {
     const adapter = createStagedTechnicianDraftAdapter(fake.client);
     expect((await adapter.load(OWNER)).status).toBe("unavailable");
     expect((await adapter.save(OWNER, form, 1, null)).status).toBe("unavailable");
-    expect(await adapter.clearAfterConfirmedPublication(OWNER, true)).toBe(false);
+    expect(await adapter.clearAfterConfirmedPublication(OWNER, true, 3)).toBe(false);
     expect(fake.from).not.toHaveBeenCalled();
     const route = readFileSync("src/routes/area-tecnico.tsx", "utf8");
     expect(route).not.toContain("staged-technician-durable-draft");
@@ -94,11 +94,24 @@ describe("Adapter staged durable draft: never active before backend QA", () => {
   it("clears only after confirmed owner publication", async () => {
     const fake = fakeClient({ data: { owner_id: OWNER }, error: null });
     const adapter = createStagedTechnicianDraftAdapter(fake.client, true);
-    expect(await adapter.clearAfterConfirmedPublication(OWNER, false)).toBe(false);
+    expect(await adapter.clearAfterConfirmedPublication(OWNER, false, 3)).toBe(false);
     expect(fake.from).not.toHaveBeenCalled();
     expect(await adapter.clearAfterConfirmedPublication(OWNER, true)).toBe(true);
     expect(fake.calls.some(c => c.method === "delete")).toBe(true);
     expect(fake.calls.some(c => c.method === "eq" && c.args[0] === "owner_id" &&
       c.args[1] === OWNER)).toBe(true);
+    expect(fake.calls.some(c => c.method === "eq" && c.args[0] === "revision" &&
+      c.args[1] === 3)).toBe(true);
+  });
+  it("never deletes a draft without known pre-publication revision", async () => {
+    const fake = fakeClient({ data: null, error: null });
+    const adapter = createStagedTechnicianDraftAdapter(fake.client, true);
+    expect(await adapter.clearAfterConfirmedPublication(OWNER, true, 0)).toBe(false);
+    expect(await adapter.clearAfterConfirmedPublication(OWNER, true, Number.NaN)).toBe(false);
+    expect(fake.from).not.toHaveBeenCalled();
+    // Simulate server returning zero rows: newer revision must survive.
+    expect(await adapter.clearAfterConfirmedPublication(OWNER, true, 3)).toBe(false);
+    expect(fake.calls.some(c => c.method === "eq" && c.args[0] === "revision" &&
+      c.args[1] === 3)).toBe(true);
   });
 });
