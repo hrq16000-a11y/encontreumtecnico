@@ -13,6 +13,7 @@ describe("EUT restricted accounts and live Auth sessions", () => {
     expect(sql).toContain("eut_moderation.subject_operational(auth.uid())");
     expect(sql).toContain("eut_moderation.blocked_accounts");
     expect(sql).toContain("eut_moderation.blocked_phones");
+    expect(sql).toContain("EXISTS (SELECT 1 FROM auth.users u WHERE u.id=_user_id)");
     expect(sql).not.toMatch(/\b(user_metadata|raw_user_meta_data)\b/);
   });
 
@@ -56,6 +57,14 @@ describe("EUT restricted accounts and live Auth sessions", () => {
     expect(sql).toContain("NEW.invited_user_id");
     expect(sql).toContain("NEW.inviter_user_id");
     expect(sql).toContain("NEW.available IS FALSE");
+    expect(sql).toContain("IF v_user IS NULL THEN");
+    expect(sql).toMatch(/IF v_user IS NULL THEN\s*RAISE EXCEPTION[\s\S]*?USING ERRCODE='42501';\s*END IF;/);
+    expect(sql).not.toContain("IF v_user IS NOT NULL AND NOT public.eut_sensitive_session_active()");
+    expect(sql).toContain("IF TG_TABLE_NAME='eut_technician_presence' AND TG_OP='UPDATE' THEN");
+    expect(sql).toContain("NEW.user_id=v_user");
+    expect(sql).toContain("OLD.user_id=v_user");
+    expect(sql).not.toMatch(/AND NEW.available IS FALSE THEN\s*RETURN NEW;/);
+    expect(sql).toContain("IF NOT public.eut_sensitive_session_active() THEN");
   });
 
   it("documents session revocation limitations and requires real E2E before activation", () => {
