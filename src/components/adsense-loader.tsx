@@ -87,7 +87,7 @@ function DisplayAd({ path }: { path: string }) {
       data-eut-public-route={path}
       className="mx-auto w-full max-w-6xl min-w-0 px-4 py-5 sm:px-6">
       <p className="mb-2 text-right text-[11px] text-muted-foreground">Publicidade</p>
-      <ins ref={adRef} className="adsbygoogle" style={{ display: "block" }}
+      <ins ref={adRef} className="adsbygoogle" style={{ display: "block", minHeight: "250px" }}
         data-ad-client={CLIENT} data-ad-slot={ADSENSE_DISPLAY_SLOT}
         data-ad-format="auto" data-full-width-responsive="true" />
     </section>
