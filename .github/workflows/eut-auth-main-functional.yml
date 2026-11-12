@@ -1,0 +1,24 @@
+name: EUT auth functional regression on current main (simulated)
+on:
+  pull_request:
+    paths:
+      - 'src/components/eut-auth-main-functional.test.tsx'
+      - 'src/lib/eut-signup-intent-functional.test.ts'
+      - 'docs/qa/EUT_AUTH_MAIN_RECONCILIATION_2026-11-12.md'
+      - '.github/workflows/eut-auth-main-functional.yml'
+permissions:
+  contents: read
+jobs:
+  functional-auth-main:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Simulated roles, invitations, privacy and redirect tests
+        run: bunx vitest run src/components/eut-auth-main-functional.test.tsx src/lib/eut-signup-intent-functional.test.ts src/lib/admin-member-invite-contract.test.ts src/lib/auth-domain.test.ts
+      - name: TanStack build
+        run: bun run build
+      - name: TypeScript after route generation
+        run: bunx tsc --noEmit --pretty false
