@@ -1,3 +1,5 @@
+import { GUIDE_PATHS } from "@/lib/public-guides";
+import { ENRICHED_CATEGORY_PATHS } from "@/lib/service-catalog";
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { buildPublicSitemapXml, PUBLIC_PATHS, SITE } from "./public-sitemap";
@@ -23,7 +25,7 @@ describe("Sitemap dinâmico com técnicos publicados", () => {
     expect(xml).not.toContain("<script>");
     expect(xml).not.toContain("/area-cliente");
     expect(xml).not.toContain("/acesso-contato");
-    expect(xml.match(/<url>/g)).toHaveLength(28);
+    expect(xml.match(/<url>/g)).toHaveLength(PUBLIC_PATHS.length + GUIDE_PATHS.length + ENRICHED_CATEGORY_PATHS.length + 2);
     expect(xml).toContain(SITE + "/cobertura</loc>");
     expect(xml).toContain(SITE + "/ecossistema</loc>");
     expect(xml).toContain(SITE + "/guias</loc>");
@@ -34,13 +36,17 @@ describe("Sitemap dinâmico com técnicos publicados", () => {
     expect(xml).toContain(SITE + "/servicos/software</loc>");
     expect(xml).toContain(SITE + "/servicos/climatizacao</loc>");
   });
-  it("declara consulta pública, somente aprovados, paginação, 503 e cache curto", () => {
+  it("declara fonte moderada, paginação, 503 e sem cache", () => {
     const handler = readFileSync("src/routes/sitemap[.]xml.ts", "utf8");
-    expect(handler).toContain('.select("public_slug,updated_at")');
-    expect(handler).toContain('.eq("status", "aprovado")');
-    expect(handler).toContain('.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)');
+    const graph = readFileSync("src/lib/public-seo-graph.functions.ts", "utf8");
+    expect(handler).toContain("getPublicGraphSnapshot()");
+    expect(handler).toContain("buildPublicSitemapIndexXml(graph)");
+    expect(graph).toContain('.eq("status", "aprovado")');
+    expect(graph).toContain("readPublicEligibleRows(");
+    expect(graph).toContain('.range(page * BATCH, (page + 1) * BATCH - 1)');
     expect(handler).toContain("status: 503");
-    expect(handler).toContain("s-maxage=900");
+    expect(handler).toContain('"Cache-Control": "no-store, max-age=0"');
+    expect(handler).not.toContain("s-maxage=900");
     expect(handler).not.toContain("SERVICE_ROLE");
     expect(handler).not.toContain("contact_phone");
     expect(handler).not.toContain("auth.users");
