@@ -3,6 +3,15 @@ on:
   pull_request:
     paths:
       - 'src/routes/entrar.tsx'
+      - 'src/components/auth-dialog.tsx'
+      - 'src/components/auth-dialog.test.tsx'
+      - 'src/lib/google-popup-return.ts'
+      - 'src/lib/google-popup-return.test.ts'
+      - 'src/lib/oauth-return-error.ts'
+      - 'src/lib/oauth-return-error.test.ts'
+      - 'src/components/site-header.tsx'
+      - 'src/routes/__root.tsx'
+      - 'src/routes/cadastro.tsx'
       - 'src/lib/onboarding-legacy-fallback.ts'
       - 'src/lib/onboarding-legacy-fallback.test.ts'
       - 'scripts/eut-wordpress-runtime-boundary.mjs'
@@ -40,6 +49,8 @@ jobs:
         run: bunx vitest run src/lib/brazilian-phone.test.ts
       - name: New-account fallback, legacy identity and account isolation tests
         run: bunx vitest run src/lib/onboarding-legacy-fallback.test.ts src/lib/legacy-claim-validation.test.ts src/lib/account-scoped-queries.test.ts
+      - name: OAuth modal, popup, errors and responsive header unit tests
+        run: bunx vitest run src/components/auth-dialog.test.tsx src/lib/google-popup-return.test.ts src/lib/oauth-return-error.test.ts src/components/site-header.test.tsx
       - name: Verify auth route and recovery contract
         run: |
           node --input-type=module <<'NODE'
@@ -70,7 +81,9 @@ jobs:
           ]) {
             if (!auth.includes(v)) throw Error('Session ordering / stale query protection missing: '+v);
           }
-          if (!signin.includes('Recarregar minha área') || !signin.includes('params.has("error")')) {
+          if (!signin.includes('Recarregar minha área') ||
+              !signin.includes('hasOAuthCallbackError(window.location.search, window.location.hash)') ||
+              !signin.includes('clearOAuthErrorParams(window.location)')) {
             throw Error('OAuth error and failed role recovery UI missing');
           }
           const reset = readFileSync('src/routes/redefinir-senha.tsx','utf8');
