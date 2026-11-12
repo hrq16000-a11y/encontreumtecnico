@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Req } from "@/components/request-list";
+import { BRAZIL_STATES } from "@/lib/service-taxonomy";
 import {
   buildAllocationPreview, safeAllocationMessage,
   type AllocationPreference, type AllocationTechnician, type AllocationPriority,
@@ -31,7 +32,7 @@ export function AdminAllocationPlanner({ requests }: { requests: readonly Req[] 
     void (async () => {
       try {
         const { data, error: queryError, count: total } = await db.from("technicians")
-          .select("id,display_name,city,region,status,specialties,service_slugs", { count: "exact" })
+          .select("id,display_name,city,state_uf,region,status,specialties,service_slugs", { count: "exact" })
           .eq("status", "aprovado").order("display_name").limit(200);
         if (!active) return;
         if (queryError || !Array.isArray(data) || typeof total !== "number")
@@ -71,7 +72,7 @@ export function AdminAllocationPlanner({ requests }: { requests: readonly Req[] 
       <div>
         <h3 className="text-lg font-bold text-foreground">Planejamento assistido · prévia interna</h3>
         <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-          Compara especialidade e município declarado. Não calcula rotas, não confirma SLA,
+          Compara especialidade, município e UF confirmada manualmente. Não calcula rotas, não confirma SLA,
           não cria escala e não envia solicitações aos técnicos. Técnicos são profissionais independentes.
         </p>
       </div>
@@ -94,7 +95,7 @@ export function AdminAllocationPlanner({ requests }: { requests: readonly Req[] 
           {technicians.map((tech) => <label key={tech.id} className="flex min-h-11 min-w-0 items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
             <input type="checkbox" className="size-4 shrink-0" checked={confirmed[tech.id] === true}
               onChange={(event) => setConfirmed((old) => ({ ...old, [tech.id]: event.target.checked }))}/>
-            <span className="min-w-0 break-words">{tech.display_name} · {tech.city}</span>
+            <span className="min-w-0 break-words">{tech.display_name} · {tech.city}/{tech.state_uf ?? "UF não informada"}</span>
           </label>)}
         </div>}
     </div>
@@ -103,7 +104,7 @@ export function AdminAllocationPlanner({ requests }: { requests: readonly Req[] 
     </p> : <>
       <p className="text-sm text-muted-foreground">
         {result.included} chamado(s) considerados · {assigned} sugestão(ões) condicionais.
-        Prioridade, prazo e horário são preenchidos manualmente e não são gravados.
+        UF, prioridade, prazo e horário são preenchidos manualmente e não são gravados.
         {requests.filter((r) => r.status === "aberta").length > 30 ? " Esta prévia considera somente os 30 primeiros chamados abertos carregados." : ""}
       </p>
       <div className="grid gap-3">
@@ -114,7 +115,16 @@ export function AdminAllocationPlanner({ requests }: { requests: readonly Req[] 
               <h4 className="font-semibold text-foreground">Chamado {row.requestId.slice(0, 8)}</h4>
               <span className="text-sm text-muted-foreground">{row.category} · {row.city}</span>
             </div>
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <label className="grid gap-1 text-xs font-semibold">UF do chamado (confirmar)
+                <select aria-label={"UF do chamado " + row.requestId.slice(0, 8)}
+                  className="min-h-11 rounded-lg border border-input bg-background px-2 text-sm"
+                  value={pref?.requestUf ?? ""}
+                  onChange={(e) => edit(row.requestId, { requestUf: e.target.value })}>
+                  <option value="">Selecionar UF</option>
+                  {BRAZIL_STATES.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
+                </select>
+              </label>
               <label className="grid gap-1 text-xs font-semibold">
                 Prioridade informada
                 <select aria-label={"Prioridade do chamado " + row.requestId.slice(0, 8)}

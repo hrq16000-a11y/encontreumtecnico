@@ -8,7 +8,7 @@ const request = (id: string, extra: Partial<AllocationRequest> = {}): Allocation
   technician_id: null, created_at: "2026-11-12T14:00:00Z", ...extra,
 });
 const tech = (id: string, extra: Partial<AllocationTechnician> = {}): AllocationTechnician => ({
-  id, display_name: "Técnico " + id, city: "Curitiba", region: "Hauer",
+  id, display_name: "Técnico " + id, city: "Curitiba", state_uf: "PR", region: "Hauer",
   specialties: ["redes"], service_slugs: ["wifi"], status: "aprovado", ...extra,
 });
 describe("Plano de alocação — somente prévia administrativa", () => {
@@ -20,7 +20,7 @@ describe("Plano de alocação — somente prévia administrativa", () => {
   });
   it("prioriza criticidade declarada e não atribui o mesmo técnico duas vezes", () => {
     const p = buildAllocationPreview([request("normal"), request("critical")], [tech("t1")],
-      new Set(["t1"]), { critical: { priority: "critica" } }, now);
+      new Set(["t1"]), { critical: { priority: "critica", requestUf: "PR" } }, now);
     expect(p.rows.map((r) => r.requestId)).toEqual(["critical", "normal"]);
     expect(p.rows[0]!.technicianId).toBe("t1");
     expect(p.rows[1]!.technicianId).toBeNull();
@@ -38,19 +38,41 @@ describe("Plano de alocação — somente prévia administrativa", () => {
     expect(p.rows[0]!.technicianId).toBeNull();
     expect(p.rows[0]!.risks.join(" ")).toMatch(/não redistribuir/);
   });
+  it("bloqueia correspondência por cidade sem UF informada, mesmo havendo disponibilidade", () => {
+    const p = buildAllocationPreview([request("r1")], [tech("t1")], new Set(["t1"]), {}, now);
+    expect(p.rows[0]!.technicianId).toBeNull();
+    expect(p.rows[0]!.risks.join(" ")).toMatch(/cidades homônimas/);
+  });
+  it("nunca confunde cidades homônimas de estados diferentes", () => {
+    const row = request("r1", { city: "Santa Maria" });
+    const candidates = [tech("wrong", { city: "Santa Maria", state_uf: "RS" }),
+      tech("right", { city: "Santa Maria", state_uf: "DF" })];
+    const p = buildAllocationPreview([row], candidates, new Set(["wrong", "right"]),
+      { r1: { priority: "normal", requestUf: "DF" } }, now);
+    expect(p.rows[0]!.technicianId).toBe("right");
+  });
+  it("não equipara UF vazia, inválida ou faltante no técnico à confirmação do chamado", () => {
+    const row = request("r1");
+    for (const pref of [{ priority: "normal", requestUf: "ZZ" }, { priority: "normal", requestUf: "PR" }] as const) {
+      const candidates = [tech("unknown", { state_uf: null })];
+      const p = buildAllocationPreview([row], candidates, new Set(["unknown"]), { r1: pref }, now);
+      expect(p.rows[0]!.technicianId).toBeNull();
+    }
+  });
   it("desempata por bairro e diferencia prazo vencido de prazo curto", () => {
     const p = buildAllocationPreview([
       request("r1"), request("r2", { region: "Carmo" }),
     ], [tech("t1", { region: "Carmo" }), tech("t2")], new Set(["t1", "t2"]),
-    { r1: { priority: "critica", deadline: "2026-11-12T11:30" },
-      r2: { priority: "alta", deadline: "2026-11-12T13:30", plannedStart: "2026-11-12T14:00" } }, now);
+    { r1: { priority: "critica", requestUf: "PR", deadline: "2026-11-12T11:30" },
+      r2: { priority: "alta", requestUf: "PR", deadline: "2026-11-12T13:30", plannedStart: "2026-11-12T14:00" } }, now);
     expect(p.rows[0]!.technicianId).toBe("t2");
     expect(p.rows[0]!.risks.join(" ")).toMatch(/vencido/);
     expect(p.rows[1]!.technicianId).toBe("t1");
     expect(p.rows[1]!.risks.join(" ")).toMatch(/posterior ao prazo/);
   });
   it("não gera dados pessoais de cliente para WhatsApp", () => {
-    const p = buildAllocationPreview([request("abcdef00-1234")], [tech("t1")], new Set(["t1"]), {}, now);
+    const p = buildAllocationPreview([request("abcdef00-1234")], [tech("t1")], new Set(["t1"]),
+      { "abcdef00-1234": { priority: "normal", requestUf: "PR" } }, now);
     const text = safeAllocationMessage(p);
     expect(text).toContain("abcdef00");
     expect(text).toContain("NÃO É ORDEM DE SERVIÇO CONFIRMADA");
@@ -69,6 +91,8 @@ describe("Plano de alocação — somente prévia administrativa", () => {
     expect(route).toContain('roles.includes("admin")');
     expect(route).toContain('section === "solicitacoes" && <AdminAllocationPlanner requests={reqs} />');
     expect(view).toContain('.eq("status", "aprovado")');
+    expect(view).toContain("UF do chamado (confirmar)");
+    expect(view).toContain("city,state_uf,region");
     expect(view).not.toMatch(/\.insert\(|\.update\(|\.delete\(|\.upsert\(|wa\.me|service_role/);
     expect(view).toContain("A confirmação não é gravada".replace("A confirmação não é gravada","não são gravados"));
   });

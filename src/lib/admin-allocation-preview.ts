@@ -3,6 +3,8 @@
  * No route distance, technician shift, consent, travel time or SLA is inferred.
  * This module never dispatches, charges, stores or exposes private contacts.
  */
+import { BRAZIL_STATES } from "./service-taxonomy";
+
 export type AllocationPriority = "critica" | "alta" | "normal";
 export type AllocationRequest = {
   id: string;
@@ -18,12 +20,14 @@ export type AllocationTechnician = {
   display_name: string;
   status: string;
   city: string;
+  state_uf: string | null;
   region: string | null;
   specialties: string[];
   service_slugs: string[];
 };
 export type AllocationPreference = {
   priority: AllocationPriority;
+  requestUf?: string;
   deadline?: string;
   plannedStart?: string;
 };
@@ -87,7 +91,11 @@ export function buildAllocationPreview(
     const preference = preferences[request.id];
     const deadline = dateValue(preference?.deadline);
     const plannedStart = dateValue(preference?.plannedStart);
+    const requestUf = (preference?.requestUf ?? "").trim().toUpperCase();
+    const validRequestUf = (BRAZIL_STATES as readonly string[]).includes(requestUf);
     const risks: string[] = [];
+    // Service requests do not currently store state_uf; never infer UF from city name or DDD.
+    if (!validRequestUf) risks.push("UF do chamado não confirmada nesta simulação; não comparar cidades homônimas");
     if (preference?.deadline && deadline === null) risks.push("Prazo informado inválido");
     if (deadline === null && !preference?.deadline) risks.push("Prazo/SLA ainda não informado");
     if (deadline !== null && deadline < now) risks.push("Prazo informado já vencido");
@@ -95,7 +103,8 @@ export function buildAllocationPreview(
     if (plannedStart !== null && deadline !== null && plannedStart > deadline)
       risks.push("Início proposto posterior ao prazo informado");
     const matching = technicians.filter((tech) =>
-      tech.status === "aprovado" && confirmedForPlanning.has(tech.id) &&
+      tech.status === "aprovado" && validRequestUf &&
+      normalized(tech.state_uf) === normalized(requestUf) && confirmedForPlanning.has(tech.id) &&
       !occupied.has(tech.id) &&
       (!request.technician_id || tech.id === request.technician_id) &&
       Boolean(normalized(request.category)) &&
@@ -114,10 +123,10 @@ export function buildAllocationPreview(
       risks.push("Sem cálculo de deslocamento ou garantia de SLA");
       if (!request.technician_id)
         risks.push("Compartilhamento depende de autorização explícita do cliente");
-    } else {
-      risks.push(request.technician_id
-        ? "Técnico indicado pelo cliente sem disponibilidade ou compatibilidade confirmada; não redistribuir"
-        : "Sem técnico disponível com cidade e especialidade exatamente compatíveis");
+    } else if (request.technician_id) {
+      risks.push("Técnico indicado pelo cliente sem disponibilidade ou compatibilidade confirmada; não redistribuir");
+    } else if (validRequestUf) {
+      risks.push("Sem técnico disponível com UF, cidade e especialidade exatamente compatíveis");
     }
     return {
       requestId: request.id, category: request.category, city: request.city,
@@ -126,8 +135,8 @@ export function buildAllocationPreview(
       technicianName: candidate?.display_name ?? null,
       startLabel: startLabel(preference?.plannedStart),
       reason: candidate ? (normalized(candidate.region) && normalized(candidate.region) === normalized(request.region)
-        ? "Especialidade, município e região declarados coincidem"
-        : "Especialidade e município declarado coincidem; distância não calculada")
+        ? "Especialidade, UF, município e região declarados coincidem"
+        : "Especialidade, UF e município declarados coincidem; distância não calculada")
         : "Não é seguro recomendar atribuição com as informações disponíveis",
       risks,
     };
