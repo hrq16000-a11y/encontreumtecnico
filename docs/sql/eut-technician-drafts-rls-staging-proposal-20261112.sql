@@ -26,7 +26,9 @@ BEGIN
         WHEN 'neighborhood' THEN 100
         WHEN 'region' THEN 120
         ELSE 2000 END;
-      IF jsonb_typeof(value) <> 'string' OR char_length(value #>> '{}') > maxlen THEN
+      IF jsonb_typeof(value) <> 'string'
+         OR char_length(value #>> '{}') > maxlen
+         OR (value #>> '{}') ~* '(https?://|www[.]|wa[.]me|@|[+]?[0-9][0-9 ().+-]{8,}[0-9])' THEN
         RETURN false;
       END IF;
     END IF;
