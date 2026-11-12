@@ -10,7 +10,7 @@ const PUBLIC_SECTIONS = [
 ] as const;
 
 export function isPublicVisualRoute(pathname: string): boolean {
-  const cleanPath = pathname.split(/[?#]/, 1)[0].replace(/\/+$/, "") || "/";
+  const cleanPath = (pathname.split(/[?#]/, 1)[0] ?? "").replace(/\/+$/, "") || "/";
   return cleanPath === "/" ||
     PUBLIC_SECTIONS.some(section =>
       cleanPath === section || cleanPath.startsWith(`${section}/`));
