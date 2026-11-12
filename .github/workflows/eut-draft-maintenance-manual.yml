@@ -44,6 +44,27 @@ jobs:
       - name: Install PostgreSQL client
         run: |
           command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+      - name: Fail closed unless connection is least-privilege maintenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_role="$(psql "$EUT_DRAFT_MAINT_DATABASE_URL" -X -q -A -t -v ON_ERROR_STOP=1 -c 'SELECT current_user')"
+          if [ "$actual_role" != "eut_draft_maint" ]; then
+            echo "Refusing maintenance: connection is not the dedicated role"
+            exit 1
+          fi
+          acl_check="$(psql "$EUT_DRAFT_MAINT_DATABASE_URL" -X -q -A -t -v ON_ERROR_STOP=1 \
+            -c "SELECT CASE WHEN
+              (SELECT c.relrowsecurity FROM pg_catalog.pg_class c WHERE c.oid='public.eut_technician_drafts'::regclass)
+              AND NOT (SELECT r.rolbypassrls FROM pg_catalog.pg_roles r WHERE r.rolname=current_user)
+              AND has_table_privilege(current_user,'public.eut_technician_drafts','DELETE')
+              AND NOT has_table_privilege(current_user,'public.eut_technician_drafts','UPDATE')
+              AND NOT has_column_privilege(current_user,'public.eut_technician_drafts','draft','SELECT')
+              THEN 'ok' ELSE 'unsafe' END")"
+          if [ "$acl_check" != "ok" ]; then
+            echo "Refusing maintenance: RLS or column grants do not match reviewed policy"
+            exit 1
+          fi
       - name: Purge at most 500 expired drafts, no payload logging
         shell: bash
         run: |
