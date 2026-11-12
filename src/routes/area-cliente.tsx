@@ -50,7 +50,13 @@ function CanonicalClientAreaPage() {
   return <ClientAreaPage tecnico={tecnico} modo={modo} categoria={categoria} />;
 }
 
-export function ClientAreaPage({ tecnico, modo, categoria }: { tecnico?: string; modo?: "regional"; categoria?: string }) {
+type ClientAreaPageProps = {
+  tecnico?: string | undefined;
+  modo?: "regional" | undefined;
+  categoria?: string | undefined;
+};
+
+export function ClientAreaPage({ tecnico, modo, categoria }: ClientAreaPageProps) {
   const lp2 = useContext(LP2EmbeddedContext);
   const regionalRequest = modo === "regional";
   const { user, loading, roles } = useAuth();
