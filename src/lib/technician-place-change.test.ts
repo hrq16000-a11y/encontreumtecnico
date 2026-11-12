@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { changeTechnicianPlace, isDifferentDeclaredMunicipality, needsLocationDraftConfirmation } from "./technician-place-change";
+import { changeTechnicianPlace, isDifferentDeclaredMunicipality, needsLocationDraftConfirmation, previewTechnicianAreaSuggestion } from "./technician-place-change";
 
 const form = {
   display_name: "Técnico de QA (somente memória)",
@@ -50,4 +50,52 @@ describe("Troca de município e UF no cadastro mobile", () => {
     expect(needsLocationDraftConfirmation(current, next)).toBe(false);
     expect(changeTechnicianPlace(current, next).city).toBe("Florianópolis");
   });
+  it("GPS manual de SJP para Curitiba invalida IBGE, zera bairros dependentes e exige confirmação", () => {
+    const snapshot = JSON.stringify(form);
+    const result = previewTechnicianAreaSuggestion(form,
+      { uf: "PR", city: "Curitiba", neighborhood: "" }, "manual");
+    expect(result.requiresConfirmation).toBe(true);
+    expect(result.next).toMatchObject({
+      state_uf: "PR", city: "Curitiba", base_city_ibge_id: null,
+      neighborhood: "", region: "", bio: form.bio, display_name: form.display_name,
+    });
+    // Cancelar a confirmação significa descartar a prévia: original intacto.
+    expect(JSON.stringify(form)).toBe(snapshot);
+  });
+
+  it("GPS manual de PR para SC nunca transporta código de município de PR", () => {
+    const result = previewTechnicianAreaSuggestion(form,
+      { uf: "SC", city: "Florianópolis", neighborhood: "" }, "manual");
+    expect(result.requiresConfirmation).toBe(true);
+    expect(result.next).toMatchObject({
+      state_uf: "SC", city: "Florianópolis", base_city_ibge_id: null,
+      neighborhood: "", region: "",
+    });
+  });
+
+  it("mesmo município mantém IBGE, Jardim Itália, regiões e todo o rascunho", () => {
+    const result = previewTechnicianAreaSuggestion(form,
+      { uf: "PR", city: "São José dos Pinhais", neighborhood: "" }, "manual");
+    expect(result.requiresConfirmation).toBe(false);
+    expect(result.next).toEqual(form);
+  });
+
+  it("localização automática não sobrescreve seleção manual nem rascunho", () => {
+    const result = previewTechnicianAreaSuggestion(form,
+      { uf: "PR", city: "Curitiba", neighborhood: "" }, "automatic");
+    expect(result.requiresConfirmation).toBe(false);
+    expect(result.next).toBe(form);
+  });
+
+  it("primeira sugestão GPS não define IBGE arbitrário e não apaga dados independentes", () => {
+    const initial = { ...form, state_uf: "", city: "", neighborhood: "", base_city_ibge_id: null };
+    const result = previewTechnicianAreaSuggestion(initial,
+      { uf: "PR", city: "Curitiba", neighborhood: "" }, "manual");
+    expect(result.requiresConfirmation).toBe(false);
+    expect(result.next).toMatchObject({
+      state_uf: "PR", city: "Curitiba", base_city_ibge_id: null,
+      region: "Costeira", bio: form.bio,
+    });
+  });
+
 });

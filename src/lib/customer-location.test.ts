@@ -74,7 +74,9 @@ describe("GPS informa município, mas nunca inventa bairro", () => {
     expect(home).toContain("Buscar técnicos em {city}/{locationUf}");
     expect(home).toContain('prioridade: "regiao"');
     expect(tech).toContain('purpose="technician"');
-    expect(tech).toContain('suggestTechnicianArea(current, area, source)');
+    expect(tech).toContain("previewTechnicianAreaSuggestion(current, area, source)");
+    expect(tech).toContain("if (requiresConfirmation &&");
+    expect(tech).toContain("updateRegistration(next);");
     expect(tech).toContain('autoIfGranted={!profileId');
     expect(button).toContain("município e UF");
     expect(button).toContain("Bairro não é identificado com segurança");

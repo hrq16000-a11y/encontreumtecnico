@@ -24,7 +24,7 @@ import { CustomerLocationButton } from "@/components/customer-location-button";
 import { suggestTechnicianArea } from "@/lib/customer-location";
 import { placeKey, safeNeighborhood, sameMunicipalityAsNeighborhood } from "@/lib/location-labels";
 import { neighborhoodCatalogFor, neighborhoodOptions } from "@/lib/neighborhood-sources";
-import { changeTechnicianPlace, needsLocationDraftConfirmation } from "@/lib/technician-place-change";
+import { changeTechnicianPlace, needsLocationDraftConfirmation, previewTechnicianAreaSuggestion } from "@/lib/technician-place-change";
 import { clearProtectedDraft, readProtectedDraft, saveProtectedDraft } from "@/lib/protected-session-draft";
 import { saveTechnicianDraftImmediately } from "@/lib/technician-live-draft";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
@@ -520,9 +520,14 @@ export function TechnicianAreaPage() {
                 purpose="technician"
                 autoIfGranted={!profileId && !form.state_uf && !form.city.trim() && !form.neighborhood.trim()}
                 onLocated={(area, source) => {
-                  // Use the current rendered form, not a stale pre-location state.
+                  // Device location is a hint, not an official IBGE selection.
+                  // Never keep a previous municipality ID when the city/UF changes.
                   const current = form;
-                  updateRegistration(suggestTechnicianArea(current, area, source));
+                  const { next, requiresConfirmation } = previewTechnicianAreaSuggestion(current, area, source);
+                  if (next === current) return;
+                  if (requiresConfirmation &&
+                      !window.confirm("A localização sugerida é diferente da informada. Trocar município ou UF limpará o bairro e as regiões anteriores. Deseja continuar?")) return;
+                  updateRegistration(next);
                 }}
               />
               <div className="grid gap-4 sm:grid-cols-2">
