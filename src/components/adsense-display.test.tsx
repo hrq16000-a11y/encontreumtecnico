@@ -28,6 +28,7 @@ function agree() {
 beforeEach(() => {
   route.pathname = "/";
   vi.stubEnv("VITE_EUT_ADSENSE_SERVING", "true");
+  vi.stubEnv("VITE_EUT_ADSENSE_DISPLAY_9606076941", "true");
   window.localStorage.clear();
   (window as Window & { adsbygoogle?: Array<Record<string, never>> }).adsbygoogle = [];
 });
@@ -46,11 +47,18 @@ describe("AdSense display unit 9606076941", () => {
     expect(document.querySelector(publisherUnit)).toBeNull();
   });
 
-  it("keeps serving disabled without explicit build flag even after consent", () => {
-    vi.stubEnv("VITE_EUT_ADSENSE_SERVING", "false");
+  it("keeps new display slot disabled without its dedicated flag, while legacy publisher stays on", () => {
+    vi.stubEnv("VITE_EUT_ADSENSE_DISPLAY_9606076941", "false");
     agree();
     render(<PortalAd />);
     expect(document.querySelector(publisherScript)).toBeNull();
+    expect(document.querySelector(publisherUnit)).toBeNull();
+  });
+
+  it("new slot defaults to OFF even with existing AdSense enabled and consent", () => {
+    vi.stubEnv("VITE_EUT_ADSENSE_DISPLAY_9606076941", "");
+    agree();
+    render(<PortalAd />);
     expect(document.querySelector(publisherUnit)).toBeNull();
   });
 

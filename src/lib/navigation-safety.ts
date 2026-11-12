@@ -1,4 +1,5 @@
 import { safeLegacyClaimReturnPath } from "@/lib/legacy-claim-validation";
+import { regionalClientReturnPath } from "@/lib/regional-client-intent";
 
 type AccountRole = "admin" | "tecnico" | "cliente";
 
@@ -51,6 +52,9 @@ export function safeLoginDestination(raw: string | null, roles: readonly Account
   if ((path === "/admin" || path === "/lp2/admin") && roles.includes("admin")) return path;
   if ((path === "/area-tecnico" || path === "/lp2/meu-perfil") && roles.includes("tecnico")) return path;
   if ((path === "/area-cliente" || path === "/lp2/cliente") && roles.includes("cliente")) {
+    if (path === "/area-cliente" && url.searchParams.get("modo") === "regional") {
+      return regionalClientReturnPath(url.searchParams.get("categoria"));
+    }
     const target = url.searchParams.get("tecnico");
     return path === "/area-cliente" && target && /^[a-f0-9-]{36}$/i.test(target) ?
       path + "?tecnico=" + target : path;

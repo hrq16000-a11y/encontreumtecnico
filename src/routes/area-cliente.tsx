@@ -22,9 +22,10 @@ import { persistClientRequest } from "@/lib/client-request-save";
 import { saveClientRequestDraftImmediately } from "@/lib/client-request-live-draft";
 import { ownedRequestForAction } from "@/lib/client-request-action";
 import { clientRequestStepError, type ClientRequestDraft, type ClientRequestStep } from "@/lib/client-request-wizard";
+import { mayShareDirectRequest, regionalClientReturnPath, regionalRequestRecipient } from "@/lib/regional-client-intent";
 
 export const Route = createFileRoute("/area-cliente")({
-  validateSearch: zodValidator(z.object({ tecnico: z.string().optional() })),
+  validateSearch: zodValidator(z.object({ tecnico: z.string().optional(), modo: z.literal("regional").optional(), categoria: z.string().optional() })),
   head: () => ({
     meta: [
       { name: "robots", content: "noindex, nofollow" },
@@ -45,12 +46,19 @@ const directDb = supabase as unknown as SupabaseClient;
 type DirectReply = { request_id: string; body: string; created_at: string };
 
 function CanonicalClientAreaPage() {
-  const { tecnico } = Route.useSearch();
-  return <ClientAreaPage tecnico={tecnico} />;
+  const { tecnico, modo, categoria } = Route.useSearch();
+  return <ClientAreaPage tecnico={tecnico} modo={modo} categoria={categoria} />;
 }
 
-export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
+type ClientAreaPageProps = {
+  tecnico?: string | undefined;
+  modo?: "regional" | undefined;
+  categoria?: string | undefined;
+};
+
+export function ClientAreaPage({ tecnico, modo, categoria }: ClientAreaPageProps) {
   const lp2 = useContext(LP2EmbeddedContext);
+  const regionalRequest = modo === "regional";
   const { user, loading, roles } = useAuth();
   const [rows, setRows] = useState<Req[] | null>(null);
   const [rowsOwnerId, setRowsOwnerId] = useState<string | null>(null);
@@ -68,8 +76,11 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
   const pendingSubmission = useRef<{ fingerprint: string; id: string } | null>(null);
   const draftOwnerRef = useRef<string | null>(null);
+  const [draftRestoredOwnerId, setDraftRestoredOwnerId] = useState<string | null>(null);
   const [shareNow, setShareNow] = useState(false);
-  const [technicianTarget, setTechnicianTarget] = useState<string | null>(tecnico ?? null);
+  const [technicianTarget, setTechnicianTarget] = useState<string | null>(regionalRequest ? null : tecnico ?? null);
+  const effectiveTechnicianTarget = regionalRequestRecipient(regionalRequest, technicianTarget);
+  const directShare = mayShareDirectRequest(regionalRequest, shareNow, effectiveTechnicianTarget);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [sharedIds, setSharedIds] = useState<Set<string>>(new Set());
   const [replyByRequest, setReplyByRequest] = useState<Record<string, DirectReply>>({});
@@ -79,6 +90,7 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
     // Never reuse a previous account's unsent form, confirmation or request ID.
     // Does not erase the same-tab triage draft, which is recovered below
     // only after a verified client role has loaded.
+    setDraftRestoredOwnerId(null);
     setForm({ title: "", description: "", category: "", city: "", region: "" });
     setMsg(null);
     setSaving(false);
@@ -93,24 +105,28 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
   useEffect(() => {
     if (!user || !roles.includes("cliente")) {
       draftOwnerRef.current = null;
+      setDraftRestoredOwnerId(null);
       return;
     }
     const existing = readProtectedDraft<ClientRequestDraft>("cliente", user.id);
     draftOwnerRef.current = user.id;
-    if (!existing || typeof existing.form.title !== "string" ||
-        typeof existing.form.description !== "string" ||
-        typeof existing.form.category !== "string" ||
-        typeof existing.form.city !== "string" ||
-        typeof existing.form.region !== "string") return;
-    setForm({
-      title: existing.form.title.slice(0, 120),
-      description: existing.form.description.slice(0, 2000),
-      category: existing.form.category.slice(0, 100),
-      city: existing.form.city.slice(0, 80),
-      region: existing.form.region.slice(0, 120),
-    });
-    setStep(existing.step as ClientRequestStep);
-    setMsg("Recuperamos seu rascunho nesta aba. Confira os dados antes de enviar.");
+    if (existing && typeof existing.form.title === "string" &&
+        typeof existing.form.description === "string" &&
+        typeof existing.form.category === "string" &&
+        typeof existing.form.city === "string" &&
+        typeof existing.form.region === "string") {
+      setForm({
+        title: existing.form.title.slice(0, 120),
+        description: existing.form.description.slice(0, 2000),
+        category: existing.form.category.slice(0, 100),
+        city: existing.form.city.slice(0, 80),
+        region: existing.form.region.slice(0, 120),
+      });
+      setStep(existing.step as ClientRequestStep);
+      setMsg("Recuperamos seu rascunho nesta aba. Confira os dados antes de enviar.");
+    }
+    // Never show editable blank inputs before this account's draft was checked.
+    setDraftRestoredOwnerId(user.id);
   }, [user?.id, roles.join(",")]);
 
   useEffect(() => {
@@ -128,13 +144,18 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
     // Keep the selected public UUID across a Google/email login redirect.
     // Only this ID is persisted and it expires automatically after 30 min.
     setShareNow(false); // receiving a different target never carries a prior opt-in
+    if (regionalRequest) {
+      clearTechnicianTarget();
+      setTechnicianTarget(null);
+      return;
+    }
     if (tecnico) {
       const valid = rememberTechnicianTarget(tecnico);
       setTechnicianTarget(valid ? tecnico : null);
     } else {
       setTechnicianTarget(recallTechnicianTarget());
     }
-  }, [tecnico]);
+  }, [tecnico, regionalRequest]);
 
   useEffect(() => {
     // Read only after a verified client session exists. Otherwise a login
@@ -219,6 +240,14 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
   const availableCategories = categories.map((entry) => entry.slug);
   const catalogUnavailable = catalogLoading || Boolean(catalogError) || categories.length === 0;
 
+  useEffect(() => {
+    // Apply only a known active category; never replace an authenticated draft.
+    if (!regionalRequest || !user || !roles.includes("cliente") ||
+        draftRestoredOwnerId !== user.id || catalogUnavailable ||
+        !categoria || !availableCategories.includes(categoria)) return;
+    setForm(current => current.category ? current : { ...current, category: categoria });
+  }, [regionalRequest, categoria, user?.id, roles.join(","), draftRestoredOwnerId, catalogUnavailable, categories]);
+
   function saveLiveDraft(nextForm: ClientRequestDraft, nextStep: ClientRequestStep) {
     const owner = user?.id ?? null;
     const verifiedClient = Boolean(!loading && owner && roles.includes("cliente") &&
@@ -240,6 +269,12 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
     const nextForm = { ...form, [key]: value };
     saveLiveDraft(nextForm, step);
     setForm(nextForm);
+    // A professional chosen for an earlier category must not remain the
+    // recipient when the client changes the type of service requested.
+    if (key === "category" && value !== form.category) {
+      clearTechnicianTarget();
+      setTechnicianTarget(null);
+    }
     // A previous authorization was for the prior description/location,
     // never silently reuse consent for amended request details.
     setShareNow(false);
@@ -257,7 +292,7 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
 
   function advance() {
     const error = clientRequestStepError(step, form, availableCategories,
-      catalogUnavailable, shareNow, technicianTarget);
+      catalogUnavailable, regionalRequest ? false : shareNow, effectiveTechnicianTarget);
     if (error) { setMsg(error); return; }
     if (step < 4) moveToStep((step + 1) as ClientRequestStep);
   }
@@ -266,9 +301,9 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
     e.preventDefault();
     if (!user || !roles.includes("cliente") || saving) return;
     if (step < 4) { advance(); return; }
-    const problemError = clientRequestStepError(1, form, availableCategories, catalogUnavailable, shareNow, technicianTarget);
-    const locationError = clientRequestStepError(2, form, availableCategories, catalogUnavailable, shareNow, technicianTarget);
-    const recipientError = clientRequestStepError(3, form, availableCategories, catalogUnavailable, shareNow, technicianTarget);
+    const problemError = clientRequestStepError(1, form, availableCategories, catalogUnavailable, regionalRequest ? false : shareNow, effectiveTechnicianTarget);
+    const locationError = clientRequestStepError(2, form, availableCategories, catalogUnavailable, regionalRequest ? false : shareNow, effectiveTechnicianTarget);
+    const recipientError = clientRequestStepError(3, form, availableCategories, catalogUnavailable, regionalRequest ? false : shareNow, effectiveTechnicianTarget);
     if (problemError || locationError || recipientError) {
       setMsg(problemError || locationError || recipientError);
       return;
@@ -276,19 +311,19 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
     if (catalogLoading || catalogError || !categories.some((entry) => entry.slug === form.category)) {
       return setMsg("Escolha uma categoria ativa antes de guardar sua solicitação.");
     }
-    if (shareNow && technicianTarget &&
+    if (directShare &&
         containsObviousContact(`${form.title} ${form.description} ${form.city} ${form.region}`)) {
       return setMsg("Remova telefone, e-mail, links e endereço completo antes de compartilhar. Nenhum técnico recebeu seus dados.");
     }
     // Reuse the same UUID if a network timeout made the first attempt
     // inconclusive. Retrying must not silently create a duplicate request.
     const owner = user.id;
-    const fingerprint = JSON.stringify([owner, technicianTarget,
+    const fingerprint = JSON.stringify([owner, effectiveTechnicianTarget,
       form.title.trim(), form.description.trim(), form.category, form.city.trim(), form.region.trim()]);
     const requestId = pendingSubmission.current?.fingerprint === fingerprint
       ? pendingSubmission.current.id : crypto.randomUUID();
     pendingSubmission.current = { fingerprint, id: requestId };
-    const shouldShare = Boolean(shareNow && technicianTarget);
+    const shouldShare = directShare;
 
     setSaving(true);
     setMsg(null);
@@ -298,7 +333,7 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
           const { error } = await supabase.from("service_requests").insert({
             id: requestId,
             client_id: owner,
-            technician_id: technicianTarget ?? null,
+            technician_id: effectiveTechnicianTarget,
             title: form.title.trim(),
             description: form.description.trim(),
             category: form.category,
@@ -413,16 +448,21 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
           <p className="mt-4 text-sm text-muted-foreground">Carregando…</p>
         ) : !user || !roles.includes("cliente") ? (
           <p className="mt-4 text-sm text-muted-foreground">
-            <Link to={lp2 ? "/lp2/entrar" : "/entrar"} className="font-medium text-primary underline">Entre com uma conta de cliente</Link> para abrir e acompanhar suas solicitações.
+            <Link to={lp2 ? "/lp2/entrar" : "/entrar"} onClick={() => {
+              if (!regionalRequest) return;
+              try { sessionStorage.setItem("eut-after-login", regionalClientReturnPath(categoria)); } catch { /* Storage unavailable. */ }
+            }} className="font-medium text-primary underline">Entre com uma conta de cliente</Link> para abrir e acompanhar suas solicitações.
+          </p>
+        ) : draftRestoredOwnerId !== user.id ? (
+          <p className="mt-4 text-sm text-muted-foreground" role="status" aria-live="polite" aria-busy="true">
+            Recuperando seu rascunho privado…
           </p>
         ) : (
           <>
             <ConnectedGoogleIdentity user={user} />
-            <h2 className="mt-6 text-lg font-semibold text-foreground">Registrar minha necessidade</h2>
+            <h2 className="mt-6 text-lg font-semibold text-foreground">{regionalRequest ? "Registrar pedido regional" : "Registrar minha necessidade"}</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Em quatro passos, você descreve o serviço, informa apenas sua região
-              e decide se quer compartilhar com o profissional escolhido.
-              Nenhuma mensagem é enviada automaticamente e nenhum contato privado é liberado.
+              {regionalRequest ? "Descreva sua necessidade e guarde o pedido no histórico privado. Nenhum perfil externo não reivindicado será notificado ou apresentado como técnico cadastrado." : "Em quatro passos, você descreve o serviço, informa apenas sua região e decide se quer compartilhar com o profissional escolhido. Nenhuma mensagem é enviada automaticamente e nenhum contato privado é liberado."}
             </p>
             <form onSubmit={submit} noValidate className="mt-5 grid gap-4">
               <div className="rounded-2xl border border-primary/20 bg-card p-4 shadow-sm sm:p-5">
@@ -444,13 +484,13 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
                 <h3 ref={stepHeadingRef} tabIndex={-1} className="mt-5 text-xl font-bold text-foreground outline-none sm:text-2xl">
                   {step === 1 ? "Qual problema você precisa resolver?" :
                     step === 2 ? "Onde o atendimento será realizado?" :
-                    step === 3 ? "Quem poderá visualizar sua solicitação?" :
+                    step === 3 ? (regionalRequest ? "Guardar meu pedido regional" : "Quem poderá visualizar sua solicitação?") :
                     "Confira sua solicitação"}
                 </h3>
                 <p className="mt-2 text-sm text-muted-foreground">
                   {step === 1 ? "Descreva o que aconteceu e selecione uma categoria. Não informe telefone ou endereço completo." :
                     step === 2 ? "Preencha cidade e região aproximada. O GPS é opcional e solicita sua permissão." :
-                    step === 3 ? "Você pode guardar o pedido só para você, ou compartilhar com o técnico selecionado mediante autorização." :
+                    step === 3 ? (regionalRequest ? "Ninguém será avisado automaticamente. O pedido permanece no seu histórico privado." : "Você pode guardar o pedido só para você, ou compartilhar com o técnico selecionado mediante autorização.") :
                     "O pedido será salvo primeiro na sua área. Só será enviado ao técnico escolhido se você autorizar."}
                 </p>
               </div>
@@ -512,13 +552,18 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
               )}
               {step === 3 && (
                 <div className="grid gap-3">
-                  <ClientTechnicianPicker
+                  {regionalRequest ? (
+                    <div role="status" className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm text-foreground">
+                      <p className="font-semibold">Solicitação regional sem destinatário</p>
+                      <p className="mt-2 text-muted-foreground">Você guardará esta necessidade somente na sua conta. Candidatos externos não reivindicados não recebem pedidos nem têm contato liberado.</p>
+                    </div>
+                  ) : <ClientTechnicianPicker
                     category={form.category}
                     city={form.city}
                     selectedId={technicianTarget}
                     onSelect={chooseTechnicianInWizard}
-                  />
-                  {technicianTarget && (
+                  />}
+                  {!regionalRequest && technicianTarget && (
                     <div role="status" className="rounded-xl border border-primary/25 bg-primary/5 p-4">
                       <p className="text-sm font-semibold text-foreground">Você escolheu um técnico</p>
                       <p className="mt-2 text-sm text-muted-foreground">
@@ -528,7 +573,7 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
                       </p>
                     </div>
                   )}
-                  {technicianTarget && (
+                  {!regionalRequest && technicianTarget && (
                     <label className="flex min-h-12 items-start gap-3 rounded-xl border border-primary/25 bg-card p-4 text-sm text-foreground">
                       <input type="checkbox" checked={shareNow} onChange={(e) => setShareNow(e.target.checked)}
                         className="mt-1 h-5 w-5 shrink-0 accent-primary" />
@@ -540,7 +585,7 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
                     </label>
                   )}
                   <p className="text-xs text-muted-foreground">
-                    {shareNow && technicianTarget ? "Escolha atual: salvar e enviar somente ao profissional selecionado." :
+                    {directShare ? "Escolha atual: salvar e enviar somente ao profissional selecionado." :
                       "Escolha atual: guardar o pedido apenas no seu histórico privado."}
                   </p>
                 </div>
@@ -556,7 +601,7 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
                     Região: {form.city.trim()}{form.region.trim() ? ` · ${form.region.trim()}` : ""}
                   </p>
                   <p className="rounded-lg bg-muted/40 p-3 font-medium text-foreground">
-                    {shareNow && technicianTarget
+                    {directShare
                       ? "Ao confirmar, o pedido será salvo e o compartilhamento será solicitado somente ao técnico escolhido."
                       : "Ao confirmar, este pedido será guardado na sua área privada. Nenhum técnico será avisado."}
                   </p>
@@ -582,7 +627,7 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
                 ) : (
                   <button type="submit" disabled={saving || catalogUnavailable}
                     className="min-h-12 flex-1 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">
-                    {saving ? "Salvando…" : shareNow && technicianTarget ? "Salvar e enviar ao técnico escolhido" : "Guardar necessidade na minha área"}
+                    {saving ? "Salvando…" : directShare ? "Salvar e enviar ao técnico escolhido" : "Guardar necessidade na minha área"}
                   </button>
                 )}
               </div>

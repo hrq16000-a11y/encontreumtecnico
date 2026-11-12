@@ -7,6 +7,8 @@ on:
       - 'src/lib/client-request-save.ts'
       - 'src/lib/client-request-save.test.ts'
       - 'src/lib/triage-draft.test.ts'
+      - 'src/lib/regional-client-intent.ts'
+      - 'src/lib/regional-client-intent.test.ts'
       - 'src/components/problem-assistant.tsx'
       - 'src/routes/area-cliente.tsx'
       - 'src/routes/tecnicos.index.tsx'
@@ -29,7 +31,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: Unit tests
-        run: bun run test src/lib/triage-draft.test.ts src/lib/problem-triage-local.test.ts src/lib/client-request-save.test.ts
+        run: bun run test src/lib/triage-draft.test.ts src/lib/problem-triage-local.test.ts src/lib/client-request-save.test.ts src/lib/regional-client-intent.test.ts
       - name: Verify first-client path when the approved directory is empty
         run: |
           node --input-type=module <<'NODE'
@@ -52,7 +54,7 @@ jobs:
             throw Error('Triage draft must remain short-lived and same-tab');
           for (const fragment of [
             'persistClientRequest(', 'pendingSubmission.current',
-            'const fingerprint = JSON.stringify([owner, technicianTarget',
+            'const fingerprint = JSON.stringify([owner, effectiveTechnicianTarget',
             'result === "save_unconfirmed"', 'result === "share_unconfirmed"',
             'finally {', 'setSaving(false)'
           ]) if (!client.includes(fragment)) throw Error('Missing reliable request-save behavior: '+fragment);

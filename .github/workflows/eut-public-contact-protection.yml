@@ -1,0 +1,26 @@
+name: EUT public profile contact protection
+on:
+  pull_request:
+    paths:
+      - 'src/lib/public-profile-text.ts'
+      - 'src/lib/public-profile-text.test.ts'
+      - 'src/lib/technicians.functions.ts'
+      - 'src/routes/area-tecnico.tsx'
+      - 'src/components/admin-technician-manager.tsx'
+      - '.github/workflows/eut-public-contact-protection.yml'
+permissions:
+  contents: read
+jobs:
+  protect-public-profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Security and technician profile tests
+        run: bunx vitest run src/lib/public-profile-text.test.ts src/lib/technicians.functions.test.ts
+      - name: Build (regenerate TanStack route typings; no deployment)
+        run: bun run build
+      - name: TypeScript after route generation
+        run: bunx tsc --noEmit --pretty false

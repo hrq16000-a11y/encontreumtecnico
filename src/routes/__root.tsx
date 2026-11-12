@@ -16,10 +16,11 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { FriendlyErrorState } from "../components/friendly-error-state";
 import { PageShell } from "../components/page-placeholder";
 import { AdSenseLoader } from "../components/adsense-loader";
+import { isGuideDetailHeadMatch } from "../lib/guide-font-loading";
 import { isStandaloneVisualRoute } from "../lib/shared-shell-routing";
 
 // One stable, public, WordPress-independent image for every route's social preview.
-const SOCIAL_IMAGE = "https://www.encontreumtecnico.com/social-preview.jpg";
+const SOCIAL_IMAGE = "https://www.encontreumtecnico.com.br/social-preview.jpg";
 
 function NotFoundComponent() {
   return <FriendlyErrorState status={404} />;
@@ -53,7 +54,7 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  head: () => ({
+  head: ({ matches }) => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
@@ -80,9 +81,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
       { rel: "icon", href: "/favicon.png", type: "image/png" },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap" },
+      // Articles use system type for stable first paint; do not block LCP on unused web fonts.
+      // All other routes retain their original Manrope/Sora styles and loading behavior.
+      ...(!isGuideDetailHeadMatch(matches) ? [
+        { rel: "preconnect", href: "https://fonts.googleapis.com" },
+        { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" as const },
+        { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap" },
+      ] : []),
     ],
   }),
   shellComponent: RootShell,

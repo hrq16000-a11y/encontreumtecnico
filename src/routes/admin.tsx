@@ -11,10 +11,15 @@ import { LegacyReviewQueue } from "@/components/legacy-review-queue";
 import { LegacyClaimReview } from "@/components/legacy-claim-review";
 import { EutAdminManager } from "@/components/eut-admin-manager";
 import { AdminControlHub } from "@/components/admin-control-hub";
+import { AdminCommandOverview } from "@/components/admin-command-overview";
 import { AdminAdvertisingManager } from "@/components/admin-advertising-manager";
 import { AdminNavigation } from "@/components/admin-navigation";
 import { AdminTechnicianManager } from "@/components/admin-technician-manager";
+import { AdminOwnTechnicianRole } from "@/components/admin-own-technician-role";
+import { AdminMemberInvites } from "@/components/admin-member-invites";
 import { AdminAccountsManager } from "@/components/admin-accounts-manager";
+import { AdminContactsDashboard } from "@/components/admin-contacts-dashboard";
+import { AdminClientInsights } from "@/components/admin-client-insights";
 import { adminModuleTitle, type AdminSection } from "@/lib/admin-sections";
 import { ArrowRight } from "lucide-react";
 
@@ -33,7 +38,6 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
-type Tech = Tables<"technicians">;
 export function AdminPage() {
   return <AdminWorkspace section="inicio" />;
 }
@@ -42,7 +46,6 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
   const lp2 = useContext(LP2EmbeddedContext);
   const { user, roles, loading, rolesError, refreshRoles } = useAuth();
   const isAdmin = roles.includes("admin");
-  const [techs, setTechs] = useState<Tech[] | null>(null);
   const [reqs, setReqs] = useState<Req[]>([]);
   const [msgs, setMsgs] = useState<Tables<"contact_messages">[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -50,13 +53,9 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
   async function load() {
     // A page only queries the records it needs. RLS remains authoritative.
     // No global prefetch of private contacts when browsing sponsors or metrics.
-    const needsTechs = section === "inicio" || section === "tecnicos";
-    const needsRequests = section === "inicio" || section === "solicitacoes" || section === "clientes";
+    const needsRequests = section === "solicitacoes";
     const needsMessages = section === "mensagens";
-    const [t, r, m] = await Promise.all([
-      needsTechs
-        ? supabase.from("technicians").select("*").order("created_at", { ascending: true })
-        : Promise.resolve({ data: [] as Tech[], error: null }),
+    const [r, m] = await Promise.all([
       needsRequests
         ? supabase.from("service_requests").select("*").order("created_at", { ascending: false }).limit(500)
         : Promise.resolve({ data: [] as Req[], error: null }),
@@ -64,8 +63,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
         ? supabase.from("contact_messages").select("*").neq("status", "arquivada").order("created_at", { ascending: false }).limit(100)
         : Promise.resolve({ data: [] as Tables<"contact_messages">[], error: null }),
     ]);
-    setError(t.error || r.error || m.error ? "Não foi possível carregar os dados deste módulo." : null);
-    setTechs(t.data ?? []);
+    setError(r.error || m.error ? "Não foi possível carregar os dados deste módulo." : null);
     setReqs(r.data ?? []);
     setMsgs(m.data ?? []);
   }
@@ -77,16 +75,6 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
   }
   useEffect(() => { if (isAdmin) void load(); }, [isAdmin, section]);
 
-  const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
-  const acceptedMonth = reqs.filter((r) => r.accepted_at && new Date(r.accepted_at) >= monthStart).length;
-  const openedMonth = reqs.filter((r) => new Date(r.created_at) >= monthStart).length;
-  const count = (s: Tech["status"]) => techs?.filter((t) => t.status === s).length ?? 0;
-  const stats = [
-    { label: "Técnicos aprovados", value: count("aprovado") },
-    { label: "Cadastros pendentes", value: count("pendente") },
-    { label: "Solicitações no mês", value: openedMonth },
-    { label: "Aceitas no mês", value: acceptedMonth },
-  ];
   const btn = "min-h-11 rounded-md px-4 text-sm font-medium disabled:opacity-50";
 
   return (
@@ -125,28 +113,23 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             <main className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6"
               aria-label={"Módulo administrativo: " + adminModuleTitle(section)}>
             <ConnectedGoogleIdentity user={user} />
+            {(section === "inicio" || section === "tecnicos") &&
+              <AdminOwnTechnicianRole isTechnician={roles.includes("tecnico")} refreshRoles={refreshRoles} />}
             {error && <p role="alert" className="mt-2 text-sm text-destructive">{error}</p>}
                         {section === "inicio" && (<section aria-label="Resumo administrativo">
-              <dl className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-              {stats.map((s) => (
-                <div key={s.label} className="rounded-lg border border-border bg-card p-4">
-                  <dt className="text-xs text-muted-foreground">{s.label}</dt>
-                  <dd className="mt-1 text-2xl font-bold text-card-foreground">{techs ? s.value : "…"}</dd>
-                </div>
-              ))}
-            </dl>
-
-            <p className="mt-3 text-sm text-muted-foreground">Os indicadores acima consideram os cadastros atuais. Os registros históricos ainda em revisão aparecem separadamente abaixo.</p>
-            <AdminControlHub />
+              <AdminCommandOverview />
+              <AdminControlHub />
             </section>)}
             {section === "patrocinadores" && <section aria-label="Patrocinadores e banners"><div id="admin-patrocinadores"><AdminAdvertisingManager /></div></section>}
             {section === "metricas" && <section aria-label="Buscas e indicadores"><div id="admin-metricas"><SearchMetrics /></div></section>}
             {section === "legado" && <section aria-label="Acervo WordPress"><div id="admin-legado"><LegacyReviewQueue /></div></section>}
             {section === "reivindicacoes" && <section aria-label="Reivindicações"><div id="admin-reivindicacoes"><LegacyClaimReview /></div></section>}
             {section === "catalogo" && <section aria-label="Categorias e serviços"><div id="admin-catalogo"><EutAdminManager /></div></section>}
-            {section === "contas" && <section aria-label="Contas e bloqueios"><AdminAccountsManager /></section>}
+            {section === "contas" && <section aria-label="Contas e bloqueios"><AdminMemberInvites /><AdminAccountsManager /></section>}
+            {section === "contatos" && <section aria-label="Contatos administrativos"><AdminContactsDashboard adminId={user.id} /></section>}
             {section === "tecnicos" && <section aria-label="Gestão de técnicos">
-              <AdminTechnicianManager technicians={techs} onChanged={load} />
+              <AdminMemberInvites initialRole="tecnico" />
+              <AdminTechnicianManager adminOwnerId={user.id} />
             </section>}
             {section === "mensagens" && <section aria-label="Mensagens administrativas">
               <h2 id="admin-mensagens" className="mt-10 scroll-mt-20 text-lg font-semibold text-foreground">Mensagens de contato</h2>
@@ -181,11 +164,17 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             </section>}
             {section === "clientes" && <section aria-labelledby="admin-clientes-titulo">
               <h2 id="admin-clientes-titulo" className="text-xl font-bold text-foreground">Clientes e solicitações</h2>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">As contas autenticadas de clientes podem ser consultadas, editadas e bloqueadas na gestão abaixo. As solicitações históricas permanecem separadas. Convites e exclusões definitivas exigem um fluxo específico de autorização.</p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">Gerencie os clientes por identidade confirmada, convite, nome e bloqueios auditados. Os dados de solicitações privadas são consultados somente no módulo Solicitações. Exclusões definitivas exigem procedimento próprio de privacidade.</p>
+              <AdminMemberInvites initialRole="cliente" />
+              <AdminClientInsights />
               <AdminAccountsManager initialFilter="clientes" />
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-border bg-muted/20 p-5"><p className="text-sm text-muted-foreground">Solicitações consultadas</p><p className="mt-1 text-3xl font-extrabold text-foreground">{reqs.length}</p></div>
-                <div className="rounded-xl border border-border bg-muted/20 p-5"><p className="text-sm text-muted-foreground">Solicitantes nessas solicitações</p><p className="mt-1 text-3xl font-extrabold text-foreground">{new Set(reqs.map((r) => r.client_id)).size}</p></div>
+              <div className="mt-5 rounded-xl border border-border bg-muted/20 p-5">
+                <h3 className="font-bold text-foreground">Solicitações em módulo protegido</h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Esta tela consulta apenas a lista administrativa de contas. Descrições dos problemas
+                  e identificadores de solicitantes não são carregados desnecessariamente aqui.
+                  Para consultar os atendimentos, abra o módulo Solicitações.
+                </p>
               </div>
               <div className="mt-5 rounded-xl border border-border bg-card p-5">
                 <h3 className="font-bold text-foreground">Atividades disponíveis</h3>

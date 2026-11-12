@@ -5,12 +5,20 @@ on:
       - 'public/ads.txt'
       - 'src/routes/__root.tsx'
       - 'src/components/adsense-loader.tsx'
-      - 'src/components/page-placeholder.tsx'
+      - 'src/components/adsense-public-unit.tsx'
+      - 'src/components/adsense-public-unit.test.tsx'
       - 'src/components/adsense-display.test.tsx'
+      - 'src/components/page-placeholder.tsx'
+      - 'src/components/page-placeholder.test.tsx'
       - 'docs/adsense/EUT_DISPLAY_AMP_2026-11-11.md'
+      - 'src/routes/index.tsx'
       - 'src/components/cookie-notice.tsx'
       - 'src/lib/legal-documents.ts'
       - 'src/lib/adsense.test.ts'
+      - 'src/lib/public-sitemap.ts'
+      - 'src/lib/public-sitemap.test.ts'
+      - 'src/routes/sitemap*.xml.ts'
+      - 'src/lib/seo-public-pages.test.ts'
       - '.github/workflows/eut-adsense-verification.yml'
 permissions:
   contents: read
@@ -23,7 +31,9 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: Verification, route safety and consent tests
-        run: bunx vitest run src/lib/adsense.test.ts src/components/adsense-display.test.tsx
+        run: bunx vitest run src/lib/adsense.test.ts src/components/adsense-public-unit.test.tsx src/components/adsense-display.test.tsx src/components/page-placeholder.test.tsx
+      - name: Canonical and dynamic published-technician sitemap tests
+        run: bunx vitest run src/lib/public-sitemap.test.ts src/lib/seo-public-pages.test.ts src/lib/social-preview.test.ts
       - name: Production build (generates TanStack route types; no deployment)
         run: bun run build
       - name: TypeScript after generated route graph

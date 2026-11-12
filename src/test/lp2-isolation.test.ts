@@ -1,6 +1,7 @@
 import {describe,expect,it} from 'vitest'
 import {existsSync,readFileSync} from 'node:fs'
 import {resolve} from 'node:path'
+import {buildPublicSitemapXml,SITE} from '../lib/public-sitemap'
 
 const root=process.cwd()
 const read=(p:string)=>readFileSync(resolve(root,p),'utf8')
@@ -46,9 +47,34 @@ describe('LP2 operacional: mesma base, temas separados',()=>{
   for(const file of ['cadastro','acompanhar','meu-perfil','cliente','clientes','atividades','admin','entrar'])
     expect(read('src/routes/lp2/'+file+'.tsx')).toContain('noindex, nofollow')
   for(const file of ['index','galeria'])expect(read('src/routes/lp2/'+file+'.tsx')).toContain('canonical')
-  expect(read('src/routes/sitemap[.]xml.ts')).toContain('"/lp2"')
-  expect(read('src/routes/sitemap[.]xml.ts')).toContain('"/lp2/galeria"')
+  const publicSitemap=read('src/lib/public-sitemap.ts')
+  expect(read('src/routes/sitemap[.]xml.ts')).toContain('buildPublicSitemapIndexXml(graph)')
+  expect(publicSitemap).toContain('"/lp2"')
+  expect(publicSitemap).toContain('"/lp2/galeria"')
  })
+ it('o sitemap inclui perfis públicos válidos sem expor dados privados',()=>{
+  const xml=buildPublicSitemapXml([
+    {public_slug:'tecnico-curitiba',updated_at:'2026-11-10T12:00:00Z'},
+    {public_slug:'tecnico-curitiba'},
+    {public_slug:'../admin'},
+    {public_slug:'<dados-privados>'},
+  ]);
+  expect(SITE).toBe('https://www.encontreumtecnico.com.br');
+  expect(xml).toContain('<loc>'+SITE+'/lp2</loc>');
+  expect(xml).toContain('<loc>'+SITE+'/lp2/galeria</loc>');
+  expect(xml).toContain('<loc>'+SITE+'/tecnicos/tecnico-curitiba</loc>');
+  expect(xml.match(/<loc>[^<]+tecnico-curitiba<\/loc>/g)).toHaveLength(1);
+  expect(xml).not.toContain('../admin');
+  expect(xml).not.toContain('<dados-privados>');
+  expect(xml).not.toContain('/area-cliente');
+  const route=read('src/routes/sitemap[.]xml.ts');
+  const graph = read('src/lib/public-seo-graph.functions.ts');
+  expect(route).toContain('getPublicGraphSnapshot()');
+  expect(graph).toContain('.eq("status", "aprovado")');
+  expect(graph).toContain('readPublicEligibleRows(');
+  expect(route).toContain('status: 503');
+  expect(read('public/robots.txt')).toContain('Sitemap: '+SITE+'/sitemap.xml');
+ });
  it('preserva CSS e imagens do template original sem afetar a home',()=>{
   const css=read('src/components/lp2/theme.css')
   expect(css).toContain('@scope (.lp2-theme)')

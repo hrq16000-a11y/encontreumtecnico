@@ -25,6 +25,9 @@ on:
       - 'src/lib/technicians.functions.ts'
       - 'src/lib/technicians.functions.test.ts'
       - 'src/lib/seo-public-pages.test.ts'
+      - 'src/lib/public-sitemap.ts'
+      - 'src/lib/public-sitemap.test.ts'
+      - 'src/routes/sitemap*.xml.ts'
       - 'src/lib/social-preview.test.ts'
       - 'public/social-preview.jpg'
       - '.github/workflows/eut-standalone-onboarding.yml'
@@ -70,7 +73,7 @@ jobs:
       - name: Existing search and identity regression tests
         run: bunx vitest run src/lib/legacy-archive-filters.test.ts src/lib/account-scoped-queries.test.ts src/lib/legacy-claim-validation.test.ts
       - name: Profile lookup, real 404 and SEO regression tests
-        run: bunx vitest run src/lib/technician-id.test.ts src/lib/technicians.functions.test.ts src/lib/seo-public-pages.test.ts src/lib/social-preview.test.ts src/lib/technician-slug-migration.test.ts src/lib/customer-location.test.ts
+        run: bunx vitest run src/lib/technician-id.test.ts src/lib/technicians.functions.test.ts src/lib/seo-public-pages.test.ts src/lib/public-sitemap.test.ts src/lib/social-preview.test.ts src/lib/technician-slug-migration.test.ts src/lib/customer-location.test.ts
       - name: Factual social proof and non-intrusive community CTA tests
         run: bunx vitest run src/components/home-public-proof.test.tsx src/components/home-community-invite.test.tsx
       - name: Build TanStack and generate route types

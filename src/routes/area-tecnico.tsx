@@ -21,11 +21,19 @@ import { TechnicianPrivateContact } from "@/components/technician-private-contac
 import { PioneerPhoneVerification } from "@/components/pioneer-phone-verification";
 import { TechnicianDirectRequests } from "@/components/technician-direct-requests";
 import { CustomerLocationButton } from "@/components/customer-location-button";
+import { TechnicianCepSuggestion } from "@/components/technician-cep-suggestion";
 import { suggestTechnicianArea } from "@/lib/customer-location";
+import { placeKey, safeNeighborhood, sameMunicipalityAsNeighborhood } from "@/lib/location-labels";
+import { neighborhoodCatalogFor, neighborhoodOptions } from "@/lib/neighborhood-sources";
+import { changeTechnicianPlace, needsLocationDraftConfirmation, previewTechnicianAreaSuggestion } from "@/lib/technician-place-change";
 import { clearProtectedDraft, readProtectedDraft, saveProtectedDraft } from "@/lib/protected-session-draft";
+import { saveTechnicianDraftImmediately } from "@/lib/technician-live-draft";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
 import { registrationStepError, type RegistrationStep } from "@/lib/technician-registration-wizard";
+import { hydrateTechnicianOfficialCity } from "@/lib/technician-official-city-hydration";
+import { publicTextProblem } from "@/lib/public-profile-text";
+import { technicianPublishErrorMessage } from "@/lib/technician-publish-error";
 import { TechnicianPanelNavigation } from "@/components/technician-panel-navigation";
 import { technicianTabFromHash, technicianTabHref, type TechnicianPanelTab } from "@/lib/technician-panel-navigation";
 import { ArrowRight, ShieldCheck, MapPin, UserRound, Inbox, Camera } from "lucide-react";
@@ -82,6 +90,7 @@ export function TechnicianAreaPage() {
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
   const loadVersion = useRef(0);
   const draftOwnerRef = useRef<string | null>(null);
+  const [draftRestoredOwnerId, setDraftRestoredOwnerId] = useState<string | null>(null);
   const serverFormBaselineRef = useRef<string>("");
   const currentUserRef = useRef<string | null>(null);
   currentUserRef.current = user?.id ?? null;
@@ -89,9 +98,52 @@ export function TechnicianAreaPage() {
   const { area: regionalHint } = useRegionalSuggestion();
   const { cities: officialBaseCities } = useMunicipalities(form.state_uf);
   const baseMunicipality = officialBaseCities.find((city) => city.id === form.base_city_ibge_id) ?? null;
+  const bairroCatalog = neighborhoodCatalogFor({ city: form.city, uf: form.state_uf, municipalityIbgeId: form.base_city_ibge_id });
   const currentStatus = roles.includes("tecnico") && profileOwnerId === user?.id ? status : null;
   const profileReady = Boolean(user && roles.includes("tecnico")
     && profileOwnerId === user.id && !profileLoading && !profileError);
+
+  // Read the latest committed draft on tab backgrounding or a hard navigation.
+  // Account ownership and published-profile guards remain mandatory.
+  const latestFormRef = useRef(form);
+  const latestStepRef = useRef(step);
+  const canFlushDraftRef = useRef(false);
+  latestFormRef.current = form;
+  latestStepRef.current = step;
+  canFlushDraftRef.current = Boolean(profileReady && draftOwnerRef.current === user?.id);
+
+  function writeDraft(nextForm: typeof form, nextStep: RegistrationStep) {
+    const owner = user?.id ?? null;
+    const verified = Boolean(profileReady && owner && draftOwnerRef.current === owner
+      && currentUserRef.current === owner);
+    return saveTechnicianDraftImmediately(owner, verified, nextForm, nextStep);
+  }
+  function updateRegistration(nextForm: typeof form) {
+    writeDraft(nextForm, step); // Input event, before the route or browser tab changes.
+    setForm(nextForm);
+  }
+
+  function selectBaseMunicipality(next: Pick<typeof form, "state_uf" | "city" | "base_city_ibge_id">) {
+    if (needsLocationDraftConfirmation(form, next) &&
+      !window.confirm("Ao trocar o município ou a UF, o bairro e as outras áreas informadas serão limpos porque pertencem à localidade anterior. Deseja continuar?")) return;
+    updateRegistration(changeTechnicianPlace(form, next));
+  }
+
+  useEffect(() => {
+    const flush = () => {
+      const owner = currentUserRef.current;
+      if (!canFlushDraftRef.current || !owner ||
+          JSON.stringify(latestFormRef.current) === serverFormBaselineRef.current) return;
+      saveTechnicianDraftImmediately(owner, true, latestFormRef.current, latestStepRef.current);
+    };
+    const onHidden = () => { if (document.visibilityState === "hidden") flush(); };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onHidden);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onHidden);
+    };
+  }, []);
 
   useEffect(() => {
     const version = ++loadVersion.current;
@@ -103,6 +155,7 @@ export function TechnicianAreaPage() {
     };
     serverFormBaselineRef.current = JSON.stringify(initial);
     draftOwnerRef.current = null;
+    setDraftRestoredOwnerId(null);
     setForm(initial);
     setStatus(null);
     setProfileId(null);
@@ -167,20 +220,27 @@ export function TechnicianAreaPage() {
   useEffect(() => {
     if (!user || !roles.includes("tecnico")) {
       draftOwnerRef.current = null;
+      setDraftRestoredOwnerId(null);
       return;
     }
     if (profileLoading || profileError || profileOwnerId !== user.id ||
         draftOwnerRef.current === user.id) return;
     const existing = readProtectedDraft<typeof form>("tecnico", user.id);
     draftOwnerRef.current = user.id;
-    if (!existing) return;
+    if (!existing) {
+      setDraftRestoredOwnerId(user.id);
+      return;
+    }
     const value = existing.form;
     if (typeof value.display_name !== "string" || typeof value.state_uf !== "string" ||
         typeof value.city !== "string" || typeof value.neighborhood !== "string" ||
         typeof value.region !== "string" || typeof value.bio !== "string" ||
         !Array.isArray(value.specialties) || !Array.isArray(value.service_slugs) ||
         !value.specialties.every(item => typeof item === "string") ||
-        !value.service_slugs.every(item => typeof item === "string")) return;
+        !value.service_slugs.every(item => typeof item === "string")) {
+      setDraftRestoredOwnerId(user.id);
+      return;
+    }
     setForm({
       display_name: value.display_name.slice(0, 80),
       state_uf: value.state_uf.slice(0, 2),
@@ -194,6 +254,8 @@ export function TechnicianAreaPage() {
     });
     setStep(Math.max(1, Math.min(3, existing.step)) as RegistrationStep);
     setMsg("Rascunho do cadastro recuperado nesta aba. Confira antes de publicar.");
+    // Show the editor only after the server profile and this owner's draft are reconciled.
+    setDraftRestoredOwnerId(user.id);
   }, [user?.id, roleKey, profileLoading, profileError, profileOwnerId]);
 
   useEffect(() => {
@@ -209,9 +271,23 @@ export function TechnicianAreaPage() {
       saveProtectedDraft("tecnico", owner, form, step);
   }, [user?.id, loading, roleKey, profileLoading, profileError, profileOwnerId, form, step]);
 
+  // Existing profiles and pre-IBGE drafts can reopen directly on step 3.
+  // The official picker only mounts on step 1, so reconcile the same-city IBGE
+  // identity here after restoring this authenticated owner's draft.
+  useEffect(() => {
+    if (!user || !profileReady || draftRestoredOwnerId !== user.id ||
+        form.base_city_ibge_id !== null || officialBaseCities.length === 0) return;
+    const owner = user.id;
+    setForm(current => currentUserRef.current === owner
+      ? hydrateTechnicianOfficialCity(current, officialBaseCities, form.state_uf)
+      : current);
+  }, [user?.id, profileReady, draftRestoredOwnerId, form.state_uf,
+      form.city, form.base_city_ibge_id, officialBaseCities]);
+
   const catalog = { categories, services, catalogLoading, catalogError: Boolean(catalogError),
     servicesLoading, servicesError: Boolean(servicesError) };
   function moveToStep(next: RegistrationStep) {
+    writeDraft(form, next); // Preserve wizard stage before React renders.
     setMsg(null);
     setStep(next);
     // Focus the heading rather than jumping the viewport unexpectedly while typing.
@@ -240,6 +316,11 @@ export function TechnicianAreaPage() {
     const firstError = registrationStepError(1, form, catalog);
     const serviceError = registrationStepError(2, form, catalog);
     if (firstError || serviceError) { setMsg(firstError || serviceError); return; }
+    const publicTextError = publicTextProblem(form.bio, "bio")
+      || publicTextProblem(form.display_name, "identity")
+      || publicTextProblem(form.region, "identity")
+      || publicTextProblem(form.neighborhood, "identity");
+    if (publicTextError) { setMsg(publicTextError); return; }
     const savingOwner = user.id;
     if (!validMunicipality(form.state_uf, form.city)) return setMsg("Selecione a UF e informe uma cidade válida para sua área de atendimento.");
     if (catalogLoading || catalogError || !categories.length) return setMsg("O catálogo está indisponível. Não é possível validar especialidades agora.");
@@ -248,6 +329,7 @@ export function TechnicianAreaPage() {
     if (servicesLoading || servicesError) return setMsg("O catálogo de serviços não está disponível. Tente novamente.");
     if (form.service_slugs.length === 0) return setMsg("Escolha pelo menos um serviço específico que você executa.");
     if (form.service_slugs.some((slug) => !services.some((service) => service.slug === slug && form.specialties.includes(service.category_slug)))) return setMsg("Os serviços precisam pertencer às categorias selecionadas e estar ativos.");
+    writeDraft(form, 3); // Secure recovery point before publication request.
     setSaving(true);
     setMsg(null);
     try {
@@ -256,7 +338,7 @@ export function TechnicianAreaPage() {
         _display_name: form.display_name.trim(),
         _state_uf: form.state_uf,
         _city: form.city.trim(),
-        _neighborhood: form.neighborhood.trim() || null,
+        _neighborhood: safeNeighborhood(form.neighborhood, form.city) || null,
         _region: form.region.trim() || null,
         _bio: form.bio.trim() || null,
         _specialties: form.specialties,
@@ -264,7 +346,7 @@ export function TechnicianAreaPage() {
       });
       if (currentUserRef.current !== savingOwner) return;
       if (error) {
-        setMsg("Não foi possível publicar. Confira cidade, categorias e serviços e tente novamente.");
+        setMsg(technicianPublishErrorMessage(error));
       } else if (data?.state === "bloqueado_por_seguranca") {
         setMsg("Seu perfil tem uma restrição de segurança e não pode ser reativado automaticamente. Entre em contato.");
       } else if (data?.state === "publicado") {
@@ -291,7 +373,7 @@ export function TechnicianAreaPage() {
     }
   }
 
-  const input = "mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-base text-foreground focus-visible:ring-2 focus-visible:ring-ring";
+  const input = "mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base text-foreground focus-visible:ring-2 focus-visible:ring-ring";
 
   return (
     <PageShell>
@@ -336,7 +418,7 @@ export function TechnicianAreaPage() {
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
           </div>
-        ) : !profileReady ? (
+        ) : !profileReady || draftRestoredOwnerId !== user.id ? (
           <div className="mt-4 rounded-lg border border-border p-4">
             {profileError ? (
               <>
@@ -349,7 +431,9 @@ export function TechnicianAreaPage() {
                 </button>
               </>
             ) : (
-              <p role="status" className="text-sm text-muted-foreground">Carregando seu cadastro…</p>
+              <p role="status" aria-live="polite" aria-busy="true" className="text-sm text-muted-foreground">
+                {profileReady ? "Recuperando seu rascunho privado…" : "Carregando seu cadastro…"}
+              </p>
             )}
           </div>
         ) : (
@@ -439,7 +523,7 @@ export function TechnicianAreaPage() {
                   {step === 1 ? "Seu nome e onde você atende" : step === 2 ? "Quais serviços você realiza?" : "Revise e publique seu perfil"}
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  {step === 1 ? "Informe apenas a região de atendimento. Você pode usar o GPS para sugerir cidade e bairro, sem publicar sua posição exata."
+                  {step === 1 ? "Escolha seu município oficial. O bairro é informado separadamente e não é identificado com segurança pelo GPS."
                     : step === 2 ? "Selecione categorias e pelo menos um serviço que você realmente executa. Sem certificação automática."
                     : "Confira tudo antes de publicar. Somente o servidor pode autorizar seu perfil público."}
                 </p>
@@ -447,44 +531,91 @@ export function TechnicianAreaPage() {
               {step === 1 && (
                 <div className="grid gap-4">
               <label className="text-sm font-medium text-foreground">Nome público
-                <input required minLength={2} maxLength={80} className={input} value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} />
+                <input required minLength={2} maxLength={80} className={input} value={form.display_name} onChange={(e) => updateRegistration({ ...form, display_name: e.target.value })} />
               </label>
-              {regionalHint && <p className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
-                 <strong className="text-foreground">Região aproximada: {regionalHint.city}/{regionalHint.uf}.</strong>
-                 {" "}Não é automaticamente sua área de atendimento. Confirme sua cidade real antes de publicar.
-               </p>}
               <CustomerLocationButton
                 purpose="technician"
                 autoIfGranted={!profileId && !form.state_uf && !form.city.trim() && !form.neighborhood.trim()}
                 onLocated={(area, source) => {
-                  setForm((current) => suggestTechnicianArea(current, area, source));
+                  // Device location is a hint, not an official IBGE selection.
+                  // Never keep a previous municipality ID when the city/UF changes.
+                  const current = form;
+                  const { next, requiresConfirmation } = previewTechnicianAreaSuggestion(current, area, source);
+                  if (next === current) return;
+                  if (requiresConfirmation &&
+                      !window.confirm("A localização sugerida é diferente da informada. Trocar município ou UF limpará o bairro e as regiões anteriores. Deseja continuar?")) return;
+                  updateRegistration(next);
                 }}
               />
-              <p className="text-xs text-muted-foreground">
-                O GPS é apenas uma sugestão da sua localização atual. Confira a cidade
-                e informe as regiões onde você realmente atende antes de publicar.
-              </p>
+              <TechnicianCepSuggestion onChoose={(city, bairro) => {
+                const next = { state_uf: city.uf, city: city.name, base_city_ibge_id: city.id };
+                if (needsLocationDraftConfirmation(form, next) &&
+                    !window.confirm("Usar a localidade do CEP substituirá os bairros e áreas anteriores. Deseja continuar?")) return;
+                const changed = changeTechnicianPlace(form, next);
+                updateRegistration({ ...changed, neighborhood: safeNeighborhood(bairro, city.name) || changed.neighborhood });
+              }} />
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="text-sm font-medium text-foreground">Estado (UF)
-                  <select required className={input} value={form.state_uf} onChange={(e) => setForm({ ...form, state_uf: e.target.value, city: "", base_city_ibge_id: null })}>
+                  <select required className={input} value={form.state_uf} onChange={(e) => selectBaseMunicipality({ state_uf: e.target.value, city: "", base_city_ibge_id: null })}>
                     <option value="">Selecione o estado</option>
                     {BRAZIL_STATES.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
                   </select>
                 </label>
                 <MunicipalityPicker uf={form.state_uf} selectedId={form.base_city_ibge_id}
                   currentCityName={form.city}
-                  onSelect={(city) => setForm((current) => ({
-                    ...current, city: city.name, base_city_ibge_id: city.id,
-                  }))} />
+                  onSelect={(city) => selectBaseMunicipality({
+                    state_uf: form.state_uf, city: city.name, base_city_ibge_id: city.id,
+                  })} />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="text-sm font-medium text-foreground">Bairro de referência (opcional)
-                  <input maxLength={80} className={input} value={form.neighborhood} onChange={(e) => setForm({ ...form, neighborhood: e.target.value })} />
+                  <input maxLength={80} className={input} list={bairroCatalog ? "eut-bairro-profissional" : undefined}
+                    value={safeNeighborhood(form.neighborhood, form.city)}
+                    placeholder="Ex.: Jardim Itália"
+                    onChange={(e) => updateRegistration({ ...form, neighborhood: e.target.value })} />
+                  {bairroCatalog && <datalist id="eut-bairro-profissional">
+                    {neighborhoodOptions(bairroCatalog).map(bairro => <option key={bairro} value={bairro} />)}
+                  </datalist>}
+                  {sameMunicipalityAsNeighborhood(form.neighborhood, form.city) && (
+                    <span role="status" className="mt-1 block text-xs text-amber-800 dark:text-amber-300">
+                      O preenchimento anterior era o município, não um bairro. Informe o bairro real, se desejar.
+                    </span>
+                  )}
                 </label>
-                <label className="text-sm font-medium text-foreground">Regiões e outros bairros atendidos
-                  <input maxLength={120} className={input} value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} />
+                <label className="text-sm font-medium text-foreground">Outros bairros ou regiões atendidos (opcional)
+                  <input maxLength={120} className={input} value={form.region}
+                    placeholder="Somente locais adicionais, sem repetir o município"
+                    onChange={(e) => updateRegistration({ ...form, region: e.target.value })} />
                 </label>
               </div>
+                  {bairroCatalog && (
+                    <details className="rounded-lg border border-border bg-muted/20">
+                      <summary className="flex min-h-11 cursor-pointer items-center px-3 text-sm text-primary">
+                        Ver sugestões de bairros ({neighborhoodOptions(bairroCatalog).length})
+                      </summary>
+                      <div className="max-h-52 overflow-y-auto border-t border-border p-2">
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          {neighborhoodOptions(bairroCatalog)
+                            .filter(bairro => !form.neighborhood.trim() || placeKey(bairro).includes(placeKey(form.neighborhood)))
+                            .map(bairro => (
+                              <button key={bairro} type="button"
+                                onClick={() => updateRegistration({ ...form, neighborhood: bairro })}
+                                className="min-h-11 break-words rounded-lg border border-border bg-card px-3 py-2 text-left text-sm text-foreground">
+                                {bairro}
+                              </button>
+                            ))}
+                        </div>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          Você pode digitar outro nome, mesmo que não esteja na lista.
+                        </p>
+                      </div>
+                    </details>
+                  )}
+              {bairroCatalog && <p className="text-xs text-muted-foreground">
+                Sugestões da <a href={bairroCatalog.sourceUrl} target="_blank" rel="noopener noreferrer"
+                  className="font-medium text-primary underline underline-offset-2">{bairroCatalog.sourceName}</a>.
+                Pode digitar outra denominação; a lista não confirma o endereço.
+              </p>}
                 </div>
               )}
               {step === 2 && (
@@ -498,7 +629,7 @@ export function TechnicianAreaPage() {
                     const on = form.specialties.includes(c.slug);
                     return (
                       <button type="button" key={c.slug} aria-pressed={on}
-                        onClick={() => setForm({ ...form, specialties: on ? form.specialties.filter((s) => s !== c.slug) : [...form.specialties, c.slug], service_slugs: on ? form.service_slugs.filter((slug) => services.find((service) => service.slug === slug)?.category_slug !== c.slug) : form.service_slugs })}
+                        onClick={() => updateRegistration({ ...form, specialties: on ? form.specialties.filter((s) => s !== c.slug) : [...form.specialties, c.slug], service_slugs: on ? form.service_slugs.filter((slug) => services.find((service) => service.slug === slug)?.category_slug !== c.slug) : form.service_slugs })}
                         className={`min-h-11 rounded-full border px-4 text-sm ${on ? "border-primary bg-primary text-primary-foreground" : "border-input text-foreground"}`}>
                         {c.label}
                       </button>
@@ -515,7 +646,7 @@ export function TechnicianAreaPage() {
                   {services.filter((service) => form.specialties.includes(service.category_slug)).map((service) => (
                     <label key={service.slug} className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
                       <input type="checkbox" className="h-4 w-4" checked={form.service_slugs.includes(service.slug)}
-                        onChange={(e) => setForm((old) => ({ ...old, service_slugs: e.target.checked ? [...old.service_slugs, service.slug] : old.service_slugs.filter((slug) => slug !== service.slug) }))} />
+                        onChange={(e) => updateRegistration({ ...form, service_slugs: e.target.checked ? [...form.service_slugs, service.slug] : form.service_slugs.filter((slug) => slug !== service.slug) })} />
                       <span>{service.label}</span>
                     </label>
                   ))}
@@ -529,7 +660,7 @@ export function TechnicianAreaPage() {
                     <p className="font-semibold text-foreground">{form.display_name.trim()}</p>
                     <p className="mt-1 text-muted-foreground">
                       {form.city.trim()}/{form.state_uf}
-                      {form.neighborhood.trim() ? ` · ${form.neighborhood.trim()}` : ""}
+                      {safeNeighborhood(form.neighborhood, form.city) ? ` · ${safeNeighborhood(form.neighborhood, form.city)}` : ""}
                     </p>
                     <p className="mt-3 font-semibold text-foreground">Especialidades escolhidas</p>
                     <p className="mt-1 text-muted-foreground">
@@ -542,16 +673,23 @@ export function TechnicianAreaPage() {
                         .map((service) => service.label).join(", ")}
                     </p>
                     <p className="mt-3 text-xs text-muted-foreground">
-                      Cidade-base validada: {form.city || "a selecionar"}{form.base_city_ibge_id ? " · IBGE " + form.base_city_ibge_id : ""}.
-                    </p>
-                    <p className="mt-3 text-xs text-muted-foreground">
                       Ao publicar, estas especialidades e sua região de atendimento
                       poderão aparecer no perfil público. Nenhum contato privado é divulgado.
                     </p>
                   </div>
-              <label className="text-sm font-medium text-foreground">Apresentação
-                <textarea maxLength={1000} rows={4} className={input} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} />
-              </label>
+              <div>
+                <label className="text-sm font-medium text-foreground">Apresentação profissional (somente texto)
+                  <textarea maxLength={1000} rows={4} className={input} value={form.bio}
+                    aria-invalid={Boolean(publicTextProblem(form.bio, "bio"))}
+                    onChange={(e) => updateRegistration({ ...form, bio: e.target.value })}
+                    placeholder="Descreva sua experiência, serviços e modo de atendimento. Não informe contatos." />
+                </label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Sem números, telefones, WhatsApp, e-mails, arrobas, links ou redes sociais, mesmo separados por espaços ou linhas.
+                  Seus contatos ficam apenas no campo privado do técnico.
+                </p>
+                {publicTextProblem(form.bio, "bio") && <p role="alert" className="mt-2 text-sm text-destructive">{publicTextProblem(form.bio, "bio")}</p>}
+              </div>
                 </div>
               )}
               {msg && <p role="alert" className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm text-foreground">{msg}</p>}

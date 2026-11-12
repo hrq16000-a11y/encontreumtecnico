@@ -9,6 +9,18 @@ on:
       - 'src/routes/servicos.tsx'
       - 'src/routes/como-funciona.tsx'
       - 'src/lib/seo-public-pages.test.ts'
+      - 'src/lib/service-catalog.ts'
+      - 'src/lib/service-catalog.test.ts'
+      - 'src/lib/service-specialty-content.ts'
+      - 'src/lib/guide-faqs.ts'
+      - 'src/lib/guide-artwork.ts'
+      - 'src/components/guide-section-visual.tsx'
+      - 'src/routes/servicos.$categoria.tsx'
+      - 'src/lib/public-sitemap-index.ts'
+      - 'src/lib/public-sitemap-index.test.ts'
+      - 'src/lib/public-sitemap-http.ts'
+      - 'src/lib/public-sitemap-http.test.ts'
+      - 'src/components/public-seo-discovery.ssr.test.tsx'
       - '.github/workflows/home2-build.yml'
   workflow_dispatch:
 
@@ -31,7 +43,9 @@ jobs:
       - name: Build TanStack
         run: bun run build
       - name: SEO public pages, redirects and privacy tests
-        run: bunx vitest run src/lib/seo-public-pages.test.ts
+        run: bunx vitest run src/lib/seo-public-pages.test.ts src/lib/service-catalog.test.ts src/lib/guide-reading-tools.test.ts src/lib/public-sitemap.test.ts src/lib/assistance-intent.test.ts src/lib/assistance-whatsapp.test.ts src/lib/whatsapp-cloud-adapter.test.ts src/lib/whatsapp-webhook-design.test.ts src/components/free-search-help.test.tsx src/lib/public-coverage.test.ts
+      - name: Sitemap index, SSR canonical, 404/503
+        run: bunx vitest run src/lib/public-sitemap-index.test.ts src/lib/public-sitemap-http.test.ts src/components/public-seo-discovery.ssr.test.tsx src/routes/public-seo-routes.test.tsx
       - name: Regression triage fallback
         run: bunx vitest run src/lib/problem-triage-local.test.ts
       - name: TypeScript check

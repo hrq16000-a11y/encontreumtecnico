@@ -34,10 +34,10 @@ describe("Admin management hardening", () => {
     expect(sql).toContain("RETURNING * INTO row_after");
     expect(technicians).toContain('db.rpc("eut_admin_technician_action"');
     expect(technicians).toContain("data.id !== target.technician.id");
-    expect(technicians).toContain("onChanged()");
+    expect(technicians).toContain("setReload((value) => value + 1)");
     expect(technicians).toContain("window.confirm");
     expect(technicians).toContain("Dessuspender");
-    expect(admin).toContain("<AdminTechnicianManager technicians={techs} onChanged={load} />");
+    expect(admin).toContain("<AdminTechnicianManager adminOwnerId={user.id} />");
   });
   it("protects WordPress source and 20 demo candidates, with at most 20 records per batch", () => {
     for (const term of [

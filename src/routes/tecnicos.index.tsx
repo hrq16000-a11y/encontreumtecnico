@@ -10,6 +10,7 @@ import { useActiveServices, serviceLabel } from "@/hooks/use-active-services";
 import { DebouncedTextFilter } from "@/components/debounced-text-filter";
 import { CustomerLocationButton } from "@/components/customer-location-button";
 import { BRAZIL_STATES } from "@/lib/service-taxonomy";
+import { neighborhoodCatalogFor, neighborhoodOptions } from "@/lib/neighborhood-sources";
 import { localMatchLabel } from "@/lib/technician-local-ranking";
 import { LegacyPublicArchive } from "../components/legacy-public-archive";
 import { canShowLegacyArchive } from "../lib/legacy-archive-filters";
@@ -18,6 +19,44 @@ import { analyticsAllowed, recordSearch } from "@/lib/search-analytics";
 import { openFreeHelp } from "@/lib/free-search-help";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { MapPin, ShieldCheck, UserRoundCheck, LifeBuoy } from "lucide-react";
+
+/** Small contextual help inside *filtered directory results*, not a second blog.
+ * Avoid importing the full editorial catalogue into the default search bundle.
+ */
+const CATEGORY_SEARCH_CONTEXT: Record<string, { title: string; advice: string }> = {
+  automacao: {
+    title: "Automação de ambientes e rotinas",
+    advice: "Informe funções desejadas, equipamentos atuais e se a instalação precisa operar sem internet. Nunca envie senhas ou códigos de autenticação ao solicitar atendimento.",
+  },
+  comunicacoes: {
+    title: "Interfonia, ramais e telefonia IP",
+    advice: "Indique quantidade aproximada de pontos, central existente, problemas de rede e uso interno ou externo. Evite divulgar gravações e credenciais da operadora.",
+  },
+  computadores: {
+    title: "Lentidão, diagnóstico e manutenção",
+    advice: "Anote travamentos, lentidão em programas e sinais de aquecimento. Confirme o backup antes de autorizar formatação ou troca de peças.",
+  },
+  cftv: {
+    title: "Câmeras, gravação e instalação",
+    advice: "Explique as áreas que precisam de cobertura, iluminação, armazenamento e infraestrutura. Respeite a privacidade dos ambientes.",
+  },
+  redes: {
+    title: "Wi-Fi, roteadores e conexão",
+    advice: "Informe onde a conexão falha, se ocorre em mais de um aparelho e se o cabo funciona. Evite divulgar senhas ou restaurar o roteador sem orientação.",
+  },
+  impressoras: {
+    title: "Impressora offline e manutenção",
+    advice: "Indique marca, modelo, tipo de conexão e mensagem de erro. Confira a fila de impressão sem expor documentos confidenciais.",
+  },
+  software: {
+    title: "Sistemas, backup e recuperação",
+    advice: "Identifique arquivos essenciais, programas e cópias testadas. Caso haja falha física no disco, evite testes repetidos que possam piorar a perda.",
+  },
+  climatizacao: {
+    title: "Ar-condicionado sem resfriamento",
+    advice: "Informe o modo selecionado, ventilação, modelo e sinais de falha. Não abra painéis elétricos nem manipule refrigerante sem profissional qualificado.",
+  },
+};
 
 const searchSchema = z.object({
   especialidade: fallback(z.string(), "Todas").default("Todas"),
@@ -41,9 +80,9 @@ export const Route = createFileRoute("/tecnicos/")({
       { property: "og:description", content: "Consulte técnicos com perfil público de CFTV, informática, redes e impressoras. Filtre por serviço, UF, cidade e bairro." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { property: "og:url", content: "https://www.encontreumtecnico.com/tecnicos" },
+      { property: "og:url", content: "https://www.encontreumtecnico.com.br/tecnicos" },
     ],
-    links: [{ rel: "canonical", href: "https://www.encontreumtecnico.com/tecnicos" }],
+    links: [{ rel: "canonical", href: "https://www.encontreumtecnico.com.br/tecnicos" }],
   }),
   component: TechniciansPage,
 });
@@ -83,6 +122,7 @@ function TechniciansPage() {
   const hasDeclaredLocation = Boolean(search.uf || search.cidade.trim());
 
   const searchArea = [search.bairro, search.cidade, search.uf].filter(Boolean).join(" · ");
+  const bairroCatalog = neighborhoodCatalogFor({ city: search.cidade, uf: search.uf });
   const helpContext = { city: search.cidade, uf: search.uf, neighborhood: search.bairro,
     service: services.find((s) => s.slug === search.servico)?.label || search.servico || (search.especialidade !== "Todas" ? search.especialidade : "") };
 
@@ -135,7 +175,7 @@ function TechniciansPage() {
                 update({ especialidade: e.target.value, servico: "" });
                 trackFilter("especialidade", e.target.value);
               }}
-              className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+              className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
               disabled={catalogLoading}
             >
               <option value="Todas">Todas as categorias</option>
@@ -148,7 +188,7 @@ function TechniciansPage() {
             <label htmlFor="filtro-servico" className="text-xs font-medium text-muted-foreground">Serviço específico</label>
             <select id="filtro-servico" value={services.some((service) => service.slug === search.servico) ? search.servico : ""}
               onChange={(e) => { update({ servico: e.target.value }); trackFilter("servico", e.target.value); }}
-              disabled={servicesLoading} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
+              disabled={servicesLoading} className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
               <option value="">Todos os serviços</option>
               {services.filter((service) => specialty === "Todas" || service.category_slug === specialty).map((service) => (
                 <option key={service.slug} value={service.slug}>{service.label}</option>
@@ -158,7 +198,7 @@ function TechniciansPage() {
           <div>
             <label htmlFor="filtro-uf" className="text-xs font-medium text-muted-foreground">Estado (UF)</label>
             <select id="filtro-uf" value={search.uf} onChange={(e) => { update({ uf: e.target.value }); trackFilter("uf", e.target.value); }}
-              className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
+              className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
               <option value="">Todos os estados</option>
               {BRAZIL_STATES.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
             </select>
@@ -174,11 +214,19 @@ function TechniciansPage() {
           <DebouncedTextFilter
             id="filtro-bairro"
             label="Bairro"
+            list={bairroCatalog ? "eut-bairro-diretorio" : undefined}
             value={search.bairro}
             placeholder="Ex.: Centro"
             onCommit={(value) => update({ bairro: value })}
             onBlurTrack={(value) => trackFilter("bairro", value)}
           />
+          {bairroCatalog && <div className="text-xs text-muted-foreground sm:col-span-3">
+            <datalist id="eut-bairro-diretorio">
+              {neighborhoodOptions(bairroCatalog).map(bairro => <option key={bairro} value={bairro} />)}
+            </datalist>
+            Bairros sugeridos pela <a className="text-primary underline" href={bairroCatalog.sourceUrl}
+              target="_blank" rel="noopener noreferrer">prefeitura</a>; você pode digitar outra denominação.
+          </div>}
           <DebouncedTextFilter
             id="filtro-regiao"
             label="Região"
@@ -220,8 +268,23 @@ function TechniciansPage() {
             <span><MapPin className="mr-1 inline h-4 w-4 text-primary" aria-hidden="true" />
               Você pode estar perto de <strong>{suggestedArea.city}/{suggestedArea.uf}</strong>. Estimativa por IP, não localização exata.</span>
             <Link to="/tecnicos" search={{especialidade:search.especialidade,cidade:suggestedArea.city,uf:suggestedArea.uf,bairro:suggestedArea.neighborhood,regiao:"",servico:search.servico,prioridade:"regiao"}}
-              className="inline-flex min-h-10 items-center rounded-lg bg-primary px-4 text-xs font-bold text-primary-foreground">Buscar na região</Link>
+              className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-xs font-bold text-primary-foreground">Buscar na região</Link>
           </div>
+        )}
+        {CATEGORY_SEARCH_CONTEXT[search.especialidade] && (
+          <aside aria-label="Orientações da especialidade selecionada"
+            className="mt-5 flex flex-col gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div>
+              <h2 className="font-bold text-foreground">{CATEGORY_SEARCH_CONTEXT[search.especialidade]?.title}</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+                {CATEGORY_SEARCH_CONTEXT[search.especialidade]?.advice}
+              </p>
+            </div>
+            <Link to="/servicos/$categoria" params={{ categoria: search.especialidade }}
+              className="inline-flex min-h-11 shrink-0 items-center rounded-xl border border-primary/30 px-4 text-sm font-semibold text-primary hover:bg-primary/10">
+              Ver informações e profissionais desta categoria →
+            </Link>
+          </aside>
         )}
         <SponsoredPublicSlot slotKey="search.top" routePath="/tecnicos" />
         <section aria-label="Transparência e confiança na busca" className="mt-6 grid gap-3 rounded-2xl border border-primary/15 bg-accent/50 p-4 sm:grid-cols-3">

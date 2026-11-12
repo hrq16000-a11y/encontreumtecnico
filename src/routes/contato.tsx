@@ -14,6 +14,9 @@ export const Route = createFileRoute("/contato")({
           <LifeBuoy className="h-5 w-5" aria-hidden="true" /> Iniciar atendimento guiado
         </button>
       </TextSection>
+      <TextSection title="Problemas de acesso ou cadastro?">
+        <p>Se você não conseguiu entrar, confirmar sua conta ou concluir seu cadastro, utilize a <Link to="/ajuda-acesso" className="font-semibold text-primary underline">central de ajuda para acesso</Link>. Não envie senhas ou códigos de autenticação.</p>
+      </TextSection>
       <TextSection title="Duas maneiras de solicitar">
         <p><strong>Contato direto:</strong> seu interesse é registrado no funil, sem pagamento ou validação de compra por enquanto. Os contatos privados permanecem protegidos até existir integração financeira confirmada.</p>
         <p><strong>Gestão assistida:</strong> informe a necessidade para a equipe orientar a busca e o atendimento, sem taxa antecipada. Qualquer valor de serviço será informado e combinado separadamente.</p>

@@ -1,0 +1,33 @@
+name: EUT migration provenance inventory contract
+on:
+  pull_request:
+    paths:
+      - 'docs/audits/EUT_SUPABASE_MIGRATIONS_METADATA_2026-11-12.md'
+      - '.github/workflows/eut-migration-provenance.yml'
+permissions:
+  contents: read
+jobs:
+  inventory-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate historical inventory and provenance format (offline)
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          doc = Path("docs/audits/EUT_SUPABASE_MIGRATIONS_METADATA_2026-11-12.md").read_text(encoding="utf-8")
+          base = doc.split("## Inventário dos scripts")[0]
+          migrations = re.findall(r"^\| `(\d{14})` \| `([^`]+)` \|", base, re.M)
+          assert len(migrations) == 66, f"Expected 66 versions, found {len(migrations)}"
+          assert len({version for version, _ in migrations}) == 66, "Duplicate migration versions"
+          provenance = doc.split("### 3.3 Procedência Git auditada dos 12 contratos correlatos")[1].split("### 3.4")[0]
+          contracts = re.findall(r"^\| `(\d{14})` \| \[#(\d+)\]", provenance, re.M)
+          assert len(contracts) == 12, f"Expected 12 contract links, found {len(contracts)}"
+          assert len({version for version, _ in contracts}) == 12
+          assert all(version in {item[0] for item in migrations} for version, _ in contracts)
+          assert "**PR #229 está mesclada**" in doc, "Outdated PR status in audit"
+          assert "nem autoriza replay" in doc.lower() and "não reaplicar" in doc.lower(), "Missing explicit no-replay / no-reapply warnings"
+          print("Inventory format verified: 66 versions and 12 linked provenance records. Offline only.")
+          PY

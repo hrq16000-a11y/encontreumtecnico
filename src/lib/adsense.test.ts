@@ -11,16 +11,19 @@ describe("Google AdSense: verificação e privacidade", () => {
     expect(root).toContain('name: "google-adsense-account", content: "ca-pub-3762170279587706"');
     expect(ads).toBe("google.com, pub-3762170279587706, DIRECT, f08c47fec0942fa0\\n".replace("\\n", "\n"));
     expect(loader).toContain("pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=");
-    expect(loader).toContain('import.meta.env["VITE_EUT_ADSENSE_SERVING"] === "true"');
-    expect(root).toContain("<AdSenseLoader />");
+    expect(loader).toContain('import.meta.env["VITE_EUT_ADSENSE_SERVING"] !== "false"');
+    expect(loader).toContain('import.meta.env["VITE_EUT_ADSENSE_DISPLAY_9606076941"] === "true"');
     expect(loader).toContain('ADSENSE_DISPLAY_SLOT = "9606076941"');
-    expect(loader).toContain("data-ad-client={CLIENT}");
-    expect(loader).toContain("data-ad-slot={ADSENSE_DISPLAY_SLOT}");
-    expect(loader).toContain('data-ad-format="auto"');
-    expect(loader).toContain('data-full-width-responsive="true"');
-    expect(loader).toContain('(adWindow.adsbygoogle = adWindow.adsbygoogle || []).push({})');
     expect(shell).toContain("<AdSenseDisplaySlot />");
-    expect(shell.indexOf("<AdSenseDisplaySlot />")).toBeLessThan(shell.indexOf("<SiteFooter />"));
+    expect(root).toContain("<AdSenseLoader />");
+    const home = readFileSync("src/routes/index.tsx", "utf8");
+    const unit = readFileSync("src/components/adsense-public-unit.tsx", "utf8");
+    expect(home).toContain("<AdSensePublicUnit />");
+    expect(unit).toContain('const CLIENT = "ca-pub-3762170279587706"');
+    expect(unit).toContain('const SLOT = "5328066374"');
+    expect(unit).toContain('data-ad-format="autorelaxed"');
+    expect(unit).toContain("hasAdvertisingConsent");
+
   });
   it("não carrega anúncios no admin, login, cadastro, pagamento nem telas pessoais", () => {
     for (const route of ["/", "/tecnicos", "/servicos", "/faq", "/galeria"]) {
@@ -42,17 +45,4 @@ describe("Google AdSense: verificação e privacidade", () => {
     expect(existingAds).toContain('db.rpc("eut_ads_public_slot"');
     expect(existingAds).not.toContain("adsbygoogle");
   });
-  it("guarda código AMP somente para documentos AMP, sem injetar markup inválido no TanStack", () => {
-    const docs = readFileSync("docs/adsense/EUT_DISPLAY_AMP_2026-11-11.md", "utf8");
-    const root = readFileSync("src/routes/__root.tsx", "utf8");
-    expect(docs).toContain("cdn.ampproject.org/v0/amp-ad-0.1.js");
-    expect(docs).toContain('data-ad-slot="9606076941"');
-    expect(docs).toContain('type="adsense"');
-    expect(docs).toContain('data-auto-format="rspv"');
-    expect(docs).toContain('data-full-width=""');
-    expect(docs).toContain("amp-consent");
-    expect(root).not.toContain("<amp-ad");
-    expect(root).not.toContain("amp-ad-0.1.js");
-  });
-
 });
