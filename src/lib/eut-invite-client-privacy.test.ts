@@ -49,7 +49,12 @@ describe("Micro-rodada: convites concorrentes e privacidade de clientes", () => 
   });
 
   it("não carrega pedidos privados nem contagens truncadas na aba Clientes", () => {
-    expect(page).toContain('const needsRequests = section === "inicio" || section === "solicitacoes";');
+    expect(page).toContain('const needsRequests = section === "solicitacoes";');
+    const overview = read("src/components/admin-command-overview.tsx");
+    expect(overview).toContain('count("service_requests")');
+    expect(overview).toContain('count("service_requests", "aberta")');
+    expect(overview).toContain('count: "exact", head: true');
+    expect(overview).not.toContain('.select("*")');
     expect(page).not.toContain('|| section === "clientes";');
     expect(page).toContain('<AdminAccountsManager initialFilter="clientes" />');
     expect(page).toContain('<AdminMemberInvites initialRole="cliente" />');

@@ -28,9 +28,9 @@ async function dashboard(): Promise<Metrics> {
     count("technicians", "pendente"),
     count("service_requests"),
     count("service_requests", "aberta"),
-    db.rpc("eut_admin_client_insights", { _audit_filter: "todos", _page: 0, _subject_user_id: null })
+    Promise.resolve(db.rpc("eut_admin_client_insights", { _audit_filter: "todos", _page: 0, _subject_user_id: null }))
       .then(({ data, error }) => error ? null : data).catch(() => null),
-    db.rpc("eut_ads_admin_snapshot")
+    Promise.resolve(db.rpc("eut_ads_admin_snapshot"))
       .then(({ data, error }) => error ? null : data).catch(() => null),
   ]);
   return { approved, pending, requests, requestsOpen,

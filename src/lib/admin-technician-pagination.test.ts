@@ -25,8 +25,12 @@ describe("Paginação administrativa para milhares de técnicos", () => {
     expect(manager).toContain('query = query.contains("specialties", [category])');
     expect(manager).toContain("setReload((value) => value + 1)");
     expect(manager).toContain('db.rpc("eut_admin_technician_action"');
-    expect(admin).toContain('const needsTechs = section === "inicio"');
-    expect(admin).toContain('.select("id", { count: "exact", head: true })');
+    const overview = readFileSync("src/components/admin-command-overview.tsx", "utf8");
+    expect(admin).toContain("<AdminCommandOverview />");
+    expect(overview).toContain('count("technicians", "aprovado")');
+    expect(overview).toContain('count("technicians", "pendente")');
+    expect(overview).toContain('count: "exact", head: true');
+    expect(overview).not.toContain('.select("*")');
     expect(admin).not.toContain('supabase.from("technicians").select("*")');
     expect(admin).toContain("<AdminTechnicianManager adminOwnerId={user.id} />");
     expect(manager).not.toContain("service_role");

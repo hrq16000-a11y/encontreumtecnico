@@ -48,7 +48,7 @@ describe('LP2 operacional: mesma base, temas separados',()=>{
     expect(read('src/routes/lp2/'+file+'.tsx')).toContain('noindex, nofollow')
   for(const file of ['index','galeria'])expect(read('src/routes/lp2/'+file+'.tsx')).toContain('canonical')
   const publicSitemap=read('src/lib/public-sitemap.ts')
-  expect(read('src/routes/sitemap[.]xml.ts')).toContain('buildPublicSitemapXml(profiles)')
+  expect(read('src/routes/sitemap[.]xml.ts')).toContain('buildPublicSitemapIndexXml(graph)')
   expect(publicSitemap).toContain('"/lp2"')
   expect(publicSitemap).toContain('"/lp2/galeria"')
  })
@@ -68,7 +68,10 @@ describe('LP2 operacional: mesma base, temas separados',()=>{
   expect(xml).not.toContain('<dados-privados>');
   expect(xml).not.toContain('/area-cliente');
   const route=read('src/routes/sitemap[.]xml.ts');
-  expect(route).toContain('.eq("status", "aprovado")');
+  const graph = read('src/lib/public-seo-graph.functions.ts');
+  expect(route).toContain('getPublicGraphSnapshot()');
+  expect(graph).toContain('.eq("status", "aprovado")');
+  expect(graph).toContain('readPublicEligibleRows(');
   expect(route).toContain('status: 503');
   expect(read('public/robots.txt')).toContain('Sitemap: '+SITE+'/sitemap.xml');
  });
