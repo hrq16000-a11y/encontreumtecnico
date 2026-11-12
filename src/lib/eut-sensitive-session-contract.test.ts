@@ -71,6 +71,16 @@ describe("EUT restricted accounts and live Auth sessions", () => {
     expect(guide).toContain("não revoga refresh tokens");
     expect(guide).toContain("Auth Hook");
     expect(guide).toContain("rollback");
+    // The proposed SQL also creates/replaces functions. A rollback covering
+    // only policies and triggers would leave persistent backend changes.
+    for (const functionName of [
+      "eut_moderation.subject_operational(uuid)",
+      "public.eut_sensitive_session_active()",
+      "eut_moderation.guard_sensitive_write()",
+    ]) expect(guide).toContain(functionName);
+    expect(guide).toContain("Pré-instalação");
+    expect(guide).toContain("restaurar sua versão original");
+    expect(guide).toContain("Não empregar `DROP ... CASCADE`");
     expect(guide).toContain("PR #133");
     expect(guide).toContain("PR #139");
     expect(guide).toContain("PR #142");
