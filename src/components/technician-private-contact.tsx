@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { Link } from "@tanstack/react-router";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { normalizeBrazilianPhone } from "@/lib/brazilian-phone";
@@ -107,6 +108,8 @@ export function TechnicianPrivateContact({ userId }: { userId: string }) {
     }
   }
 
+  const showSupportLink = message !== null && /^(Não foi possível|Falha de conexão|A consulta do número privado)/u.test(message);
+
   return (
     <section className="mt-5 rounded-xl border border-border bg-card p-5" aria-label="Meu telefone privado">
       <h2 className="text-lg font-semibold text-card-foreground">Meu telefone privado</h2>
@@ -144,7 +147,14 @@ export function TechnicianPrivateContact({ userId }: { userId: string }) {
             </button>
           )}
         </div>
-        {message && <p role="status" className="text-sm text-foreground">{message}</p>}
+        {message && <p role="status" className="text-sm text-foreground">
+          {message}{" "}
+          {showSupportLink && (
+            <Link to="/ajuda-acesso" className="font-semibold text-primary underline-offset-4 hover:underline">
+              Solicitar ajuda
+            </Link>
+          )}
+        </p>}
       </form>
       <p className="mt-3 text-xs text-muted-foreground">
         Cadastrar o telefone não gera cobrança ou mensalidade para o prestador. Não significa que o
