@@ -1,0 +1,60 @@
+# PREPARED ONLY. This workflow exists on the isolated PR branch.
+# Do not merge/enable before dedicated Supabase staging, approved migration,
+# least-privilege maintenance credential, and authenticated QA.
+name: EUT draft expiry maintenance (manual, protected)
+
+on:
+  workflow_dispatch:
+    inputs:
+      acknowledgment:
+        description: 'Type exactly EUT-DRAFT-MAINTENANCE-APPROVED after staging/QA'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eut-draft-retention-maintenance
+  cancel-in-progress: false
+
+jobs:
+  purge-expired-only:
+    if: >-
+      github.repository == 'hrq16000-a11y/encontreumtecnico' &&
+      github.ref == 'refs/heads/main' &&
+      inputs.acknowledgment == 'EUT-DRAFT-MAINTENANCE-APPROVED'
+    runs-on: ubuntu-latest
+    environment: eut-draft-maintenance
+    timeout-minutes: 5
+    env:
+      # Must belong to the PostgreSQL role eut_draft_maint ONLY, not postgres
+      # or service_role. Secret belongs to this protected environment.
+      EUT_DRAFT_MAINT_DATABASE_URL: ${{ secrets.EUT_DRAFT_MAINT_DATABASE_URL }}
+      PGCONNECT_TIMEOUT: '8'
+      PGSSLMODE: verify-full
+    steps:
+      - name: Verify maintenance credentials are provisioned
+        shell: bash
+        run: |
+          if [ -z "$EUT_DRAFT_MAINT_DATABASE_URL" ]; then
+            echo "Maintenance environment secret missing; refusing to run"
+            exit 1
+          fi
+      - name: Install PostgreSQL client
+        run: |
+          command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+      - name: Purge at most 500 expired drafts, no payload logging
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The security-invoker RPC uses RLS and the dedicated role. It returns
+          # only an aggregate count; no draft JSON or identities are logged.
+          removed="$(psql "$EUT_DRAFT_MAINT_DATABASE_URL" -X -q -A -t -v ON_ERROR_STOP=1 \
+            -c "SET statement_timeout = '15000ms'; SELECT eut_moderation.eut_purge_expired_technician_drafts(500);")"
+          removed="$(printf '%s\n' "$removed" | tail -n 1 | tr -d '[:space:]')"
+          if ! [[ "$removed" =~ ^[0-9]+$ ]] || (( removed > 500 )); then
+            echo "Maintenance result outside approved batch bounds"
+            exit 1
+          fi
+          echo "Expired drafts deleted (aggregate): $removed"
