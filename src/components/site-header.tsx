@@ -41,8 +41,11 @@ export function SiteHeader() {
     const onEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setOpen(false);
-        // The focused menu link is about to unmount; restore keyboard focus.
-        menuButtonRef.current?.focus();
+        // Restore focus for menu keyboard users, without stealing it from a field outside.
+        const active = document.activeElement;
+        if (active === document.body || (active && headerRef.current?.contains(active))) {
+          menuButtonRef.current?.focus();
+        }
       }
     };
     const onOutside = (event: PointerEvent) => {
