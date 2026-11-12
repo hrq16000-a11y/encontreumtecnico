@@ -428,3 +428,34 @@ Todas as linhas têm a mesma condição técnica: **corpo executado no Supabase 
 - `N` significa **ausência de fonte localizada nesta amostra verificável**, não prova de inexistência em outros backups ou no serviço que aplicou o SQL.
 - Antes de avançar, obter de fonte autorizada e não pública o digest/corpo efetivamente aplicado, sem divulgar PII, credenciais, dumps, anexos privados nem payloads de usuários. Quando irrecuperável, registrar `corpo original não recuperado`, **sem inventar DDL ou falsificar equivalência**.
 - **Não autoriza replay**, execução de SQL, migração, alteração de banco, exclusão, merge, deploy, DNS, WordPress, Lovable ou modificações em produção. Este é apenas um adendo documental em branch isolada, sem dados pessoais ou SQL executável.
+
+### 4.4 Revisão de hashes, consistência e privacidade (12/11/2026)
+
+**Originais históricos G (4/4):** relidos os arquivos `supabase/migrations/` na HEAD `5870562566b2c85324d24ba2684b3e97aad3c0a6` da [PR #122](https://github.com/hrq16000-a11y/encontreumtecnico/pull/122); os quatro Git Blob SHA-1 conferem com os hashes expostos no diff original e na tabela 4.1. O fechamento da PR #122 foi **sem merge**. Os arquivos foram preservados na branch histórica, **não restaurados** na main.
+
+**Limite particular da versão `20261110221912`:** o arquivo histórico de 11 linhas obtém a definição da função existente com `pg_get_functiondef(...)`, usa substituição textual e execução dinâmica. Seu efeito **depende da definição pré-existente no momento da aplicação**. Portanto, o arquivo é uma fonte primária do **script versionado no Git**, mas **não uma definição autocontida do objeto final no banco** e não permite reconstruí-lo por si só. Não executar ou reaplicar.
+
+**Contratos C (16/16):** todos os caminhos da matriz 4.2 foram localizados no Git, lidos sem execução e conferidos por Git Blob SHA-1. As 12 associações da rodada 3 mantêm suas PRs de integração; #61 e #65 preservam SQL em documentos Markdown; #81 contém R5 em branch Draft; elegibilidade está documentada na main. A existência desses arquivos **não autentica o corpo SQL efetivamente aplicado**.
+
+| Versão correlata | PR ou origem | Arquivo Git | Git Blob SHA-1 conferido | Limite documental |
+|---|---|---|---|---|
+| `20261110023216` | [#61](https://github.com/hrq16000-a11y/encontreumtecnico/pull/61) | `docs/EUT_PEDIDOS_DIRETOS_SQL_20261109.md` | `bb4cc0d2db6a6d3e70c6d90f984ccab3b998a88f` | Markdown com SQL de referência |
+| `20261110024447` | [#65](https://github.com/hrq16000-a11y/encontreumtecnico/pull/65) | `docs/sql/eut-direct-request-replies-20261109.md` | `a6614c7a63fa46e1bdac802f1ed2c841db67b281` | Markdown com SQL de referência |
+| `20261110025905` | [#67](https://github.com/hrq16000-a11y/encontreumtecnico/pull/67) | `docs/sql/eut-project-owner-bootstrap.sql` | `08e4a9c7d58c81864859377df7cf6ee78b4b17ae` | Contrato SQL |
+| `20261110033818` | [#73](https://github.com/hrq16000-a11y/encontreumtecnico/pull/73) | `docs/sql/eut-ads-r2-private-foundation.sql` | `a972d40942ea0b25223ff9f4fe8b5d30ab1f9e5d` | Contrato SQL |
+| `20261110035800` | [#76](https://github.com/hrq16000-a11y/encontreumtecnico/pull/76) | `docs/sql/eut-ads-r3-admin-rpcs.sql` | `480f61e97e68f349e1a0c56e066153687f4c27e5` | Contrato SQL |
+| `20261110040944` | [#78](https://github.com/hrq16000-a11y/encontreumtecnico/pull/78) | `docs/sql/eut-ads-r4-approved-public-cards.sql` | `2203bcbdd4e23ee3c232758167ea31f4f65cf85e` | Contrato SQL |
+| `20261110042554` | [#81](https://github.com/hrq16000-a11y/encontreumtecnico/pull/81) | `docs/sql/eut-ads-r5-approved-image-delivery.sql` | `0e14340771e117e9474dbe28e4bb7b655cd0ae26` | SQL na PR Draft, fora da main |
+| `20261110045442` | [#87](https://github.com/hrq16000-a11y/encontreumtecnico/pull/87) | `docs/sql/eut-legacy-claims-real-profiles-guard-20261110.sql` | `a4a43e8503d79b1a831637b001252bb32b13d94d` | Contrato SQL |
+| `20261110181617` | [#103](https://github.com/hrq16000-a11y/encontreumtecnico/pull/103) | `docs/sql/eut-pioneers-native-pre-registry.sql` | `74c0e6b95a1f6c17c86a20f71581e469090ee859` | Contrato SQL |
+| `20261110182437` | [#103](https://github.com/hrq16000-a11y/encontreumtecnico/pull/103) | `docs/sql/eut-pioneer-verified-claim-and-bronze.sql` | `821c1d2305db84af9c8a22902b22661cd5c5c3ad` | Contrato SQL |
+| `20261110184534` | [#104](https://github.com/hrq16000-a11y/encontreumtecnico/pull/104) | `docs/sql/eut-choose-new-role-without-wp-rule.sql` | `17ab742a9687f7e27bec3da468eda00756e217e7` | Contrato SQL |
+| `20261111075718` | [#167](https://github.com/hrq16000-a11y/encontreumtecnico/pull/167) | `docs/sql/eut-admin-self-technician-role-20261111.sql` | `2f3e36a10e4e5b8e0b83d65f2c2781bf5ff651d9` | PR registra SQL preparado na integração |
+| `20261111081500` | [#173](https://github.com/hrq16000-a11y/encontreumtecnico/pull/173) | `docs/sql/eut-admin-member-invitations-20261111.sql` | `baeaa1d17a4cadeb3dc120308243c21d3580deef` | Contrato SQL, gates históricos separados |
+| `20261111154543` | [#178](https://github.com/hrq16000-a11y/encontreumtecnico/pull/178) | `docs/sql/eut-member-invite-actor-lock-20261111.sql` | `fd03e9f86efc558330c93c6a98bc0fc389c1a944` | Contrato SQL |
+| `20261111163136` | [#183](https://github.com/hrq16000-a11y/encontreumtecnico/pull/183) | `docs/sql/eut-admin-client-insights-20261111.sql` | `c24c8c822d889d5d3b45f82f7d719b543571522d` | Contrato SQL |
+| `20261112003518` | [main](https://github.com/hrq16000-a11y/encontreumtecnico) | `docs/sql/eut-public-eligibility-moderation-proposal-20261111.sql` | `74ca757512d12efd948cf7344c54b6e2965e4e76` | Contrato histórico; não reaplicar |
+
+**Privacidade:** a revisão estática das 20 fontes (quatro arquivos históricos e 16 contratos candidatos) não encontrou padrões de e-mail pessoal, telefone brasileiro completo ou chave de serviço nas formas pesquisadas. Não é garantia de inexistência de todos os tipos de dados pessoais. O presente documento de inventário **não incorpora SQL, dump ou dados privados**: contém apenas metadados, caminhos, hashes e referências. Os dois documentos Markdown de origem contêm SQL, mas seu conteúdo não foi copiado para cá.
+
+**Gates do adendo:** a matriz anterior permanece com 60 versões únicas, distribuídas G=4, C=16, D=2, N=38. Há 16/16 contratos localizados e 4/4 hashes históricos confirmados. **0/60 corpos efetivamente executados autenticados por digest do Supabase.** Esta evidência não autoriza replay, aplicação de SQL, merge, deploy, exclusões, DNS, WordPress, Lovable ou alterações de produção.
