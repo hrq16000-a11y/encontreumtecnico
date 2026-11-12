@@ -53,7 +53,7 @@ export function validateDraftPayload(form: TechnicianDraftFields): TechnicianDra
   for (const [field, cap] of [["specialties", 12], ["service_slugs", 64]] as const) {
     const value = form[field];
     if (!Array.isArray(value) || value.length > cap ||
-        value.some(s => typeof s !== "string" || s.length < 1 || s.length > 80)) return null;
+        value.some(s => typeof s !== "string" || s.length < 1 || s.length > 80 || CONTACT.test(s))) return null;
   }
   if (form.base_city_ibge_id !== null &&
       (!Number.isInteger(form.base_city_ibge_id) || form.base_city_ibge_id < 1000000 ||
