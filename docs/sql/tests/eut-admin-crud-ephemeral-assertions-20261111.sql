@@ -208,3 +208,35 @@ BEGIN
 END $assert$;
 
 \echo 'QA passed: isolated PostgreSQL transaction, authorization and security tests'
+
+\echo 'QA: true PostgreSQL authenticated role can execute audited RPC, client cannot'
+SELECT updated_at AS qa_b_version FROM public.technicians
+ WHERE id='10000000-0000-4000-8000-000000000002' \gset
+SET ROLE authenticated;
+SET request.jwt.claim.sub = '00000000-0000-4000-8000-000000000002';
+DO $assert$
+DECLARE denied boolean:=false;
+BEGIN
+ BEGIN
+   PERFORM public.eut_admin_technician_change(
+     '10000000-0000-4000-8000-000000000002',now(),'{}'::jsonb,
+     'Cliente não pode alterar campos');
+ EXCEPTION WHEN SQLSTATE '42501' THEN denied:=true; END;
+ IF NOT denied THEN RAISE EXCEPTION 'Authenticated client was able to edit'; END IF;
+END $assert$;
+SET request.jwt.claim.sub = '00000000-0000-4000-8000-000000000001';
+SELECT public.eut_admin_technician_archive(
+  '10000000-0000-4000-8000-000000000002',
+  :'qa_b_version'::timestamptz,'archive',
+  'Arquivo sintético pelo papel real autenticado'
+) AS authenticated_rpc_result;
+RESET ROLE;
+DO $assert$
+BEGIN
+ IF NOT EXISTS (SELECT 1 FROM public.technicians t
+   JOIN eut_moderation.archived_technicians a ON a.technician_id=t.id
+   WHERE t.id='10000000-0000-4000-8000-000000000002'
+     AND t.status='suspenso' AND a.restored_at IS NULL)
+ THEN RAISE EXCEPTION 'Real authenticated SQL role did not archive'; END IF;
+END $assert$;
+\echo 'QA passed: authenticated role access verified independently of superuser test role'
