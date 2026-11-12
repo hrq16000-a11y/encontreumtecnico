@@ -159,16 +159,22 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
                 </Link>
               </div>
             </section>
-            {t.bio && (
-              <section id="sobre" aria-labelledby="titulo-sobre" className="eut-card-lift rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
-                <div className="flex items-start gap-3">
-                  <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><BadgeInfo className="h-5 w-5" aria-hidden="true" /></span>
-                  <div><p className="text-xs font-bold uppercase tracking-[.17em] text-primary">Apresentação pessoal</p><h2 id="titulo-sobre" className="mt-1 text-xl font-bold text-card-foreground sm:text-2xl">Sobre o profissional</h2></div>
-                </div>
-                <p className="mt-5 whitespace-pre-line text-sm leading-7 text-foreground sm:text-base">{t.bio}</p>
-                <p className="mt-4 text-xs text-muted-foreground">Texto fornecido pelo titular do perfil.</p>
-              </section>
-            )}
+            <section id="sobre" aria-labelledby="titulo-sobre" className="eut-card-lift rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
+              <div className="flex items-start gap-3">
+                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><BadgeInfo className="h-5 w-5" aria-hidden="true" /></span>
+                <div><p className="text-xs font-bold uppercase tracking-[.17em] text-primary">Apresentação pessoal</p><h2 id="titulo-sobre" className="mt-1 text-xl font-bold text-card-foreground sm:text-2xl">Sobre o profissional</h2></div>
+              </div>
+              {t.bio ? (
+                <>
+                  <p className="mt-5 whitespace-pre-line text-sm leading-7 text-foreground sm:text-base">{t.bio}</p>
+                  <p className="mt-4 text-xs text-muted-foreground">Texto fornecido pelo titular do perfil.</p>
+                </>
+              ) : (
+                <p className="mt-5 text-sm leading-7 text-muted-foreground">
+                  A apresentação pessoal ainda não está disponível. Consulte as especialidades e os serviços declarados acima.
+                </p>
+              )}
+            </section>
             <section aria-labelledby="titulo-transparencia" className="rounded-2xl border border-primary/15 bg-accent/60 p-6 sm:p-8">
               <p className="text-xs font-bold uppercase tracking-[.17em] text-primary">Confiança é transparência</p>
               <h2 id="titulo-transparencia" className="mt-2 text-xl font-bold text-foreground sm:text-2xl">Saiba como o portal funciona</h2>
