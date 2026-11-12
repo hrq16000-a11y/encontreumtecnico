@@ -5,7 +5,9 @@ export function normalizeSignupIntent(value: unknown): SignupIntent | null {
   return value === "tecnico" || value === "cliente" ? value : null;
 }
 export function rememberSignupIntent(intent: SignupIntent): void {
-  if (typeof window !== "undefined") sessionStorage.setItem(KEY, intent);
+  if (typeof window === "undefined") return;
+  try { sessionStorage.setItem(KEY, intent); }
+  catch { /* Storage can be disabled: preserve navigation without granting a role. */ }
 }
 export function readSignupIntent(): SignupIntent | null {
   if (typeof window === "undefined") return null;
