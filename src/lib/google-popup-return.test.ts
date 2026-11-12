@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { watchGooglePopupReturn } from "./google-popup-return";
 
 function popupMessage(origin: string, source: unknown, type: string) {
-  const event = new MessageEvent("message", { origin, data: { type } });
+  const event = new MessageEvent("message", { origin, data: { type, nonce: "qa-nonce" } });
   Object.defineProperty(event, "source", { value: source });
   window.dispatchEvent(event);
 }
@@ -13,7 +13,7 @@ async function flush() {
   await Promise.resolve();
 }
 
-afterEach(() => { vi.useRealTimers(); });
+afterEach(() => { window.localStorage.clear(); vi.useRealTimers(); });
 
 describe("Google popup return coordination", () => {
   it("ignores foreign-origin or unrelated windows, never trusting arbitrary messages", async () => {
@@ -21,7 +21,7 @@ describe("Google popup return coordination", () => {
     const verify = vi.fn().mockResolvedValue(true);
     const success = vi.fn();
     const stop = watchGooglePopupReturn({
-      popup, origin: "https://www.encontreumtecnico.com.br",
+      popup, origin: "https://www.encontreumtecnico.com.br", nonce: "qa-nonce",
       verifySession: verify, onVerified: success, onFailure: vi.fn(), onClosed: vi.fn(),
     });
     popupMessage("https://malicious.example", popup, "eut:google-oauth-complete");
@@ -37,7 +37,7 @@ describe("Google popup return coordination", () => {
     const verify = vi.fn().mockResolvedValue(false);
     const onVerified = vi.fn(), onFailure = vi.fn();
     watchGooglePopupReturn({
-      popup, origin: window.location.origin,
+      popup, origin: window.location.origin, nonce: "qa-nonce",
       verifySession: verify, onVerified, onFailure, onClosed: vi.fn(),
     });
     popupMessage(window.location.origin, popup, "eut:google-oauth-complete");
@@ -52,10 +52,11 @@ describe("Google popup return coordination", () => {
     const verify = vi.fn().mockResolvedValue(true);
     const onVerified = vi.fn(), onFailure = vi.fn();
     watchGooglePopupReturn({
-      popup, origin: window.location.origin,
+      popup, origin: window.location.origin, nonce: "qa-nonce",
       verifySession: verify, onVerified, onFailure, onClosed: vi.fn(),
     });
-    window.dispatchEvent(new StorageEvent("storage", { key: "sb-session", storageArea: window.localStorage }));
+    window.localStorage.setItem("eut-google-popup-result:qa-nonce", "complete");
+    window.dispatchEvent(new StorageEvent("storage", { key: "eut-google-popup-result:qa-nonce", newValue: "complete", storageArea: window.localStorage }));
     await flush();
     expect(verify).toHaveBeenCalledOnce();
     expect(onVerified).toHaveBeenCalledOnce();
@@ -68,15 +69,42 @@ describe("Google popup return coordination", () => {
     const onClosed = vi.fn(), onVerified = vi.fn(), onFailure = vi.fn();
     const verify = vi.fn().mockResolvedValueOnce(false).mockResolvedValue(true);
     watchGooglePopupReturn({
-      popup, origin: window.location.origin, verifySession: verify,
+      popup, origin: window.location.origin, nonce: "qa-nonce", verifySession: verify,
       onVerified, onFailure, onClosed,
     });
     await vi.advanceTimersByTimeAsync(650);
     expect(onClosed).toHaveBeenCalledOnce();
-    window.dispatchEvent(new StorageEvent("storage", { key: "sb-session", storageArea: window.localStorage }));
+    window.localStorage.setItem("eut-google-popup-result:qa-nonce", "complete");
+    window.dispatchEvent(new StorageEvent("storage", { key: "eut-google-popup-result:qa-nonce", newValue: "complete", storageArea: window.localStorage }));
     await flush();
     expect(onVerified).toHaveBeenCalledOnce();
     expect(onFailure).not.toHaveBeenCalled();
+  });
+
+  it("does not accept a pre-existing session from focus, unrelated storage or COOP closed events", async () => {
+    vi.useFakeTimers();
+    const popup = { closed: true } as Window;
+    const verify = vi.fn().mockResolvedValue(true); // A different account is already signed in.
+    const onVerified = vi.fn(), onClosed = vi.fn();
+    const stop = watchGooglePopupReturn({
+      popup, origin: window.location.origin, nonce: "qa-nonce",
+      verifySession: verify, onVerified, onFailure: vi.fn(), onClosed,
+    });
+    window.dispatchEvent(new Event("focus"));
+    window.dispatchEvent(new StorageEvent("storage", { key: "sb-session", storageArea: window.localStorage }));
+    await vi.advanceTimersByTimeAsync(650);
+    expect(onClosed).toHaveBeenCalledOnce();
+    expect(verify).not.toHaveBeenCalled();
+    expect(onVerified).not.toHaveBeenCalled();
+    // Even a legitimate-looking message must match this attempt's nonce.
+    const mismatched = new MessageEvent("message", {
+      origin: window.location.origin, data: { type: "eut:google-oauth-complete", nonce: "other" },
+    });
+    Object.defineProperty(mismatched, "source", { value: popup });
+    window.dispatchEvent(mismatched);
+    await flush();
+    expect(verify).not.toHaveBeenCalled();
+    stop();
   });
 
   it("handles network verification failure without unhandled promises, and expires cleanly", async () => {
@@ -84,7 +112,7 @@ describe("Google popup return coordination", () => {
     const popup = { closed: false } as Window;
     const onVerified = vi.fn(), onFailure = vi.fn();
     watchGooglePopupReturn({
-      popup, origin: window.location.origin,
+      popup, origin: window.location.origin, nonce: "qa-nonce",
       verifySession: vi.fn().mockRejectedValue(new Error("network")),
       onVerified, onFailure, onClosed: vi.fn(),
     });
