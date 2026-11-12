@@ -17,6 +17,7 @@ const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:rin
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const headerRef = useRef<HTMLElement | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const { user, roles, loading } = useAuth();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
@@ -38,7 +39,11 @@ export function SiteHeader() {
   useEffect(() => {
     if (!open) return;
     const onEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") {
+        setOpen(false);
+        // The focused menu link is about to unmount; restore keyboard focus.
+        menuButtonRef.current?.focus();
+      }
     };
     const onOutside = (event: PointerEvent) => {
       if (event.target instanceof Node && !headerRef.current?.contains(event.target))
@@ -109,7 +114,7 @@ export function SiteHeader() {
           </Link>
         </div>
 
-        <button type="button" aria-expanded={open} aria-controls="eut-mobile-menu"
+        <button ref={menuButtonRef} type="button" aria-expanded={open} aria-controls="eut-mobile-menu"
           aria-label={open ? "Fechar menu" : "Abrir menu"}
           onClick={() => setOpen(value => !value)}
           className={"inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-sm transition-colors hover:bg-accent lg:hidden " + FOCUS}>
