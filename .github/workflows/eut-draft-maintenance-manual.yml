@@ -41,6 +41,12 @@ jobs:
             echo "Maintenance environment secret missing; refusing to run"
             exit 1
           fi
+          # Connection strings may override PGSSLMODE. Refuse any sslmode
+          # parameter so the environment's verify-full cannot be downgraded.
+          if [[ "$EUT_DRAFT_MAINT_DATABASE_URL" == *sslmode=* ]]; then
+            echo "Refusing maintenance: sslmode in connection string overrides TLS policy"
+            exit 1
+          fi
       - name: Install PostgreSQL client
         run: |
           command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
@@ -51,6 +57,12 @@ jobs:
           actual_role="$(psql "$EUT_DRAFT_MAINT_DATABASE_URL" -X -q -A -t -v ON_ERROR_STOP=1 -c 'SELECT current_user')"
           if [ "$actual_role" != "eut_draft_maint" ]; then
             echo "Refusing maintenance: connection is not the dedicated role"
+            exit 1
+          fi
+          tls_active="$(psql "$EUT_DRAFT_MAINT_DATABASE_URL" -X -q -A -t -v ON_ERROR_STOP=1 \
+            -c "SELECT CASE WHEN ssl THEN 'ok' ELSE 'unsafe' END FROM pg_catalog.pg_stat_ssl WHERE pid=pg_backend_pid()")"
+          if [ "$tls_active" != "ok" ]; then
+            echo "Refusing maintenance: TLS connection was not established"
             exit 1
           fi
           acl_check="$(psql "$EUT_DRAFT_MAINT_DATABASE_URL" -X -q -A -t -v ON_ERROR_STOP=1 \
