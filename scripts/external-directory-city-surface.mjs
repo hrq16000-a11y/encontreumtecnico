@@ -140,3 +140,70 @@ export function previewCitySurface({
     fallback,
   });
 }
+
+
+/**
+ * Explicit, INACTIVE integration seams in the existing TanStack routes.
+ * These are not wired to UI, server loaders or SEO. Their current sources
+ * are partial and are NOT evidence of city totals.
+ *
+ * /servicos/$categoria selects a CATEGORY, not an individual service slug:
+ * use the category facet, never fabricate a declared service match.
+ */
+export const CITY_ROUTE_INTEGRATION_ENABLED = false;
+
+export const CITY_ROUTE_TARGETS = Object.freeze({
+  home: Object.freeze({
+    path: "src/routes/index.tsx",
+    anchor: "<HomePublicProof />",
+    existing_source: "useRegionalSuggestion (coarse city/UF, visitor-correctable)",
+    facet: "all",
+  }),
+  category: Object.freeze({
+    path: "src/routes/categorias.$categoria.tsx",
+    anchor: "<PublicSeoDirectory",
+    existing_source: "getSeoCategory (SEO-approved directory, not full city count)",
+    facet: "category",
+  }),
+  services: Object.freeze({
+    path: "src/routes/servicos.tsx",
+    anchor: "SERVICES.map(",
+    existing_source: "SERVICE_CATEGORIES (taxonomy, not provider count)",
+    facet: "all",
+  }),
+  service_category: Object.freeze({
+    path: "src/routes/servicos.$categoria.tsx",
+    anchor: "technicians.slice(0, 6)",
+    existing_source: "listApprovedTechnicians (six-card sample, not full city count)",
+    facet: "category",
+  }),
+});
+
+/**
+ * Pure adapter for fixture previews. Inputs are deliberately NOT fetched
+ * from the current routes, and defaults never permit verified counts.
+ * Public integration stays disabled even when synthetic tests pass.
+ */
+export function previewCityRouteIntegration({ routeKey, routeCategorySlug = null, ...options } = {}) {
+  if (typeof routeKey !== "string" ||
+      !Object.prototype.hasOwnProperty.call(CITY_ROUTE_TARGETS, routeKey)) {
+    throw Error("Rota de integração desconhecida");
+  }
+  const seam = CITY_ROUTE_TARGETS[routeKey];
+  const categorySlug = seam.facet === "category" ? routeCategorySlug : null;
+  if (seam.facet !== "category" && routeCategorySlug !== null) {
+    throw Error("Rota de índice não aceita categoria implícita");
+  }
+  const view = previewCitySurface({
+    ...options, context: seam.facet === "category" ? "category" : "home",
+    categorySlug, serviceSlug: null,
+  });
+  return Object.freeze({
+    route_key: routeKey,
+    route_path: seam.path,
+    integration_anchor: seam.anchor,
+    current_source_is_exhaustive: false,
+    public_integration_enabled: CITY_ROUTE_INTEGRATION_ENABLED,
+    preview: view,
+  });
+}
