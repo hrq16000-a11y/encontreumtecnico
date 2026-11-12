@@ -23,7 +23,15 @@ Cinco gatilhos são a segunda barreira para alterações oriundas de RPCs privil
 2. Rodar Vitest, build TanStack e TypeScript no GitHub; validar o SQL em transação e confirmar rollback (sem política/gatilho persistido).
 3. **Ambiente isolado**: entrar com contas legítimas técnico, cliente e admin; confirmar pedidos, painel, geolocalização, galeria, upload, mensagens e cadastro WordPress. Simular banimento de **conta de teste** em sessão aberta; conferir falha no banco para perfis, presença, respostas, claims, indicações e compartilhamento, mantendo suporte acessível.
 4. Simular revogação da sessão de teste pela API autorizada; validar que JWT existente não passa pelas RPCs/RLS protegidas. Testar restabelecimento e desbanimento.
-5. Somente após aprovação e compatibilidade, aplicar SQL em produção e monitorar erros. Se houver regressão, reverter **apenas as 5 políticas e 5 gatilhos** deste arquivo sob controle transacional; não desabilitar as proteções anteriores da PR #138.
+5. Somente após aprovação e compatibilidade, considerar a aplicação em produção e monitorar erros. O rollback **não se limita às 5 políticas e 5 gatilhos**: este SQL também cria ou substitui **3 funções** (`eut_moderation.subject_operational(uuid)`, `public.eut_sensitive_session_active()` e `eut_moderation.guard_sensitive_write()`). O plano precisa ser ensaiado em staging com os objetos e permissões anteriores inventariados, antes de qualquer instalação real.
+
+### Rollback completo — obrigatório antes de ativar
+
+- **Pré-instalação:** capturar de forma auditável as definições, owners, grants/revokes, dependências e existência anterior das 3 funções, 5 políticas e 5 gatilhos. Em especial, `eut_moderation.subject_operational(uuid)` usa `CREATE OR REPLACE`: **restaurar sua versão original, caso preexistente**, em vez de simplesmente removê-la. Confirmar estado real do banco, não deduzir pela branch.
+- **Reversão ensaiada:** em transação e ordem compatível com dependências, desfazer apenas as 5 políticas `eut_session_*` e 5 gatilhos `eut_active_session_*` introduzidos pela rodada; restaurar ou remover, conforme inventário anterior, as 3 funções e seus privilégios/proprietários. Não empregar `DROP ... CASCADE` nem modificar proteção anterior da PR #138. Revalidar integridade de RLS, RPCs, auditoria, operações reais e ausência de objetos residuais.
+- **Gate operacional:** demonstrar com E2E isolado o resultado para sessão normal, revogada, banida, admin e manutenção interna sem JWT. Bloqueios intencionais a sessões inválidas não justificam introduzir bypass genérico para `service_role`, `auth.uid() IS NULL` ou rotinas privilegiadas. Qualquer caminho interno necessário exige design e autorização separados.
+
+Não existe autorização para executar este rollback ou aplicar o SQL nesta revisão documental.
 
 **Limites importantes:** esta rodada não revoga refresh tokens do Auth, não faz logout Google, não altera `auth.sessions`, não desativa automaticamente todas as interfaces ou endpoints não mapeados e não identifica alguém com e-mail/telefone inteiramente diferentes. Para revogação integral e imediata, o backend precisará de rotina privilegiada, auditada, com API do provedor e validação de autorizações. Até lá o bloqueio é das operações explicitamente cobertas por estas políticas/triggers.
 
