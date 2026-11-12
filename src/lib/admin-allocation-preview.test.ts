@@ -14,29 +14,29 @@ const tech = (id: string, extra: Partial<AllocationTechnician> = {}): Allocation
 describe("Plano de alocação — somente prévia administrativa", () => {
   it("não inventa técnico nem horário quando a disponibilidade não está confirmada", () => {
     const p = buildAllocationPreview([request("r1")], [tech("t1")], new Set(), {}, now);
-    expect(p.rows[0].technicianId).toBeNull();
-    expect(p.rows[0].startLabel).toBe("A confirmar");
-    expect(p.rows[0].risks).toContain("Prazo/SLA ainda não informado");
+    expect(p.rows[0]!.technicianId).toBeNull();
+    expect(p.rows[0]!.startLabel).toBe("A confirmar");
+    expect(p.rows[0]!.risks).toContain("Prazo/SLA ainda não informado");
   });
   it("prioriza criticidade declarada e não atribui o mesmo técnico duas vezes", () => {
     const p = buildAllocationPreview([request("normal"), request("critical")], [tech("t1")],
       new Set(["t1"]), { critical: { priority: "critica" } }, now);
     expect(p.rows.map((r) => r.requestId)).toEqual(["critical", "normal"]);
-    expect(p.rows[0].technicianId).toBe("t1");
-    expect(p.rows[1].technicianId).toBeNull();
+    expect(p.rows[0]!.technicianId).toBe("t1");
+    expect(p.rows[1]!.technicianId).toBeNull();
   });
   it("não sugere perfil sem competência, cidade declarada ou aprovação", () => {
     const p = buildAllocationPreview([request("r1")], [
       tech("wrongSkill", { specialties: ["hardware"], service_slugs: [] }),
       tech("wrongCity", { city: "Pinhais" }), tech("suspended", { status: "suspenso" }),
     ], new Set(["wrongSkill", "wrongCity", "suspended"]), {}, now);
-    expect(p.rows[0].technicianId).toBeNull();
+    expect(p.rows[0]!.technicianId).toBeNull();
   });
   it("não substitui profissional escolhido pelo cliente", () => {
     const p = buildAllocationPreview([request("r1", { technician_id: "t1" })],
       [tech("t2")], new Set(["t2"]), {}, now);
-    expect(p.rows[0].technicianId).toBeNull();
-    expect(p.rows[0].risks.join(" ")).toMatch(/não redistribuir/);
+    expect(p.rows[0]!.technicianId).toBeNull();
+    expect(p.rows[0]!.risks.join(" ")).toMatch(/não redistribuir/);
   });
   it("desempata por bairro e diferencia prazo vencido de prazo curto", () => {
     const p = buildAllocationPreview([
@@ -44,10 +44,10 @@ describe("Plano de alocação — somente prévia administrativa", () => {
     ], [tech("t1", { region: "Carmo" }), tech("t2")], new Set(["t1", "t2"]),
     { r1: { priority: "critica", deadline: "2026-11-12T11:30" },
       r2: { priority: "alta", deadline: "2026-11-12T13:30", plannedStart: "2026-11-12T14:00" } }, now);
-    expect(p.rows[0].technicianId).toBe("t2");
-    expect(p.rows[0].risks.join(" ")).toMatch(/vencido/);
-    expect(p.rows[1].technicianId).toBe("t1");
-    expect(p.rows[1].risks.join(" ")).toMatch(/posterior ao prazo/);
+    expect(p.rows[0]!.technicianId).toBe("t2");
+    expect(p.rows[0]!.risks.join(" ")).toMatch(/vencido/);
+    expect(p.rows[1]!.technicianId).toBe("t1");
+    expect(p.rows[1]!.risks.join(" ")).toMatch(/posterior ao prazo/);
   });
   it("não gera dados pessoais de cliente para WhatsApp", () => {
     const p = buildAllocationPreview([request("abcdef00-1234")], [tech("t1")], new Set(["t1"]), {}, now);
