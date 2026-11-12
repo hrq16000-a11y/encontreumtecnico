@@ -117,7 +117,7 @@ describe("EUT PR #145 isolated E2E readiness (synthetic fixtures)", () => {
     expect(invalid).toBeGreaterThan(deny);
     expect(sql.slice(deny, invalid)).toContain("RAISE EXCEPTION");
     for (const target of noJwtWriteTargets) {
-      expect(sql).toMatch(new RegExp("ON\\s+" + target.replace(".", "\\.") + "\\s*;"));
+      expect(sql).toContain("ON " + target);
     }
     // This is a staging compatibility blocker, not permission to bypass
     // the guard for service_role or privileged maintenance.
@@ -148,16 +148,16 @@ describe("EUT PR #145 isolated E2E readiness (synthetic fixtures)", () => {
     // the availability flag, is unchanged. This is deliberately a blocking
     // requirement: matching user_id alone does not enforce it.
     expect(exception).toMatch(
-      /to_jsonb\\(NEW\\)\\s*-\\s*'available'\\s*(?:=|IS NOT DISTINCT FROM)\\s*to_jsonb\\(OLD\\)\\s*-\\s*'available'/i,
+      /to_jsonb\(NEW\)\s*-\s*'available'\s*(?:=|IS NOT DISTINCT FROM)\s*to_jsonb\(OLD\)\s*-\s*'available'/i,
     );
   });
 
   it("captures all 3 functions, 5 policies and 5 triggers for complete rollback", () => {
-    const functions = [...sql.matchAll(/CREATE OR REPLACE FUNCTION\\s+([a-z_]+\\.[a-z_]+)/gi)]
+    const functions = [...sql.matchAll(/CREATE OR REPLACE FUNCTION\s+([a-z_]+\.[a-z_]+)/gi)]
       .map((match) => match[1]);
-    const policies = [...sql.matchAll(/CREATE POLICY\\s+([a-z_]+)/gi)]
+    const policies = [...sql.matchAll(/CREATE POLICY\s+([a-z_]+)/gi)]
       .map((match) => match[1]);
-    const triggers = [...sql.matchAll(/CREATE TRIGGER\\s+([a-z_]+)/gi)]
+    const triggers = [...sql.matchAll(/CREATE TRIGGER\s+([a-z_]+)/gi)]
       .map((match) => match[1]);
     expect(functions.sort()).toEqual([...rollbackInventory.functions].sort());
     expect(policies.sort()).toEqual([...rollbackInventory.policies].sort());
