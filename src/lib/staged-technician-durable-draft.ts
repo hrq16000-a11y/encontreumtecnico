@@ -77,12 +77,12 @@ function validRow(row: unknown, ownerId: string): row is {
 } {
   if (!row || typeof row !== "object") return false;
   const r = row as Record<string, unknown>;
-  return r.owner_id === ownerId &&
-    (r.step === 1 || r.step === 2 || r.step === 3) &&
-    typeof r.revision === "number" && Number.isSafeInteger(r.revision) && r.revision > 0 &&
-    typeof r.expires_at === "string" && Number.isFinite(Date.parse(r.expires_at)) &&
-    Date.parse(r.expires_at) > Date.now() &&
-    validateDraftPayload(r.draft as TechnicianDraftFields) !== null;
+  return r["owner_id"] === ownerId &&
+    (r["step"] === 1 || r["step"] === 2 || r["step"] === 3) &&
+    typeof r["revision"] === "number" && Number.isSafeInteger(r["revision"]) && r["revision"] > 0 &&
+    typeof r["expires_at"] === "string" && Number.isFinite(Date.parse(r["expires_at"])) &&
+    Date.parse(r["expires_at"]) > Date.now() &&
+    validateDraftPayload(r["draft"] as TechnicianDraftFields) !== null;
 }
 
 /**
