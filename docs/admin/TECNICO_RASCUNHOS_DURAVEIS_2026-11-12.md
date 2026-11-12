@@ -49,6 +49,24 @@ Cobrem: salvamento privado, recuperação pela mesma conta após reiniciar sess�
 - `src/lib/staged-technician-durable-draft.test.ts` testa ambiente desativado, allowlist de campos, rejeição de contatos/tokens, ID de dono, expiração, conflito de versão e limpeza pós-publicação. O job de CI `adapter-not-activated` executa esses testes, build e TypeScript sem Supabase real.
 - O rollout futuro só pode ativar o adaptador após existir a tabela, RLS correta, manutenção agendada e teste autenticado real de publicação/galeria. A homologação deverá evitar dois salvamentos concorrentes, permitir reabrir o mesmo rascunho no celular e não transmitir dados privados para SSR.
 
+## Revisão documental: paridade de 60 migrations — bloqueio explícito
+
+Fonte primária consultada: `docs/audits/EUT_SUPABASE_MIGRATIONS_METADATA_2026-11-12.md` na `main`, Git blob `a8658442aeefcf3716447417d206a52f1ee23289` (sem executar nenhum arquivo de SQL).
+
+| Classe de evidência | Versões | Valor probatório |
+|---|---:|---|
+| G — arquivos versionados históricos no Git | 4 | Prova do arquivo versionado, não do estado final |
+| C — contratos SQL candidatos | 16 | Documentação candidata, não SQL aplicado autenticado |
+| D — relatos em PRs/issues sem corpo SQL | 17 | Prova do relato, não do DDL |
+| N — nenhuma referência específica encontrada | 23 | Lacuna documental aberta |
+| Digest que autentique os bytes efetivamente aplicados | **0/60** | **Paridade com produção não demonstrada** |
+
+A versão `20261110221912` merece tratamento separado: seu script Git usa `pg_get_functiondef(...)` e substituição/execução dinâmica da definição preexistente. Assim, o blob histórico **não fornece uma definição autocontida do resultado**. Não reconstruir funções desse script por suposição e não reaplicar.
+
+**Gate documental antes de qualquer staging pago:** obter autorização e fonte primária dos metadados/digests do banco e de migrations que efetivamente produziram o esquema; sem difundir dados pessoais nem chaves. Após criar ambiente isolado autorizado, comparar assinaturas de funções, triggers, grants, índices, tabelas e políticas RLS de modo automatizado, identificando divergências sem reexecutar o legado. Qualquer migração **nova** de rascunhos será proposta separadamente, testada com fixtures e só homologada quando a paridade do staging estiver demonstrada. Este inventário não autoriza merge, SQL ou publicação.
+
+**Pré-requisitos de manutenção:** a API GitHub conectada não permite ler os endpoints de environments e secrets, portanto **a existência do ambiente `eut-draft-maintenance`, revisores obrigatórios, branch restrictions e segredo restrito não foi comprovada**. Falha de consulta não prova ausência: obter verificação pelo administrador via configuração GitHub autorizada antes do primeiro `workflow_dispatch`. O CI cobre apenas propriedades estáticas do YAML (sem cron, papel restrito e TLS `verify-full`). A URL de conexão não pode rebaixar `sslmode`, e a sessão de manutenção deve confirmar TLS ativo antes de qualquer DELETE. O workflow segue fora de `main` e não foi executado.
+
 ## Próxima micro-rodada exigida ANTES da integração no frontend
 
 1. Checar permissões de schemas, gatilhos, reservas de nomes e papel técnico contra **staging que espelhe o banco oficial**, sem criar novo backend permanente.
