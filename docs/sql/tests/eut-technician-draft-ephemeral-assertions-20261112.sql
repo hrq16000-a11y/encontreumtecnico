@@ -146,4 +146,57 @@ BEGIN
  IF (SELECT count(*) FROM public.eut_technician_drafts)<>1 THEN
   RAISE EXCEPTION 'Expiry cleanup deleted another owner draft'; END IF;
 END $assert$;
-\echo 'PASS: durable drafts are RLS-isolated, bounded, revised and expiring'
+
+\echo 'Retention QA: privileged batch cleanup, no Data API access'
+SET ROLE authenticated;
+SET request.jwt.claim.sub='00000000-0000-4000-8000-000000000011';
+DO $assert$
+DECLARE blocked boolean:=false;
+BEGIN
+ BEGIN
+   PERFORM eut_moderation.eut_purge_expired_technician_drafts(500);
+ EXCEPTION WHEN insufficient_privilege THEN blocked:=true; END;
+ IF NOT blocked THEN
+   RAISE EXCEPTION 'Authenticated users could invoke privileged cleanup';
+ END IF;
+END $assert$;
+RESET ROLE;
+
+-- The previous owner-deletion left only account 12's unexpired row.
+-- Re-create account 11's synthetic draft; make both expire through privileged
+-- fixture manipulation only. Do not simulate dates against a hosted database.
+INSERT INTO public.eut_technician_drafts(owner_id,draft,step)
+  VALUES('00000000-0000-4000-8000-000000000011',
+    '{"city":"São José dos Pinhais","state_uf":"PR"}'::jsonb,1);
+ALTER TABLE public.eut_technician_drafts DISABLE TRIGGER eut_guard_technician_draft;
+UPDATE public.eut_technician_drafts SET
+  updated_at=now()-INTERVAL '31 days',
+  expires_at=now()-INTERVAL '1 day'
+WHERE owner_id='00000000-0000-4000-8000-000000000011';
+ALTER TABLE public.eut_technician_drafts ENABLE TRIGGER eut_guard_technician_draft;
+
+DO $assert$
+DECLARE c integer;
+BEGIN
+ IF (SELECT count(*) FROM public.eut_technician_drafts WHERE expires_at>now()) <> 1 THEN
+   RAISE EXCEPTION 'Expected unexpired second technician draft'; END IF;
+ c:=eut_moderation.eut_purge_expired_technician_drafts(1);
+ IF c <> 1 THEN RAISE EXCEPTION 'Cleanup did not remove exactly one expired row'; END IF;
+ IF NOT EXISTS (SELECT 1 FROM public.eut_technician_drafts
+   WHERE owner_id='00000000-0000-4000-8000-000000000012'
+     AND expires_at>now()) THEN
+   RAISE EXCEPTION 'Cleanup removed valid draft belonging to another owner'; END IF;
+ IF eut_moderation.eut_purge_expired_technician_drafts(1) <> 0 THEN
+   RAISE EXCEPTION 'Cleanup removed nonexpired draft'; END IF;
+END $assert$;
+
+DO $assert$
+DECLARE refused boolean:=false;
+BEGIN
+ BEGIN
+   PERFORM eut_moderation.eut_purge_expired_technician_drafts(0);
+ EXCEPTION WHEN SQLSTATE '22023' THEN refused:=true; END;
+ IF NOT refused THEN RAISE EXCEPTION 'Cleanup accepted unsafe batch size'; END IF;
+END $assert$;
+\echo 'PASS: durable drafts RLS, optimistic revision, expiry and private bounded cleanup'
+
