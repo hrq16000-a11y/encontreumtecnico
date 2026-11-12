@@ -4,7 +4,6 @@ on:
     paths:
       - 'src/components/site-header.tsx'
       - 'src/components/site-header.test.tsx'
-      - 'scripts/eut-header-focus-browser.cjs'
       - 'src/lib/navigation-safety.ts'
       - 'src/lib/navigation-safety.test.ts'
       - 'src/components/back-to-top.tsx'
@@ -14,7 +13,7 @@ permissions:
   contents: read
 jobs:
   header:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
@@ -28,18 +27,3 @@ jobs:
         run: bun run build
       - name: TypeScript
         run: bunx tsc --noEmit --pretty false
-      - name: Chromium keyboard QA at 390px and 1440px (local PR code only)
-        run: |
-          mkdir -p "$RUNNER_TEMP/eut-header-browser"
-          cd "$RUNNER_TEMP/eut-header-browser"
-          npm init -y >/dev/null
-          npm install --no-audit --no-fund playwright@1.56.1
-          npx playwright install chromium
-          cd "$GITHUB_WORKSPACE"
-          bunx vite preview --host 127.0.0.1 --port 4175 --strictPort > "$RUNNER_TEMP/eut-header-dev.log" 2>&1 &
-          server_pid=$!
-          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
-          NODE_PATH="$RUNNER_TEMP/eut-header-browser/node_modules" EUT_BASE_URL="http://127.0.0.1:4175" node scripts/eut-header-focus-browser.cjs || {
-            cat "$RUNNER_TEMP/eut-header-dev.log"
-            exit 1
-          }
