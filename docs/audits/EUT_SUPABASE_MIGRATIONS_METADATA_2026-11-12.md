@@ -242,9 +242,15 @@ A classificação distingue **estado do arquivo**, **registro de versão aplicad
 
 ### 2.4 Reconciliação de PRs, garantias e sequência de aceite
 
-- A revisão das PRs Draft #4, #5, #26, #66, #74, #81, #133, #139, #142, #145, #146, #156, #200, #207 e #208 **não comprovou obsolescência integral**; preservar as branches, código, arquivos de teste e histórico. **Nenhuma PR encerrada**, nenhum branch apagado nesta rodada.
+- **Estado histórico do levantamento:** as propostas #4, #5, #26, #66 e #74 ainda estavam abertas quando a lista original foi preparada. Na reconciliação posterior de 12/11, essas cinco PRs foram **encerradas sem merge direto**, com evidências e fontes preservadas: #66 teve ferramentas offline portadas pela PR #227 (merge `c5611ecf`), enquanto seu SQL e restore ficaram na Issue #230; identidade/avatares da #74 na Issue #231; inventários e scripts #4/#5 na Issue #232. A #26 foi encerrada em rodada paralela; não declarar paridade total apenas por seu fechamento. As propostas #81, #133, #139, #142, #145, #146, #156, #200, #207 e #208 permanecem separadas e não são autorizadas para merge por este inventário. Nenhuma branch histórica foi apagada nesta reconciliação.
 - Para retomar a reconciliação histórica, procurar exports ou logs de aplicação com conteúdo e procedência verificáveis em uma origem privada autorizada, **sem copiar dados pessoais ao Git**. Onde não houver fonte, registrar `corpo original não recuperado`.
 - Antes de considerar completa a Issue #226, obter comparação de SQL de origem **com verificação de integridade**, revisar dependências de migrations em ambiente de teste descartável e separar **documentação de origem** de **migrações executáveis**.
-- **Zero SQL executado; zero leitura de linhas de usuários, contas ou contatos; zero alterações em Supabase, DNS, Lovable, WordPress, Vercel, produção, backups ou arquivos executáveis.** A PR #229 permanece Draft e deve passar por revisão documental específica antes de merge.
+- **Zero SQL executado; zero leitura de linhas de usuários, contas ou contatos; zero alterações em Supabase, DNS, Lovable, WordPress, Vercel, produção, backups ou arquivos executáveis.** Este registro exige revisão de procedência antes de recuperar qualquer corpo SQL e não autoriza aplicação de migrations.
 
 **Estado desta rodada:** avanço na rastreabilidade e classificação, **sem declarar sincronização histórica completa**.
+
+### Conferência de metadados e estado de PRs na revisão de 12/11/2026
+
+- Recontagem independente com a API de migrations e a árvore Git em `c5611ecf599d738ffdf6f3e15eec616654864181`: **66 versões únicas**, **6 arquivos em `supabase/migrations/`** com prefixos coincidentes, **60 sem arquivo versionado correspondente**, **30 scripts `docs/sql/`**. Os 66 pares `versão + nome` desta tabela conferem com o histórico lido; **não foram comparados hashes/corpos SQL**.
+- A lista de PRs acima representa o instante da auditoria inicial e foi atualizada para refletir o encerramento seguro de #4, #5, #26, #66 e #74. As fontes históricas permanecem nas refs dos respectivos PRs e nos comentários/Issues #230, #231 e #232.
+- O inventário continua **somente metadados e documentação**: nenhum SQL instalado, migração reenviada, dado pessoal acessado, DNS alterado ou release solicitada.
