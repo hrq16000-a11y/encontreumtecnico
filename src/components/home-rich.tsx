@@ -16,7 +16,7 @@ import {
   UserCheck,
   Zap,
 } from "lucide-react";
-import { useActiveCategories } from "@/hooks/use-active-categories";
+import type { ActiveCategory } from "@/hooks/use-active-categories";
 import { FAQ } from "../lib/faq";
 import { SectionHeading } from "./motion";
 import { NationalCoverage } from "./national-coverage";
@@ -53,8 +53,7 @@ const APPROVAL = [
   { icon: Search, title: "Busca", text: "O cliente encontra o profissional por especialidade, cidade ou região." },
 ];
 
-export function CategoryGrid() {
-  const { categories } = useActiveCategories();
+export function CategoryGrid({ categories }: { categories: ActiveCategory[] }) {
   return (
     <section className="mx-auto max-w-6xl px-4 py-16">
       <SectionHeading
