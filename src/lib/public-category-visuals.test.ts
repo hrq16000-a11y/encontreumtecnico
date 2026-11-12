@@ -24,7 +24,8 @@ describe("Home1 original category imagery", () => {
 
   it("preserves active catalog, protected searches, and readable actions on touch", () => {
     const home = readFileSync("src/routes/index.tsx", "utf8");
-    const grid = readFileSync("src/components/home-rich.tsx", "utf8");
+    const fullGridSource = readFileSync("src/components/home-rich.tsx", "utf8");
+    const grid = fullGridSource.slice(fullGridSource.indexOf("export function CategoryGrid("), fullGridSource.indexOf("export function HowItWorksRich()"));
     expect(home).toContain("activeCategories.slice(0, 4)");
     expect(home).toContain('<CategoryGrid categories={activeCategories} />');
     expect(home).toContain('aria-label="Buscar técnicos por cidade ou região"');
