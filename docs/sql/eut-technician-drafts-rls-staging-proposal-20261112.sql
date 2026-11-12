@@ -45,7 +45,8 @@ BEGIN
       IF jsonb_array_length(value) > limit_items THEN RETURN false; END IF;
       FOR item IN SELECT jsonb_array_elements(value) LOOP
         IF jsonb_typeof(item) <> 'string'
-          OR char_length(item #>> '{}') NOT BETWEEN 1 AND 80 THEN RETURN false; END IF;
+          OR char_length(item #>> '{}') NOT BETWEEN 1 AND 80
+          OR (item #>> '{}') ~* '(https?://|www[.]|wa[.]me|@|[+]?[0-9][0-9 ().+-]{8,}[0-9])' THEN RETURN false; END IF;
       END LOOP;
     END IF;
   END LOOP;
