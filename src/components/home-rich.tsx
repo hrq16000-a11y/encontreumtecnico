@@ -15,9 +15,11 @@ import {
   ShieldCheck,
   UserCheck,
   Zap,
+  Wrench,
 } from "lucide-react";
 import type { ActiveCategory } from "@/hooks/use-active-categories";
 import { FAQ } from "../lib/faq";
+import { getPublicCategoryIllustration } from "../lib/public-category-visuals";
 import { SectionHeading } from "./motion";
 import { NationalCoverage } from "./national-coverage";
 
@@ -63,7 +65,8 @@ export function CategoryGrid({ categories }: { categories: ActiveCategory[] }) {
       />
       <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {categories.map((category) => {
-          const info = CATEGORY_INFO[category.slug] ?? { icon: Cctv, text: "" };
+          const info = CATEGORY_INFO[category.slug] ?? { icon: Wrench, text: "Explore profissionais cadastrados nesta categoria." };
+          const illustration = getPublicCategoryIllustration(category.slug);
           const I = info.icon;
           return (
             <li key={category.slug}>
@@ -73,15 +76,32 @@ export function CategoryGrid({ categories }: { categories: ActiveCategory[] }) {
                 onClick={() =>
                   window.__lovableEvents?.track?.("project.category_selected", { category: category.slug })
                 }
-                className="group flex h-full flex-col rounded-2xl border border-border bg-card p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-soft"
+                className="group flex h-full flex-col rounded-3xl border border-border bg-card p-4 shadow-sm transition-[transform,box-shadow,border-color] motion-safe:duration-300 motion-safe:hover:-translate-y-1 hover:border-primary/60 hover:shadow-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transform-none"
               >
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors duration-300 group-hover:bg-primary group-hover:text-primary-foreground">
-                  <I className="h-5 w-5" aria-hidden />
-                </span>
-                <h3 className="mt-4 font-semibold text-card-foreground">{category.label}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{category.description || info.text}</p>
-                <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100">
-                  Ver técnicos <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+                <div aria-hidden="true" className="relative aspect-[16/9] overflow-hidden rounded-2xl border border-primary/10 bg-gradient-to-br from-accent via-secondary to-muted">
+                  {illustration ? (
+                    <img
+                      src={illustration}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      width={1200}
+                      height={630}
+                      className="h-full w-full object-cover motion-safe:transition-transform motion-safe:duration-500 motion-safe:group-hover:scale-[1.04] motion-safe:group-focus-visible:scale-[1.04] motion-reduce:transform-none"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-primary/65">
+                      <I className="h-14 w-14" />
+                    </div>
+                  )}
+                  <span className="absolute bottom-3 left-3 flex h-10 w-10 items-center justify-center rounded-xl border border-white/60 bg-card/95 text-primary shadow-md">
+                    <I className="h-5 w-5" />
+                  </span>
+                </div>
+                <h3 className="mt-4 text-base font-bold text-card-foreground">{category.label}</h3>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{category.description || info.text}</p>
+                <span className="mt-auto inline-flex min-h-11 items-center gap-2 pt-3 text-sm font-semibold text-primary">
+                  Ver técnicos <ArrowRight className="h-4 w-4 motion-safe:transition-transform motion-safe:duration-200 motion-safe:group-hover:translate-x-1 motion-reduce:transform-none" aria-hidden />
                 </span>
               </Link>
             </li>

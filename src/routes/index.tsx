@@ -256,12 +256,42 @@ function HomePage() {
             </ul>
             )}
           </div>
-          <div className="relative animate-rise [animation-delay:150ms]">
-            <img src={heroImg} alt="Técnico instalando câmera de segurança na fachada de uma casa" width={1280} height={1024} className="aspect-[5/4] w-full rounded-3xl object-cover shadow-soft" />
-            <div className="absolute -bottom-5 left-4 flex animate-float items-center gap-3 rounded-2xl bg-card px-4 py-3 shadow-soft">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground"><MapPin className="h-5 w-5" aria-hidden /></span>
-              <div className="text-sm"><div className="font-semibold text-foreground">Técnicos perto de você</div><div className="text-muted-foreground">Busque por cidade ou região</div></div>
+          <div className="relative mx-auto w-full max-w-xl animate-rise [animation-delay:150ms] lg:max-w-none">
+            <div className="group relative overflow-hidden rounded-3xl border-4 border-card/70 bg-brand-navy shadow-soft">
+              <img
+                src={heroImg}
+                alt="Técnico instalando câmera de segurança na fachada de uma casa"
+                width={1280}
+                height={1024}
+                loading="eager"
+                fetchPriority="high"
+                decoding="async"
+                className="aspect-[5/4] w-full object-cover motion-safe:transition-transform motion-safe:duration-700 motion-safe:group-hover:scale-[1.03] motion-reduce:transform-none"
+              />
+              <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-gradient-to-t from-brand-navy/50 via-transparent to-brand-navy/10" />
+              <span className="absolute right-3 top-3 rounded-full border border-white/25 bg-brand-navy/80 px-3 py-2 text-xs font-semibold text-brand-navy-foreground shadow-lg backdrop-blur-sm sm:right-5 sm:top-5">
+                CFTV · Informática · Redes
+              </span>
             </div>
+            <Link
+              to="/tecnicos"
+              search={{
+                especialidade: specialty.trim() || "Todas", cidade: city.trim(), regiao: "",
+                uf: locationUf, bairro: locationNeighborhood,
+                prioridade: locationUf ? "regiao" : "",
+              }}
+              aria-label="Buscar técnicos por cidade ou região"
+              className="group relative z-10 mx-3 -mt-5 flex min-h-14 items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-foreground shadow-soft transition-colors hover:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:absolute sm:-bottom-5 sm:left-4 sm:mx-0 sm:mt-0"
+            >
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                <MapPin className="h-5 w-5" aria-hidden />
+              </span>
+              <span className="min-w-0 text-sm">
+                <span className="block font-semibold">Encontre técnicos na sua região</span>
+                <span className="block text-muted-foreground">Busque por cidade ou serviço</span>
+              </span>
+              <Search className="ml-auto h-4 w-4 shrink-0 text-primary motion-safe:transition-transform motion-safe:duration-200 motion-safe:group-hover:translate-x-1 motion-reduce:transform-none" aria-hidden />
+            </Link>
           </div>
         </div>
       </section>

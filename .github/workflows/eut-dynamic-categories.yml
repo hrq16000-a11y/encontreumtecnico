@@ -9,6 +9,8 @@ on:
       - 'src/routes/tecnicos.$tecnicoId.tsx'
       - 'src/routes/home2.tsx'
       - 'src/components/home-rich.tsx'
+      - 'src/lib/public-category-visuals.ts'
+      - 'src/lib/public-category-visuals.test.ts'
       - 'src/routes/index.tsx'
       - 'src/lib/technicians.functions.ts'
       - '.github/workflows/eut-dynamic-categories.yml'
@@ -29,6 +31,8 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - name: Install locked dependencies
         run: bun install --frozen-lockfile
+      - name: Validate original category media, accessible action and dynamic shortcuts
+        run: bunx vitest run src/lib/public-category-visuals.test.ts src/lib/home-active-category-shortcuts.test.ts
       - name: Build app
         run: bun run build
       - name: Validate static catalog contracts
