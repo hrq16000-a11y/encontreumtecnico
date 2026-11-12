@@ -9,6 +9,7 @@ on:
       - 'src/routes/tecnicos.$tecnicoId.tsx'
       - 'src/routes/home2.tsx'
       - 'src/components/home-rich.tsx'
+      - 'src/routes/index.tsx'
       - 'src/lib/technicians.functions.ts'
       - '.github/workflows/eut-dynamic-categories.yml'
 
@@ -39,19 +40,22 @@ jobs:
           const tech=read('src/routes/area-tecnico.tsx');
           const results=read('src/routes/tecnicos.index.tsx');
           const home1=read('src/components/home-rich.tsx');
+          const home1Page=read('src/routes/index.tsx');
           const home2=read('src/routes/home2.tsx');
           const server=read('src/lib/technicians.functions.ts');
           for (const [file, body, terms] of [
             ['catalog hook',catalog,['eut_service_categories','.eq("active", true)','display_order']],
             ['tech profile',tech,['useActiveCategories()','c.slug','_state_uf: form.state_uf','eut_publish_my_technician']],
             ['search',results,['useActiveCategories()','value={c.slug}','{c.label}']],
-            ['home1 categories',home1,['useActiveCategories()','category.slug','category.label']],
+            ['home1 categories',home1,['CategoryGrid({ categories }','category.slug','category.label']],
+            ['home1 shared catalog',home1Page,['useActiveCategories()','categories={activeCategories}','activeCategories.slice(0, 4)','especialidade: category.slug']],
             ['home2 categories',home2,['useActiveCategories()','search={{ especialidade: cat.slug','value={c.slug}']],
             ['search server',server,['LEGACY_CATEGORY_ALIASES','slug', '.eq("active", true)']],
           ]) {
             for (const term of terms) if (!body.includes(term)) throw Error(file+' missing '+term);
           }
           if (tech.includes('CATEGORIES.map(') || home2.includes('CATEGORIES.map(')) throw Error('Static category UI remains');
+          if (home1.includes('useActiveCategories()')) throw Error('Duplicate category query in Home1 grid');
           if (!home2.includes('to="/tecnicos"') || home2.includes('window.location.assign('))
             throw Error('Dynamic categories must navigate using TanStack SPA routing');
           if (!tech.includes('data?.state === "publicado"')) throw Error('Server-confirmed automatic publication missing');
