@@ -7,6 +7,7 @@ type PopupWindow = Pick<Window, "closed">;
 type PopupReturnOptions = {
   popup: PopupWindow;
   origin: string;
+  nonce: string;
   verifySession: () => Promise<boolean>;
   onVerified: () => void;
   onFailure: () => void;
@@ -14,11 +15,23 @@ type PopupReturnOptions = {
 };
 
 export function watchGooglePopupReturn({
-  popup, origin, verifySession, onVerified, onFailure, onClosed,
+  popup, origin, nonce, verifySession, onVerified, onFailure, onClosed,
 }: PopupReturnOptions): () => void {
   let stopped = false;
   let checking = false;
   let closedReported = false;
+  // Only a matching callback signal proves that this OAuth attempt returned.
+  // Existing account sessions must not be mistaken for a new Google login.
+  const proofKey = `eut-google-popup-result:${nonce}`;
+  function callbackProof(): string | null {
+    try { return window.localStorage.getItem(proofKey); }
+    catch { return null; }
+  }
+  function handleProof(value: string | null) {
+    if (stopped) return;
+    if (value === "complete") void confirmSession();
+    else if (value === "error") { stop(); onFailure(); }
+  }
 
   function stop() {
     if (stopped) return;
@@ -28,6 +41,7 @@ export function watchGooglePopupReturn({
     window.removeEventListener("focus", onFocus);
     window.clearInterval(closedCheck);
     window.clearTimeout(expiry);
+    try { window.localStorage.removeItem(proofKey); } catch { /* Unavailable storage. */ }
   }
 
   async function confirmSession(fromPopupMessage = false) {
@@ -52,7 +66,7 @@ export function watchGooglePopupReturn({
   }
 
   function onMessage(event: MessageEvent) {
-    if (stopped || event.origin !== origin || event.source !== popup) return;
+    if (stopped || event.origin !== origin || event.source !== popup || event.data?.nonce !== nonce) return;
     if (event.data?.type === "eut:google-oauth-error") {
       stop();
       onFailure();
@@ -62,22 +76,23 @@ export function watchGooglePopupReturn({
   }
 
   function onStorage(event: StorageEvent) {
-    // Some browsers remove window.opener via COOP. Same-origin auth storage
-    // will still propagate, but no storage event is itself an auth proof.
-    if (event.storageArea === window.localStorage) void confirmSession();
+    // COOP may sever opener; only a same-attempt callback marker can trigger
+    // server verification. Generic Supabase storage updates are not proof.
+    if (event.storageArea === window.localStorage && event.key === proofKey)
+      handleProof(event.newValue);
   }
 
   function onFocus() {
-    // Covers returning to the original tab after OAuth closes a popup.
-    // No automatic failure: a COOP-isolated popup can appear closed early.
-    void confirmSession();
+    // A pre-existing valid session is not evidence of this OAuth attempt.
+    // Re-check only when the callback itself left a matching marker.
+    handleProof(callbackProof());
   }
 
   const closedCheck = window.setInterval(() => {
     try {
       if (!closedReported && popup.closed) {
         closedReported = true;
-        void confirmSession();
+        handleProof(callbackProof());
         // Do not stop listening: COOP can report closed before Auth completes.
         onClosed();
       }
