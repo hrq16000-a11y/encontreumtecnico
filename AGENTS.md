@@ -1,39 +1,31 @@
-<!-- LOVABLE:BEGIN -->
-> [!IMPORTANT]
-> This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
-> published git history — force pushing, or rebasing/amending/squashing commits
-> that are already pushed — as it rewrites history on Lovable's side and the
-> user will likely lose their project history.
->
-> Commits you push to the connected branch sync back to Lovable and show up in
-> the editor, so keep the branch in a working state.
+# AGENTS.md — Encontre um Técnico
 
-## What Lovable manages
+## Fonte de verdade e governança
 
-Rules outside this block are the project's own. Change the pieces below in
-Lovable, not by hand. With the [Lovable MCP](https://mcp.lovable.dev)
-connected, `send_message` asks Lovable to do it; otherwise ask the user to
-use the editor.
+- Aplicação TanStack Start em `src/routes/`, interface compartilhada em `src/components/`; repositório oficial GitHub `hrq16000-a11y/encontreumtecnico`, deploy controlado no projeto Vercel `msolus/encontreumtecnico`.
+- O backend ativo é o Supabase **dedicado ao Encontre um Técnico**. Não criar outro banco, não migrar para Lovable Cloud e não executar migrations/SQL sem autorização explícita e procedimento auditado.
+- Metadados herdados em `.lovable/`, dependências `@lovable.dev/*` e referências históricas não demonstram que Lovable seja o controlador atual da publicação. Preservar integrações ainda referenciadas; não removê-las sem prova de ausência de dependência.
+- GitHub é a fonte de código; não usar Lovable ou Max mode para mudanças ordinárias. Preservar histórico publicado; nunca forçar push/rebase de commits públicos.
+- `vercel.json` desativa deploy automático por push; publicar somente quando gates aprovados, SHA conferido, rollback disponível e a mudança exigir release.
 
-- **Database.** Do not add or edit `supabase/migrations/` or `drizzle/`.
-  Ask Lovable to change the schema.
-- **Generated files.** Do not edit a file whose header says it is automatically
-  generated.
-- **AI gateway.** Keep model calls on Lovable's gateway, and keep
-  `LOVABLE_API_KEY` out of browser code.
-- **Connectors.** Lovable provides native connectors. `list_connectors` shows
-  which are enabled; `add_connector` only returns the dashboard link. When a
-  connector is enabled, calls go through the connector gateway and need
-  `LOVABLE_API_KEY`. When Lovable does not provide one, users can bring their
-  own key and store it in Secrets.
-- **Secrets.** Lovable manages them. Do not put secret values in the repo.
-<!-- LOVABLE:END -->
+## Contratos críticos
 
-## Architecture
+- A identidade administrativa depende de autorização no servidor, com validação de e-mail e papel; nunca conceder admin por metadados editáveis pelo cliente.
+- Pesquisa de técnicos, perfis, localização, funis e painel devem preservar privacidade e autorização no servidor. Telefone privado não pode vazar em SSR, HTML público, sitemap, logs, JSON-LD ou respostas de busca.
+- Funil: recolher consentimento e persistir a solicitação conforme contratos antes de qualquer compartilhamento permitido. Não criar leads fictícios em produção e não ativar pagamento/contato pago por alteração incidental.
+- A integração de IA existente usa `@lovable.dev/ai-gateway` em funções de servidor. Não colocar chaves no cliente e não excluir o gateway sem substituição e testes completos.
+- O catálogo, as rotas SSR, `canonical`, `robots`, `sitemap.xml`, redirecionamentos legítimos e 404 reais devem continuar verificáveis.
+- Não alterar DNS, Vercel, banco, WordPress, Supabase, dados, importações, pagamentos, anúncios ou controles administrativos fora do escopo aprovado.
 
-- Backend is the user's own external Supabase project (`pqtzhctvjbfcunmrvxne`); never enable Lovable Cloud or create another database — the spec forbids it.
-- Pages are TanStack Start file routes under `src/routes/`; shared chrome lives in `src/components/site-header.tsx` / `site-footer.tsx` via `PageShell`.
-- AI calls go through `@lovable.dev/ai-gateway` inside server functions in `src/lib/*.functions.ts`; never call models from browser code (keeps the key server-side).
-- Technician filters live in `/tecnicos` search params (`especialidade`, `cidade`, `regiao`) so searches, categories and the AI assistant can deep-link into them.
-- Search analytics writes consented listing searches without visitor identity to `search_events`; admin charts use a role-checked RLS-scoped aggregate RPC to avoid truncated totals.
-- The explicitly designated portal owner's initial admin role is granted by an Auth lifecycle trigger only after email verification; never infer admin from editable profile metadata.
+## Preservação e limpeza
+
+- **Não tratar nomes `legacy`, `wordpress`, `lp2-template/original`, `supabase/migrations`, `docs/sql` e backups como provas de obsolescência.** São arquivos de rastreabilidade, reconciliação de titulares, mídias, rotas e recuperação.
+- Revisar referências do runtime, testes, workflows, rotas históricas, SEO e plano de restauração antes de remover código ou arquivos. Apagar somente itens com ausência de uso comprovada.
+- Uma micro-rodada por tema, mudanças mínimas, CI real; merge e no máximo um deployment quando indispensável. Não desativar nem afrouxar gates para desbloquear fila.
+- Diferenciar **teste estático**, **CI aprovado**, **Vercel READY** e **QA HTTP real**. Nenhum deles isoladamente prova paridade funcional completa com o portal anterior.
+
+## Arquitetura e navegação
+
+- Filtros de técnicos em `/tecnicos`, com parâmetros de consulta para especialidade, cidade e região, e links profundos nas categorias.
+- Pesquisas analíticas consentidas não devem incluir identidade do visitante; agregações administrativas exigem autorização/RLS.
+- Para alterações de integração, consultar `README.md`, documentação de migração e workflows específicos, sempre conferindo a validade temporal dos documentos.
