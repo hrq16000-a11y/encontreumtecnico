@@ -44,6 +44,22 @@ describe("Cabeçalho do novo portal", () => {
     expect(screen.getByRole("button", { name: "Abrir menu" })).toBeTruthy();
   });
 
+  it("devolve foco ao botão ao fechar menu com Escape", () => {
+    render(<SiteHeader />);
+    const trigger = screen.getByRole("button", { name: "Abrir menu" });
+    fireEvent.click(trigger);
+    const menu = screen.getByRole("navigation", { name: "Navegação móvel" });
+    const focusedLink = menu.querySelector('a[href="/servicos"]') as HTMLAnchorElement;
+    focusedLink.focus();
+    expect(document.activeElement).toBe(focusedLink);
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(screen.queryByRole("navigation", { name: "Navegação móvel" })).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  });
+
   it("fecha com Escape e após tocar em um link", () => {
     render(<SiteHeader />);
     fireEvent.click(screen.getByRole("button", { name: "Abrir menu" }));
