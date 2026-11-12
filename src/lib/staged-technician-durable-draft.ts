@@ -138,12 +138,21 @@ export function createStagedTechnicianDraftAdapter(
         } };
       } catch { return { status: "failed" }; }
     },
-    /** Call only after the backend confirms successful publication for this owner. */
-    async clearAfterConfirmedPublication(ownerId: string, publishedForOwner: boolean): Promise<boolean> {
-      if (!backendVerified || !publishedForOwner || !validOwner(ownerId)) return false;
+    /**
+     * Call only after backend-confirmed publication for the same owner.
+     * Require the revision read before publication: a different tab may have
+     * written a newer draft while the publish RPC was in flight. In that
+     * case leave the newer row untouched for explicit user reconciliation.
+     */
+    async clearAfterConfirmedPublication(
+      ownerId: string, publishedForOwner: boolean, expectedRevision: number,
+    ): Promise<boolean> {
+      if (!backendVerified || !publishedForOwner || !validOwner(ownerId) ||
+          !Number.isSafeInteger(expectedRevision) || expectedRevision < 1) return false;
       try {
         const { data, error } = await table()
-          .delete().eq("owner_id", ownerId).select("owner_id").maybeSingle();
+          .delete().eq("owner_id", ownerId).eq("revision", expectedRevision)
+          .select("owner_id").maybeSingle();
         return !error && data?.owner_id === ownerId;
       } catch { return false; }
     },
