@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { clearSignupIntent, normalizeSignupIntent, readSignupIntent, rememberSignupIntent } from "./signup-intent";
 import { authReturnUrl, EUT_CANONICAL_ORIGIN } from "./auth-domain";
 
@@ -23,6 +23,19 @@ describe("QA #153 adaptada à main: intenção de cadastro nunca é privilégio"
     expect(readSignupIntent()).toBeNull();
     sessionStorage.setItem("eut-signup-intent", "tecnico,admin");
     expect(readSignupIntent()).toBeNull();
+  });
+
+  it("não interrompe o cadastro quando o navegador bloqueia sessionStorage", () => {
+    const blocked = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("Storage blocked", "SecurityError");
+    });
+    try {
+      expect(() => rememberSignupIntent("tecnico")).not.toThrow();
+      // Sem persistência local, a intenção continua uma preferência, nunca um papel.
+      expect(readSignupIntent()).toBeNull();
+    } finally {
+      blocked.mockRestore();
+    }
   });
 
   it("recusa origem de callback arbitrária mesmo com intenção armazenada", () => {
