@@ -114,11 +114,13 @@ export function AuthDialogProvider({ children }: { children: ReactNode }) {
     const popup = canPopup
       ? window.open("about:blank", "_blank", "popup=yes,width=520,height=720,scrollbars=yes,resizable=yes")
       : null;
+    const nonce = popup ? Array.from(window.crypto.getRandomValues(new Uint8Array(16)),
+      byte => byte.toString(16).padStart(2, "0")).join("") : null;
     if (popup) {
       // A reused named popup may already be on Google's origin.
       try {
         // sessionStorage survives the cross-site roundtrip, unlike window.name.
-        popup.sessionStorage.setItem("eut-google-popup-auth", "1");
+        popup.sessionStorage.setItem("eut-google-popup-auth", nonce!);
         popup.document.title = "Entrar com Google — Encontre um Técnico";
         popup.document.body.innerHTML = '<p style="font:16px system-ui;padding:28px">Abrindo autenticação segura do Google…</p>';
       } catch { /* cross-origin popup: navigation still works */ }
@@ -141,6 +143,7 @@ export function AuthDialogProvider({ children }: { children: ReactNode }) {
       stopWatcher = watchGooglePopupReturn({
         popup,
         origin: window.location.origin,
+        nonce: nonce!,
         verifySession: async () => {
           const { data: result, error: sessionError } = await supabase.auth.getUser();
           return !sessionError && Boolean(result.user);
