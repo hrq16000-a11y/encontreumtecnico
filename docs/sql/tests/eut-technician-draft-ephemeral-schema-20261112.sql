@@ -1,4 +1,4 @@
--- PostgreSQL 16 disposable container fixture ONLY. Never use in hosted Supabase.
+-- PostgreSQL 17 disposable container fixture ONLY. Never use in hosted Supabase.
 CREATE ROLE anon NOLOGIN;
 CREATE ROLE authenticated NOLOGIN;
 CREATE SCHEMA auth;
@@ -34,7 +34,7 @@ INSERT INTO auth.users VALUES
  ('00000000-0000-4000-8000-000000000011'),
  ('00000000-0000-4000-8000-000000000012'),
  ('00000000-0000-4000-8000-000000000013');
-INSERT INTO public.user_roles VALUES
+INSERT INTO public.user_roles (user_id, role) VALUES
  ('00000000-0000-4000-8000-000000000011','tecnico'),
  ('00000000-0000-4000-8000-000000000012','tecnico'),
  ('00000000-0000-4000-8000-000000000013','cliente');
