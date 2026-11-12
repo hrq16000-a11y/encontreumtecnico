@@ -24,6 +24,14 @@ import { MapPin, ShieldCheck, UserRoundCheck, LifeBuoy } from "lucide-react";
  * Avoid importing the full editorial catalogue into the default search bundle.
  */
 const CATEGORY_SEARCH_CONTEXT: Record<string, { title: string; advice: string }> = {
+  automacao: {
+    title: "Automação de ambientes e rotinas",
+    advice: "Informe funções desejadas, equipamentos atuais e se a instalação precisa operar sem internet. Nunca envie senhas ou códigos de autenticação ao solicitar atendimento.",
+  },
+  comunicacoes: {
+    title: "Interfonia, ramais e telefonia IP",
+    advice: "Indique quantidade aproximada de pontos, central existente, problemas de rede e uso interno ou externo. Evite divulgar gravações e credenciais da operadora.",
+  },
   computadores: {
     title: "Lentidão, diagnóstico e manutenção",
     advice: "Anote travamentos, lentidão em programas e sinais de aquecimento. Confirme o backup antes de autorizar formatação ou troca de peças.",

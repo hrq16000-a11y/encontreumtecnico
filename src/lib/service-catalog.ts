@@ -1,4 +1,5 @@
 import { GUIDES, type PublicGuide } from "./public-guides";
+import { getSpecialtyContent, SPECIALTY_RELATED_CATEGORIES } from "./service-specialty-content";
 
 /** Stable public service taxonomy. Do not invent professionals or categories from user text. */
 export const SERVICE_CATEGORIES = [
@@ -16,11 +17,11 @@ export const SERVICE_CATEGORIES = [
 
 export type ServiceCategory = (typeof SERVICE_CATEGORIES)[number];
 
-/** Six original articles are repurposed as complete content *inside* their specialty pages. */
+/** Substantive editorial content lives inside service pages, never a news feed. */
 export function getEnrichedServiceCategory(slug: string): { category: ServiceCategory; guide: PublicGuide } | null {
   const category = SERVICE_CATEGORIES.find(item => item.slug === slug);
   if (!category) return null;
-  const guide = GUIDES.find(item => item.categorySlug === category.slug);
+  const guide = GUIDES.find(item => item.categorySlug === category.slug) ?? getSpecialtyContent(category.slug);
   return guide ? { category, guide } : null;
 }
 
@@ -28,3 +29,23 @@ export function getEnrichedServiceCategory(slug: string): { category: ServiceCat
 export const ENRICHED_CATEGORY_PATHS = SERVICE_CATEGORIES
   .filter(category => getEnrichedServiceCategory(category.slug) !== null)
   .map(category => "/servicos/" + category.slug);
+
+/** Curated, contextual lateral navigation. Only real enriched category pages. */
+const RELATED_SERVICE_CATEGORIES: Record<string, readonly string[]> = {
+  computadores: ["software", "redes", "impressoras"],
+  cftv: ["automacao", "redes", "comunicacoes"],
+  redes: ["computadores", "comunicacoes", "automacao"],
+  impressoras: ["redes", "computadores"],
+  software: ["computadores", "redes"],
+  climatizacao: ["automacao"],
+  ...SPECIALTY_RELATED_CATEGORIES,
+};
+
+export function getRelatedServiceCategories(slug: string): readonly ServiceCategory[] {
+  return (RELATED_SERVICE_CATEGORIES[slug] ?? [])
+    .filter(related => related !== slug)
+    .flatMap(related => {
+      const category = getEnrichedServiceCategory(related);
+      return category ? [category.category] : [];
+    });
+}

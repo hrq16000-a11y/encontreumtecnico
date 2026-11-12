@@ -4,7 +4,7 @@ import { GuideSectionVisual } from "@/components/guide-section-visual";
 import { GuideLeadCallout } from "@/components/guide-lead-callout";
 import { GuideReadingNavigation, GuideFrequentlyAskedQuestions } from "@/components/guide-reading-tools";
 import { getGuideArtwork } from "@/lib/guide-artwork";
-import { getRelatedGuides } from "@/lib/public-guides";
+import { getRelatedServiceCategories } from "@/lib/service-catalog";
 import { getEnrichedServiceCategory } from "@/lib/service-catalog";
 import { listApprovedTechnicians } from "@/lib/technicians.functions";
 import { SITE } from "@/lib/public-sitemap";
@@ -70,11 +70,7 @@ function ServiceCategoryPage() {
   if (!entry) return null;
   const { category, guide } = entry;
   const artwork = getGuideArtwork(guide.categorySlug);
-  const relatedCategories = getRelatedGuides(guide.slug)
-    .flatMap(item => {
-      const related = getEnrichedServiceCategory(item.categorySlug);
-      return related ? [related.category] : [];
-    });
+  const relatedCategories = getRelatedServiceCategories(category.slug);
   const directorySearch = { especialidade: category.slug, cidade: "", regiao: "" };
 
   return (
