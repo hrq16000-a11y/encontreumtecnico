@@ -66,3 +66,18 @@ A consulta read-only anterior identificou ausência de `eut_admin_technician_cha
 ## Preservação
 
 Sem SQL de escrita, alteração de perfis, usuários, convites, banimentos, telefone, dados de produção, WordPress, Lovable, DNS ou Vercel; sem consulta à fonte externa de técnicos. `main` e todas as PRs existentes preservadas. **Esta rodada não afirma resolver definitivamente a publicação de técnicos.**
+
+## Checkpoint de execução — 12/11/2026 (PR #239)
+
+- O Supabase dedicado confirmou **zero development branches** na conexão autorizada. Uma tentativa de criar uma branch isolada `qa-eut-drafts-isolado-20261112` foi **bloqueada pelo controle de cobrança**, que exige confirmação explícita do custo. **Nenhuma branch Supabase foi criada** e não houve acesso de escrita ao projeto real. O projeto PostgreSQL 17 descartável do GitHub Actions é teste de contrato, não réplica de Supabase.
+- [ ] Antes de criar staging com cobrança: informar custo/hora da organização, obter autorização explícita, limitar duração e confirmar que as migrações existentes chegam à branch. Não copiar dados reais nem contatos sem justificativa/autorização.
+- [ ] Confirmar política RLS `auth.uid()`, `public.user_roles`, `public.has_role`, triggers do projeto, grants da Data API e schema `eut_moderation` contra uma instância isolada autorizada. Validar migrações `docs/sql/eut-technician-drafts-rls-staging-proposal-20261112.sql` e `docs/sql/eut-technician-draft-retention-staging-proposal-20261112.sql` somente nesse ambiente.
+- [ ] Validar manutenção com papel `eut_draft_maint` restrito, aprovado e criado por um DBA no staging. Papel sem acesso ao JSON, à autenticação ou a outros registros. Confirmar que `DELETE` só atinge vencidos.
+- [ ] Preparar **GitHub Environment** `eut-draft-maintenance`, com revisores obrigatórios, acesso apenas a `main` e segredo `EUT_DRAFT_MAINT_DATABASE_URL` apontando para papel exclusivamente de manutenção. Não usar senha do administrador, `service_role` ou segredo do navegador.
+- [ ] O arquivo `.github/workflows/eut-draft-maintenance-manual.yml` existe **somente na PR**. Possui `workflow_dispatch` manual, texto obrigatório de confirmação, verificação de branch/repositório, execução serializada e lote máximo 500; **não tem `schedule`**, não fica disponível em `main` até aprovação, e nenhuma credencial foi cadastrada.
+- [ ] Após sucesso do disparo manual com sessão QA e RLS homologadas, aprovar em PR **separada** o disparo diário. A documentação propõe 07:10 UTC, mas isso **não é agenda ativa**.
+- [ ] Restaurar rascunho remoto só do titular autenticado e quando houver sessão confirmada; fallback local se backend inacessível; divergência de versões deve solicitar escolha explícita, nunca sobrescrever. Esse comportamento já está especificado em `src/lib/technician-draft-recovery-decision.ts`, com testes, **não ligado ao formulário público**.
+- [ ] Homologar cadastro/Google OAuth com conta de QA realmente autenticada e autorizada: troca de sessão, UF/cidade IBGE, Jardim Itália, celular 390px, publicação e visibilidade correta na galeria. **O navegador conectado nesta conversa não disponibilizou sessão.**
+- [ ] A Issue #210 de administração permanece separada: RPCs de edição e arquivamento ainda ausentes do Supabase real. Não conectar seus botões ou publicar SQL sem staging e rollback.
+
+**Critérios de publicação:** staging completo aprovado, manutenção operacional segura, frontend integrado com testes de recuperação e zero regressões, QA autenticado, HEAD com gates aprovados e release única. Até lá, produção e `main` preservadas.
