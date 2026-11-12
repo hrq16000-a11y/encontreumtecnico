@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { BadgeCheck, HandCoins, Eye, Scale, Camera, Laptop, Wifi, Printer, MapPin, Search } from "lucide-react";
+import { BadgeCheck, HandCoins, Eye, Scale, MapPin, Search } from "lucide-react";
 import logo from "@/assets/logo-encontreumtecnico.png.asset.json";
 import heroImg from "@/assets/tecnico-cftv-instalacao.jpg";
 import techImg from "@/assets/tecnica-informatica.jpg";
@@ -13,6 +13,7 @@ import { ProblemAssistant } from "../components/problem-assistant";
 import { CustomerLocationButton } from "@/components/customer-location-button";
 import { safeNeighborhood } from "@/lib/location-labels";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
+import { useActiveCategories } from "@/hooks/use-active-categories";
 import { readUiTextDraft, saveUiTextDraft } from "@/lib/unsent-ui-draft";
 import { Reveal } from "../components/motion";
 import {
@@ -89,15 +90,11 @@ const TRUST = [
   { icon: Scale, title: "Valorização do técnico", text: "Sem leilão de preço: o profissional define seu trabalho." },
 ];
 
-const CHIPS = [
-  { i: Camera, t: "CFTV" },
-  { i: Laptop, t: "Informática" },
-  { i: Wifi, t: "Redes" },
-  { i: Printer, t: "Impressoras" },
-];
-
 function HomePage() {
   const navigate = useNavigate();
+  // The same active, admin-ordered category catalog used by the technicians directory.
+  // Do not show static shortcuts when public catalog data is unavailable.
+  const { categories: activeCategories, loading: catalogLoading, error: catalogError } = useActiveCategories();
   // Initial SSR and client render agree; the saved search is loaded only
   // after hydration, while the empty form stays hidden from the visitor.
   const [specialty, setSpecialty] = useState("");
@@ -230,13 +227,29 @@ function HomePage() {
                 </Link>
               )}
             </div>
-            <ul className="mt-5 flex flex-wrap gap-2 text-xs text-muted-foreground">
-              {CHIPS.map(({ i: I, t }) => (
-                <li key={t} className="inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-1.5 font-medium text-foreground shadow-sm">
-                  <I className="h-3.5 w-3.5 text-primary" aria-hidden /> {t}
-                </li>
-              ))}
-            </ul>
+            {!catalogLoading && !catalogError && activeCategories.length > 0 && (
+              <ul aria-label="Atalhos para categorias ativas" className="mt-5 flex flex-wrap gap-2 text-xs">
+                {activeCategories.slice(0, 4).map((category) => (
+                  <li key={category.slug}>
+                    <Link
+                      to="/tecnicos"
+                      search={{
+                        especialidade: category.slug,
+                        cidade: city.trim(),
+                        regiao: "",
+                        uf: locationUf,
+                        bairro: locationNeighborhood,
+                        prioridade: locationUf ? "regiao" : "",
+                      }}
+                      className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-card px-3 py-2 font-medium text-foreground shadow-sm transition-colors hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                    >
+                      <Search className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                      {category.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
           <div className="relative animate-rise [animation-delay:150ms]">
             <img src={heroImg} alt="Técnico instalando câmera de segurança na fachada de uma casa" width={1280} height={1024} className="aspect-[5/4] w-full rounded-3xl object-cover shadow-soft" />
