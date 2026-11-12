@@ -75,8 +75,24 @@ jobs:
         run: bun run build
       - name: TypeScript check
         run: bunx tsc --noEmit --pretty false
-      - name: Verify maintenance workflow is manual only and not installed in production
+      - name: Verify maintenance is dispatch-only and draft adapter stays disconnected
+        shell: bash
         run: |
-          test -f .github/workflows/eut-draft-maintenance-manual.yml
-          ! grep -Eq '^  schedule:|^  push:|^  pull_request:' .github/workflows/eut-draft-maintenance-manual.yml
-          ! grep -Eq 'SUPABASE_SERVICE_ROLE_KEY|secrets\\.SUPABASE_' .github/workflows/eut-draft-maintenance-manual.yml
+          set -euo pipefail
+          w=.github/workflows/eut-draft-maintenance-manual.yml
+          test -f "$w"
+          grep -Eq '^on:
+ "$w"
+          grep -Eq '^  workflow_dispatch:
+ "$w"
+          ! grep -Eq '^  (schedule|push|pull_request|pull_request_target|workflow_call|repository_dispatch|workflow_run):' "$w"
+          grep -Fq "github.ref == 'refs/heads/main'" "$w"
+          grep -Fq 'environment: eut-draft-maintenance' "$w"
+          grep -Fq 'EUT_DRAFT_MAINT_DATABASE_URL' "$w"
+          grep -Fq 'PGSSLMODE: verify-full' "$w"
+          grep -Fq 'sslmode in connection string overrides TLS policy' "$w"
+          grep -Fq "SELECT current_user" "$w"
+          grep -Fq 'has_column_privilege' "$w"
+          ! grep -Eq 'SUPABASE_SERVICE_ROLE_KEY|secrets\\.SUPABASE_' "$w"
+          ! grep -Fq 'staged-technician-durable-draft' src/routes/area-tecnico.tsx
+          ! grep -Fq 'technician-draft-recovery-decision' src/routes/area-tecnico.tsx
