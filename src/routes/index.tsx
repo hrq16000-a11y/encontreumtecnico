@@ -23,7 +23,7 @@ import {
   FaqPreview,
   ContactBand,
 } from "../components/home-rich";
-import { FindOneSection, JoinNetworkSection, CtaBand, ValuesSection, StepsSection } from "../components/home-sections";
+import { CanaisDeAtendimento, FindOneSection, JoinNetworkSection, CtaBand, ValuesSection, StepsSection } from "../components/home-sections";
 
 const SITE = "https://www.encontreumtecnico.com.br";
 const TITLE = "Encontre um Técnico — Portal nacional de técnicos de CFTV e informática, sem custo para o profissional";
@@ -247,6 +247,8 @@ function HomePage() {
           </div>
         </div>
       </section>
+
+      <CanaisDeAtendimento />
 
       <section aria-label="Por que o Encontre um Técnico" className="bg-brand-navy px-4 py-12 text-brand-navy-foreground">
         <ul className="mx-auto grid max-w-6xl gap-6 sm:grid-cols-2 lg:grid-cols-4">
