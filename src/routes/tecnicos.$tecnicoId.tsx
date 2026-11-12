@@ -3,6 +3,7 @@ import { PageShell } from "../components/page-placeholder";
 import { getApprovedTechnician } from "../lib/technicians.functions";
 import { isValidTechnicianId, isValidTechnicianSlug } from "@/lib/technician-id";
 import { PublicTechnicianProfile } from "@/components/public-technician-profile";
+import { getSeoProfileLinks } from "@/lib/public-seo-graph.functions";
 
 export const Route = createFileRoute("/tecnicos/$tecnicoId")({
   // A published profile that does not exist must return a genuine HTTP 404,
@@ -16,7 +17,12 @@ export const Route = createFileRoute("/tecnicos/$tecnicoId")({
     if (isLegacyUuid) throw redirect({
       to: "/tecnicos/$tecnicoId", params: { tecnicoId: technician.public_slug }, statusCode: 301,
     });
-    return technician;
+    // Only an approved canonical profile receives public contextual interlinks.
+    // Optional SEO graph must not make a legitimate technician profile disappear
+    // during a temporary directory/catalogue outage.
+    const seoLinks = await getSeoProfileLinks({ data: { slug: technician.public_slug } })
+      .catch(() => ({ city: null, categories: [], related: [] }));
+    return { ...technician, seoLinks };
   },
   head: ({ loaderData, params }) => {
     const name = loaderData?.display_name;
@@ -44,5 +50,5 @@ export const Route = createFileRoute("/tecnicos/$tecnicoId")({
 
 function TechnicianProfilePage() {
   const technician = Route.useLoaderData();
-  return <PageShell><PublicTechnicianProfile technician={technician} /></PageShell>;
+  return <PageShell><PublicTechnicianProfile technician={technician} links={technician.seoLinks} /></PageShell>;
 }

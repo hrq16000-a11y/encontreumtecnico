@@ -1,0 +1,49 @@
+name: EUT admin RPC ephemeral PostgreSQL gate
+
+on:
+  pull_request:
+    paths:
+      - 'docs/sql/eut-admin-technician-crud-staging-proposal-20261111.sql'
+      - 'docs/sql/tests/eut-admin-crud-ephemeral-*.sql'
+      - '.github/workflows/eut-admin-rpc-ephemeral.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  postgresql-fixtures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: eut_fixture
+          POSTGRES_PASSWORD: local_only_not_a_secret
+          POSTGRES_DB: eut_fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U eut_fixture -d eut_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: eut_fixture
+      PGPASSWORD: local_only_not_a_secret
+      PGDATABASE: eut_fixture
+      PGOPTIONS: '-c client_min_messages=warning'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install isolated PostgreSQL client only
+        run: |
+          command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+          psql --version
+      - name: Fixture schema with synthetic identities
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-admin-crud-ephemeral-schema-20261111.sql
+      - name: Install proposed RPCs in disposable database only
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/eut-admin-technician-crud-staging-proposal-20261111.sql
+      - name: Validate transaction, rollback, RLS guard and archive restoration
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-admin-crud-ephemeral-assertions-20261111.sql
