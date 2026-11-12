@@ -99,7 +99,7 @@ const CATEGORY_CHIP_ICONS = {
 
 function HomePage() {
   const navigate = useNavigate();
-  const { categories: activeCategories } = useActiveCategories();
+  const { categories: activeCategories, loading: catalogLoading, error: catalogError } = useActiveCategories();
   // Initial SSR and client render agree; the saved search is loaded only
   // after hydration, while the empty form stays hidden from the visitor.
   const [specialty, setSpecialty] = useState("");
@@ -232,6 +232,7 @@ function HomePage() {
                 </Link>
               )}
             </div>
+            {!catalogLoading && !catalogError && activeCategories.length > 0 && (
             <ul aria-label="Buscar por categoria" className="mt-5 flex min-h-11 flex-wrap gap-2 text-xs text-muted-foreground">
               {activeCategories.slice(0, 4).map((category) => {
                 const Icon = CATEGORY_CHIP_ICONS[category.slug as keyof typeof CATEGORY_CHIP_ICONS] ?? Search;
@@ -245,7 +246,7 @@ function HomePage() {
                         uf: locationUf, bairro: locationNeighborhood,
                         prioridade: locationUf ? "regiao" : "",
                       }}
-                      className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 font-medium text-foreground shadow-sm hover:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                      className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 font-medium text-foreground shadow-sm transition-colors hover:border-primary hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                     >
                       <Icon className="h-3.5 w-3.5 text-primary" aria-hidden /> {category.label}
                     </Link>
@@ -253,6 +254,7 @@ function HomePage() {
                 );
               })}
             </ul>
+            )}
           </div>
           <div className="relative animate-rise [animation-delay:150ms]">
             <img src={heroImg} alt="Técnico instalando câmera de segurança na fachada de uma casa" width={1280} height={1024} className="aspect-[5/4] w-full rounded-3xl object-cover shadow-soft" />
