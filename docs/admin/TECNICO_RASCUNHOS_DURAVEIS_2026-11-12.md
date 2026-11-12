@@ -31,7 +31,16 @@ Consultas somente leitura no banco dedicado, sem abrir nomes, e-mails, telefones
 - `docs/sql/tests/eut-technician-draft-ephemeral-assertions-20261112.sql`
 - `.github/workflows/eut-technician-draft-rls-staging.yml`
 
-Cobrem: salvamento privado, recuperação pela mesma conta após reiniciar sessão, outro técnico sem acesso, cliente não autorizado, visitante anônimo, revisão obsoleta, campos proibidos, TTL de 30 dias, expiração e exclusão apenas do próprio rascunho. Banco fictício PostgreSQL 16 no GitHub Actions, sem API key ou credenciais do Supabase.
+Cobrem: salvamento privado, recuperação pela mesma conta após reiniciar sessão, outro técnico sem acesso, cliente não autorizado, visitante anônimo, revisão obsoleta, campos proibidos, TTL de 30 dias, expiração e exclusão apenas do próprio rascunho. Banco fictício **PostgreSQL 17** no GitHub Actions, sem API key ou credenciais do Supabase. O teste também cobre a função privada de exclusão física em lote, acessível apenas por papel de manutenção autorizado.
+
+## Paridade de esquema e retenção confirmadas (consulta read-only)
+
+- Banco dedicado: **PostgreSQL 17.11**. Schema `public` utilizável por `authenticated` e `anon`; o schema `eut_moderation` não concede uso a esses papéis.
+- A tabela real `public.user_roles` tem `id uuid` como chave, `(user_id, role)` exclusivo, referência a `auth.users` com exclusão em cascata e política RLS de leitura por titular/administrador. `public.has_role` já existe como `SECURITY DEFINER`. A fixture passou a refletir essas restrições.
+- **`pg_cron` não está instalado**, e não existem funções/tabelas de rascunhos com os nomes propostos. Não ativar `cron.schedule` ou pressupor execução automática de limpeza.
+- Arquivo adicional `docs/sql/eut-technician-draft-retention-staging-proposal-20261112.sql`: rotina `SECURITY INVOKER` no schema privado para remover **somente expirados**, com `FOR UPDATE SKIP LOCKED` e lote padrão de até 500 (limite 1–1000). Não há permissões de execução para clientes/técnicos.
+- A rotina está **somente no GitHub**, e não possui agendamento. Antes de habilitar recuperação durável, aprovar uma execução **diária por operador de manutenção autorizado**, com logs agregados de contagem, alertas de falha e repetição limitada em lotes até concluir. Como `pg_cron` está ausente, o agendador requer decisão posterior de infraestrutura; não colocar credenciais privilegiadas no navegador.
+- Esses testes reproduzem partes verificadas do esquema, mas **não são um clone integral do banco real**. Ainda falta homologar extensões, triggers, grants completos, comportamento da API e sessão de QA em um staging controlado.
 
 ## Próxima micro-rodada exigida ANTES da integração no frontend
 
