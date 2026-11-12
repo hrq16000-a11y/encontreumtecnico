@@ -6,7 +6,7 @@ on:
       - 'src/routes/index.tsx'
       - 'src/routes/tecnicos.index.tsx'
       - 'src/routes/tecnicos.$tecnicoId.tsx'
-      - 'src/routes/sitemap[.]xml.ts'
+      - 'src/routes/sitemap*.xml.ts'
       - 'src/lib/public-sitemap.ts'
       - 'src/lib/public-sitemap.test.ts'
       - 'src/lib/public-seo-graph.ts'

@@ -9,7 +9,8 @@ on:
       - 'src/components/cookie-notice.tsx'
       - 'src/components/text-page.tsx'
       - 'src/routes/*.tsx'
-      - 'src/routes/sitemap[.]xml.ts'
+      - 'src/routes/sitemap*.xml.ts'
+      - 'src/lib/public-sitemap.ts'
       - 'src/lib/faq.ts'
       - 'src/components/home-rich.tsx'
       - '.github/workflows/eut-legal-policies.yml'
@@ -71,7 +72,7 @@ jobs:
           const signin=read('src/routes/entrar.tsx');
           if(!signin.includes('termsAccepted')||!signin.includes('Política de privacidade'))
             throw Error('Terms acknowledgment absent from signup');
-          const sitemap=read('src/routes/sitemap[.]xml.ts');
+          const sitemap=read('src/lib/public-sitemap.ts');
           if(!sitemap.includes('/politicas')||!sitemap.includes('/direitos-dos-titulares'))
             throw Error('Legal sitemap incomplete');
           if(!read('src/components/text-page.tsx').includes('rel: "canonical"') || !read('src/routes/privacidade.tsx').includes('"/privacidade"')) throw Error('Legal canonicals missing');
