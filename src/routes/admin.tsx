@@ -11,6 +11,7 @@ import { LegacyReviewQueue } from "@/components/legacy-review-queue";
 import { LegacyClaimReview } from "@/components/legacy-claim-review";
 import { EutAdminManager } from "@/components/eut-admin-manager";
 import { AdminControlHub } from "@/components/admin-control-hub";
+import { AdminCommandOverview } from "@/components/admin-command-overview";
 import { AdminAdvertisingManager } from "@/components/admin-advertising-manager";
 import { AdminNavigation } from "@/components/admin-navigation";
 import { AdminTechnicianManager } from "@/components/admin-technician-manager";
@@ -37,7 +38,6 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
-type Tech = Tables<"technicians">;
 export function AdminPage() {
   return <AdminWorkspace section="inicio" />;
 }
@@ -46,7 +46,6 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
   const lp2 = useContext(LP2EmbeddedContext);
   const { user, roles, loading, rolesError, refreshRoles } = useAuth();
   const isAdmin = roles.includes("admin");
-  const [techCounts, setTechCounts] = useState<Record<string, number> | null>(null);
   const [reqs, setReqs] = useState<Req[]>([]);
   const [msgs, setMsgs] = useState<Tables<"contact_messages">[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -54,20 +53,9 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
   async function load() {
     // A page only queries the records it needs. RLS remains authoritative.
     // No global prefetch of private contacts when browsing sponsors or metrics.
-    const needsTechs = section === "inicio";
-    const needsRequests = section === "inicio" || section === "solicitacoes";
+    const needsRequests = section === "solicitacoes";
     const needsMessages = section === "mensagens";
-    const [t, r, m] = await Promise.all([
-      needsTechs
-        ? Promise.all((["aprovado", "pendente", "suspenso", "rejeitado"] as const).map(async (status) => {
-          const { count, error } = await supabase.from("technicians")
-            .select("id", { count: "exact", head: true }).eq("status", status);
-          return { status, count, error };
-        })).then((items) => ({
-          data: Object.fromEntries(items.map(({ status, count }) => [status, count ?? 0])),
-          error: items.find((item) => item.error)?.error ?? null,
-        }))
-        : Promise.resolve({ data: null, error: null }),
+    const [r, m] = await Promise.all([
       needsRequests
         ? supabase.from("service_requests").select("*").order("created_at", { ascending: false }).limit(500)
         : Promise.resolve({ data: [] as Req[], error: null }),
@@ -75,8 +63,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
         ? supabase.from("contact_messages").select("*").neq("status", "arquivada").order("created_at", { ascending: false }).limit(100)
         : Promise.resolve({ data: [] as Tables<"contact_messages">[], error: null }),
     ]);
-    setError(t.error || r.error || m.error ? "Não foi possível carregar os dados deste módulo." : null);
-    setTechCounts(t.data);
+    setError(r.error || m.error ? "Não foi possível carregar os dados deste módulo." : null);
     setReqs(r.data ?? []);
     setMsgs(m.data ?? []);
   }
@@ -88,16 +75,6 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
   }
   useEffect(() => { if (isAdmin) void load(); }, [isAdmin, section]);
 
-  const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
-  const acceptedMonth = reqs.filter((r) => r.accepted_at && new Date(r.accepted_at) >= monthStart).length;
-  const openedMonth = reqs.filter((r) => new Date(r.created_at) >= monthStart).length;
-  const count = (s: Tech["status"]) => techCounts?.[s] ?? 0;
-  const stats = [
-    { label: "Técnicos aprovados", value: count("aprovado") },
-    { label: "Cadastros pendentes", value: count("pendente") },
-    { label: "Solicitações no mês", value: openedMonth },
-    { label: "Aceitas no mês", value: acceptedMonth },
-  ];
   const btn = "min-h-11 rounded-md px-4 text-sm font-medium disabled:opacity-50";
 
   return (
@@ -140,17 +117,8 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
               <AdminOwnTechnicianRole isTechnician={roles.includes("tecnico")} refreshRoles={refreshRoles} />}
             {error && <p role="alert" className="mt-2 text-sm text-destructive">{error}</p>}
                         {section === "inicio" && (<section aria-label="Resumo administrativo">
-              <dl className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-              {stats.map((s) => (
-                <div key={s.label} className="rounded-lg border border-border bg-card p-4">
-                  <dt className="text-xs text-muted-foreground">{s.label}</dt>
-                  <dd className="mt-1 text-2xl font-bold text-card-foreground">{techCounts ? s.value : "…"}</dd>
-                </div>
-              ))}
-            </dl>
-
-            <p className="mt-3 text-sm text-muted-foreground">Os indicadores acima consideram os cadastros atuais. Os registros históricos ainda em revisão aparecem separadamente abaixo.</p>
-            <AdminControlHub />
+              <AdminCommandOverview />
+              <AdminControlHub />
             </section>)}
             {section === "patrocinadores" && <section aria-label="Patrocinadores e banners"><div id="admin-patrocinadores"><AdminAdvertisingManager /></div></section>}
             {section === "metricas" && <section aria-label="Buscas e indicadores"><div id="admin-metricas"><SearchMetrics /></div></section>}
