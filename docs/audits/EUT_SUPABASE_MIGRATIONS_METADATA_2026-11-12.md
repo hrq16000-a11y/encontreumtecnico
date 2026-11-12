@@ -165,3 +165,86 @@ As seguintes associações vêm de semelhança nominal e **não** foram aprovada
 5. Só propor regularização histórica e testes PostgreSQL descartáveis em PR separado e revisão aprovada. **Nenhuma gravação, reaplicação, limpeza destrutiva ou lançamento na produção nesta fase**.
 
 **Ambientes preservados:** Supabase, Vercel produção, DNS, WordPress, Lovable, backups, branches, mídias, Auth e dados reais. Sem merge ou deployment por esta auditoria.
+
+---
+
+## Rodada 2 — verificação efetiva de arquivos e recuperação de evidências (12/11/2026)
+
+**Esta seção substitui a classificação *preliminar por nome* da rodada 1 acima.** Nenhum script desta rodada foi executado. Os 36 arquivos foram **lidos estaticamente** por conteúdo no commit de referência `c5611ecf599d738ffdf6f3e15eec616654864181` (6 migrations e 30 scripts de `docs/sql/`). O histórico de versões aplicadas foi novamente consultado via API de metadados do Supabase, permanecendo em **66**; esta API fornece **versão e nome**, mas **não devolve o corpo ou hash do SQL efetivamente executado**.
+
+### 2.1 Integridade Git e conteúdo dos seis arquivos
+
+Todos os seis identificadores de 14 dígitos constam da lista de migrations aplicada. A comparação exata dos hashes **Git Blob** entre `main` e `lovable-sync` retornou **6/6 iguais**. Inspeção das árvores de cinco branches históricas de backup também revelou **os mesmos seis caminhos**, sem cópias novas das 60 migrations ausentes. Isso verifica integridade **entre refs Git**, não integridade frente ao SQL histórico do servidor.
+
+| Versão | Git Blob SHA-1 observado na main | Commit histórico que tocou migrations | Linhas | Escopo observado por leitura |
+|---|---|---|---:|---|
+| `20261109004508` | `1d1242e16ffa6933d81f3344512d2e7e64ced6df` | [commit `2576dd45d`](https://github.com/hrq16000-a11y/encontreumtecnico/commit/2576dd45dde8cda4a0043a5d18efd3fbd30be839) | 102 | Tipos e tabelas base; funções com SECURITY DEFINER |
+| `20261109004611` | `b1141366493a866f34912ab9a2edfb8cc5a1acca` | [commit `8277c05be`](https://github.com/hrq16000-a11y/encontreumtecnico/commit/8277c05be150c07807e7588b413b201414838330) | 3 | REVOKE/GRANT de execução em funções |
+| `20261109010602` | `9e67adff75c0cf3e4d67b1cc8f4b75624c43a9a6` | [commit `e359df561`](https://github.com/hrq16000-a11y/encontreumtecnico/commit/e359df5611ab0dc9c163887164bb5007c4b2e50f) | 60 | Tabela de solicitações e controles de acesso |
+| `20261109010936` | `590b199cdf451ea377014d6cda4fb6f4b01719b0` | [commit `48b53ba04`](https://github.com/hrq16000-a11y/encontreumtecnico/commit/48b53ba045c40306d34453201ae1ac8bcd485fa3) | 18 | Tabela de mensagens de contato e permissões |
+| `20261109015145` | `1a2a98756ffef8c69b15a89e16302440efdd436b` | [commit `ec25b1db5`](https://github.com/hrq16000-a11y/encontreumtecnico/commit/ec25b1db5a459a6e50ea70cbb08c8d496c0e9ea3) | 19 | Eventos de busca e permissões/RLS |
+| `20261109015335` | `f0146638f8d250edce67b3de0dfb2810ebbba7e8` | [commit `3df52fde6`](https://github.com/hrq16000-a11y/encontreumtecnico/commit/3df52fde679c9fd4b1c9ec0af08180ee23f1ccfd) | 4 | Função e triggers de bootstrap administrativo |
+
+**Limite essencial:** nenhum desses seis hashes pode ser comparado ao conteúdo do SQL aplicado somente com `list_migrations`. Os commits históricos são evidência da origem dos **arquivos Git**, não prova de que os corpos sejam iguais ao estado atual do banco.
+
+### 2.2 Classificação dos 30 arquivos de `docs/sql/` após inspeção do conteúdo
+
+A classificação distingue **estado do arquivo**, **registro de versão aplicada**, e **igualdade de SQL**, que são coisas distintas. `Versão temática registrada` significa apenas que há um registro aplicado com nome relacionado no Supabase; não garante que o script do Git seja cópia integral daquela migration. Nenhum arquivo foi promovido a `supabase/migrations/`.
+
+| Arquivo | Classe comprovável | Versão relacionada, se existente | Evidência e limitação |
+|---|---|---|---|
+| `docs/sql/eut-admin-accounts-moderation-20261111.sql` | DDL sem proveniência conclusiva | Não atribuída | DDL de moderação; nenhuma versão de mesmo nome comprovada |
+| `docs/sql/eut-admin-client-insights-20261111.sql` | Versão temática registrada | `20261111163136` — `eut_admin_client_insights_20261111` | Cria RPC; versão do tema consta aplicada |
+| `docs/sql/eut-admin-legacy-employer-overlay-20261111.sql` | DDL sem proveniência conclusiva | Não atribuída | DDL de overlay histórico; sem comprovante de execução |
+| `docs/sql/eut-admin-management-actions-20261111.sql` | DDL sem proveniência conclusiva | Não atribuída | DDL/RPCs de administração; não há correspondência inequívoca |
+| `docs/sql/eut-admin-member-invitations-20261111.sql` | Versão temática registrada | `20261111081500` — `eut_admin_member_invitations_20261111` | Contrato de convite e versão temática aplicada |
+| `docs/sql/eut-admin-self-technician-role-20261111.sql` | Versão temática registrada | `20261111075718` — `eut_admin_own_technician_role_20261111` | Contrato de papel técnico de admin e versão temática |
+| `docs/sql/eut-admin-technician-crud-staging-proposal-20261111.sql` | Proposta explicitamente não instalada | Não atribuída | Cabeçalho explícito: PROPOSAL ONLY / NOT INSTALLED |
+| `docs/sql/eut-ads-r2-private-foundation.sql` | Versão temática registrada | `20261110033818` — `eut_ads_r2_private_foundation_20261110` | Fundação de publicidade e versão R2 aplicada |
+| `docs/sql/eut-ads-r3-admin-rpcs.sql` | Versão temática registrada | `20261110035800` — `eut_ads_r3_admin_crud_private_assets_20261110` | RPCs de publicidade e versão R3 aplicada |
+| `docs/sql/eut-ads-r4-approved-public-cards.sql` | Versão temática registrada | `20261110040944` — `eut_ads_r4_approved_public_cards_20261110` | Entrega pública de cards e versão R4 aplicada |
+| `docs/sql/eut-choose-new-role-without-wp-rule.sql` | Versão temática registrada | `20261110184534` — `eut_native_role_choice_not_wp_historical_rule_20261110` | Escolha de papel independente do WP; versão temática |
+| `docs/sql/eut-contact-purchase-preparation.sql` | Instalação declarada no próprio arquivo | Não atribuída | Cabeçalho declara instalado no banco; sem versão de nome inequívoco |
+| `docs/sql/eut-direct-flow-readiness-readonly.sql` | Consulta de leitura | Não atribuída | Arquivo com SELECT de contagens e metadados de políticas |
+| `docs/sql/eut-legacy-claims-real-profiles-guard-20261110.sql` | Versão temática registrada | `20261110045442` — `eut_legacy_claims_real_profiles_guard_20261110` | Contrato de reivindicação de perfis e versão temática |
+| `docs/sql/eut-member-invite-actor-lock-20261111.sql` | Versão temática registrada | `20261111154543` — `eut_member_invite_actor_lock_20261111` | Bloqueio de ator em convite e versão temática |
+| `docs/sql/eut-operational-readiness-readonly.sql` | Consulta de leitura | Não atribuída | SELECT de observabilidade sem DDL |
+| `docs/sql/eut-pioneer-verified-claim-and-bronze.sql` | Versão temática registrada | `20261110182437` — `eut_pioneers_secure_verified_claim_bronze_20261110` | Reivindicação verificada/pioneiros e versão temática |
+| `docs/sql/eut-pioneers-native-pre-registry.sql` | Versão temática registrada | `20261110181617` — `eut_pioneers_native_pre_registration_20261110` | Pré-cadastro nativo e versão temática |
+| `docs/sql/eut-project-owner-bootstrap.sql` | Versão temática registrada | `20261110025905` — `eut_project_owner_bootstrap_20261109` | Bootstrap de proprietário e versão temática |
+| `docs/sql/eut-public-eligibility-moderation-proposal-20261111.sql` | Contrato histórico com versão registrada | `20261112003518` — `eut_public_eligibility_guarded_ssr_20261112` | Apesar do nome proposal, cabeçalho diz HISTORICAL SQL CONTRACT, versão já aplicada; não é script de replay |
+| `docs/sql/eut-public-referral-highlights-20261110.sql` | DDL sem proveniência conclusiva | Não atribuída | DDL de destaques de indicação, sem correspondência inequívoca |
+| `docs/sql/eut-technician-public-slugs-20261110.sql` | DDL sem proveniência conclusiva | Não atribuída | DDL de slug público, sem correspondência inequívoca |
+| `docs/sql/eut-verified-city-coverage-avatars-20261110.sql` | DDL sem proveniência conclusiva | Não atribuída | DDL de cobertura/avatares; dependência de catálogo, sem versão de conteúdo confirmada |
+| `docs/sql/eut-wordpress-parity-readonly.sql` | Consulta de leitura | Não atribuída | SELECT de métricas sanitizadas de paridade WP |
+| `docs/sql/tests/eut-admin-crud-ephemeral-assertions-20261111.sql` | Teste/ambiente isolado | Não atribuída | Asserções para PostgreSQL descartável; exige schema de testes |
+| `docs/sql/tests/eut-admin-crud-ephemeral-schema-20261111.sql` | Teste/ambiente isolado | Não atribuída | Cria papéis e schema sintéticos SOMENTE em PostgreSQL descartável |
+| `docs/sql/tests/eut-ads-r2-verify.sql` | Teste/ambiente isolado | Não atribuída | DO com verificação de esquema sem gravar, conforme inspeção estática |
+| `docs/sql/tests/eut-ads-r3-rollback-tests.sql` | Teste/ambiente isolado | Não atribuída | Teste transacional com ROLLBACK |
+| `docs/sql/tests/eut-ads-r4-rollback-delivery.sql` | Teste/ambiente isolado | Não atribuída | Teste transacional com ROLLBACK |
+| `docs/sql/tests/eut-legacy-claims-real-profiles-rollback.sql` | Teste/ambiente isolado | Não atribuída | Teste transacional com ROLLBACK |
+
+**Totais exatos:** 6 × DDL sem proveniência conclusiva; 12 × Versão temática registrada; 1 × Proposta explicitamente não instalada; 1 × Instalação declarada no próprio arquivo; 3 × Consulta de leitura; 1 × Contrato histórico com versão registrada; 6 × Teste/ambiente isolado. Total **30** (24 scripts de referência + 6 testes).
+
+**Alerta sobre nomenclatura:** `eut-public-eligibility-moderation-proposal-20261111.sql` tem `proposal` no nome, mas seu cabeçalho afirma que a migration `eut_public_eligibility_guarded_ssr_20261112` já foi aplicada. O registro de versão `20261112003518` existe no Supabase; a origem ou identidade exata do SQL ainda não foi provada. **Não reaplicar** o script.
+
+**Outro alerta:** `eut-admin-client-insights-20261111.sql` descreve indicadores administrativos *de leitura*, mas contém `CREATE OR REPLACE FUNCTION`, `GRANT` e `REVOKE`. Não é um script de consulta que se possa executar na produção sem mudar objetos do banco. Da mesma forma, os scripts de testes com `ROLLBACK` não são migrações de produção e os testes de PostgreSQL descartável criam papéis/tabelas sintéticos.
+
+### 2.3 Evidências adicionais para versões ausentes do diretório executável
+
+1. **Carga WordPress privada:** a [PR #5](https://github.com/hrq16000-a11y/encontreumtecnico/pull/5) documenta a importação ao esquema `eut_migration` e afirma explicitamente que **o SQL de origem não foi versionado**, o que explica parte da lacuna documental. O registro de versão `20261109012246` (`eut_private_wordpress_staging_20261108`) existe no Supabase. A PR documenta resultados e contém verificador somente leitura, mas **não constitui recuperação do corpo original**.
+2. **Publicidade R5:** `20261110042554` (`eut_ads_r5_approved_image_delivery_20261110`) aparece aplicado no registro do Supabase. Existe um arquivo de SQL candidato **fora da main**, na branch da [PR #81](https://github.com/hrq16000-a11y/encontreumtecnico/pull/81), caminho `docs/sql/eut-ads-r5-approved-image-delivery.sql`, Git Blob `0e14340771e117e9474dbe28e4bb7b655cd0ae26` (315 linhas). O checklist da PR ainda deixa **[ ] migração no Supabase certo**, indicando descompasso entre documentação e registro atual. A migração pode ter sido aplicada por outro fluxo ou em outra revisão: **não é possível concluir que esse blob foi o executado**. Não mesclar/reaplicar.
+3. **Convites de proprietário:** a [PR #142](https://github.com/hrq16000-a11y/encontreumtecnico/pull/142) mantém `docs/sql/eut-owner-admin-invitations-20261111.sql` em preparação isolada, com cabeçalho `PREPARATION ONLY`; não confundir com `eut_admin_member_invitations_20261111` do histórico aplicado.
+4. **Hook de recadastro e sessões:** SQLs das [PRs #139](https://github.com/hrq16000-a11y/encontreumtecnico/pull/139) e [#145](https://github.com/hrq16000-a11y/encontreumtecnico/pull/145) declaram explicitamente **não aplicar sem homologação**. A presença desses arquivos na branch não prova aplicação e **não justifica instalar ou apagar** nada.
+5. **Outros casos:** os 12 scripts de `docs/sql/` com versão temática e o contrato histórico de elegibilidade oferecem **pistas para investigar fontes**, não equivalência de conteúdo. Os seis arquivos DDL sem proveniência conclusiva permanecem nessa classe.
+
+**Resultado da busca:** ainda existem **60 versões sem arquivo executável versionado** em `supabase/migrations/`. Foram localizadas referências e fontes candidatas para parte dessas versões, inclusive uma branch de PR e relatos de aplicação não versionada. **Nenhuma das 60 teve o corpo original autenticado** pelo registro de migrações; não inventar ou reconstruir SQL apenas a partir de nomes, comentários ou estado de objetos.
+
+### 2.4 Reconciliação de PRs, garantias e sequência de aceite
+
+- A revisão das PRs Draft #4, #5, #26, #66, #74, #81, #133, #139, #142, #145, #146, #156, #200, #207 e #208 **não comprovou obsolescência integral**; preservar as branches, código, arquivos de teste e histórico. **Nenhuma PR encerrada**, nenhum branch apagado nesta rodada.
+- Para retomar a reconciliação histórica, procurar exports ou logs de aplicação com conteúdo e procedência verificáveis em uma origem privada autorizada, **sem copiar dados pessoais ao Git**. Onde não houver fonte, registrar `corpo original não recuperado`.
+- Antes de considerar completa a Issue #226, obter comparação de SQL de origem **com verificação de integridade**, revisar dependências de migrations em ambiente de teste descartável e separar **documentação de origem** de **migrações executáveis**.
+- **Zero SQL executado; zero leitura de linhas de usuários, contas ou contatos; zero alterações em Supabase, DNS, Lovable, WordPress, Vercel, produção, backups ou arquivos executáveis.** A PR #229 permanece Draft e deve passar por revisão documental específica antes de merge.
+
+**Estado desta rodada:** avanço na rastreabilidade e classificação, **sem declarar sincronização histórica completa**.
