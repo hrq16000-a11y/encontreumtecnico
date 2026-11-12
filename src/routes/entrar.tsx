@@ -5,7 +5,13 @@ import { PageShell } from "../components/page-placeholder";
 import { signInWithGoogle, useAuth, type Role } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { safeLegacyClaimReturnPath } from "@/lib/legacy-claim-validation";
+import { authReturnUrl } from "@/lib/auth-domain";
 import { canAttemptNewAccountRole } from "@/lib/onboarding-legacy-fallback";
+import { safeLoginDestination } from "@/lib/navigation-safety";
+import { ConnectedGoogleIdentity } from "@/components/connected-google-identity";
+import { MemberInviteAcceptance } from "@/components/member-invite-acceptance";
+import { clearSignupIntent, readSignupIntent, type SignupIntent } from "@/lib/signup-intent";
+import { ArrowRight, LockKeyhole, Sparkles, UserRoundCheck, Wrench } from "lucide-react";
 
 export const Route = createFileRoute("/entrar")({
   head: () => ({
@@ -40,7 +46,7 @@ function EmailPasswordForm({ onError }: { onError: (m: string | null) => void })
     if (mode === "recuperar") {
       try {
         const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-          redirectTo: `${window.location.origin}/redefinir-senha`,
+          redirectTo: authReturnUrl("/redefinir-senha", window.location.origin),
         });
         if (error) onError("Não foi possível enviar a recuperação agora. Tente novamente.");
         else setInfo("Se houver uma conta com este e-mail, você receberá instruções para redefinir sua senha.");
@@ -56,7 +62,7 @@ function EmailPasswordForm({ onError }: { onError: (m: string | null) => void })
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
-          options: { emailRedirectTo: `${window.location.origin}/entrar` },
+          options: { emailRedirectTo: authReturnUrl("/entrar", window.location.origin) },
         });
         if (error) {
           onError(error.message.includes("registered") ? "Este e-mail já tem conta. Use Entrar." : "Não foi possível criar a conta.");
@@ -117,6 +123,7 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
   const [ownerCheckError, setOwnerCheckError] = useState(false);
   const [ownerLookupRetry, setOwnerLookupRetry] = useState(0);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [signupIntent, setSignupIntent] = useState<SignupIntent | null>(null);
   const [legacyRole, setLegacyRole] = useState<"tecnico" | "cliente" | null>(null);
   const [legacyChecked, setLegacyChecked] = useState(false);
   const [legacyLookupError, setLegacyLookupError] = useState(false);
@@ -125,6 +132,7 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
   const [legacyProfileCount, setLegacyProfileCount] = useState(0);
   const roleKey = roles.join(",");
   const canAttemptRole = canAttemptNewAccountRole({ legacyChecked, legacyLookupError, legacyRole });
+  useEffect(() => { setSignupIntent(readSignupIntent()); }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -226,7 +234,10 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
         try {
           const client = supabase as unknown as SupabaseClient;
           const { error } = await client.rpc("eut_confirm_my_legacy_account");
-          if (error && active) setError("A associação do WordPress ainda não pôde ser concluída. Sua área permanece acessível para tentar novamente.");
+          if (error && active) setError("A associação do cadastro anterior ainda não pôde ser concluída. Sua área permanece acessível para tentar novamente.");
+          // Pré-cadastros nativos: só email confirmado ou telefone validado por OTP.
+          // Nunca bloqueia o login quando a associação opcional está indisponível.
+          await client.rpc("eut_claim_my_pioneer_pre_registration");
         } catch {
           if (active) setError("A reconciliação da conta antiga está indisponível; tente novamente no painel.");
         }
@@ -234,10 +245,10 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
       if (!active) return;
       const stored = sessionStorage.getItem("eut-after-login");
       sessionStorage.removeItem("eut-after-login");
-      if (stored && stored !== "/entrar") navigate({ to: stored as "/" });
-      else if (roles.includes("admin")) navigate({ to: lp2 ? "/lp2/admin" : "/admin" });
-      else if (roles.includes("tecnico")) navigate({ to: lp2 ? "/lp2/meu-perfil" : "/area-tecnico" });
-      else navigate({ to: lp2 ? "/lp2/cliente" : "/area-cliente" });
+      // Only resume an allowed, same-origin route that matches the signed-in role.
+      // A stale technician/admin target must never trap a client in the wrong panel.
+      const destination = safeLoginDestination(stored, roles, lp2);
+      navigate({ to: destination as "/" });
     }
     void continueLogin();
     return () => { active = false; };
@@ -311,17 +322,14 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
   async function choose(role: Role) {
     if (busy || !canAttemptRole || (role !== "tecnico" && role !== "cliente")) return;
     if (!termsAccepted) return setError("Leia e aceite os Termos de Uso antes de escolher o tipo de conta.");
-    if (legacyRole && role !== legacyRole) {
-      setError("Seu cadastro WordPress já tem um tipo definido. Selecione o tipo indicado para associar sua conta.");
-      return;
-    }
     setBusy(true);
     setError(null);
     try {
       const { error } = await supabase.rpc("choose_account_type", { _role: role });
       if (error) {
-        setError("O servidor recusou esta escolha. Sua identidade precisa estar confirmada e, se existir uma conta anterior, o tipo original deverá ser preservado. Tente recuperar seu cadastro antigo.");
+        setError("O servidor recusou a escolha. Confirme sua identidade ou procure a recuperação manual se houver uma conta antiga vinculada a outra pessoa.");
       } else {
+        clearSignupIntent();
         await refreshRoles();
       }
     } catch {
@@ -333,21 +341,56 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
 
   return (
     <PageShell>
-      <section className="mx-auto flex max-w-md flex-col items-center px-4 py-16 text-center">
+      <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
+        <div className="grid overflow-hidden rounded-3xl border border-border bg-card shadow-xl md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+          <aside className="relative overflow-hidden bg-gradient-to-br from-[oklch(0.22_0.06_258)] via-[oklch(0.30_0.09_252)] to-[oklch(0.42_0.12_235)] p-7 text-white sm:p-10">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-3 py-2 text-xs font-bold text-white">
+              <Sparkles className="h-4 w-4" aria-hidden="true" /> Seu portal de serviços
+            </span>
+            <h2 className="mt-8 text-3xl font-extrabold leading-tight tracking-tight text-white sm:text-4xl">
+              Tudo em um só lugar. Do cadastro ao atendimento.
+            </h2>
+            <p className="mt-4 max-w-md text-sm leading-7 text-white/90 sm:text-base">
+              Uma experiência para técnicos e clientes. Entre, complete seus dados e acesse seu painel sem depender do antigo WordPress.
+            </p>
+            <div className="mt-8 grid gap-4">
+              <div className="flex items-start gap-3 rounded-xl border border-white/20 bg-white/10 p-4">
+                <UserRoundCheck className="mt-0.5 h-5 w-5 shrink-0 text-white" aria-hidden="true" />
+                <div><strong className="block text-sm text-white">Cadastro inteligente</strong>
+                  <p className="mt-1 text-xs leading-5 text-white/85">O Google pode fornecer nome, e-mail e foto para uso privado, com sua autorização.</p></div>
+              </div>
+              <div className="flex items-start gap-3 rounded-xl border border-white/20 bg-white/10 p-4">
+                <Wrench className="mt-0.5 h-5 w-5 shrink-0 text-white" aria-hidden="true" />
+                <div><strong className="block text-sm text-white">Painel por função</strong>
+                  <p className="mt-1 text-xs leading-5 text-white/85">Ferramentas de cada conta permanecem protegidas por permissões no servidor.</p></div>
+              </div>
+              <div className="flex items-start gap-3 rounded-xl border border-white/20 bg-white/10 p-4">
+                <LockKeyhole className="mt-0.5 h-5 w-5 shrink-0 text-white" aria-hidden="true" />
+                <div><strong className="block text-sm text-white">Dados privados</strong>
+                  <p className="mt-1 text-xs leading-5 text-white/85">A foto do Google não vira automaticamente a foto pública do técnico.</p></div>
+              </div>
+            </div>
+          </aside>
+          <div className="flex min-w-0 flex-col items-center px-6 py-9 text-center sm:px-10 sm:py-12">
         {loading ? (
           <p className="text-sm text-muted-foreground">Carregando…</p>
         ) : !user ? (
           <>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Entre na sua conta</h1>
+            <h1 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">Entre na sua conta</h1>
             <p className="mt-2 text-sm text-muted-foreground">
               Técnicos e clientes acessam com Google ou e-mail e senha.
             </p>
+            {signupIntent && <p className="mt-4 w-full rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm font-semibold text-primary" role="status">
+              Você iniciou o cadastro como {signupIntent === "tecnico" ? "técnico" : "cliente"}.
+              Após entrar, confirme a função para abrir seu painel.
+            </p>}
             <button
               type="button"
               onClick={google}
-              className="mt-8 inline-flex min-h-11 w-full items-center justify-center rounded-md border border-input bg-background px-4 py-2.5 text-sm font-medium text-foreground hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+              className="mt-8 inline-flex min-h-12 w-full items-center justify-center gap-3 rounded-xl border border-input bg-background px-4 py-3 text-sm font-bold text-foreground shadow-sm transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
             >
-              Entrar com Google
+              <span aria-hidden="true" className="font-extrabold text-[20px] text-[#4285F4]">G</span> Entrar com Google
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </button>
             <p className="mt-4 rounded-md border border-border bg-muted/30 p-3 text-left text-sm text-muted-foreground">
               <strong className="text-foreground">Já tinha conta no WordPress?</strong>{" "}
@@ -360,7 +403,12 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
         ) : (
           <>
             <h1 className="text-2xl font-bold tracking-tight text-foreground">Como você vai usar o portal?</h1>
-            <p className="mt-2 text-sm text-muted-foreground">Escolha uma vez; isso define sua área.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Identificamos sua sessão. Confira os dados abaixo e escolha sua função uma única vez.</p>
+            <ConnectedGoogleIdentity user={user} />
+            {signupIntent && <p className="mt-4 w-full rounded-xl border border-primary/20 bg-primary/5 p-3 text-left text-sm text-foreground">
+              Sua escolha inicial: <strong>{signupIntent === "tecnico" ? "técnico/prestador" : "cliente"}</strong>.
+              Confirme abaixo. Esta indicação não libera permissões sem validação no servidor.
+            </p>}
             {rolesError && (
               <div role="alert" className="mt-4 rounded-md border border-destructive/40 bg-muted/40 p-4 text-left">
                 <p className="text-sm text-foreground">Não conseguimos carregar suas permissões. Seu cadastro não foi alterado.</p>
@@ -402,6 +450,7 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
               <input type="checkbox" required checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0" />
               <span>Li e aceito os <Link to="/termos" className="font-medium text-primary underline">Termos e condições</Link> e tomei conhecimento da <Link to="/privacidade" className="font-medium text-primary underline">Política de privacidade</Link>.</span>
             </label>
+            {!rolesError && <MemberInviteAcceptance userId={user.id} termsAccepted={termsAccepted} refreshRoles={refreshRoles} />}
             <div className="mt-5 grid w-full gap-3">
               {canBootstrapOwner ? (
                 <button type="button" disabled={busy || !termsAccepted || rolesError} onClick={() => void bootstrapOwner()}
@@ -409,11 +458,27 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
                   {busy ? "Ativando acesso…" : "Ativar administração do novo portal"}
                 </button>
               ) : legacyRole ? (
-                <button type="button" disabled={busy || !termsAccepted || !legacyChecked || rolesError || ownerCheckPending || ownerCheckError}
-                  onClick={() => void confirmLegacy()}
-                  className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60">
-                  {busy ? "Associando cadastro anterior…" : "Confirmo meus dados — recuperar conta e perfis"}
-                </button>
+                <>
+                  <button type="button" disabled={busy || !termsAccepted || !legacyChecked || rolesError || ownerCheckPending || ownerCheckError}
+                    onClick={() => void confirmLegacy()}
+                    className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+                    {busy ? "Associando cadastro anterior…" : "Confirmo meus dados — recuperar conta e perfis"}
+                  </button>
+                  <p className="mt-2 text-left text-xs text-muted-foreground">
+                    Seu tipo antigo é apenas referência. Você também pode escolher uma função diferente no portal novo,
+                    sem importar automaticamente profissão, contatos, categorias ou permissão da conta anterior.
+                  </p>
+                  <button type="button" disabled={busy || !canAttemptRole || !termsAccepted || rolesError || ownerCheckPending || ownerCheckError}
+                    onClick={() => choose("tecnico")}
+                    className="min-h-11 rounded-md border border-primary px-4 py-2.5 text-sm font-semibold text-primary disabled:opacity-60">
+                    Técnico com regras atuais
+                  </button>
+                  <button type="button" disabled={busy || !canAttemptRole || !termsAccepted || rolesError || ownerCheckPending || ownerCheckError}
+                    onClick={() => choose("cliente")}
+                    className="min-h-11 rounded-md border border-input px-4 py-2.5 text-sm font-semibold text-foreground disabled:opacity-60">
+                    Cliente com regras atuais
+                  </button>
+                </>
               ) : (
                 <>
                   <button disabled={busy || !canAttemptRole || !termsAccepted || rolesError || ownerCheckPending || ownerCheckError} onClick={() => choose("tecnico")} className="min-h-11 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
@@ -433,7 +498,9 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
             </div>
           </>
         )}
-        {error && <p role="alert" className="mt-4 text-sm text-destructive">{error}</p>}
+        {error && <p role="alert" className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</p>}
+          </div>
+        </div>
       </section>
     </PageShell>
   );

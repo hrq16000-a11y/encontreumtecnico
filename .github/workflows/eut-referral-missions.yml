@@ -5,6 +5,10 @@ on:
     paths:
       - 'src/routes/convite.$codigo.tsx'
       - 'src/components/technician-missions.tsx'
+      - 'src/lib/referral-highlights.test.ts'
+      - 'src/lib/technicians.functions.ts'
+      - 'src/lib/technician-local-ranking.ts'
+      - 'docs/sql/eut-public-referral-highlights-20261110.sql'
       - 'src/routes/area-tecnico.tsx'
       - '.github/workflows/eut-referral-missions.yml'
 
@@ -24,6 +28,8 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - name: Install locked dependencies
         run: bun install --frozen-lockfile
+      - name: Qualification and proximity safety tests
+        run: bunx vitest run src/lib/referral-highlights.test.ts src/lib/technicians.functions.test.ts tests/technician-local-ranking.test.ts
       - name: Build TanStack production
         run: bun run build
       - name: TypeScript contract

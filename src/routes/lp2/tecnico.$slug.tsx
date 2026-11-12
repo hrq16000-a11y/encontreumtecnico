@@ -4,7 +4,7 @@ import {ServiceIcon} from '../../components/lp2/ServiceIcon'
 import {useActiveCategories,categoryLabel} from '../../hooks/use-active-categories'
 import {useActiveServices,serviceLabel} from '../../hooks/use-active-services'
 
-const ORIGIN='https://www.encontreumtecnico.com'
+const ORIGIN='https://www.encontreumtecnico.com.br'
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 export const Route=createFileRoute('/lp2/tecnico/$slug')({
  loader:({params})=>uuid.test(params.slug)?getApprovedTechnician({data:{id:params.slug}}):null,

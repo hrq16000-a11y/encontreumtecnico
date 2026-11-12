@@ -6,15 +6,22 @@ import { zodValidator } from "@tanstack/zod-adapter";
 import { PageShell, LP2EmbeddedContext } from "../components/page-placeholder";
 import { RequestCard, type Req } from "../components/request-list";
 import { useAuth } from "@/hooks/use-auth";
+import { ConnectedGoogleIdentity } from "@/components/connected-google-identity";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveCategories } from "@/hooks/use-active-categories";
 import { LegacyAccountActivation } from "@/components/legacy-account-activation";
+import { CustomerLocationButton } from "@/components/customer-location-button";
+import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
+import { ClientTechnicianPicker } from "@/components/client-technician-picker";
 import { consumeTriageDraft } from "@/lib/triage-draft";
+import { clearProtectedDraft, readProtectedDraft, saveProtectedDraft } from "@/lib/protected-session-draft";
 import { clearTechnicianTarget, recallTechnicianTarget, rememberTechnicianTarget } from "@/lib/selected-technician-target";
 import { containsObviousContact } from "@/lib/private-message-validation";
 import { accountScopedRows, canAcceptAccountResult } from "@/lib/account-scoped-queries";
 import { persistClientRequest } from "@/lib/client-request-save";
+import { saveClientRequestDraftImmediately } from "@/lib/client-request-live-draft";
 import { ownedRequestForAction } from "@/lib/client-request-action";
+import { clientRequestStepError, type ClientRequestDraft, type ClientRequestStep } from "@/lib/client-request-wizard";
 
 export const Route = createFileRoute("/area-cliente")({
   validateSearch: zodValidator(z.object({ tecnico: z.string().optional() })),
@@ -54,9 +61,14 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
   const ownRows = accountScopedRows(rows, rowsOwnerId, roles.includes("cliente") ? user?.id : null);
   const { categories, loading: catalogLoading, error: catalogError } = useActiveCategories();
   const [form, setForm] = useState({ title: "", description: "", category: "", city: "", region: "" });
+  const { area: regionalHint } = useRegionalSuggestion();
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [step, setStep] = useState<ClientRequestStep>(1);
+  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
   const pendingSubmission = useRef<{ fingerprint: string; id: string } | null>(null);
+  const draftOwnerRef = useRef<string | null>(null);
+  const [draftRestoredOwnerId, setDraftRestoredOwnerId] = useState<string | null>(null);
   const [shareNow, setShareNow] = useState(false);
   const [technicianTarget, setTechnicianTarget] = useState<string | null>(tecnico ?? null);
   const [sendingId, setSendingId] = useState<string | null>(null);
@@ -68,16 +80,60 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
     // Never reuse a previous account's unsent form, confirmation or request ID.
     // Does not erase the same-tab triage draft, which is recovered below
     // only after a verified client role has loaded.
+    setDraftRestoredOwnerId(null);
     setForm({ title: "", description: "", category: "", city: "", region: "" });
     setMsg(null);
     setSaving(false);
+    setStep(1);
+    // A pending share belongs to the previous account. Its finally handler
+    // intentionally cannot mutate another user's state, so clear it here.
+    setSendingId(null);
     setShareNow(false);
     pendingSubmission.current = null;
   }, [user?.id]);
 
   useEffect(() => {
+    if (!user || !roles.includes("cliente")) {
+      draftOwnerRef.current = null;
+      setDraftRestoredOwnerId(null);
+      return;
+    }
+    const existing = readProtectedDraft<ClientRequestDraft>("cliente", user.id);
+    draftOwnerRef.current = user.id;
+    if (existing && typeof existing.form.title === "string" &&
+        typeof existing.form.description === "string" &&
+        typeof existing.form.category === "string" &&
+        typeof existing.form.city === "string" &&
+        typeof existing.form.region === "string") {
+      setForm({
+        title: existing.form.title.slice(0, 120),
+        description: existing.form.description.slice(0, 2000),
+        category: existing.form.category.slice(0, 100),
+        city: existing.form.city.slice(0, 80),
+        region: existing.form.region.slice(0, 120),
+      });
+      setStep(existing.step as ClientRequestStep);
+      setMsg("Recuperamos seu rascunho nesta aba. Confira os dados antes de enviar.");
+    }
+    // Never show editable blank inputs before this account's draft was checked.
+    setDraftRestoredOwnerId(user.id);
+  }, [user?.id, roles.join(",")]);
+
+  useEffect(() => {
+    if (!user || loading || !roles.includes("cliente") ||
+        draftOwnerRef.current !== user.id ||
+        (!form.title.trim() && !form.description.trim())) return;
+    const owner = user.id;
+    // Sync same-tab storage after edits; a quick route change must not
+    // cancel the draft. Account ownership is rechecked before writing.
+    if (currentUserIdRef.current === owner && draftOwnerRef.current === owner)
+      saveProtectedDraft("cliente", owner, form, step);
+  }, [user?.id, loading, roles.join(","), form, step]);
+
+  useEffect(() => {
     // Keep the selected public UUID across a Google/email login redirect.
     // Only this ID is persisted and it expires automatically after 30 min.
+    setShareNow(false); // receiving a different target never carries a prior opt-in
     if (tecnico) {
       const valid = rememberTechnicianTarget(tecnico);
       setTechnicianTarget(valid ? tecnico : null);
@@ -102,6 +158,14 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
     }));
     setMsg("Sua triagem foi recuperada. Revise a descrição, a categoria e a cidade antes de salvar.");
   }, [loading, user?.id, roles.join(",")]);
+
+  useEffect(() => {
+    // A region suggestion never overrides the user's city or a prior triage.
+    if (loading || !user || !roles.includes("cliente") || !regionalHint) return;
+    setForm(previous => previous.city.trim() ? previous : {
+      ...previous, city: regionalHint.city, region: previous.region || regionalHint.neighborhood,
+    });
+  }, [loading, user?.id, roles.join(","), regionalHint?.city, regionalHint?.uf]);
 
   async function load() {
     if (!user || !roles.includes("cliente")) return;
@@ -158,9 +222,69 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
     return () => { loadVersion.current++; };
   }, [user?.id, roles.join(",")]);
 
+  const availableCategories = categories.map((entry) => entry.slug);
+  const catalogUnavailable = catalogLoading || Boolean(catalogError) || categories.length === 0;
+
+  function saveLiveDraft(nextForm: ClientRequestDraft, nextStep: ClientRequestStep) {
+    const owner = user?.id ?? null;
+    const verifiedClient = Boolean(!loading && owner && roles.includes("cliente") &&
+      draftOwnerRef.current === owner && currentUserIdRef.current === owner);
+    // Saving inside the actual event prevents last-keystroke loss on a quick
+    // route switch or app backgrounding. Consent remains volatile.
+    saveClientRequestDraftImmediately(owner, verifiedClient, nextForm, nextStep);
+  }
+
+  function moveToStep(next: ClientRequestStep) {
+    saveLiveDraft(form, next);
+    setMsg(null);
+    setStep(next);
+    if (typeof window !== "undefined") {
+      window.requestAnimationFrame(() => stepHeadingRef.current?.focus());
+    }
+  }
+  function updateRequestField(key: keyof ClientRequestDraft, value: string) {
+    const nextForm = { ...form, [key]: value };
+    saveLiveDraft(nextForm, step);
+    setForm(nextForm);
+    // A professional chosen for an earlier category must not remain the
+    // recipient when the client changes the type of service requested.
+    if (key === "category" && value !== form.category) {
+      clearTechnicianTarget();
+      setTechnicianTarget(null);
+    }
+    // A previous authorization was for the prior description/location,
+    // never silently reuse consent for amended request details.
+    setShareNow(false);
+  }
+
+  function chooseTechnicianInWizard(id: string | null) {
+    // Only a public UUID is retained within the tab. No draft text, GPS,
+    // telephone or consent flag is stored or transmitted by selection.
+    if (id) rememberTechnicianTarget(id);
+    else clearTechnicianTarget();
+    setTechnicianTarget(id);
+    setShareNow(false); // a different recipient always requires fresh opt-in
+    setMsg(null);
+  }
+
+  function advance() {
+    const error = clientRequestStepError(step, form, availableCategories,
+      catalogUnavailable, shareNow, technicianTarget);
+    if (error) { setMsg(error); return; }
+    if (step < 4) moveToStep((step + 1) as ClientRequestStep);
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!user || !roles.includes("cliente") || saving) return;
+    if (step < 4) { advance(); return; }
+    const problemError = clientRequestStepError(1, form, availableCategories, catalogUnavailable, shareNow, technicianTarget);
+    const locationError = clientRequestStepError(2, form, availableCategories, catalogUnavailable, shareNow, technicianTarget);
+    const recipientError = clientRequestStepError(3, form, availableCategories, catalogUnavailable, shareNow, technicianTarget);
+    if (problemError || locationError || recipientError) {
+      setMsg(problemError || locationError || recipientError);
+      return;
+    }
     if (catalogLoading || catalogError || !categories.some((entry) => entry.slug === form.category)) {
       return setMsg("Escolha uma categoria ativa antes de guardar sua solicitação.");
     }
@@ -225,6 +349,7 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
         setMsg("Necessidade guardada somente na sua área privada. Nenhum técnico recebeu este registro.");
       }
       pendingSubmission.current = null;
+      clearProtectedDraft("cliente", owner);
       window.__lovableEvents?.track?.("project.service_requested", {
         category: form.category, direct_to_technician: shouldShare,
       });
@@ -232,6 +357,7 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
       clearTechnicianTarget();
       setTechnicianTarget(null);
       setForm((current) => ({ ...current, title: "", description: "" }));
+      setStep(1);
       void load();
     } catch {
       if (currentUserIdRef.current === owner) {
@@ -301,62 +427,191 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
           <p className="mt-4 text-sm text-muted-foreground">
             <Link to={lp2 ? "/lp2/entrar" : "/entrar"} className="font-medium text-primary underline">Entre com uma conta de cliente</Link> para abrir e acompanhar suas solicitações.
           </p>
+        ) : draftRestoredOwnerId !== user.id ? (
+          <p className="mt-4 text-sm text-muted-foreground" role="status" aria-live="polite" aria-busy="true">
+            Recuperando seu rascunho privado…
+          </p>
         ) : (
           <>
-            <LegacyAccountActivation userId={user.id} role="cliente" />
+            <ConnectedGoogleIdentity user={user} />
             <h2 className="mt-6 text-lg font-semibold text-foreground">Registrar minha necessidade</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Você pode guardar sua necessidade em particular ou compartilhar voluntariamente com o técnico escolhido.
-              O compartilhamento envia apenas o texto, a categoria e a região informada; não constitui contratação,
-              não libera telefone ou e-mail e não realiza cobrança. Evite colocar contato ou endereço completo na descrição.
+              Em quatro passos, você descreve o serviço, informa apenas sua região
+              e decide se quer compartilhar com o profissional escolhido.
+              Nenhuma mensagem é enviada automaticamente e nenhum contato privado é liberado.
             </p>
-            {technicianTarget && (
-              <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3 text-sm text-foreground">
-                Este profissional foi selecionado. Você pode guardar o pedido em particular ou
-                autorizar que ele visualize a descrição na sua área de técnico. Nenhum telefone é liberado.
-                {" "}<Link to="/acesso-contato/$tecnicoId" params={{ tecnicoId: technicianTarget }}
-                  className="font-semibold text-primary underline">Consultar condições de acesso ao contato</Link>
+            <form onSubmit={submit} noValidate className="mt-5 grid gap-4">
+              <div className="rounded-2xl border border-primary/20 bg-card p-4 shadow-sm sm:p-5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                  Solicitação guiada · Passo {step} de 4
+                </p>
+                <div className="mt-3 grid grid-cols-4 gap-2" role="progressbar"
+                  aria-label="Progresso da solicitação do cliente"
+                  aria-valuemin={1} aria-valuemax={4} aria-valuenow={step}>
+                  {(["Problema", "Localização", "Profissional", "Confirmar"] as const).map((label, index) => (
+                    <div key={label} className="min-w-0">
+                      <div className={`h-1.5 rounded-full ${index + 1 <= step ? "bg-primary" : "bg-muted"}`} />
+                      <span className={`mt-2 block break-words text-center text-[11px] ${index + 1 === step ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+                        {label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <h3 ref={stepHeadingRef} tabIndex={-1} className="mt-5 text-xl font-bold text-foreground outline-none sm:text-2xl">
+                  {step === 1 ? "Qual problema você precisa resolver?" :
+                    step === 2 ? "Onde o atendimento será realizado?" :
+                    step === 3 ? "Quem poderá visualizar sua solicitação?" :
+                    "Confira sua solicitação"}
+                </h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {step === 1 ? "Descreva o que aconteceu e selecione uma categoria. Não informe telefone ou endereço completo." :
+                    step === 2 ? "Preencha cidade e região aproximada. O GPS é opcional e solicita sua permissão." :
+                    step === 3 ? "Você pode guardar o pedido só para você, ou compartilhar com o técnico selecionado mediante autorização." :
+                    "O pedido será salvo primeiro na sua área. Só será enviado ao técnico escolhido se você autorizar."}
+                </p>
               </div>
-            )}
-            <form onSubmit={submit} className="mt-4 grid gap-4">
-              <label className="text-sm font-medium text-foreground">Resumo do problema
-                <input required minLength={5} maxLength={120} className={input} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-              </label>
-              <label className="text-sm font-medium text-foreground">Descrição
-                <textarea required minLength={10} maxLength={2000} rows={4} className={input} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-              </label>
-              <div className="grid gap-4 sm:grid-cols-3">
-                <label className="text-sm font-medium text-foreground">Categoria
-                  <select required className={input} value={form.category} disabled={catalogLoading || Boolean(catalogError)}
-                    onChange={(e) => setForm({ ...form, category: e.target.value })}>
-                    <option value="">Selecione uma categoria</option>
-                    {categories.map((category) => <option key={category.slug} value={category.slug}>{category.label}</option>)}
-                  </select>
-                  {catalogError && <span role="alert" className="mt-1 block text-xs text-destructive">
-                    Catálogo de serviços indisponível. Recarregue a página.
-                  </span>}
-                </label>
-                <label className="text-sm font-medium text-foreground">Cidade
-                  <input required maxLength={80} className={input} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
-                </label>
-                <label className="text-sm font-medium text-foreground">Bairro / região
-                  <input maxLength={120} className={input} value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} />
-                </label>
-              </div>
-              {technicianTarget && (
-                <label className="flex items-start gap-2 rounded-lg border border-border p-3 text-sm text-foreground">
-                  <input type="checkbox" checked={shareNow} onChange={(e) => setShareNow(e.target.checked)}
-                    className="mt-1 h-4 w-4 shrink-0" />
-                  <span>Autorizo compartilhar o título, a descrição, a categoria e a localidade informada
-                    somente com o técnico selecionado. Não incluo telefone, e-mail ou endereço completo.
-                    Sei que isso não é uma contratação nem libera contato privado.</span>
-                </label>
+              {step === 1 && (
+                <div className="grid gap-4">
+                  <label className="text-sm font-medium text-foreground">Resumo do problema
+                    <input minLength={5} maxLength={120} className={input} value={form.title}
+                      autoComplete="off" placeholder="Ex.: Wi-Fi parou de funcionar"
+                      onChange={(e) => updateRequestField("title", e.target.value)} />
+                  </label>
+                  <label className="text-sm font-medium text-foreground">Descrição do problema
+                    <textarea minLength={10} maxLength={2000} rows={5} className={input}
+                      value={form.description} placeholder="Explique os sintomas e o serviço desejado, sem contatos pessoais"
+                      onChange={(e) => updateRequestField("description", e.target.value)} />
+                  </label>
+                  <label className="text-sm font-medium text-foreground">Categoria do serviço
+                    <select className={input} value={form.category} disabled={catalogUnavailable}
+                      onChange={(e) => updateRequestField("category", e.target.value)}>
+                      <option value="">Selecione uma categoria</option>
+                      {categories.map((category) => <option key={category.slug} value={category.slug}>{category.label}</option>)}
+                    </select>
+                    {catalogError && <span role="alert" className="mt-2 block text-sm text-destructive">
+                      Catálogo indisponível. Recarregue a página para tentar novamente.
+                    </span>}
+                  </label>
+                </div>
               )}
-              <button disabled={saving || catalogLoading || Boolean(catalogError) || categories.length === 0} className="min-h-11 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-60">
-                {saving ? "Salvando…" : shareNow && technicianTarget ? "Salvar e enviar ao técnico escolhido" : "Guardar necessidade na minha área"}
-              </button>
-              {msg && <p role="status" className="text-sm text-foreground">{msg}</p>}
+              {step === 2 && (
+                <div className="grid gap-4">
+                  {regionalHint && <p className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+                    <strong className="text-foreground">Cidade sugerida: {regionalHint.city}/{regionalHint.uf}.</strong>
+                    {" "}Estimativa aproximada, não sua localização exata. Confira antes de enviar.
+                  </p>}
+                  <CustomerLocationButton onLocated={(area, source) => {
+                    // Automatic hints never override a city the client typed.
+                    const nextForm = source === "automatic" && form.city.trim() ? form :
+                      { ...form, city: area.city, region: area.neighborhood };
+                    if (nextForm !== form) {
+                      saveLiveDraft(nextForm, step);
+                      setForm(nextForm);
+                      setShareNow(false);
+                    }
+                  }} />
+                  <label className="text-sm font-medium text-foreground">Cidade do atendimento
+                    <input maxLength={80} className={input} value={form.city}
+                      autoComplete="address-level2" placeholder="Ex.: Curitiba"
+                      onChange={(e) => updateRequestField("city", e.target.value)} />
+                  </label>
+                  <label className="text-sm font-medium text-foreground">Bairro ou região aproximada (opcional)
+                    <input maxLength={120} className={input} value={form.region}
+                      autoComplete="address-level3" placeholder="Ex.: Centro"
+                      onChange={(e) => updateRequestField("region", e.target.value)} />
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Não precisamos do número da sua casa. A localização exata do GPS
+                    não é armazenada nem compartilhada pelo portal.
+                  </p>
+                </div>
+              )}
+              {step === 3 && (
+                <div className="grid gap-3">
+                  <ClientTechnicianPicker
+                    category={form.category}
+                    city={form.city}
+                    selectedId={technicianTarget}
+                    onSelect={chooseTechnicianInWizard}
+                  />
+                  {technicianTarget && (
+                    <div role="status" className="rounded-xl border border-primary/25 bg-primary/5 p-4">
+                      <p className="text-sm font-semibold text-foreground">Você escolheu um técnico</p>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Essa escolha não envia o pedido. Para solicitar o compartilhamento,
+                        marque a autorização abaixo e confirme na última etapa.
+                        Nenhum telefone será liberado.
+                      </p>
+                    </div>
+                  )}
+                  {technicianTarget && (
+                    <label className="flex min-h-12 items-start gap-3 rounded-xl border border-primary/25 bg-card p-4 text-sm text-foreground">
+                      <input type="checkbox" checked={shareNow} onChange={(e) => setShareNow(e.target.checked)}
+                        className="mt-1 h-5 w-5 shrink-0 accent-primary" />
+                      <span>
+                        Autorizo compartilhar o título, a descrição, a categoria e a localidade informada
+                        somente com o técnico selecionado. Não incluo telefone, e-mail ou endereço completo.
+                        Sei que isso não é uma contratação nem libera contato privado.
+                      </span>
+                    </label>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    {shareNow && technicianTarget ? "Escolha atual: salvar e enviar somente ao profissional selecionado." :
+                      "Escolha atual: guardar o pedido apenas no seu histórico privado."}
+                  </p>
+                </div>
+              )}
+              {step === 4 && (
+                <div className="grid gap-3 rounded-xl border border-border bg-card p-4 text-sm">
+                  <p className="font-semibold text-foreground">{form.title.trim()}</p>
+                  <p className="whitespace-pre-wrap break-words text-muted-foreground">{form.description.trim()}</p>
+                  <p className="text-muted-foreground">
+                    Categoria: {categories.find((entry) => entry.slug === form.category)?.label ?? form.category}
+                  </p>
+                  <p className="text-muted-foreground">
+                    Região: {form.city.trim()}{form.region.trim() ? ` · ${form.region.trim()}` : ""}
+                  </p>
+                  <p className="rounded-lg bg-muted/40 p-3 font-medium text-foreground">
+                    {shareNow && technicianTarget
+                      ? "Ao confirmar, o pedido será salvo e o compartilhamento será solicitado somente ao técnico escolhido."
+                      : "Ao confirmar, este pedido será guardado na sua área privada. Nenhum técnico será avisado."}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Não há contratação, cobrança ou liberação de telefone nesta etapa.
+                    É possível voltar e corrigir os dados antes de salvar.
+                  </p>
+                </div>
+              )}
+              {msg && <p role="status" className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-foreground">{msg}</p>}
+              <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 -mx-4 flex items-center gap-2 border-t border-border bg-background/95 px-4 py-3 shadow-lg backdrop-blur sm:static sm:mx-0 sm:rounded-xl sm:border sm:shadow-none">
+                {step > 1 && (
+                  <button type="button" onClick={() => moveToStep((step - 1) as ClientRequestStep)}
+                    disabled={saving} className="min-h-12 shrink-0 rounded-xl border border-border px-5 text-sm font-semibold text-foreground disabled:opacity-60">
+                    Voltar
+                  </button>
+                )}
+                {step < 4 ? (
+                  <button type="button" onClick={advance} disabled={saving}
+                    className="min-h-12 flex-1 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+                    Continuar <span aria-hidden="true">→</span>
+                  </button>
+                ) : (
+                  <button type="submit" disabled={saving || catalogUnavailable}
+                    className="min-h-12 flex-1 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+                    {saving ? "Salvando…" : shareNow && technicianTarget ? "Salvar e enviar ao técnico escolhido" : "Guardar necessidade na minha área"}
+                  </button>
+                )}
+              </div>
             </form>
+
+            <details className="mt-5 rounded-xl border border-border bg-card p-4">
+              <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-primary">
+                Já tinha uma conta no site antigo? Recuperar cadastro
+              </summary>
+              <div className="mt-4">
+                <LegacyAccountActivation userId={user.id} role="cliente" />
+              </div>
+            </details>
 
             <div className="mt-10 flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-lg font-semibold text-foreground">Meus pedidos e respostas</h2>

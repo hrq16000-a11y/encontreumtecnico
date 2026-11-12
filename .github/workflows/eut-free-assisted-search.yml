@@ -1,0 +1,54 @@
+name: EUT free assisted search + truthful trust gate
+on:
+  pull_request:
+    paths:
+      - 'src/components/free-search-help.tsx'
+      - 'src/components/free-search-help.test.tsx'
+      - 'src/components/assistance-funnel.tsx'
+      - 'src/lib/assistance-intent.ts'
+      - 'src/lib/assistance-intent.test.ts'
+      - 'src/lib/free-search-help.ts'
+      - 'src/components/page-placeholder.tsx'
+      - 'src/routes/tecnicos.index.tsx'
+      - 'src/routes/contato.tsx'
+      - 'src/routes/acesso-contato.$tecnicoId.tsx'
+      - 'src/components/public-technician-profile.tsx'
+      - '.github/workflows/eut-free-assisted-search.yml'
+permissions:
+  contents: read
+jobs:
+  guarded-help:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Funnel steps, contextual routing and privacy tests
+        run: bunx vitest run src/components/free-search-help.test.tsx src/lib/assistance-intent.test.ts
+      - name: No paid-contact bypass or fake reputation
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          const ui=readFileSync('src/components/free-search-help.tsx','utf8');
+          const funnel=readFileSync('src/components/assistance-funnel.tsx','utf8');
+          const search=readFileSync('src/routes/tecnicos.index.tsx','utf8');
+          const contact=readFileSync('src/routes/contato.tsx','utf8');
+          if(!ui.includes('AssistanceFunnel')||!funnel.includes('.from("contact_messages").insert('))
+            throw Error('Guided intake must persist to the existing private admin inbox');
+          if(!funnel.includes('Nenhum telefone privado')||
+             /eut_reveal_paid_technician_contact|service_role|phone_e164|wa\.me\//i.test(ui+funnel))
+            throw Error('Unsafe contact bypass');
+          if(!search.includes('technicians.length === 0')||!search.includes('openFreeHelp')||
+             !search.includes('sessionStorage'))throw Error('Regional no-results funnel missing');
+          if(contact.includes('<ContactForm')||!contact.includes('atendimento guiado'))
+            throw Error('Generic public contact form was not replaced');
+          for(const word of ['avaliados por','estrelas comprovadas','certificado pela plataforma'])
+            if(search.includes(word))throw Error('Fictitious social proof');
+          NODE
+      - name: WordPress-free runtime
+        run: node scripts/eut-wordpress-runtime-boundary.mjs
+      - name: TanStack build
+        run: bun run build
+      - name: TypeScript
+        run: bunx tsc --noEmit --pretty false

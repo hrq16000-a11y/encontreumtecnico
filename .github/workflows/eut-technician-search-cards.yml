@@ -1,0 +1,48 @@
+name: EUT public technician search card visual privacy gate
+on:
+  pull_request:
+    paths:
+      - 'src/routes/tecnicos.index.tsx'
+      - 'src/components/technician-search-card.tsx'
+      - 'src/components/technician-search-card.test.tsx'
+      - 'src/lib/location-labels.ts'
+      - 'src/lib/location-labels.test.ts'
+      - 'src/lib/neighborhood-sources.ts'
+      - 'src/lib/neighborhood-sources.test.ts'
+      - '.github/workflows/eut-technician-search-cards.yml'
+permissions:
+  contents: read
+jobs:
+  cards:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Card factual social proof and privacy tests
+        run: bunx vitest run src/components/technician-search-card.test.tsx src/lib/location-labels.test.ts src/lib/neighborhood-sources.test.ts
+      - name: Safeguard paid contacts, badges, avatars and filter results
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          const card=readFileSync('src/components/technician-search-card.tsx','utf8');
+          const route=readFileSync('src/routes/tecnicos.index.tsx','utf8');
+          for(const required of [
+            'TechnicianAvatar','t.avatar_path','t.pioneer_bronze',
+            't.referral_highlight','t.online_now','t.public_slug',
+            'Contato privado protegido','t.coverage_cities'
+          ]) if(!card.includes(required))throw Error('Public card safeguard missing: '+required);
+          for(const forbidden of ['service_role','contact_phone','contact_email','wa.me/','5 estrelas','avaliação verificada']) {
+            if(card.includes(forbidden))throw Error('Private or unproven card content: '+forbidden);
+          }
+          if(!route.includes('listApprovedTechnicians')||!route.includes('TechnicianSearchCard')||
+             !route.includes('technicians.length === 0')||!route.includes('openFreeHelp'))
+            throw Error('Approved-only search or free assistance missing');
+          NODE
+      - name: Independence from WordPress
+        run: node scripts/eut-wordpress-runtime-boundary.mjs
+      - name: TanStack build and generate route types
+        run: bun run build
+      - name: TypeScript
+        run: bunx tsc --noEmit --pretty false

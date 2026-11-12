@@ -6,7 +6,9 @@ on:
       - 'src/components/technician-presence.tsx'
       - 'src/routes/area-tecnico.tsx'
       - 'src/routes/tecnicos.index.tsx'
+      - 'src/components/technician-search-card.tsx'
       - 'src/routes/tecnicos.$tecnicoId.tsx'
+      - 'src/components/public-technician-profile.tsx'
       - 'src/lib/technicians.functions.ts'
       - '.github/workflows/eut-online-presence.yml'
 
@@ -39,13 +41,20 @@ jobs:
           const panel=r('src/routes/area-tecnico.tsx');
           const server=r('src/lib/technicians.functions.ts');
           const list=r('src/routes/tecnicos.index.tsx');
-          const detail=r('src/routes/tecnicos.$tecnicoId.tsx');
+          const card=r('src/components/technician-search-card.tsx');
+          const detailRoute=r('src/routes/tecnicos.$tecnicoId.tsx');
+          const detail=r('src/components/public-technician-profile.tsx');
+          if(!detailRoute.includes('PublicTechnicianProfile'))throw Error('Approved-only profile route no longer renders presentation');
           for(const term of ['eut_set_my_presence','eut_my_presence_is_online',
             'HEARTBEAT_MS = 120_000','document.visibilityState','setInterval',
             'Ficar online','Ficar offline']) {
             if(!presence.includes(term))throw Error('Online presence guard missing: '+term);
           }
-          if(!panel.includes('currentStatus === "aprovado" && <TechnicianPresence') ||
+          const requestsTab=panel.indexOf('panelTab === "solicitacoes"');
+          const approvedInTab=panel.indexOf('currentStatus === "aprovado" ? (',requestsTab);
+          const approvalElse=panel.indexOf(') : (',approvedInTab);
+          if(requestsTab<0 || approvedInTab<requestsTab || approvalElse<approvedInTab ||
+             !panel.slice(approvedInTab,approvalElse).includes('<TechnicianPresence userId={user.id} />') ||
              !panel.includes('profileOwnerId === user?.id') ||
              !panel.includes('roles.includes("tecnico")') ||
              panel.includes('A aprovação dependerá da conferência administrativa')) {
@@ -54,7 +63,9 @@ jobs:
           for(const term of ['eut_online_published_ids','_technician_ids: rows.map','online_now','Number(b.online_now)']) {
             if(!server.includes(term))throw Error('Online-only search relevance missing: '+term);
           }
-          if(!server.includes('.eq("status", "aprovado")') || !list.includes('t.online_now') || !detail.includes('t.online_now')) {
+          if(!server.includes('.eq("status", "aprovado")') ||
+             !list.includes('TechnicianSearchCard') || !card.includes('t.online_now') ||
+             !detail.includes('t.online_now')) {
             throw Error('Public presence must not expose unapproved profiles');
           }
           if(presence.includes('service_role')||server.includes('service_role')) throw Error('Privileged API key exposed');

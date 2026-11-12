@@ -1,17 +1,62 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { listApprovedTechnicians } from "../lib/technicians.functions";
+import { TechnicianSearchCard } from "@/components/technician-search-card";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { PageShell, EmptyState } from "../components/page-placeholder";
 import { SponsoredPublicSlot } from "@/components/sponsored-public-slot";
 import { useActiveCategories, categoryLabel } from "@/hooks/use-active-categories";
 import { useActiveServices, serviceLabel } from "@/hooks/use-active-services";
+import { DebouncedTextFilter } from "@/components/debounced-text-filter";
+import { CustomerLocationButton } from "@/components/customer-location-button";
 import { BRAZIL_STATES } from "@/lib/service-taxonomy";
+import { neighborhoodCatalogFor, neighborhoodOptions } from "@/lib/neighborhood-sources";
 import { localMatchLabel } from "@/lib/technician-local-ranking";
 import { LegacyPublicArchive } from "../components/legacy-public-archive";
 import { canShowLegacyArchive } from "../lib/legacy-archive-filters";
 import { useEffect, useRef, useState } from "react";
 import { analyticsAllowed, recordSearch } from "@/lib/search-analytics";
+import { openFreeHelp } from "@/lib/free-search-help";
+import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
+import { MapPin, ShieldCheck, UserRoundCheck, LifeBuoy } from "lucide-react";
+
+/** Small contextual help inside *filtered directory results*, not a second blog.
+ * Avoid importing the full editorial catalogue into the default search bundle.
+ */
+const CATEGORY_SEARCH_CONTEXT: Record<string, { title: string; advice: string }> = {
+  automacao: {
+    title: "Automação de ambientes e rotinas",
+    advice: "Informe funções desejadas, equipamentos atuais e se a instalação precisa operar sem internet. Nunca envie senhas ou códigos de autenticação ao solicitar atendimento.",
+  },
+  comunicacoes: {
+    title: "Interfonia, ramais e telefonia IP",
+    advice: "Indique quantidade aproximada de pontos, central existente, problemas de rede e uso interno ou externo. Evite divulgar gravações e credenciais da operadora.",
+  },
+  computadores: {
+    title: "Lentidão, diagnóstico e manutenção",
+    advice: "Anote travamentos, lentidão em programas e sinais de aquecimento. Confirme o backup antes de autorizar formatação ou troca de peças.",
+  },
+  cftv: {
+    title: "Câmeras, gravação e instalação",
+    advice: "Explique as áreas que precisam de cobertura, iluminação, armazenamento e infraestrutura. Respeite a privacidade dos ambientes.",
+  },
+  redes: {
+    title: "Wi-Fi, roteadores e conexão",
+    advice: "Informe onde a conexão falha, se ocorre em mais de um aparelho e se o cabo funciona. Evite divulgar senhas ou restaurar o roteador sem orientação.",
+  },
+  impressoras: {
+    title: "Impressora offline e manutenção",
+    advice: "Indique marca, modelo, tipo de conexão e mensagem de erro. Confira a fila de impressão sem expor documentos confidenciais.",
+  },
+  software: {
+    title: "Sistemas, backup e recuperação",
+    advice: "Identifique arquivos essenciais, programas e cópias testadas. Caso haja falha física no disco, evite testes repetidos que possam piorar a perda.",
+  },
+  climatizacao: {
+    title: "Ar-condicionado sem resfriamento",
+    advice: "Informe o modo selecionado, ventilação, modelo e sinais de falha. Não abra painéis elétricos nem manipule refrigerante sem profissional qualificado.",
+  },
+};
 
 const searchSchema = z.object({
   especialidade: fallback(z.string(), "Todas").default("Todas"),
@@ -35,9 +80,9 @@ export const Route = createFileRoute("/tecnicos/")({
       { property: "og:description", content: "Consulte técnicos com perfil público de CFTV, informática, redes e impressoras. Filtre por serviço, UF, cidade e bairro." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { property: "og:url", content: "https://www.encontreumtecnico.com/tecnicos" },
+      { property: "og:url", content: "https://www.encontreumtecnico.com.br/tecnicos" },
     ],
-    links: [{ rel: "canonical", href: "https://www.encontreumtecnico.com/tecnicos" }],
+    links: [{ rel: "canonical", href: "https://www.encontreumtecnico.com.br/tecnicos" }],
   }),
   component: TechniciansPage,
 });
@@ -75,6 +120,27 @@ function TechniciansPage() {
   }, [search.especialidade, search.cidade, search.regiao, search.servico, search.uf, search.bairro, search.prioridade, technicians.length, consentRevision]);
   const prioritizeRegion = search.prioridade === "regiao" && Boolean(search.uf || search.cidade.trim());
   const hasDeclaredLocation = Boolean(search.uf || search.cidade.trim());
+
+  const searchArea = [search.bairro, search.cidade, search.uf].filter(Boolean).join(" · ");
+  const bairroCatalog = neighborhoodCatalogFor({ city: search.cidade, uf: search.uf });
+  const helpContext = { city: search.cidade, uf: search.uf, neighborhood: search.bairro,
+    service: services.find((s) => s.slug === search.servico)?.label || search.servico || (search.especialidade !== "Todas" ? search.especialidade : "") };
+
+  useEffect(() => {
+    if (technicians.length > 0 || !searchArea) return;
+    // One contextual invitation per browser tab; never nag on every filter.
+    const popup = window.setTimeout(() => {
+      try {
+        if (sessionStorage.getItem("eut-free-help-invite") === "seen") return;
+        sessionStorage.setItem("eut-free-help-invite", "seen");
+      } catch { /* Session storage unavailable: the button remains available. */ }
+      openFreeHelp({ city: search.cidade, uf: search.uf, neighborhood: search.bairro, service: search.servico });
+    }, 850);
+    return () => window.clearTimeout(popup);
+  }, [technicians.length, searchArea, search.cidade, search.uf, search.bairro, search.servico]);
+
+  const { area: regionalHint } = useRegionalSuggestion();
+  const suggestedArea = !search.cidade.trim() && !search.uf ? regionalHint : null;
   const specialty = categories.some((c) => c.slug === search.especialidade)
     ? search.especialidade
     : "Todas";
@@ -90,6 +156,13 @@ function TechniciansPage() {
           Perfis publicados são declarados pelos próprios profissionais. A plataforma não certifica habilidades nem garante atendimento.
         </p>
 
+        <div className="mt-4">
+          <CustomerLocationButton onLocated={(area, source) => {
+            if (source === "automatic" && (search.cidade.trim() || search.uf || search.bairro.trim())) return;
+            void update({ uf: area.uf, cidade: area.city, bairro: area.neighborhood,
+              regiao: "", prioridade: "regiao" });
+          }} />
+        </div>
         <div className="mt-6 grid gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-3">
           <div>
             <label htmlFor="filtro-especialidade" className="text-xs font-medium text-muted-foreground">
@@ -102,7 +175,7 @@ function TechniciansPage() {
                 update({ especialidade: e.target.value, servico: "" });
                 trackFilter("especialidade", e.target.value);
               }}
-              className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+              className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
               disabled={catalogLoading}
             >
               <option value="Todas">Todas as categorias</option>
@@ -115,7 +188,7 @@ function TechniciansPage() {
             <label htmlFor="filtro-servico" className="text-xs font-medium text-muted-foreground">Serviço específico</label>
             <select id="filtro-servico" value={services.some((service) => service.slug === search.servico) ? search.servico : ""}
               onChange={(e) => { update({ servico: e.target.value }); trackFilter("servico", e.target.value); }}
-              disabled={servicesLoading} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
+              disabled={servicesLoading} className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
               <option value="">Todos os serviços</option>
               {services.filter((service) => specialty === "Todas" || service.category_slug === specialty).map((service) => (
                 <option key={service.slug} value={service.slug}>{service.label}</option>
@@ -125,45 +198,43 @@ function TechniciansPage() {
           <div>
             <label htmlFor="filtro-uf" className="text-xs font-medium text-muted-foreground">Estado (UF)</label>
             <select id="filtro-uf" value={search.uf} onChange={(e) => { update({ uf: e.target.value }); trackFilter("uf", e.target.value); }}
-              className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
+              className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
               <option value="">Todos os estados</option>
               {BRAZIL_STATES.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
             </select>
           </div>
-          <div>
-            <label htmlFor="filtro-cidade" className="text-xs font-medium text-muted-foreground">
-              Cidade
-            </label>
-            <input
-              id="filtro-cidade"
-              type="text"
-              value={search.cidade}
-              onChange={(e) => update({ cidade: e.target.value })}
-              onBlur={(e) => trackFilter("cidade", e.target.value)}
-              placeholder="Ex.: São Paulo"
-              className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground"
-            />
-          </div>
-          <div>
-            <label htmlFor="filtro-bairro" className="text-xs font-medium text-muted-foreground">Bairro</label>
-            <input id="filtro-bairro" type="text" value={search.bairro}
-              onChange={(e) => update({ bairro: e.target.value })} onBlur={(e) => trackFilter("bairro", e.target.value)}
-              placeholder="Ex.: Centro" className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground" />
-          </div>
-          <div>
-            <label htmlFor="filtro-regiao" className="text-xs font-medium text-muted-foreground">
-              Região
-            </label>
-            <input
-              id="filtro-regiao"
-              type="text"
-              value={search.regiao}
-              onChange={(e) => update({ regiao: e.target.value })}
-              onBlur={(e) => trackFilter("regiao", e.target.value)}
-              placeholder="Ex.: Zona Sul"
-              className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground"
-            />
-          </div>
+          <DebouncedTextFilter
+            id="filtro-cidade"
+            label="Cidade"
+            value={search.cidade}
+            placeholder="Ex.: São Paulo"
+            onCommit={(value) => update({ cidade: value })}
+            onBlurTrack={(value) => trackFilter("cidade", value)}
+          />
+          <DebouncedTextFilter
+            id="filtro-bairro"
+            label="Bairro"
+            list={bairroCatalog ? "eut-bairro-diretorio" : undefined}
+            value={search.bairro}
+            placeholder="Ex.: Centro"
+            onCommit={(value) => update({ bairro: value })}
+            onBlurTrack={(value) => trackFilter("bairro", value)}
+          />
+          {bairroCatalog && <div className="text-xs text-muted-foreground sm:col-span-3">
+            <datalist id="eut-bairro-diretorio">
+              {neighborhoodOptions(bairroCatalog).map(bairro => <option key={bairro} value={bairro} />)}
+            </datalist>
+            Bairros sugeridos pela <a className="text-primary underline" href={bairroCatalog.sourceUrl}
+              target="_blank" rel="noopener noreferrer">prefeitura</a>; você pode digitar outra denominação.
+          </div>}
+          <DebouncedTextFilter
+            id="filtro-regiao"
+            label="Região"
+            value={search.regiao}
+            placeholder="Ex.: Zona Sul"
+            onCommit={(value) => update({ regiao: value })}
+            onBlurTrack={(value) => trackFilter("regiao", value)}
+          />
         </div>
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 p-4">
@@ -192,7 +263,35 @@ function TechniciansPage() {
             </p>
           )}
         </div>
+        {suggestedArea && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/20 bg-accent/50 px-4 py-3 text-sm">
+            <span><MapPin className="mr-1 inline h-4 w-4 text-primary" aria-hidden="true" />
+              Você pode estar perto de <strong>{suggestedArea.city}/{suggestedArea.uf}</strong>. Estimativa por IP, não localização exata.</span>
+            <Link to="/tecnicos" search={{especialidade:search.especialidade,cidade:suggestedArea.city,uf:suggestedArea.uf,bairro:suggestedArea.neighborhood,regiao:"",servico:search.servico,prioridade:"regiao"}}
+              className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-xs font-bold text-primary-foreground">Buscar na região</Link>
+          </div>
+        )}
+        {CATEGORY_SEARCH_CONTEXT[search.especialidade] && (
+          <aside aria-label="Orientações da especialidade selecionada"
+            className="mt-5 flex flex-col gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div>
+              <h2 className="font-bold text-foreground">{CATEGORY_SEARCH_CONTEXT[search.especialidade]?.title}</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+                {CATEGORY_SEARCH_CONTEXT[search.especialidade]?.advice}
+              </p>
+            </div>
+            <Link to="/servicos/$categoria" params={{ categoria: search.especialidade }}
+              className="inline-flex min-h-11 shrink-0 items-center rounded-xl border border-primary/30 px-4 text-sm font-semibold text-primary hover:bg-primary/10">
+              Ver informações e profissionais desta categoria →
+            </Link>
+          </aside>
+        )}
         <SponsoredPublicSlot slotKey="search.top" routePath="/tecnicos" />
+        <section aria-label="Transparência e confiança na busca" className="mt-6 grid gap-3 rounded-2xl border border-primary/15 bg-accent/50 p-4 sm:grid-cols-3">
+          <div className="flex items-start gap-3"><UserRoundCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" /><p className="text-sm text-foreground"><strong className="block">{technicians.length} perfil{technicians.length === 1 ? "" : "s"} nesta busca</strong><span className="text-xs text-muted-foreground">Somente perfis publicados; resultados conforme os filtros aplicados.</span></p></div>
+          <div className="flex items-start gap-3"><MapPin className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" /><p className="text-sm text-foreground"><strong className="block">Localidade informada</strong><span className="text-xs text-muted-foreground">Regiões declaradas pelos profissionais, sem localização inventada.</span></p></div>
+          <div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" /><p className="text-sm text-foreground"><strong className="block">Contato protegido</strong><span className="text-xs text-muted-foreground">Telefones particulares não aparecem na busca pública.</span></p></div>
+        </section>
         <div className="mt-6">
           {technicians.length === 0 ? (
             <div className="space-y-4">
@@ -200,6 +299,19 @@ function TechniciansPage() {
                 title="Nenhum técnico encontrado com estes filtros"
                 description="Ainda não encontramos um profissional com perfil ativo para esta pesquisa. Você pode registrar sua necessidade ou, se é profissional, criar seu perfil no portal novo. Cadastros antigos em conferência não são apresentados como técnicos disponíveis."
               />
+              <div className="rounded-2xl border border-primary/25 bg-gradient-to-r from-brand-navy to-primary p-6 text-white shadow-sm">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white/75"><LifeBuoy className="h-4 w-4" aria-hidden="true" /> Ajuda da equipe · gratuita nesta fase</p>
+                    <h2 className="mt-2 text-xl font-bold text-white">Não encontrou técnico{searchArea ? " em " + searchArea : " para sua necessidade"}?</h2>
+                    <p className="mt-2 max-w-xl text-sm text-white/85">Conte o que você precisa. Recebemos seu pedido de ajuda sem cobrar. Não há promessa de disponibilidade nem liberação de contato privado.</p>
+                  </div>
+                  <button type="button" onClick={() => openFreeHelp(helpContext)}
+                    className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-bold text-brand-navy shadow-sm transition-colors hover:bg-white/90">
+                    <LifeBuoy className="h-4 w-4" aria-hidden="true" /> Pedir ajuda grátis
+                  </button>
+                </div>
+              </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="rounded-lg border border-border bg-card p-5">
                   <h2 className="text-base font-semibold text-card-foreground">
@@ -239,41 +351,17 @@ function TechniciansPage() {
               </div>
             </div>
           ) : (
-            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <ul className="grid gap-5 md:grid-cols-2">
               {technicians.map((t) => (
-                <li key={t.id}>
-                  <Link
-                    to="/tecnicos/$tecnicoId"
-                    params={{ tecnicoId: t.id }}
-                    className="block h-full rounded-lg border border-border bg-card p-5 transition-colors hover:border-primary"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <h2 className="font-semibold text-card-foreground">{t.display_name}</h2>
-                      {t.online_now ? (
-                        <span className="shrink-0 rounded bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">Online recentemente</span>
-                      ) : (
-                        <span className="shrink-0 rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">Perfil público</span>
-                      )}
-                    </div>
-                    {prioritizeRegion && localMatchLabel(t, {
+                <li key={t.id} className="min-w-0">
+                  <TechnicianSearchCard
+                    technician={t}
+                    categories={categories}
+                    services={services}
+                    localMatch={prioritizeRegion ? localMatchLabel(t, {
                       uf: search.uf, cidade: search.cidade, bairro: search.bairro,
-                    }) && (
-                      <p className="mt-2 text-xs font-semibold text-primary">
-                        {localMatchLabel(t, { uf: search.uf, cidade: search.cidade, bairro: search.bairro })}
-                      </p>
-                    )}
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {t.city}{t.state_uf ? `/${t.state_uf}` : ""}{t.neighborhood ? ` · ${t.neighborhood}` : ""}{t.region ? ` · ${t.region}` : ""}
-                    </p>
-                    <ul className="mt-3 flex flex-wrap gap-1.5">
-                      {t.specialties.map((s) => (
-                        <li key={s} className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-foreground">{categoryLabel(s, categories)}</li>
-                      ))}
-                      {t.service_slugs.map((slug) => (
-                        <li key={slug} className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs text-primary">{serviceLabel(slug, services)}</li>
-                      ))}
-                    </ul>
-                  </Link>
+                    }) : null}
+                  />
                 </li>
               ))}
             </ul>

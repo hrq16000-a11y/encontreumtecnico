@@ -226,22 +226,82 @@
 }
 /* site-import tokens: end */
 
-/* Brand refresh: navy text, cyan primary from the logo, readable cards, Sora/Manrope */
+/* Brand palette (WCAG AA): shared tokens for public pages and authenticated areas.
+ * Keep the imported WordPress/LP2 tokens above isolated; this is the native UI.
+ * The previous cyan --primary was too light for white button labels (3.35:1).
+ * More importantly, its late :root block overrode .dark tokens with light values.
+ */
 :root {
-  --foreground: oklch(0.24 0.05 255);
+  color-scheme: light;
+  --background: oklch(0.985 0.004 250);
+  --foreground: oklch(0.21 0.042 258);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.24 0.05 255);
-  --muted: oklch(0.97 0.01 240);
-  --muted-foreground: oklch(0.45 0.03 255);
-  --border: oklch(0.91 0.015 240);
-  --primary: oklch(0.62 0.15 232);
+  --card-foreground: oklch(0.21 0.042 258);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.21 0.042 258);
+  --primary: oklch(0.47 0.14 248);
   --primary-foreground: oklch(0.99 0 0);
-  --accent: oklch(0.95 0.03 230);
-  --accent-foreground: oklch(0.3 0.08 255);
+  --secondary: oklch(0.95 0.015 247);
+  --secondary-foreground: oklch(0.23 0.05 255);
+  --muted: oklch(0.958 0.012 245);
+  --muted-foreground: oklch(0.41 0.034 256);
+  --accent: oklch(0.93 0.026 235);
+  --accent-foreground: oklch(0.23 0.055 250);
+  --destructive: oklch(0.5 0.19 26);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: oklch(0.77 0.018 250);
+  /* Interactive field outlines are intentionally stronger than card borders. */
+  --input: oklch(0.64 0.025 250);
+  --ring: oklch(0.48 0.14 248);
+  --sidebar: oklch(0.985 0.004 250);
+  --sidebar-foreground: oklch(0.21 0.042 258);
+  --sidebar-primary: oklch(0.47 0.14 248);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.93 0.026 235);
+  --sidebar-accent-foreground: oklch(0.23 0.055 250);
+  --sidebar-border: oklch(0.77 0.018 250);
+  --sidebar-ring: oklch(0.48 0.14 248);
   --brand-navy: oklch(0.24 0.06 258);
   --brand-navy-foreground: oklch(0.98 0.01 240);
   --brand-glow: oklch(0.78 0.13 210);
-  --shadow-soft: 0 12px 40px -16px color-mix(in oklab, var(--brand-navy) 35%, transparent);
+  --shadow-soft: 0 12px 38px -19px color-mix(in oklab, var(--brand-navy) 30%, transparent);
+}
+/* Must follow the light :root overrides: .dark and :root share specificity.
+ * Dark surfaces, outlines and labels now change together without mixed themes.
+ */
+.dark {
+  color-scheme: dark;
+  --background: oklch(0.14 0.03 255);
+  --foreground: oklch(0.94 0.012 246);
+  --card: oklch(0.20 0.032 257);
+  --card-foreground: oklch(0.94 0.012 246);
+  --popover: oklch(0.20 0.032 257);
+  --popover-foreground: oklch(0.94 0.012 246);
+  --primary: oklch(0.76 0.12 230);
+  --primary-foreground: oklch(0.14 0.03 255);
+  --secondary: oklch(0.28 0.034 255);
+  --secondary-foreground: oklch(0.94 0.012 246);
+  --muted: oklch(0.27 0.029 255);
+  --muted-foreground: oklch(0.78 0.022 250);
+  --accent: oklch(0.30 0.043 250);
+  --accent-foreground: oklch(0.95 0.01 240);
+  --destructive: oklch(0.68 0.18 28);
+  --destructive-foreground: oklch(0.15 0.02 255);
+  --border: oklch(0.41 0.025 250);
+  --input: oklch(0.54 0.02 250);
+  --ring: oklch(0.78 0.10 230);
+  --sidebar: oklch(0.20 0.032 257);
+  --sidebar-foreground: oklch(0.94 0.012 246);
+  --sidebar-primary: oklch(0.76 0.12 230);
+  --sidebar-primary-foreground: oklch(0.14 0.03 255);
+  --sidebar-accent: oklch(0.30 0.043 250);
+  --sidebar-accent-foreground: oklch(0.95 0.01 240);
+  --sidebar-border: oklch(0.41 0.025 250);
+  --sidebar-ring: oklch(0.78 0.10 230);
+  --brand-navy: oklch(0.22 0.05 257);
+  --brand-navy-foreground: oklch(0.96 0.01 240);
+  --brand-glow: oklch(0.64 0.11 221);
+  --shadow-soft: 0 16px 40px -16px oklch(0 0 0 / 55%);
 }
 @theme inline {
   --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
@@ -272,4 +332,69 @@ h1, h2, h3 { font-family: var(--font-heading); letter-spacing: -0.02em; }
 }
 @media (prefers-reduced-motion: reduce) {
   .animate-rise, .animate-float { animation: none; }
+}
+
+
+/* Native UX recovered from the historical portal: no WordPress JS or CSS. */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 4.5rem;
+}
+[id] { scroll-margin-top: 4.5rem; }
+.eut-card-lift {
+  /* Visible separation at rest, not only when the user hovers a card. */
+  box-shadow: 0 4px 18px -12px color-mix(in oklab, var(--brand-navy) 34%, transparent);
+  transition: transform 220ms cubic-bezier(.2,.7,.2,1),
+              box-shadow 220ms ease, border-color 220ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .eut-card-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-soft);
+  }
+}
+@keyframes eut-menu-drop {
+  from { opacity: 0; transform: translateY(-7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .eut-menu-enter { animation: eut-menu-drop 190ms ease-out both; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .eut-card-lift, .eut-menu-enter {
+    transition: none !important;
+    animation: none !important;
+    transform: none !important;
+  }
+}
+
+
+/* Entradas suaves e rápidas, sem bloquear o conteúdo ou atrasar o carregamento. */
+@keyframes eut-soft-arrival {
+  from { opacity: .75; transform: translateY(7px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .eut-soft-arrival { animation: eut-soft-arrival 360ms cubic-bezier(.2,.7,.2,1) both; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .eut-soft-arrival { animation: none !important; transform: none !important; }
+}
+
+
+/*
+ * Guías mobile — Lighthouse 11/11/2026: late Manrope/Sora font swaps shifted
+ * the intro text and illustration in 5/6 measured guides (CLS up to 0.214).
+ * Scope system fonts to editorial articles only; the common header, admin,
+ * funnel/modal and rest of the site keep their existing branding.
+ * All typography is available immediately without external font layout swaps.
+ */
+.eut-guide-stable-type {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.eut-guide-stable-type h1,
+.eut-guide-stable-type h2,
+.eut-guide-stable-type h3 {
+  font-family: inherit;
 }

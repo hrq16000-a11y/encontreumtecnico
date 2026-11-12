@@ -1,0 +1,34 @@
+name: EUT historical smooth motion / safe modern UX
+on:
+  pull_request:
+    paths:
+      - 'src/styles.css'
+      - 'src/lib/design-contrast.test.ts'
+      - 'src/routes/tecnicos.$tecnicoId.tsx'
+      - 'src/components/page-placeholder.tsx'
+      - 'src/components/site-header.tsx'
+      - 'src/components/back-to-top.tsx'
+      - 'src/components/back-to-top.test.tsx'
+      - 'src/components/legacy-public-archive.tsx'
+      - 'src/routes/tecnicos.index.tsx'
+      - '.github/workflows/eut-historical-motion.yml'
+permissions:
+  contents: read
+jobs:
+  native-motion:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: WCAG AA light/dark contrast and scrolling
+        run: bunx vitest run src/lib/design-contrast.test.ts src/components/back-to-top.test.tsx
+      - name: WordPress runtime boundary
+        run: node scripts/eut-wordpress-runtime-boundary.mjs
+      # TanStack regenerates src/routeTree.gen.ts during build. Keep the full
+      # TypeScript gate AFTER route generation, never waive diagnostics.
+      - name: Build and regenerate TanStack route types
+        run: bun run build
+      - name: TypeScript
+        run: bunx tsc --noEmit --pretty false

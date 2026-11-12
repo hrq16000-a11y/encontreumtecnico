@@ -1,0 +1,53 @@
+name: EUT regional IP hint, privacy and smooth arrival
+on:
+  pull_request:
+    paths:
+      - 'src/lib/regional-suggestion.ts'
+      - 'src/lib/regional-hint.functions.ts'
+      - 'src/hooks/use-regional-suggestion.ts'
+      - 'src/lib/regional-suggestion.test.ts'
+      - 'src/routes/index.tsx'
+      - 'src/routes/tecnicos.index.tsx'
+      - 'src/routes/area-cliente.tsx'
+      - 'src/routes/area-tecnico.tsx'
+      - 'src/lib/neighborhood-sources.ts'
+      - 'src/lib/neighborhood-sources.test.ts'
+      - 'src/components/page-placeholder.tsx'
+      - 'src/components/customer-location-button.tsx'
+      - 'src/styles.css'
+      - 'src/lib/legal-documents.ts'
+      - '.github/workflows/eut-regional-hint.yml'
+permissions:
+  contents: read
+jobs:
+  regional:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Coarse-region unit tests and GPS priority
+        run: bunx vitest run src/lib/regional-suggestion.test.ts src/lib/neighborhood-sources.test.ts
+      - name: Privacy and no implicit GPS prompts
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          const server=readFileSync('src/lib/regional-hint.functions.ts','utf8');
+          const hook=readFileSync('src/hooks/use-regional-suggestion.ts','utf8');
+          const cache=readFileSync('src/lib/regional-suggestion.ts','utf8');
+          const page=readFileSync('src/routes/index.tsx','utf8');
+          for(const required of ['x-vercel-ip-country','x-vercel-ip-country-region','x-vercel-ip-city','private, no-store'])
+            if(!server.includes(required))throw Error('Required private coarse-IP lookup missing '+required);
+          for(const prohibited of ['getCurrentPosition','watchPosition','latitude','longitude','x-real-ip','x-forwarded-for','phone_e164','localStorage.setItem','service_role']) {
+            if((server+'\n'+hook).includes(prohibited))throw Error('Unsafe location data access '+prohibited);
+          }
+          if(!cache.includes('sessionStorage')||!cache.includes('6 * 60 * 60 * 1000')||
+             !page.includes('Município sugerido por IP; confira antes de buscar.'))throw Error('Six-hour session privacy or city correction missing');
+          NODE
+      - name: No WordPress live dependency
+        run: node scripts/eut-wordpress-runtime-boundary.mjs
+      - name: Build routes and SSR
+        run: bun run build
+      - name: TypeScript
+        run: bunx tsc --noEmit --pretty false

@@ -30,6 +30,7 @@ export function HistoricalWordPressProfile({
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Acervo do WordPress · {label} · Em validação
             </p>
+            <span className="mt-3 inline-flex rounded-full border border-amber-700/35 bg-amber-800/10 px-3 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300">Pioneiro Bronze · pré-cadastro, não ativado</span>
             <h1 className="mt-3 text-2xl font-bold text-card-foreground">
               {reference.display_name || "Cadastro histórico em validação"}
             </h1>
@@ -44,7 +45,7 @@ export function HistoricalWordPressProfile({
             {kind === "candidate" && (
               <p className="mt-5 text-sm text-foreground">
                 Este cadastro é seu?{" "}
-                <Link to="/reivindicar-cadastro" className="font-medium text-primary underline">
+                <Link to="/reivindicar-cadastro" search={{ wp: reference.wp_post_id }} className="font-medium text-primary underline">
                   Solicite a associação com sua nova conta
                 </Link>.
               </p>

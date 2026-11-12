@@ -5,7 +5,7 @@ export type LegalDocumentData = {
   intro: string;
   sections: Array<{ title: string; paragraphs: string[] }>;
 };
-export const LEGAL_UPDATED_AT = "9 de novembro de 2026";
+export const LEGAL_UPDATED_AT = "11 de novembro de 2026";
 export const legalDocuments: Record<LegalDocumentKey, LegalDocumentData> = {
   "termos": {
     "title": "Termos e condições de uso",
@@ -80,7 +80,7 @@ export const legalDocuments: Record<LegalDocumentKey, LegalDocumentData> = {
         "paragraphs": [
           "Conforme o uso, poderão ser tratados nome, e-mail, identificador da conta, dados de autenticação administrados pelo provedor, cidade, UF, bairro, regiões atendidas, categorias e serviços declarados, apresentação profissional, foto enviada, dados de solicitações, registros de contato, prevenção a abuso e histórico de atendimento.",
           "Na contratação da conveniência, poderão ser tratados identificadores da transação, situação do pagamento, comprovantes e histórico de acessos liberados. Dados completos de cartão devem ser tratados pelo provedor de pagamento habilitado, e não expostos nos perfis.",
-          "A geolocalização precisa, se utilizada, deverá depender da permissão do dispositivo; endereço IP e sinais técnicos podem servir a segurança, localização aproximada e controle de fraude, quando necessários."
+          "A geolocalização precisa, se utilizada, deverá depender da permissão do dispositivo; endereço IP e sinais técnicos podem servir a segurança, localização aproximada e controle de fraude, quando necessários. Sugestões de cidade e UF derivadas dos cabeçalhos de IP da hospedagem são aproximadas, usadas somente para facilitar buscas e cadastros e preservadas por até seis horas na sessão do navegador. Não inferimos bairros pelo IP ou pela operadora, nem divulgamos localização sugerida sem confirmação."
         ]
       },
       {
@@ -108,7 +108,9 @@ export const legalDocuments: Record<LegalDocumentKey, LegalDocumentData> = {
         "title": "6. Compartilhamento e operadores",
         "paragraphs": [
           "Serviços técnicos de hospedagem, banco de dados, autenticação, análises autorizadas e processamento de pagamento poderão atuar como operadores de dados conforme a sua função, com acesso restrito ao necessário. Contatos são compartilhados com clientes apenas nas condições comunicadas na aquisição.",
-          "Não comercializamos uma base irrestrita de contatos de prestadores. Eventuais transferências internacionais ligadas à infraestrutura devem observar as exigências aplicáveis da LGPD."
+          "Não comercializamos uma base irrestrita de contatos de prestadores. Eventuais transferências internacionais ligadas à infraestrutura devem observar as exigências aplicáveis da LGPD.",
+          "Atendimento por WhatsApp: após registrar uma solicitação, o visitante pode optar por abrir o WhatsApp com uma mensagem preenchida que contém nome, e-mail, categoria, urgência, localidade informada e descrição do pedido. O compartilhamento com o mensageiro é voluntário e depende de o visitante confirmar o envio no aplicativo. O registro na plataforma não equivale a uma mensagem enviada ou entregue no WhatsApp, cujo tratamento segue também as políticas do próprio serviço.",
+          "Publicidade: a conta Google AdSense ca-pub-3762170279587706 foi configurada para verificação. A veiculação de anúncios do Google, quando ativada, depende da opção Publicidade no aviso de cookies, além das regras aplicáveis do provedor. O Google poderá tratar informações técnicas do dispositivo e da navegação conforme suas próprias políticas de publicidade."
         ]
       },
       {
@@ -155,7 +157,8 @@ export const legalDocuments: Record<LegalDocumentKey, LegalDocumentData> = {
         "title": "2. Categorias",
         "paragraphs": [
           "Necessários: essenciais para segurança, sessão, funcionamento de áreas autenticadas e registro das escolhas de privacidade. Não dependem de consentimento quando estritamente necessários.",
-          "Funcionais: lembram configurações opcionais e podem melhorar o uso do portal. Analíticos: podem medir o uso agregado e a eficácia das páginas; somente devem ser ativados quando houver base legal válida e, quando necessário, consentimento."
+          "Funcionais: lembram configurações opcionais e podem melhorar o uso do portal. Analíticos: podem medir o uso agregado e a eficácia das páginas; somente devem ser ativados quando houver base legal válida e, quando necessário, consentimento.",
+          "Publicidade (Google AdSense): categoria separada, desativada até escolha expressa. O código de anúncios somente será carregado quando houver consentimento de Publicidade e ativação técnica da veiculação; a metatag de verificação e o arquivo ads.txt não significam aceitação de cookies opcionais."
         ]
       },
       {

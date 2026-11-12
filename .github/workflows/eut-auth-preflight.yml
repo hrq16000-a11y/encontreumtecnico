@@ -8,6 +8,13 @@ on:
       - 'src/lib/onboarding-legacy-fallback.test.ts'
       - 'src/hooks/use-auth.tsx'
       - 'src/hooks/use-auth.test.tsx'
+      - 'src/lib/auth-domain.ts'
+      - 'src/lib/auth-domain.test.ts'
+      - 'src/lib/google-identity-hint.ts'
+      - 'src/lib/google-identity-hint.test.ts'
+      - 'src/lib/signup-intent.ts'
+      - 'src/components/connected-google-identity.tsx'
+      - 'src/routes/cadastro.tsx'
       - 'docs/sql/eut-project-owner-bootstrap.sql'
       - '.github/workflows/eut-auth-preflight.yml'
   workflow_dispatch:
@@ -28,7 +35,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: Test live-auth hook against account switching, signout and stale roles
-        run: bun run test src/hooks/use-auth.test.tsx src/lib/account-scoped-queries.test.ts
+        run: bun run test src/hooks/use-auth.test.tsx src/lib/account-scoped-queries.test.ts src/lib/auth-domain.test.ts src/lib/google-identity-hint.test.ts
       - name: Build app and generate TanStack route tree
         run: bun run build
       - name: TypeScript after TanStack route generation
@@ -46,7 +53,8 @@ jobs:
             'disabled={busy || !canAttemptRole || !termsAccepted || rolesError || ownerCheckPending || ownerCheckError}',
             'canAttemptNewAccountRole({ legacyChecked, legacyLookupError, legacyRole })',
             'supabase.rpc("choose_account_type", { _role: role })',
-            'role !== legacyRole',
+            'Técnico com regras atuais',
+            'Cliente com regras atuais',
           ]) {
             if (!ui.includes(term)) throw Error('Missing safe first-login step: '+term);
           }
@@ -59,7 +67,7 @@ jobs:
           const newRoleGuard=readFileSync('src/lib/onboarding-legacy-fallback.ts','utf8');
           if (!newRoleGuard.includes('state.legacyRole === null') ||
               !newRoleGuard.includes('state.legacyLookupError'))
-            throw Error('Known legacy role must not be overridable on lookup failure');
+            throw Error('Do not use a stale imported role after failed legacy lookup');
           console.log('Verified Google/session and server-only role authority; optional legacy lookup failures do not block new registration');
           NODE
       - name: Verify one-time project-owner bootstrap contract
@@ -141,4 +149,59 @@ jobs:
             if (!res.ok)throw Error('Preview route '+path+' unavailable: HTTP '+res.status);
             console.log(path+': HTTP '+res.status);
           }
+          NODE
+      - name: Validate live public catalog and private API boundary without signing in
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          const client=readFileSync('src/integrations/supabase/client.ts','utf8');
+          const base=client.match(/const SUPABASE_URL = "([^"]+)"/)?.[1];
+          const key=client.match(/const SUPABASE_PUBLISHABLE_KEY = "([^"]+)"/)?.[1];
+          if(!base||!key)throw Error('Missing public Supabase app config');
+          const headers={apikey:key,accept:'application/json'};
+          const endpoint=(path)=>base+'/rest/v1/'+path;
+          for(const table of ['eut_service_categories','eut_service_types']) {
+            const r=await fetch(endpoint(table+'?select=slug&active=eq.true&limit=1'),{
+              headers, signal:AbortSignal.timeout(12000)
+            });
+            if(!r.ok)throw Error('Anonymous public catalog failed: '+table+' HTTP '+r.status);
+            const rows=await r.json();
+            if(!Array.isArray(rows)||rows.length===0||typeof rows[0]?.slug!=='string'){
+              throw Error('Anonymous catalog empty or invalid: '+table);
+            }
+            console.log('Anonymous catalog:',table,'available');
+          }
+          const technicians=await fetch(endpoint('technicians?select=id&status=eq.aprovado&limit=1'),{
+            headers, signal:AbortSignal.timeout(12000)
+          });
+          if(!technicians.ok||!Array.isArray(await technicians.json())){
+            throw Error('Anonymous technician search cannot retrieve approved directory');
+          }
+          console.log('Approved technician search API reachable (may be empty before first verified signup)');
+          for(const [table,columns] of [
+            ['eut_direct_request_replies','request_id,body'],
+            ['eut_direct_request_consents','request_id'],
+            ['eut_technician_private_contacts','phone_e164'],
+          ]) {
+            const r=await fetch(endpoint(table+'?select='+encodeURIComponent(columns)+'&limit=1'),{
+              headers,signal:AbortSignal.timeout(12000)
+            });
+            if(r.ok)throw Error('Private table accessible anonymously: '+table);
+            if(r.status>=500)throw Error('Unexpected server error while checking private table '+table);
+            console.log('Anonymous private-table access denied:',table,'HTTP',r.status);
+          }
+          for(const [name,payload] of [
+            ['eut_share_direct_request',{_request_id:'00000000-0000-0000-0000-000000000000'}],
+            ['eut_respond_to_direct_request',{_request_id:'00000000-0000-0000-0000-000000000000',_body:'Verificando bloqueio de acesso anônimo sem criar pedido ou resposta.'}],
+          ]) {
+            const r=await fetch(endpoint('rpc/'+name),{
+              method:'POST',headers:{...headers,'content-type':'application/json'},
+              body:JSON.stringify(payload),signal:AbortSignal.timeout(12000)
+            });
+            if(r.ok)throw Error('Sensitive RPC callable anonymously: '+name);
+            if(r.status>=500)throw Error('Unexpected server error checking private RPC '+name);
+            console.log('Anonymous RPC call denied:',name,'HTTP',r.status);
+          }
+          // These are not E2E claims: no user, account, purchase or service request is created.
+          console.log('Read-only production API preflight PASS; real Google callback and signed-in RLS require two opted-in human accounts');
           NODE

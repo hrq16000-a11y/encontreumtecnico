@@ -8,7 +8,10 @@ export type AreaTechnician = {
   state_uf: string | null;
   city: string;
   neighborhood: string | null;
+  coverage_cities?: Array<{ id: number; name: string; uf: string }>;
   online_now: boolean;
+  pioneer_bronze?: boolean;
+  referral_highlight?: boolean;
 };
 
 function normalized(value: string | null | undefined): string {
@@ -22,10 +25,14 @@ export function localMatchLevel(technician: AreaTechnician, area: DeclaredArea):
   const neighborhood = normalized(area.bairro);
   const stateMatches = Boolean(uf) && normalized(technician.state_uf) === uf;
   // If a UF is given, an identically named municipality in another UF is NOT nearby.
-  const cityMatches = Boolean(city) && (!uf || stateMatches)
+  const baseCityMatches = Boolean(city) && (!uf || stateMatches)
     && normalized(technician.city) === city;
-  // "Same neighborhood" without a matching city would be misleading.
-  const neighborhoodMatches = cityMatches && Boolean(neighborhood)
+  const declaredCoverageMatches = Boolean(city) &&
+    (technician.coverage_cities ?? []).some((covered) =>
+      normalized(covered.name) === city && (!uf || normalized(covered.uf) === uf));
+  const cityMatches = baseCityMatches || declaredCoverageMatches;
+  // A named extra city must not inherit the base city's neighborhood.
+  const neighborhoodMatches = baseCityMatches && Boolean(neighborhood)
     && normalized(technician.neighborhood) === neighborhood;
 
   if (neighborhoodMatches) return 3;
@@ -37,7 +44,8 @@ export function localMatchLevel(technician: AreaTechnician, area: DeclaredArea):
 export function localMatchLabel(technician: AreaTechnician, area: DeclaredArea): string | null {
   const level = localMatchLevel(technician, area);
   if (level === 3) return "Mesmo bairro informado";
-  if (level === 2) return "Mesma cidade informada";
+  if (level === 2) return normalized(technician.city) === normalized(area.cidade)
+    ? "Mesma cidade-base informada" : "Cidade atendida declarada";
   if (level === 1) return "Mesmo estado informado";
   return null;
 }
@@ -55,6 +63,9 @@ export function rankTechniciansByDeclaredArea<T extends AreaTechnician>(
   })).sort((a, b) =>
     b.locationLevel - a.locationLevel ||
     Number(b.technician.online_now) - Number(a.technician.online_now) ||
+    // Nearby services and online availability always outrank referral rewards.
+    Number(Boolean(b.technician.referral_highlight)) - Number(Boolean(a.technician.referral_highlight)) ||
+    Number(Boolean(b.technician.pioneer_bronze)) - Number(Boolean(a.technician.pioneer_bronze)) ||
     a.index - b.index
   ).map((item) => item.technician);
 }

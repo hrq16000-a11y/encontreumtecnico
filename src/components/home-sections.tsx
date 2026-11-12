@@ -3,6 +3,70 @@ import { Diamond, MapPin, Network, PenTool, Search, Target, UserPlus, ClipboardL
 
 const ALL = { especialidade: "Todas", cidade: "", regiao: "" };
 
+/**
+ * Duas opções de atendimento, sem encaminhar automaticamente por IP:
+ * pedido rápido no portal local do próprio responsável ou consulta à rede
+ * nacional de prestadores independentes. Link externo preserva a busca.
+ */
+export function CanaisDeAtendimento() {
+  return (
+    <section aria-labelledby="canais-atendimento-titulo" className="border-b border-border bg-background px-4 py-10 sm:py-12">
+      <div className="mx-auto max-w-6xl">
+        <p className="text-xs font-bold uppercase tracking-widest text-primary">Escolha como deseja ser atendido</p>
+        <h2 id="canais-atendimento-titulo" className="mt-2 text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
+          Atendimento local em Curitiba ou técnicos parceiros em todo o Brasil
+        </h2>
+        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+          São duas opções distintas: para solicitar atendimento com agilidade em Curitiba e Região
+          Metropolitana, utilize o Preciso de um Técnico. Nas demais cidades, encontre profissionais
+          independentes da rede nacional e combine o serviço diretamente com eles.
+        </p>
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          <article className="flex min-w-0 flex-col rounded-2xl border border-primary/30 bg-primary/5 p-5 sm:p-6">
+            <p className="text-xs font-bold uppercase tracking-wide text-primary">Curitiba e Região Metropolitana</p>
+            <h3 className="mt-2 text-xl font-extrabold text-foreground">Preciso de um Técnico</h3>
+            <p className="mt-3 flex-1 text-sm leading-relaxed text-muted-foreground">
+              Precisa resolver algo com urgência na região? Inicie a triagem no portal de atendimento
+              local. A agenda e o deslocamento dependem de disponibilidade e confirmação prévia.
+            </p>
+            <a
+              href="https://precisodeumtecnico.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-center text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              Solicitar atendimento local
+              <span className="ml-2" aria-hidden="true">↗</span>
+            </a>
+            <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+              Abre o site Preciso de um Técnico em outra aba. Valores e condições são próprios do atendimento local.
+            </p>
+          </article>
+          <article className="flex min-w-0 flex-col rounded-2xl border border-border bg-card p-5 sm:p-6">
+            <p className="text-xs font-bold uppercase tracking-wide text-primary">Profissionais parceiros de todo o Brasil</p>
+            <h3 className="mt-2 text-xl font-extrabold text-foreground">Encontre um Técnico</h3>
+            <p className="mt-3 flex-1 text-sm leading-relaxed text-muted-foreground">
+              Busque técnicos cadastrados por especialidade e cidade, inclusive fora de Curitiba.
+              Sem leilão de menor preço: o orçamento, a agenda e a contratação são combinados
+              diretamente com cada profissional.
+            </p>
+            <Link
+              to="/tecnicos"
+              search={ALL}
+              className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-primary/30 bg-background px-4 py-3 text-center text-sm font-bold text-primary transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              Buscar técnicos parceiros pelo Brasil
+            </Link>
+            <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+              Cadastro e especialidades são declarados pelos profissionais; disponibilidade não é garantida.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function FindOneSection() {
   return (
     <section className="bg-muted/40 px-4 py-16 md:py-24">
@@ -23,16 +87,27 @@ export function FindOneSection() {
 
 export function JoinNetworkSection() {
   const items = [
-    { icon: MapPin, title: "De acordo com sua localização", text: "A demanda chega de acordo com a sua localidade, facilitando o dia a dia para você e o cliente." },
-    { icon: Network, title: "Oportunidade de networking", text: "Os atendimentos são realizados em grandes empresas de diferentes setores, gerando experiência em serviços consolidados para você obter mais expertise na sua área e ter contato com novos nichos de mercado." },
-    { icon: Target, title: "Parceiro: Preciso de um Técnico", text: "Como nosso parceiro, você é integrado ao Ecossistema Ping Soluções e TomoNaWeb, que contempla uma série de soluções tecnológicas que expandem as modalidades e possibilidades de atendimento." },
+    { icon: MapPin, title: "Busca por região e especialidade", text: "O cliente procura profissionais na sua cidade e confirma diretamente a disponibilidade para atendimento." },
+    { icon: Network, title: "Cadastro gratuito, autonomia de verdade", text: "Sem mensalidade para o técnico e sem disputa por quem cobra menos. Cada profissional mantém sua independência." },
+    { icon: Target, title: "Negociação direta", text: "O técnico define orçamento, agenda e condições com o cliente. O portal não promete quantidade de chamados." },
   ];
   return (
     <section className="mx-auto max-w-6xl px-4 py-16">
-      <h2 className="text-2xl font-semibold text-foreground">Faça parte da melhor rede de técnicos de TI do Brasil</h2>
-      <p className="mt-2 max-w-[70ch] text-muted-foreground">
-        Torne-se um parceiro Preciso de um Técnico e aproveite uma oportunidade flexível de ganhos de acordo com a sua disponibilidade.
+      <p className="text-sm font-bold uppercase tracking-wider text-primary">Valorização dos profissionais de tecnologia</p>
+      <h2 className="mt-2 text-2xl font-extrabold text-foreground sm:text-3xl">Seu trabalho tem valor. Aqui não somos leilão!</h2>
+      <p className="mt-3 max-w-[70ch] text-muted-foreground">
+        O Encontre um Técnico aproxima clientes e profissionais independentes de todo o Brasil.
+        Nossa meta é construir a maior rede nacional de técnicos parceiros, valorizando cada profissional.
+        Nada de disputar o menor lance: valorizamos conhecimento, experiência e negociação direta.
       </p>
+      <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+        <Link to="/cadastro" className="inline-flex min-h-12 items-center justify-center rounded-xl bg-primary px-5 text-center text-sm font-bold text-primary-foreground hover:bg-primary/90">
+          Sou técnico — quero me cadastrar gratuitamente
+        </Link>
+        <Link to="/tecnicos" search={ALL} className="inline-flex min-h-12 items-center justify-center rounded-xl border border-primary/30 bg-card px-5 text-center text-sm font-semibold text-foreground hover:bg-accent">
+          Sou cliente — encontrar profissionais
+        </Link>
+      </div>
       <ul className="mt-8 grid gap-6 md:grid-cols-3">
         {items.map(({ icon: Icon, title, text }) => (
           <li key={title}>
@@ -50,9 +125,9 @@ export function CtaBand() {
   return (
     <section className="bg-primary px-4 py-8">
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
-        <p className="text-lg text-primary-foreground">Preciso de um Técnico, ajuda você a encontrar um técnico!</p>
+        <p className="max-w-2xl text-lg font-bold text-primary-foreground">Encontre um Técnico: profissionais por serviço e região, sem leilão de menor preço.</p>
         <Link to="/tecnicos" search={ALL} className="inline-flex min-h-11 items-center rounded-full bg-background px-6 text-sm font-medium text-foreground hover:bg-muted">
-          Encontrar um prestador
+          Encontrar técnicos
         </Link>
       </div>
     </section>
@@ -68,8 +143,8 @@ export function ValuesSection() {
   return (
     <section className="mx-auto max-w-6xl px-4 py-16 text-center">
       <p className="text-sm font-medium text-primary">01. Por que usar nossa plataforma?</p>
-      <h2 className="mt-2 text-3xl font-bold tracking-tight text-foreground">Processo que ajudam a valorizar o prestador!</h2>
-      <p className="mt-2 text-muted-foreground">Use e ajude a divulgar a nossa plataforma em prol da valorização dos prestadores e não pelo menor preço.</p>
+      <h2 className="mt-2 text-3xl font-bold tracking-tight text-foreground">Valorização do técnico e respeito ao cliente</h2>
+      <p className="mt-2 text-muted-foreground">Uma rede nacional em construção, com cadastro livre e contratação direta: competência não se mede pelo menor lance.</p>
       <ul className="mt-10 grid gap-8 md:grid-cols-3">
         {items.map(({ icon: Icon, title, text }) => (
           <li key={title} className="flex flex-col items-center">

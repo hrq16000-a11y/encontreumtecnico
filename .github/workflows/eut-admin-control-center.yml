@@ -4,6 +4,37 @@ on:
     paths:
       - 'src/routes/admin.tsx'
       - 'src/components/admin-control-hub.tsx'
+      - 'src/components/admin-navigation.tsx'
+      - 'src/components/admin-technician-manager.tsx'
+      - 'src/lib/admin-public-profile-draft.ts'
+      - 'src/lib/admin-public-profile-draft.test.ts'
+      - 'src/components/admin-own-technician-role.tsx'
+      - 'src/lib/admin-own-technician-role.test.ts'
+      - 'docs/sql/eut-admin-self-technician-role-20261111.sql'
+      - 'src/lib/admin-technician-pagination.ts'
+      - 'src/lib/admin-technician-pagination.test.ts'
+      - 'src/components/admin-accounts-manager.tsx'
+      - 'src/components/admin-client-insights.tsx'
+      - 'src/lib/admin-client-insights.test.ts'
+      - 'docs/sql/eut-admin-client-insights-20261111.sql'
+      - 'src/components/admin-member-invites.tsx'
+      - 'src/components/member-invite-acceptance.tsx'
+      - 'src/lib/admin-member-invite-contract.test.ts'
+      - 'docs/sql/eut-admin-member-invitations-20261111.sql'
+      - 'src/routes/entrar.tsx'
+      - 'src/lib/admin-account-moderation-contract.test.ts'
+      - 'src/lib/admin-member-invite-contract.test.ts'
+      - 'src/lib/eut-invite-client-privacy.test.ts'
+      - 'docs/sql/eut-member-invite-actor-lock-20261111.sql'
+      - 'docs/sql/eut-admin-accounts-moderation-20261111.sql'
+      - 'src/components/legacy-review-queue.tsx'
+      - 'src/components/site-header.tsx'
+      - 'src/lib/admin-management-contract.test.ts'
+      - 'docs/sql/eut-admin-management-actions-20261111.sql'
+      - 'docs/sql/eut-admin-legacy-employer-overlay-20261111.sql'
+      - 'src/lib/admin-sections.ts'
+      - 'src/lib/admin-sections.test.ts'
+      - 'src/routes/admin_.$secao.tsx'
       - 'src/components/admin-advertising-manager.tsx'
       - 'docs/admin/PLANO-MESTRE-GESTAO-PATROCINIOS.md'
       - '.github/workflows/eut-admin-control-center.yml'
@@ -17,6 +48,42 @@ jobs:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
+      - name: Module navigation, RLS and privacy regression tests
+        run: bunx vitest run src/lib/admin-sections.test.ts src/lib/admin-technician-pagination.test.ts src/lib/admin-public-profile-draft.test.ts src/lib/admin-own-technician-role.test.ts src/lib/admin-management-contract.test.ts src/lib/admin-account-moderation-contract.test.ts src/lib/admin-member-invite-contract.test.ts src/lib/eut-invite-client-privacy.test.ts src/lib/admin-client-insights.test.ts
+      - name: Verify anonymous cannot read privileged admin data (live, read-only)
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const source = readFileSync('src/integrations/supabase/client.ts', 'utf8');
+          const base = source.match(/const SUPABASE_URL = "([^"]+)"/)?.[1];
+          const key = source.match(/const SUPABASE_PUBLISHABLE_KEY = "([^"]+)"/)?.[1];
+          if (!base || !key || !base.endsWith('.supabase.co')) {
+            throw Error('Public Supabase configuration is unavailable');
+          }
+          // Do not authenticate, create accounts or send a mutating admin action.
+          // A protected RPC and a protected audit table must never return HTTP 2xx.
+          const probes = [
+            { name: 'Private admin accounts directory', path: '/rest/v1/rpc/eut_admin_accounts_snapshot',
+              method: 'POST', body: JSON.stringify({ _search: '', _filter: 'todos', _page: 0 }) },
+            { name: 'Immutable admin audit table', path: '/rest/v1/eut_admin_management_log?select=id&limit=1', method: 'GET' },
+            { name: 'Private member invitation snapshot', path: '/rest/v1/rpc/eut_admin_member_invites_snapshot', method: 'POST', body: '{}' },
+            { name: 'Private recipient invitation lookup', path: '/rest/v1/rpc/eut_my_member_invitation', method: 'POST', body: '{}' },
+            { name: 'Private client analytics', path: '/rest/v1/rpc/eut_admin_client_insights', method: 'POST', body: '{}' },
+          ];
+          for (const probe of probes) {
+            const response = await fetch(base + probe.path, {
+              method: probe.method,
+              headers: { apikey: key, 'content-type': 'application/json' },
+              ...(probe.body ? { body: probe.body } : {}),
+              signal: AbortSignal.timeout(12000),
+            });
+            if (![401, 403, 404].includes(response.status)) {
+              throw Error(probe.name + ': unexpected anonymous access or API failure (HTTP ' + response.status + ')');
+            }
+            // Do not log response bodies: they may contain backend details.
+            console.log(probe.name + ': anonymous access rejected (HTTP ' + response.status + ')');
+          }
+          NODE
       - name: Build TanStack
         run: bun run build
       - name: TypeScript check
@@ -28,17 +95,26 @@ jobs:
           const page = readFileSync('src/routes/admin.tsx', 'utf8');
           const hub = readFileSync('src/components/admin-control-hub.tsx', 'utf8');
           const spec = readFileSync('docs/admin/PLANO-MESTRE-GESTAO-PATROCINIOS.md', 'utf8');
-          const anchors = [
-            'admin-patrocinadores', 'admin-catalogo', 'admin-legado', 'admin-reivindicacoes',
-            'admin-tecnicos', 'admin-solicitacoes',
-            'admin-mensagens', 'admin-metricas',
+          const path = readFileSync('src/routes/admin_.$secao.tsx', 'utf8');
+          const menu = readFileSync('src/components/admin-navigation.tsx', 'utf8');
+          const sections = readFileSync('src/lib/admin-sections.ts', 'utf8');
+          const modules = [
+            'tecnicos', 'clientes', 'contas', 'solicitacoes', 'patrocinadores',
+            'mensagens', 'catalogo', 'legado', 'reivindicacoes', 'metricas',
           ];
-          for (const anchor of anchors) {
-            if (!hub.includes('anchor: "' + anchor + '"')) throw Error('Module shortcut missing: ' + anchor);
-            if (!page.includes('id="' + anchor + '"')) throw Error('Broken admin anchor: ' + anchor);
+          for (const key of modules) {
+            if (!sections.includes('key: "' + key + '"')) throw Error('Module missing: ' + key);
+            if (!menu.includes('to="/admin/$secao"') || !menu.includes('params={{ secao: item.key }}'))
+              throw Error('Broken admin module navigation');
+            if (!page.includes('section === "' + key + '"')) throw Error('Module has no isolated content: ' + key);
           }
+          if (!path.includes('validAdminModule(params.secao)') || !path.includes('throw notFound()'))
+            throw Error('Admin deep links must reject unknown modules');
+          if (!hub.includes('to="/admin/$secao"') || !hub.includes('params={{ secao: item.key }}'))
+            throw Error('Admin hub must navigate to real module pages');
           for (const term of [
-            'roles.includes("admin")', 'noindex, nofollow',
+            'roles.includes("admin")', 'rolesError', 'refreshRoles()', 'noindex, nofollow',
+            '<AdminNavigation active={section} />',
             '<AdminControlHub />', '<AdminAdvertisingManager />', '<EutAdminManager />',
             '<LegacyReviewQueue />', '<LegacyClaimReview />',
           ]) if (!page.includes(term)) throw Error('Admin access/feature regression: ' + term);

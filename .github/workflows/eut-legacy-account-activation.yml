@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'src/components/legacy-account-activation.tsx'
+      - 'src/components/legacy-account-activation.test.tsx'
       - 'src/routes/area-cliente.tsx'
       - 'src/routes/area-tecnico.tsx'
       - 'src/components/legacy-profile-import.tsx'
@@ -29,8 +30,8 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - name: Install dependencies from lockfile
         run: bun install --frozen-lockfile
-      - name: Test isolation when user account changes
-        run: bunx vitest run src/components/legacy-account-isolation.test.tsx
+      - name: Test WordPress lookup failure and retry
+        run: bunx vitest run src/components/legacy-account-activation.test.tsx
       - name: Test account identity isolation of legacy claims
         run: bunx vitest run src/components/legacy-account-isolation.test.tsx src/routes/reivindicar-cadastro.test.tsx
       - name: Build TanStack Start

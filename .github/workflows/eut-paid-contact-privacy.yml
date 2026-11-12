@@ -4,7 +4,11 @@ on:
   pull_request:
     paths:
       - 'src/routes/acesso-contato.$tecnicoId.tsx'
+      - 'src/components/assistance-funnel.tsx'
+      - 'src/lib/assistance-intent.ts'
+      - 'src/components/free-search-help.tsx'
       - 'src/routes/tecnicos.$tecnicoId.tsx'
+      - 'src/components/public-technician-profile.tsx'
       - 'src/routes/area-cliente.tsx'
       - 'src/routes/area-tecnico.tsx'
       - 'src/components/technician-private-contact.tsx'
@@ -38,21 +42,25 @@ jobs:
           node --input-type=module <<'NODE'
           import {readFileSync} from 'node:fs';
           const read=path=>readFileSync(path,'utf8');
-          const quote=read('src/routes/acesso-contato.$tecnicoId.tsx');
-          const profile=read('src/routes/tecnicos.$tecnicoId.tsx');
+          const routing=read('src/routes/acesso-contato.$tecnicoId.tsx');
+          const funnel=read('src/components/assistance-funnel.tsx');
+          const support=read('src/components/free-search-help.tsx');
+          const profileRoute=read('src/routes/tecnicos.$tecnicoId.tsx');
+          const profile=read('src/components/public-technician-profile.tsx');
+          if(!profileRoute.includes('PublicTechnicianProfile'))throw Error('Profile route no longer renders the approved public layout');
           const client=read('src/routes/area-cliente.tsx');
           const tech=read('src/routes/area-tecnico.tsx');
           const history=read('src/components/request-list.tsx');
-          for(const term of [
-            'eut_contact_access_quote', 'contact_released === false',
-            'payment_available === false','R$ 9,99','R$ 29,99',
-            'noindex, nofollow','nenhum pagamento será cobrado'
-          ]) {
-            if(!(quote.toLocaleLowerCase('pt-BR')).includes(term.toLocaleLowerCase('pt-BR')))
-              throw Error('Missing truth about payment and no contact release: '+term);
+          for(const term of ['AssistanceFunnel', 'mode: "direct"', 'noindex, nofollow',
+                             'Nenhum telefone é liberado']) {
+            if(!routing.includes(term))throw Error('Historical paid URL must show private assistance funnel: '+term);
           }
-          if(!profile.includes('to="/acesso-contato/$tecnicoId"'))
-            throw Error('Technician profile still bypasses contact pricing route');
+          if(profile.includes('to="/acesso-contato/$tecnicoId"') ||
+             !profile.includes('openFreeHelp({ mode: "direct"'))
+            throw Error('Profile must direct old paid-contact CTAs to the global funnel');
+          if(!support.includes('AssistanceFunnel') || !funnel.includes('.from("contact_messages").insert(') ||
+             !funnel.includes('Nenhum telefone privado'))
+            throw Error('Public paid request must use private lead inbox without contact reveal');
           if(tech.includes('TechnicianRequests')||tech.includes('from("service_requests")')||
              tech.includes('set_request_status')) throw Error('Technician can still browse or accept unpaid requests');
           if(!client.includes('useActiveCategories') || !client.includes('Guard') && !client.includes('categories.some'))
@@ -76,8 +84,12 @@ jobs:
           ]) {
             if(!directSql.includes(term)) throw Error('Missing consent and RLS protection: '+term);
           }
-          if(quote.includes('.select("phone")') || quote.includes('service_role'))
-            throw Error('Quote page must not expose contact or use privileged keys');
+          if([routing, funnel, support].some(src =>
+               src.includes('.select("phone")') || src.includes('service_role') ||
+               src.includes('eut_reveal_paid_technician_contact') ||
+               src.includes('eut_prepare_contact_purchase') ||
+               src.includes('signInWithOAuth')))
+            throw Error('Public funnel must not expose, purchase, validate or unlock private contacts');
           const stagedSql=read('docs/sql/eut-contact-purchase-preparation.sql');
           const activation=read('docs/checkout-contact-activation.md');
           for(const term of [
@@ -102,21 +114,22 @@ jobs:
           if(!tech.includes('<TechnicianPrivateContact userId={user.id} />')) {
             throw Error('Technician does not have private contact preferences');
           }
-          for(const term of [
-            'eut_reveal_paid_technician_contact',
-            'contact_ready', 'Verificar contato já adquirido',
-            'data?.status === "liberado"',
-            'payment_available === false',
-            'contact_released === false'
-          ]) {
-            if(!quote.includes(term))throw Error('Paid-only reveal UI contract missing: '+term);
+          if(!funnel.includes('Ainda não houve cobrança') &&
+             !funnel.includes('Ninguém paga nesta etapa') &&
+             !funnel.includes('Nada será cobrado nesta etapa'))
+            throw Error('Funnel must disclose no charge or paid-contact rights');
+          for(const forbidden of ['Verificar contato já adquirido','Consultando compra',
+                                  'Criar checkout','Pagar agora','phone_e164','wa.me/']) {
+            if([routing, funnel, support, profile].some(src=>src.includes(forbidden)))
+              throw Error('Suspended payment / private phone interface still publicly reachable: '+forbidden);
           }
           const publicSearch=read('src/lib/technicians.functions.ts');
           if(publicSearch.includes('phone_e164') || publicSearch.includes('eut_technician_private_contacts')) {
             throw Error('Private contacts must not appear in SSR technician search');
           }
           if(privateUi.includes('.from("eut_technician_private_contacts")') ||
-             quote.includes('.from("eut_technician_private_contacts")')) {
+             routing.includes('.from("eut_technician_private_contacts")') ||
+             funnel.includes('.from("eut_technician_private_contacts")')) {
             throw Error('Client must not query private table directly');
           }
           console.log('Private customer triage, closed technician inbox and no unpaid contact claims: OK');

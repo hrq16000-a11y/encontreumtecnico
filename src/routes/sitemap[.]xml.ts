@@ -1,15 +1,31 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { buildPublicSitemapIndexXml } from "@/lib/public-sitemap-index";
+import { getPublicGraphSnapshot } from "@/lib/public-seo-graph.functions";
 
-const SITE = "https://www.encontreumtecnico.com";
-const PATHS = ["/", "/tecnicos", "/lp2", "/lp2/galeria", "/servicos", "/como-funciona", "/faq", "/contato", "/politicas", "/termos", "/privacidade", "/cookies", "/pagamentos-e-reembolsos", "/condicoes-do-prestador", "/responsabilidades", "/seguranca", "/direitos-dos-titulares"];
-
+// Sitemap index: each child stays inside the same canonical host and has real URLs.
+// Never export hidden contacts, WordPress drafts, leads or private identities.
 export const Route = createFileRoute("/sitemap.xml")({
   server: {
     handlers: {
-      GET: () => {
-        const urls = PATHS.map((p) => `  <url><loc>${SITE}${p}</loc></url>`).join("\n");
-        const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
-        return new Response(xml, { headers: { "Content-Type": "application/xml" } });
+      GET: async () => {
+        try {
+          const graph = await getPublicGraphSnapshot();
+          return new Response(buildPublicSitemapIndexXml(graph), {
+            headers: {
+              "Content-Type": "application/xml; charset=utf-8",
+              "Cache-Control": "no-store, max-age=0",
+  "CDN-Cache-Control": "no-store",
+  "Vercel-CDN-Cache-Control": "no-store",
+              "X-Content-Type-Options": "nosniff",
+            },
+          });
+        } catch {
+          // Database/catalog outages are 503, never misleading 200 with only static pages.
+          return new Response("Sitemap temporarily unavailable", {
+            status: 503,
+            headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" },
+          });
+        }
       },
     },
   },

@@ -1,0 +1,29 @@
+name: EUT header mobile polish / navigation gate
+on:
+  pull_request:
+    paths:
+      - 'src/components/site-header.tsx'
+      - 'src/components/site-header.test.tsx'
+      - 'src/lib/navigation-safety.ts'
+      - 'src/lib/navigation-safety.test.ts'
+      - 'src/components/back-to-top.tsx'
+      - 'src/routes/entrar.tsx'
+      - '.github/workflows/eut-header-mobile-polish.yml'
+permissions:
+  contents: read
+jobs:
+  header:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Mobile menu keyboard and route tests
+        run: bunx vitest run src/components/site-header.test.tsx src/lib/navigation-safety.test.ts src/components/back-to-top.test.tsx
+      - name: WordPress independence guard
+        run: node scripts/eut-wordpress-runtime-boundary.mjs
+      - name: TanStack build and route generation
+        run: bun run build
+      - name: TypeScript
+        run: bunx tsc --noEmit --pretty false

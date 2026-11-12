@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { readUiTextDraft, saveUiTextDraft } from "@/lib/unsent-ui-draft";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { triageProblem, type TriageResult } from "../lib/problem-triage.functions";
@@ -8,7 +9,16 @@ export function ProblemAssistant() {
   const navigate = useNavigate();
   const triage = useServerFn(triageProblem);
   const [description, setDescription] = useState("");
+  const [draftReady, setDraftReady] = useState(false);
   const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    setDescription(readUiTextDraft("problem")?.["description"] ?? "");
+    setDraftReady(true);
+  }, []);
+  useEffect(() => {
+    if (!draftReady) return;
+    saveUiTextDraft("problem", { description });
+  }, [draftReady, description]);
   const [result, setResult] = useState<TriageResult | null>(null);
 
   async function onSubmit(e: React.FormEvent) {
@@ -45,12 +55,17 @@ export function ProblemAssistant() {
       <p className="mt-1 text-sm text-muted-foreground">
         Conte o que está acontecendo e sugerimos a categoria de serviço e os filtros de busca.
       </p>
+      {!draftReady ? (
+        <p role="status" aria-live="polite" aria-busy="true" className="mt-4 rounded-md bg-muted p-4 text-sm text-muted-foreground">
+          Recuperando a descrição do problema…
+        </p>
+      ) : (
       <form onSubmit={onSubmit} className="mt-4 space-y-3">
         <label htmlFor="descricao-problema" className="sr-only">Descrição do problema</label>
         <textarea
           id="descricao-problema"
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={(e) => { saveUiTextDraft("problem", { description: e.target.value }); setDescription(e.target.value); }}
           maxLength={1000}
           rows={4}
           placeholder="Ex.: Meu notebook não liga desde ontem, moro em Campinas, no Cambuí."
@@ -64,6 +79,7 @@ export function ProblemAssistant() {
           {loading ? "Analisando…" : "Sugerir categoria"}
         </button>
       </form>
+      )}
 
       {result && !result.ok && <p role="alert" className="mt-4 text-sm text-destructive">{result.error}</p>}
       {result?.ok && (

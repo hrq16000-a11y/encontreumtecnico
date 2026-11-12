@@ -1,0 +1,61 @@
+name: EUT navigation shell and unsent draft regression
+on:
+  pull_request:
+    paths:
+      - 'src/routes/__root.tsx'
+      - 'src/router.tsx'
+      - 'src/components/page-placeholder.tsx'
+      - 'src/components/page-placeholder.test.tsx'
+      - 'src/lib/shared-shell-routing.ts'
+      - 'src/lib/shared-shell-routing.test.ts'
+      - 'src/lib/assistance-draft.ts'
+      - 'src/lib/assistance-draft.test.ts'
+      - 'src/lib/unsent-ui-draft.ts'
+      - 'src/lib/unsent-ui-draft.test.ts'
+      - 'src/lib/draft-hydration-safety.test.ts'
+      - 'src/components/assistance-funnel.tsx'
+      - 'src/routes/index.tsx'
+      - 'src/routes/home2.tsx'
+      - 'src/routes/lp2/index.tsx'
+      - 'src/routes/lp2/route.tsx'
+      - 'src/components/problem-assistant.tsx'
+      - '.github/workflows/eut-navigation-stability.yml'
+permissions:
+  contents: read
+jobs:
+  navigation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Persistent shell and draft unit tests
+        run: bunx vitest run src/components/page-placeholder.test.tsx src/lib/shared-shell-routing.test.ts src/lib/assistance-draft.test.ts src/lib/unsent-ui-draft.test.ts src/hooks/use-auth.test.tsx src/lib/protected-session-draft.test.ts src/components/free-search-help.test.tsx src/lib/draft-hydration-safety.test.ts
+      - name: Structural no-full-refresh guard
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          const get=f=>readFileSync(f,'utf8');
+          const root=get('src/routes/__root.tsx');
+          const shell=get('src/components/page-placeholder.tsx');
+          const home2=get('src/routes/home2.tsx');
+          const assistant=get('src/components/assistance-funnel.tsx');
+          if(!root.includes('<PageShell><Outlet /></PageShell>'))throw Error('Root must keep navigation shell stable');
+          if(!shell.includes('PersistentPageShellContext.Provider') || !shell.includes('if (insidePersistentShell)'))
+            throw Error('Route-specific shells still destroy global chrome');
+          if(/<a\s[^>]*href="\/(?:tecnicos|entrar|cadastro|home2)/.test(home2))
+            throw Error('Home2 still causes full document navigation');
+          if(!assistant.includes('saveAssistanceDraft')||!assistant.includes('clearAssistanceDraft'))
+            throw Error('Draft needs reload recovery and confirmed-save removal');
+          for(const x of ['window.location.reload()', 'window.location.assign(', 'window.location.href=']) {
+            if([root,shell,home2,assistant].some(s=>s.includes(x)))
+              throw Error('Unexpected hard page refresh in live navigation');
+          }
+          NODE
+      - name: WordPress independent runtime
+        run: node scripts/eut-wordpress-runtime-boundary.mjs
+      - name: TanStack SSR build and generated route graph
+        run: bun run build
+      - name: TypeScript
+        run: bunx tsc --noEmit --pretty false

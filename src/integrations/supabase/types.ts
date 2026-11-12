@@ -280,13 +280,41 @@ export type Database = {
           },
         ]
       }
+      eut_ibge_municipalities: {
+        Row: {
+          id: number
+          name: string
+          uf: string
+          latitude: number
+          longitude: number
+        }
+        Insert: {
+          id: number
+          name: string
+          uf: string
+          latitude: number
+          longitude: number
+        }
+        Update: {
+          id?: number
+          name?: string
+          uf?: string
+          latitude?: number
+          longitude?: number
+        }
+        Relationships: []
+      }
       technicians: {
         Row: {
           bio: string | null
+          avatar_path: string | null
+          coverage_city_ids: number[]
+          service_radius_km: number | null
           city: string
           created_at: string
           display_name: string
           id: string
+          public_slug: string
           neighborhood: string | null
           state_uf: string | null
           service_slugs: string[]
@@ -299,10 +327,14 @@ export type Database = {
         }
         Insert: {
           bio?: string | null
+          avatar_path?: string | null
+          coverage_city_ids?: number[]
+          service_radius_km?: number | null
           city: string
           created_at?: string
           display_name: string
           id?: string
+          public_slug?: string
           neighborhood?: string | null
           state_uf?: string | null
           service_slugs?: string[]
@@ -315,10 +347,14 @@ export type Database = {
         }
         Update: {
           bio?: string | null
+          avatar_path?: string | null
+          coverage_city_ids?: number[]
+          service_radius_km?: number | null
           city?: string
           created_at?: string
           display_name?: string
           id?: string
+          public_slug?: string
           neighborhood?: string | null
           state_uf?: string | null
           service_slugs?: string[]

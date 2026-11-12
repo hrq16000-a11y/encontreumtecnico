@@ -1,5 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState, type FormEvent } from "react";
+import { readUiTextDraft, saveUiTextDraft } from "@/lib/unsent-ui-draft";
 import { Search, MapPin, Briefcase, Star, TrendingUp, ShieldCheck, Zap, Menu, ArrowRight } from "lucide-react";
 import { useActiveCategories } from "@/hooks/use-active-categories";
 
@@ -15,7 +16,7 @@ export const Route = createFileRoute("/home2")({
       { name: "description", content: "Encontre profissionais e serviços por especialidade e cidade." },
       { name: "robots", content: "noindex, nofollow" },
     ],
-    links: [{ rel: "canonical", href: "https://www.encontreumtecnico.com/home2" }],
+    links: [{ rel: "canonical", href: "https://www.encontreumtecnico.com.br/home2" }],
   }),
   component: Home2Landing,
 });
@@ -27,16 +28,16 @@ function Home2Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white/95 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
-        <a href="/home2" className="flex items-center gap-2" aria-label="Home2 Encontre um Técnico">
+        <Link to="/home2" className="flex items-center gap-2" aria-label="Home2 Encontre um Técnico">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-xl font-bold text-white">E</span>
           <span className="text-xl font-bold text-zinc-900">Encontre<span className="text-emerald-600">Um</span></span>
-        </a>
+        </Link>
         <nav aria-label="Navegação da Home2" className="hidden items-center gap-6 text-sm font-medium text-zinc-700 sm:flex">
-          <a href="/tecnicos" className="hover:text-emerald-600">Buscar técnicos</a>
-          <a href="/entrar" className="hover:text-emerald-600">Entrar</a>
-          <a href="/cadastro" className="rounded-full bg-zinc-900 px-5 py-2.5 text-white hover:bg-zinc-800">Cadastrar-se</a>
+          <Link to="/tecnicos" className="hover:text-emerald-600">Buscar técnicos</Link>
+          <Link to="/entrar" className="hover:text-emerald-600">Entrar</Link>
+          <Link to="/cadastro" className="rounded-full bg-zinc-900 px-5 py-2.5 text-white hover:bg-zinc-800">Cadastrar-se</Link>
         </nav>
-        <a href="/entrar" aria-label="Entrar na plataforma" className="sm:hidden"><Menu size={24} /></a>
+        <Link to="/entrar" aria-label="Entrar na plataforma" className="sm:hidden"><Menu size={24} /></Link>
       </div>
     </header>
   );
@@ -51,9 +52,9 @@ function Home2Footer() {
           <p className="mt-3 max-w-xs text-sm leading-relaxed">Profissionais e serviços perto de você, com busca por especialidade e localização.</p>
         </div>
         <nav aria-label="Links da Home2" className="flex flex-col gap-3 text-sm">
-          <a href="/tecnicos" className="hover:text-white">Encontrar técnico</a>
-          <a href="/cadastro" className="hover:text-white">Cadastrar profissional</a>
-          <a href="/" className="hover:text-white">Conhecer o portal principal</a>
+          <Link to="/tecnicos" className="hover:text-white">Encontrar técnico</Link>
+          <Link to="/cadastro" className="hover:text-white">Cadastrar profissional</Link>
+          <Link to="/" className="hover:text-white">Conhecer o portal principal</Link>
         </nav>
         <div className="text-sm">
           <p>Home2 — Landing page alternativa</p>
@@ -65,17 +66,38 @@ function Home2Footer() {
 }
 
 function Home2Landing() {
+  const navigate = useNavigate();
   const { categories, loading: catalogLoading } = useActiveCategories();
+  // SSR and the first client render must agree. Restore the same-tab draft
+  // only after hydration, before exposing editable fields.
   const [query, setQuery] = useState("");
   const [city, setCity] = useState("");
+  const [draftReady, setDraftReady] = useState(false);
+  useEffect(() => {
+    const saved = readUiTextDraft("home2");
+    if (saved) {
+      setQuery(saved["query"] ?? "");
+      setCity(saved["city"] ?? "");
+    }
+    setDraftReady(true);
+  }, []);
+  function editQuery(next: string) {
+    saveUiTextDraft("home2", { query: next, city });
+    setQuery(next);
+  }
+  function editCity(next: string) {
+    saveUiTextDraft("home2", { query, city: next });
+    setCity(next);
+  }
 
   function search(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const params = new URLSearchParams({ especialidade: query.trim() || "Todas", cidade: city, regiao: "" });
-    window.location.assign("/tecnicos?" + params.toString());
+    void navigate({
+      to: "/tecnicos",
+      search: { especialidade: query.trim() || "Todas", cidade: city.trim(), regiao: "" },
+    });
   }
 
-  const categoryHref = (category: string) => "/tecnicos?" + new URLSearchParams({ especialidade: category, cidade: "", regiao: "" }).toString();
 
   return (
     <div className="home2-lp min-h-screen bg-white font-sans text-zinc-900 selection:bg-emerald-100">
@@ -95,11 +117,17 @@ function Home2Landing() {
                 Busque por especialidade e cidade para descobrir profissionais da sua região.
               </p>
             </div>
+            {!draftReady ? (
+              <div role="status" aria-live="polite" aria-busy="true"
+                className="flex min-h-16 items-center justify-center rounded-2xl border border-white/20 bg-white/10 px-5 py-4 text-sm text-zinc-200">
+                Recuperando sua busca…
+              </div>
+            ) : (
             <form onSubmit={search} role="search" className="flex flex-col gap-2 rounded-2xl border border-white/20 bg-white/10 p-2 shadow-2xl backdrop-blur-md md:flex-row">
               <label className="flex flex-1 items-center rounded-xl bg-white px-4 py-3">
                 <Search className="mr-3 h-5 w-5 text-zinc-400" aria-hidden="true" />
                 <span className="sr-only">Serviço procurado</span>
-                <select value={query} onChange={e => setQuery(e.target.value)} disabled={catalogLoading} aria-label="Especialidade procurada" className="w-full bg-transparent text-zinc-900 outline-none disabled:opacity-60">
+                <select value={query} onChange={e => editQuery(e.target.value)} disabled={catalogLoading} aria-label="Especialidade procurada" className="w-full bg-transparent text-zinc-900 outline-none disabled:opacity-60">
                   <option value="">Todas as especialidades</option>
                   {categories.map(c => <option key={c.slug} value={c.slug}>{c.label}</option>)}
                 </select>
@@ -107,13 +135,14 @@ function Home2Landing() {
               <label className="flex flex-1 items-center rounded-xl bg-white px-4 py-3">
                 <MapPin className="mr-3 h-5 w-5 text-zinc-400" aria-hidden="true" />
                 <span className="sr-only">Cidade</span>
-                <input type="text" value={city} onChange={e => setCity(e.target.value)} placeholder="Em qual cidade?" className="w-full bg-transparent text-zinc-900 outline-none placeholder:text-zinc-400" />
+                <input type="text" value={city} onChange={e => editCity(e.target.value)} placeholder="Em qual cidade?" className="w-full bg-transparent text-zinc-900 outline-none placeholder:text-zinc-400" />
               </label>
               <button type="submit" className="rounded-xl bg-emerald-600 px-8 py-3 font-bold text-white shadow-lg transition-colors hover:bg-emerald-500">Buscar agora</button>
             </form>
+            )}
             <div className="flex flex-wrap justify-center gap-4 text-sm text-zinc-300">
               <span>Populares:</span>
-              {categories.slice(0, 5).map(cat => <a key={cat.slug} href={categoryHref(cat.slug)} className="underline decoration-zinc-500 underline-offset-4 hover:text-emerald-400">{cat.label}</a>)}
+              {categories.slice(0, 5).map(cat => <Link key={cat.slug} to="/tecnicos" search={{ especialidade: cat.slug, cidade: "", regiao: "" }} className="underline decoration-zinc-500 underline-offset-4 hover:text-emerald-400">{cat.label}</Link>)}
             </div>
           </div>
         </section>
@@ -142,13 +171,13 @@ function Home2Landing() {
           <div className="mx-auto max-w-7xl px-4">
             <div className="mb-12 flex flex-wrap items-end justify-between gap-4">
               <div><h2 className="text-3xl font-bold">Categorias em destaque</h2><p className="mt-2 text-zinc-600">Explore os serviços por especialidade.</p></div>
-              <a href="/tecnicos" className="font-semibold text-emerald-600 hover:underline">Ver todos <ArrowRight className="inline h-4 w-4" /></a>
+              <Link to="/tecnicos" className="font-semibold text-emerald-600 hover:underline">Ver todos <ArrowRight className="inline h-4 w-4" /></Link>
             </div>
             <div className="grid grid-cols-2 gap-6 md:grid-cols-4 lg:grid-cols-5">
-              {categories.map(cat => <a key={cat.slug} href={categoryHref(cat.slug)} className="group flex flex-col items-center rounded-2xl border border-zinc-200 bg-white p-6 text-center transition-all hover:border-emerald-500 hover:shadow-lg">
+              {categories.map(cat => <Link key={cat.slug} to="/tecnicos" search={{ especialidade: cat.slug, cidade: "", regiao: "" }} className="group flex flex-col items-center rounded-2xl border border-zinc-200 bg-white p-6 text-center transition-all hover:border-emerald-500 hover:shadow-lg">
                 <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-50 text-zinc-400 group-hover:bg-emerald-50 group-hover:text-emerald-600"><Briefcase className="h-6 w-6" /></div>
                 <span className="font-semibold">{cat.label}</span>
-              </a>)}
+              </Link>)}
             </div>
           </div>
         </section>
@@ -158,7 +187,7 @@ function Home2Landing() {
           <div className="relative mx-auto max-w-5xl space-y-8 px-4 text-center text-white">
             <h2 className="text-4xl font-bold leading-tight">É profissional autônomo ou possui uma empresa?</h2>
             <p className="mx-auto max-w-2xl text-xl text-emerald-50">Cadastre seu perfil e apresente suas especialidades e regiões de atendimento.</p>
-            <a href="/cadastro" className="inline-flex items-center gap-2 rounded-full bg-white px-10 py-4 font-bold text-emerald-700 shadow-xl hover:bg-zinc-100">Cadastrar gratuitamente <Zap className="h-4 w-4" /></a>
+            <Link to="/cadastro" className="inline-flex items-center gap-2 rounded-full bg-white px-10 py-4 font-bold text-emerald-700 shadow-xl hover:bg-zinc-100">Cadastrar gratuitamente <Zap className="h-4 w-4" /></Link>
           </div>
         </section>
       </main>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
+import { authReturnUrl } from "@/lib/auth-domain";
 
 export type Role = "admin" | "tecnico" | "cliente";
 
@@ -12,6 +13,10 @@ export function useAuth() {
   const [rolesError, setRolesError] = useState(false);
   const accountIdRef = useRef<string | null>(null);
   const roleLookupVersion = useRef(0);
+  // SIGNED_IN is also emitted when an existing user revisits a browser tab.
+  // Do not make every page temporarily reload its auth-dependent controls.
+  const settledUserIdRef = useRef<string | null>(null);
+  const pendingUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -21,20 +26,32 @@ export function useAuth() {
     // Role queries run after auth initialization and outside the synchronous
     // onAuthStateChange callback. Stale queries must never overwrite a later login.
     async function syncUser(nextUser: User | null) {
-      const request = ++generation;
-      const roleVersion = ++roleLookupVersion.current;
       if (!active) return;
       const nextId = nextUser?.id ?? null;
+      if (nextId && accountIdRef.current === nextId &&
+          (settledUserIdRef.current === nextId || pendingUserIdRef.current === nextId)) {
+        // Updating user metadata is safe; reloading roles and toggling
+        // "loading" makes forms disappear and loses the input focus.
+        setUser(nextUser);
+        return;
+      }
+      const request = ++generation;
+      const roleVersion = ++roleLookupVersion.current;
       // Different identities must never inherit a previous user's roles,
       // even for one render while Supabase is looking up the new account.
       if (accountIdRef.current !== nextId) {
         setRoles([]);
         setRolesError(false);
+        settledUserIdRef.current = null;
+        pendingUserIdRef.current = null;
       }
       accountIdRef.current = nextId;
+      pendingUserIdRef.current = nextId;
       setLoading(true);
       setUser(nextUser);
       if (!nextUser) {
+        settledUserIdRef.current = null;
+        pendingUserIdRef.current = null;
         setRoles([]);
         setRolesError(false);
         setLoading(false);
@@ -59,7 +76,11 @@ export function useAuth() {
         setRoles([]);
         setRolesError(true);
       } finally {
-        if (current()) setLoading(false);
+        if (current()) {
+          settledUserIdRef.current = nextId;
+          pendingUserIdRef.current = null;
+          setLoading(false);
+        }
       }
     }
 
@@ -136,6 +157,6 @@ export function signInWithGoogle(next = "/entrar") {
   sessionStorage.setItem("eut-after-login", safe);
   return supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo: `${window.location.origin}/entrar` },
+    options: { redirectTo: authReturnUrl("/entrar", window.location.origin) },
   });
 }
