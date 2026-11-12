@@ -18,6 +18,7 @@ import { PageShell } from "../components/page-placeholder";
 import { AdSenseLoader } from "../components/adsense-loader";
 import { isGuideDetailHeadMatch } from "../lib/guide-font-loading";
 import { isStandaloneVisualRoute } from "../lib/shared-shell-routing";
+import { isPublicVisualRoute } from "../lib/public-visual-route";
 
 // One stable, public, WordPress-independent image for every route's social preview.
 const SOCIAL_IMAGE = "https://www.encontreumtecnico.com.br/social-preview.jpg";
@@ -139,7 +140,7 @@ function RootComponent() {
       ) : (
         // Header, auth indicator, footer and the unsent help wizard survive
         // route changes. Each nested PageShell now renders content only.
-        <PageShell><Outlet /></PageShell>
+        <PageShell publicVisual={isPublicVisualRoute(pathname)}><Outlet /></PageShell>
       )}
     </QueryClientProvider>
   );
