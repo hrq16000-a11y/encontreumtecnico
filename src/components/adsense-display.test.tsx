@@ -51,7 +51,9 @@ describe("AdSense display unit 9606076941", () => {
     vi.stubEnv("VITE_EUT_ADSENSE_DISPLAY_9606076941", "false");
     agree();
     render(<PortalAd />);
-    expect(document.querySelector(publisherScript)).toBeNull();
+    // The existing AdSense loader is intentionally still allowed to load for
+    // the pre-existing home unit. Only the new display slot stays disabled.
+    expect(document.querySelector(publisherScript)).not.toBeNull();
     expect(document.querySelector(publisherUnit)).toBeNull();
   });
 
