@@ -43,6 +43,18 @@ describe("Encontre um Técnico: conteúdo nas entranhas do catálogo", () => {
     expect(legacy).toContain("throw notFound()");
   });
 
+  it("renderiza a rota filha de categoria e não duplica canonical do catálogo pai", () => {
+    const parent = read("src/routes/servicos.tsx");
+    const child = read("src/routes/servicos.$categoria.tsx");
+    expect(parent).toContain("Outlet, useRouterState");
+    expect(parent).toContain("if (isCategoryDetail) return <Outlet />");
+    expect(parent).toContain('match.pathname.startsWith("/servicos/")');
+    expect(parent).toContain('head: ({ matches }) =>');
+    expect(child).toContain('rel: "canonical", href: canonical');
+    expect(child).toContain("Profissionais cadastrados nesta especialidade");
+    expect(child).toContain("Informação prática dentro da especialidade");
+  });
+
   it("reutiliza segurança de perfis publicados e mantém contato protegido no funil", () => {
     const category = read("src/routes/servicos.$categoria.tsx");
     const directory = read("src/routes/tecnicos.index.tsx");

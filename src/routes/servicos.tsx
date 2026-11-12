@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { PageShell } from "../components/page-placeholder";
 import { SponsoredPublicSlot } from "@/components/sponsored-public-slot";
 import { SERVICE_CATEGORIES, getEnrichedServiceCategory } from "@/lib/service-catalog";
@@ -6,7 +6,8 @@ import { SERVICE_CATEGORIES, getEnrichedServiceCategory } from "@/lib/service-ca
 const SERVICES = SERVICE_CATEGORIES;
 
 export const Route = createFileRoute("/servicos")({
-  head: () => ({
+  // Child category routes own their metadata: do not emit a second /servicos canonical.
+  head: ({ matches }) => matches.some(match => match.pathname.startsWith("/servicos/")) ? {} : ({
     meta: [
       { title: "Serviços e especialidades técnicas — Encontre um Técnico" },
       { name: "description", content: "Explore dez categorias de serviços técnicos e filtre profissionais por especialidade, cidade e região. Contatos privados continuam protegidos." },
@@ -22,6 +23,10 @@ export const Route = createFileRoute("/servicos")({
 });
 
 function ServicesPage() {
+  const isCategoryDetail = useRouterState({ select: state => state.location.pathname.startsWith("/servicos/") });
+  // TanStack file route /servicos is the parent of /servicos/$categoria.
+  // It must render the nested Outlet or the child can only contribute metadata.
+  if (isCategoryDetail) return <Outlet />;
   return (
     <PageShell>
       <section className="mx-auto max-w-6xl px-4 py-10">

@@ -1,0 +1,39 @@
+name: EUT admin consolidated release gate
+
+on:
+  pull_request:
+    paths:
+      - "src/components/admin-contacts-dashboard.tsx"
+      - "src/lib/admin-contact-controls.ts"
+      - "src/lib/admin-technician-crud-intent.ts"
+      - "src/routes/admin.tsx"
+      - "src/lib/admin-sections.ts"
+      - "docs/sql/eut-admin-technician-crud-staging-proposal-20261111.sql"
+      - ".github/workflows/eut-admin-release.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  consolidated-admin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.3"
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+      - name: Admin and privacy contract regression
+        run: bunx vitest run src/lib/admin-contact-controls.test.ts src/lib/admin-technician-crud-intent.test.ts src/lib/admin-sections.test.ts
+      - name: Build TanStack / generate route types
+        run: bun run build
+      - name: TypeScript gate
+        run: bunx tsc --noEmit --pretty false
+      - name: Verify SQL proposal is not in automatic migrations
+        run: |
+          test -f docs/sql/eut-admin-technician-crud-staging-proposal-20261111.sql
+          test ! -f supabase/migrations/eut-admin-technician-crud-staging-proposal-20261111.sql
+          test ! -f drizzle/eut-admin-technician-crud-staging-proposal-20261111.sql
+          echo "SQL stays a proposal until reviewed in dedicated Supabase staging"

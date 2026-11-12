@@ -246,6 +246,12 @@ export function ClientAreaPage({ tecnico }: { tecnico?: string | undefined }) {
     const nextForm = { ...form, [key]: value };
     saveLiveDraft(nextForm, step);
     setForm(nextForm);
+    // A professional chosen for an earlier category must not remain the
+    // recipient when the client changes the type of service requested.
+    if (key === "category" && value !== form.category) {
+      clearTechnicianTarget();
+      setTechnicianTarget(null);
+    }
     // A previous authorization was for the prior description/location,
     // never silently reuse consent for amended request details.
     setShareNow(false);
