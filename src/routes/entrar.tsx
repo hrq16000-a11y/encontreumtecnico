@@ -399,6 +399,9 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
             </p>
             <p className="mt-3 text-xs text-muted-foreground">Responsável pelo portal? Entre com sua conta Google autorizada e confirme a administração na próxima tela.</p>
             <EmailPasswordForm onError={setError} />
+            <Link to="/ajuda-acesso" className="mt-4 inline-flex min-h-11 items-center justify-center text-sm font-semibold text-primary underline-offset-4 hover:underline">
+              Problemas para entrar ou se cadastrar? Solicite ajuda
+            </Link>
           </>
         ) : (
           <>
