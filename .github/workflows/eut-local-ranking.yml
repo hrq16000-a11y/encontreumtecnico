@@ -6,6 +6,8 @@ on:
       - 'src/lib/technician-local-ranking.ts'
       - 'src/lib/technicians.functions.ts'
       - 'src/routes/tecnicos.index.tsx'
+      - 'src/lib/technician-search-uf-transition.ts'
+      - 'src/lib/technician-search-uf-transition.test.ts'
       - 'tests/technician-local-ranking.test.ts'
       - '.github/workflows/eut-local-ranking.yml'
 
@@ -27,6 +29,8 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Unit tests — declared locality first
         run: bun test tests/technician-local-ranking.test.ts
+      - name: Unit tests — UF change clears incompatible locality and pending drafts
+        run: bunx vitest run src/lib/technician-search-uf-transition.test.ts
       - name: Build TanStack Start
         run: bun run build
       - name: TypeScript
