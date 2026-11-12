@@ -113,11 +113,23 @@ function EmailPasswordForm({ onError }: { onError: (m: string | null) => void })
   );
 }
 
-/** A same-origin marker is preserved through the Google redirect even under COOP. */
-function isGooglePopup(): boolean {
-  if (typeof window === "undefined") return false;
-  try { return sessionStorage.getItem("eut-google-popup-auth") === "1"; }
-  catch { return false; }
+/** One-time per-attempt marker survives Google redirect inside the popup. */
+function googlePopupNonce(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const nonce = sessionStorage.getItem("eut-google-popup-auth");
+    return nonce && /^[a-f0-9]{32}$/.test(nonce) ? nonce : null;
+  } catch { return null; }
+}
+function isGooglePopup(): boolean { return Boolean(googlePopupNonce()); }
+function signalGooglePopupReturn(result: "complete" | "error") {
+  const nonce = googlePopupNonce();
+  if (!nonce) return;
+  // This contains no session token or personal data. The opener independently
+  // calls Auth to verify the session before accepting the OAuth return.
+  try { localStorage.setItem(`eut-google-popup-result:${nonce}`, result); } catch { /* COOP fallback. */ }
+  if (window.opener)
+    window.opener.postMessage({ type: `eut:google-oauth-${result}`, nonce }, window.location.origin);
 }
 
 export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
@@ -146,9 +158,7 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
     if (hasOAuthCallbackError(window.location.search, window.location.hash)) {
       setError("O login com Google não foi concluído. Nenhuma conta antiga foi alterada. Tente entrar novamente.");
       // Errors may arrive in query or fragment. Preserve unrelated state.
-      if (isGooglePopup() && window.opener) {
-        window.opener.postMessage({ type: "eut:google-oauth-error" }, window.location.origin);
-      }
+      if (isGooglePopup()) signalGooglePopupReturn("error");
       window.history.replaceState(window.history.state, "", clearOAuthErrorParams(window.location));
       if (isGooglePopup()) window.close();
     }
@@ -266,10 +276,9 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
   // granting access or resuming role / legacy-claim reconciliation.
   useEffect(() => {
     if (loading || !user || !isGooglePopup()) return;
-    if (window.opener) {
-      window.opener.postMessage({ type: "eut:google-oauth-complete" }, window.location.origin);
-      window.close();
-    }
+    // COOP may remove window.opener; storage remains same-origin and correlated.
+    signalGooglePopupReturn("complete");
+    window.close();
   }, [loading, user?.id]);
 
   async function google() {
