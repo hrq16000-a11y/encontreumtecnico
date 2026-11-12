@@ -1,20 +1,20 @@
+import { GUIDE_ARTWORK } from "./guide-artwork";
+
 /**
- * Curated ORIGINAL editorial illustrations already shipped with this portal.
- * Never derive a media filename from an untrusted category slug. A category
- * without a relevant illustration uses the generic service icon instead.
- * These drawings illustrate service topics, not real technician identities.
+ * Home category media and service/profile media share ONE first-party
+ * editorial source of truth. Do not duplicate the 8 SVG paths here.
+ *
+ * These drawings represent service topics, not real technicians or work.
+ * Unrecognised categories use the existing neutral icon fallback.
  */
-export const PUBLIC_CATEGORY_ILLUSTRATIONS: Readonly<Record<string, string>> = Object.freeze({
-  climatizacao: "/guias/ar-condicionado-nao-gela-ilustrado.svg",
-  automacao: "/servicos/automacao-ambientes-integrados.svg",
-  cftv: "/guias/cftv-planejamento-ilustrado.svg",
-  computadores: "/guias/computador-diagnostico-ilustrado.svg",
-  software: "/guias/backup-seguro-manutencao-ilustrado.svg",
-  comunicacoes: "/servicos/interfonia-telefonia-ip.svg",
-  redes: "/guias/wifi-instabilidade-cobertura-ilustrado.svg",
-  impressoras: "/guias/impressora-offline-fila-ilustrado.svg",
-});
+export const PUBLIC_CATEGORY_ILLUSTRATIONS: Readonly<Record<string, string>> = Object.freeze(
+  Object.fromEntries(
+    Object.entries(GUIDE_ARTWORK).map(([slug, artwork]) => [slug, artwork.src]),
+  ),
+);
 
 export function getPublicCategoryIllustration(slug: string): string | null {
-  return PUBLIC_CATEGORY_ILLUSTRATIONS[slug] ?? null;
+  return Object.prototype.hasOwnProperty.call(PUBLIC_CATEGORY_ILLUSTRATIONS, slug)
+    ? PUBLIC_CATEGORY_ILLUSTRATIONS[slug] ?? null
+    : null;
 }

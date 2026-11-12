@@ -1,8 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import { getPublicCategoryIllustration, PUBLIC_CATEGORY_ILLUSTRATIONS } from "./public-category-visuals";
+import { GUIDE_ARTWORK } from "./guide-artwork";
 
 describe("Home1 original category imagery", () => {
+  it("uses the same canonical media mapping as services and profiles", () => {
+    const expected = Object.fromEntries(
+      Object.entries(GUIDE_ARTWORK).map(([slug, artwork]) => [slug, artwork.src]),
+    );
+    expect(PUBLIC_CATEGORY_ILLUSTRATIONS).toEqual(expected);
+    const source = readFileSync("src/lib/public-category-visuals.ts", "utf8");
+    expect(source).toContain('import { GUIDE_ARTWORK } from "./guide-artwork"');
+    expect(source).not.toMatch(/(?:cftv|computadores|redes):\s*"\//);
+  });
+
   it("only references existing small first-party illustrations without scripts", () => {
     for (const [slug, path] of Object.entries(PUBLIC_CATEGORY_ILLUSTRATIONS)) {
       expect(slug).toMatch(/^[a-z0-9-]+$/);
