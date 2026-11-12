@@ -13,6 +13,8 @@ function requestHelpForGuide(guide: PublicGuide): void {
       impressoras: "Impressoras",
       software: "Sistemas e software",
       climatizacao: "Climatização",
+      automacao: "Automação",
+      comunicacoes: "Comunicações e telefonia",
     } as Record<string, string>)[guide.categorySlug] ?? guide.categoryName,
   });
 }

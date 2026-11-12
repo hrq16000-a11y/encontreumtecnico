@@ -1,5 +1,13 @@
-/** Editorial illustrations are local, tiny SVGs: one image per guide, no external requests. */
+/** Ilustrações originais e locais por categoria, sem requisições externas. */
 export const GUIDE_ARTWORK = {
+  automacao: {
+    src: "/servicos/automacao-ambientes-integrados.svg",
+    alt: "Ilustração original de automação com ambientes, controlador e acesso protegido",
+  },
+  comunicacoes: {
+    src: "/servicos/interfonia-telefonia-ip.svg",
+    alt: "Ilustração original de interfonia, rede de comunicação e ramais de telefonia IP",
+  },
   computadores: {
     src: "/guias/computador-diagnostico-ilustrado.svg",
     alt: "Ilustração de bancada de manutenção com computador, monitor e ferramentas",
