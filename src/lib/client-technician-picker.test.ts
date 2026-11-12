@@ -65,6 +65,16 @@ describe("Escolha de técnico dentro do formulário mobile", () => {
 
   });
 
+  it("ao mudar a categoria, descarta o destinatário anterior", () => {
+    const route = readFileSync("src/routes/area-cliente.tsx", "utf8");
+    const update = route.slice(route.indexOf("function updateRequestField("),
+      route.indexOf("function chooseTechnicianInWizard("));
+    expect(update).toContain('key === "category" && value !== form.category');
+    expect(update).toContain("clearTechnicianTarget()");
+    expect(update).toContain("setTechnicianTarget(null)");
+    expect(update).toContain("setShareNow(false)");
+  });
+
   it("seleciona sem navegar, preserva rascunho e exige novo consentimento", () => {
     const route = readFileSync("src/routes/area-cliente.tsx", "utf8");
     const selected = route.slice(route.indexOf("function chooseTechnicianInWizard("),
