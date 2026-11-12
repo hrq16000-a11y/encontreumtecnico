@@ -71,9 +71,9 @@ export function AdminCommandOverview() {
   return <section className="mt-6 space-y-5" aria-label="Central de comando operacional">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h2 className="text-xl font-bold text-foreground">Operação em tempo real</h2>
+        <h2 className="text-xl font-bold text-foreground">Indicadores operacionais</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Contagens exatas e RPCs administrativas existentes. Apenas os números são mantidos no resumo; a consulta administrativa é descartada após a extração.
+          Contagens exatas quando disponíveis. As RPCs administrativas existentes podem retornar outros dados autorizados, mas esta tela exibe e mantém apenas os indicadores numéricos.
         </p>
       </div>
       <button type="button" disabled={loading} onClick={() => setRevision((value) => value + 1)}
