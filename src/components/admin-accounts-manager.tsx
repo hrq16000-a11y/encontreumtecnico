@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { AlertTriangle, Ban, CheckCircle2, LockKeyhole, Pencil, RotateCcw, Search, ShieldCheck, Smartphone, UsersRound, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { adminLastPageIndex, boundedAdminPage } from "@/lib/admin-technician-pagination";
 
 type Filter = "todos" | "tecnicos" | "clientes" | "sem_papel" | "bloqueados";
 type Account = {
@@ -62,8 +63,17 @@ export function AdminAccountsManager({ initialFilter = "todos" }: { initialFilte
           setSnapshot(null);
           setError("Não foi possível carregar a gestão de contas. Confirme a sessão administrativa e as permissões.");
         } else {
-          setSnapshot(data as Snapshot);
-          setError(null);
+          const safePage = boundedAdminPage(page, data.total, data.page_size);
+          if (safePage !== page) {
+            // A block/unblock or another operator may have reduced the last page.
+            // Re-request only the last valid page, without displaying a false empty state.
+            setSnapshot(null);
+            setPage(safePage);
+            setSelection(null);
+          } else {
+            setSnapshot(data as Snapshot);
+            setError(null);
+          }
         }
       } catch {
         if (active) { setSnapshot(null); setError("Falha de conexão. Tente novamente."); }
@@ -137,13 +147,14 @@ export function AdminAccountsManager({ initialFilter = "todos" }: { initialFilte
       setSelection(null);
       setValue("");
       setNotice(completed + " — operação confirmada e auditada no Supabase. Consulte o estado atualizado.");
+      setPage(0); // A restriction or release can change the filtered result count.
       setVersion((v) => v + 1);
     } catch (e) {
       setError("Não foi possível concluir a ação. " + (e instanceof Error ? e.message.slice(0, 240) : "Consulte o suporte."));
     } finally { setBusy(false); }
   }
 
-  const maxPage = snapshot ? Math.max(1, Math.ceil(snapshot.total / snapshot.page_size)) : 1;
+  const maxPage = adminLastPageIndex(snapshot?.total ?? 0, snapshot?.page_size ?? 0) + 1;
   return <section aria-label="Contas e bloqueios administrativos" className="mt-2 space-y-5">
     <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5">
       <div className="flex items-center gap-3">
