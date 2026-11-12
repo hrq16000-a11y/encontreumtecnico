@@ -1,6 +1,8 @@
 -- PostgreSQL 17 disposable container fixture ONLY. Never use in hosted Supabase.
 CREATE ROLE anon NOLOGIN;
 CREATE ROLE authenticated NOLOGIN;
+-- Non-login dedicated maintenance role: fixtures test least-privilege cleanup.
+CREATE ROLE eut_draft_maint NOLOGIN;
 CREATE SCHEMA auth;
 CREATE SCHEMA eut_moderation;
 REVOKE ALL ON SCHEMA eut_moderation FROM PUBLIC,anon,authenticated;
