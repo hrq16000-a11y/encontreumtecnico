@@ -126,9 +126,17 @@ ALTER TABLE public.eut_technician_drafts ENABLE TRIGGER eut_guard_technician_dra
 SET ROLE authenticated;
 SET request.jwt.claim.sub='00000000-0000-4000-8000-000000000011';
 DO $assert$
+DECLARE refused boolean:=false;
 BEGIN
- IF (SELECT count(*) FROM public.eut_technician_drafts)<>0 THEN
-  RAISE EXCEPTION 'Expired draft still recoverable'; END IF;
+ -- The owner can still inspect/delete stale rows, but recovery MUST filter TTL.
+ IF (SELECT count(*) FROM public.eut_technician_drafts
+     WHERE expires_at > now())<>0 THEN
+   RAISE EXCEPTION 'Expired draft still eligible for recovery'; END IF;
+ BEGIN
+   UPDATE public.eut_technician_drafts SET step=1
+     WHERE owner_id='00000000-0000-4000-8000-000000000011';
+ EXCEPTION WHEN SQLSTATE '22023' THEN refused:=true; END;
+ IF NOT refused THEN RAISE EXCEPTION 'Expired draft was renewed on UPDATE'; END IF;
 END $assert$;
 DELETE FROM public.eut_technician_drafts
  WHERE owner_id='00000000-0000-4000-8000-000000000011';
