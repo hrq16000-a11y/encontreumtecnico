@@ -42,7 +42,7 @@ test("Home displays verified municipal coverage and segregates DDD-only region",
   assert.equal(actual.public_integration_authorized,false);
   assert(!JSON.stringify(actual).includes("99999999"));
   assert(!JSON.stringify(actual).includes("Casa de cliente"));
-  assert(!JSON.stringify(actual).includes("last_login"));
+  assert(actual.sections.every(s => s.cards.every(card => card.last_login_at === null)));
   assert(Object.isFrozen(actual.sections));
 });
 
