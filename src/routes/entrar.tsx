@@ -6,6 +6,7 @@ import { signInWithGoogle, useAuth, type Role } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { safeLegacyClaimReturnPath } from "@/lib/legacy-claim-validation";
 import { authReturnUrl } from "@/lib/auth-domain";
+import { clearOAuthErrorParams, hasOAuthCallbackError } from "@/lib/oauth-return-error";
 import { canAttemptNewAccountRole } from "@/lib/onboarding-legacy-fallback";
 import { safeLoginDestination } from "@/lib/navigation-safety";
 import { ConnectedGoogleIdentity } from "@/components/connected-google-identity";
@@ -112,6 +113,13 @@ function EmailPasswordForm({ onError }: { onError: (m: string | null) => void })
   );
 }
 
+/** A same-origin marker is preserved through the Google redirect even under COOP. */
+function isGooglePopup(): boolean {
+  if (typeof window === "undefined") return false;
+  try { return sessionStorage.getItem("eut-google-popup-auth") === "1"; }
+  catch { return false; }
+}
+
 export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
   const { user, roles, loading, rolesError, refreshRoles } = useAuth();
   const navigate = useNavigate();
@@ -135,14 +143,14 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
   useEffect(() => { setSignupIntent(readSignupIntent()); }, []);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.has("error") || params.has("error_code")) {
+    if (hasOAuthCallbackError(window.location.search, window.location.hash)) {
       setError("O login com Google não foi concluído. Nenhuma conta antiga foi alterada. Tente entrar novamente.");
-      // An OAuth error is not a session; remove only error parameters,
-      // never provider tokens or session state.
-      for (const key of ["error", "error_code", "error_description"]) params.delete(key);
-      const query = params.toString();
-      window.history.replaceState(window.history.state, "", window.location.pathname + (query ? "?" + query : ""));
+      // Errors may arrive in query or fragment. Preserve unrelated state.
+      if (isGooglePopup() && window.opener) {
+        window.opener.postMessage({ type: "eut:google-oauth-error" }, window.location.origin);
+      }
+      window.history.replaceState(window.history.state, "", clearOAuthErrorParams(window.location));
+      if (isGooglePopup()) window.close();
     }
   }, []);
 
@@ -225,7 +233,7 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
   }, [loading, user?.id, roles.length, legacyLookupRetry]);
 
   useEffect(() => {
-    if (loading || !user || roles.length === 0) return;
+    if (isGooglePopup() || loading || !user || roles.length === 0) return;
     let active = true;
     async function continueLogin() {
       // Reentrar com conta antiga já ativada também reconcilia o vínculo.
@@ -253,6 +261,16 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
     void continueLogin();
     return () => { active = false; };
   }, [loading, user?.id, roleKey, navigate, lp2]);
+
+  // Keep the callback inside the popup. The opener re-verifies Auth before
+  // granting access or resuming role / legacy-claim reconciliation.
+  useEffect(() => {
+    if (loading || !user || !isGooglePopup()) return;
+    if (window.opener) {
+      window.opener.postMessage({ type: "eut:google-oauth-complete" }, window.location.origin);
+      window.close();
+    }
+  }, [loading, user?.id]);
 
   async function google() {
     setError(null);

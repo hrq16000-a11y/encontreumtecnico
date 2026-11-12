@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { SiteHeader } from "./site-header";
 const navState = vi.hoisted(() => ({ pathname: "/" }));
+const dialog = vi.hoisted(() => ({ open: vi.fn() }));
+vi.mock("@/components/auth-dialog", () => ({ useAuthDialog: () => dialog.open }));
 const authState = vi.hoisted(() => ({
   value: { user: null as { id: string } | null,
     roles: [] as Array<"admin" | "tecnico" | "cliente">, loading: false },
@@ -16,9 +18,17 @@ vi.mock("@tanstack/react-router", () => ({
   }) => <a href={to} onClick={onClick} aria-label={typeof props["aria-label"] === "string" ? props["aria-label"] : undefined}>{children}</a>,
 }));
 
-afterEach(() => { cleanup(); navState.pathname = "/"; authState.value = { user: null, roles: [], loading: false }; });
+afterEach(() => { cleanup(); dialog.open.mockClear(); navState.pathname = "/"; authState.value = { user: null, roles: [], loading: false }; });
 
 describe("Cabeçalho do novo portal", () => {
+  it("abre modal desktop, preservando a rota /entrar no acesso rápido móvel", () => {
+    render(<SiteHeader />);
+    fireEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    expect(dialog.open).toHaveBeenCalledWith("entrar");
+    fireEvent.click(screen.getByRole("button", { name: "Sou técnico" }));
+    expect(dialog.open).toHaveBeenCalledWith("cadastrar", "tecnico");
+    expect(screen.getByRole("navigation", { name: "Acesso rápido no celular" }).querySelector('a[href="/entrar"]')).toBeTruthy();
+  });
   it("abre o menu móvel com destinos públicos e caminhos de cadastro preservados", () => {
     render(<SiteHeader />);
     const trigger = screen.getByRole("button", { name: "Abrir menu" });

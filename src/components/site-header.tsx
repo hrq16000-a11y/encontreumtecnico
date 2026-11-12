@@ -3,6 +3,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { showMobileQuickTabs } from "@/lib/navigation-safety";
 import { ArrowRight, CircleHelp, House, LogIn, Menu, Search, Wrench, X, UserRound } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { useAuthDialog } from "@/components/auth-dialog";
 import logo from "@/assets/logo-marinho.png";
 
 const NAV_ITEMS = [
@@ -15,6 +16,7 @@ const NAV_ITEMS = [
 const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2";
 
 export function SiteHeader() {
+  const openAuth = useAuthDialog();
   const [open, setOpen] = useState(false);
   const headerRef = useRef<HTMLElement | null>(null);
   const [scrolled, setScrolled] = useState(false);
@@ -91,14 +93,14 @@ export function SiteHeader() {
             </Link>
           ) : (
             <>
-              <Link to="/entrar"
+              <button type="button" onClick={() => openAuth?.("entrar")}
                 className={"inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-sm font-semibold text-foreground transition-colors hover:bg-accent " + FOCUS}>
                 <LogIn className="h-4 w-4" aria-hidden="true" /> Entrar
-              </Link>
-              <Link to="/area-tecnico"
+              </button>
+              <button type="button" onClick={() => openAuth?.("cadastrar", "tecnico")}
                 className={"inline-flex min-h-11 items-center gap-1.5 rounded-full border border-primary/25 bg-card px-4 text-sm font-semibold text-primary shadow-sm transition-colors hover:border-primary hover:bg-accent " + FOCUS}>
                 Sou técnico
-              </Link>
+              </button>
             </>
           )}
           <Link to="/tecnicos"

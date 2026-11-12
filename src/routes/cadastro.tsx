@@ -4,6 +4,7 @@ import { PageShell } from "@/components/page-placeholder";
 import { useAuth } from "@/hooks/use-auth";
 import { rememberSignupIntent, type SignupIntent } from "@/lib/signup-intent";
 import { ConnectedGoogleIdentity } from "@/components/connected-google-identity";
+import { useAuthDialog } from "@/components/auth-dialog";
 
 export const Route = createFileRoute("/cadastro")({
   head: () => ({ meta: [
@@ -15,6 +16,7 @@ export const Route = createFileRoute("/cadastro")({
 });
 
 function SignupHome() {
+  const openAuth = useAuthDialog();
   const { user, roles, loading } = useAuth();
   const existingArea = roles.includes("admin") ? "/admin" as const
     : roles.includes("tecnico") ? "/area-tecnico" as const
@@ -70,17 +72,17 @@ function SignupHome() {
                       {benefit}
                     </li>)}
                   </ul>
-                  <Link to="/entrar" onClick={() => rememberSignupIntent(card.intent)}
+                  <button type="button" onClick={() => { rememberSignupIntent(card.intent); openAuth?.("cadastrar", card.intent); }}
                     className="mt-auto inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90">
                     {card.intent === "tecnico" ? "Cadastrar como técnico" : "Continuar como cliente"}
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                  </Link>
+                  </button>
                 </article>;
               })}
             </div>
             <div className="mx-auto mt-8 flex max-w-xl flex-wrap items-center justify-center gap-2 rounded-xl border border-border bg-muted/40 px-5 py-4 text-center text-sm text-muted-foreground">
               <UserCircle2 className="h-5 w-5 text-primary" aria-hidden="true" />
-              Já possui conta? <Link to="/entrar" className="font-bold text-primary underline-offset-4 hover:underline">Entrar no meu painel</Link>
+              Já possui conta? <button type="button" onClick={() => openAuth?.("entrar")} className="font-bold text-primary underline-offset-4 hover:underline">Entrar no meu painel</button>
               <MapPin className="ml-1 h-4 w-4 text-primary" aria-hidden="true" />
               <span>Sem intermediação na contratação.</span>
             </div>
