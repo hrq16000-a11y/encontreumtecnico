@@ -22,7 +22,7 @@ LANGUAGE sql STABLE SET search_path='pg_catalog'
 AS $$ SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid; $$;
 CREATE FUNCTION public.has_role(_uid uuid,_role public.app_role)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path='public'
-AS $ SELECT EXISTS(SELECT 1 FROM public.user_roles WHERE user_id=_uid AND role=_role); $;
+AS $role_function$ SELECT EXISTS(SELECT 1 FROM public.user_roles WHERE user_id=_uid AND role=_role); $role_function$;
 CREATE POLICY "Users read own roles" ON public.user_roles FOR SELECT
  USING (auth.uid()=user_id OR public.has_role(auth.uid(),'admin'::public.app_role));
 
