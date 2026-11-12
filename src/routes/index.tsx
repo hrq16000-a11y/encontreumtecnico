@@ -279,7 +279,7 @@ function HomePage() {
 
       <SponsoredPublicSlot slotKey="home.content_1" routePath="/" />
 
-      <Reveal><CategoryGrid /></Reveal>
+      <Reveal><CategoryGrid categories={activeCategories} /></Reveal>
 
       <HomePublicProof />
 
