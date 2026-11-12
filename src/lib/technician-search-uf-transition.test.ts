@@ -11,7 +11,7 @@ describe("Troca de UF na busca mobile", () => {
       ["filtro-cidade", "Curitiba"],
       ["filtro-bairro", "Boqueirão"],
       ["filtro-regiao", "Região Metropolitana"],
-    ]) {
+    ] as const) {
       expect(savePendingFilter(id, "", draft, sessionStorage)).toBe(true);
       expect(readPendingFilter(id, "", sessionStorage)).toBe(draft);
     }
