@@ -169,3 +169,102 @@ export function previewIdentityReconciliation({
     published_external_records: 0,
   };
 }
+
+
+/**
+ * Pure offline preview of source alias → stable technician identity.
+ * It never allocates registry IDs or writes/publishes anything.
+ * A name match is a review hint, not proof of a person.
+ */
+export function previewRegistryReconciliation(capture, {
+  knownTechnicians = [], knownAliases = [],
+} = {}) {
+  if (!Array.isArray(knownTechnicians) || !Array.isArray(knownAliases))
+    throw new TypeError("As referências de reconciliação devem ser listas");
+
+  const normalizeLabel = value => value.normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+  const source = previewQuarantinedSourceAliases(capture);
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const techniciansById = new Map();
+  const techniciansByName = new Map();
+  for (const entry of knownTechnicians) {
+    if (!entry || typeof entry.technician_registry_id !== "string" ||
+        !uuidPattern.test(entry.technician_registry_id) ||
+        techniciansById.has(entry.technician_registry_id))
+      throw new TypeError("Identificador de técnico inválido ou duplicado");
+    techniciansById.set(entry.technician_registry_id, entry);
+    if (typeof entry.display_name === "string" && normalizeLabel(entry.display_name)) {
+      const name = normalizeLabel(entry.display_name);
+      techniciansByName.set(name, (techniciansByName.get(name) ?? 0) + 1);
+    }
+  }
+
+  const idsBySourceKey = new Map();
+  const previousNames = new Map();
+  for (const alias of knownAliases) {
+    if (!alias || typeof alias.source_record_key !== "string" ||
+        !alias.source_record_key.trim() ||
+        (alias.technician_registry_id !== null &&
+          (typeof alias.technician_registry_id !== "string" ||
+           !uuidPattern.test(alias.technician_registry_id))))
+      throw new TypeError("Alias de origem inválido");
+    const ids = idsBySourceKey.get(alias.source_record_key) ?? new Set();
+    ids.add(alias.technician_registry_id);
+    idsBySourceKey.set(alias.source_record_key, ids);
+    if (typeof alias.public_name === "string" && normalizeLabel(alias.public_name)) {
+      const name = normalizeLabel(alias.public_name);
+      const keys = previousNames.get(name) ?? new Set();
+      keys.add(alias.source_record_key);
+      previousNames.set(name, keys);
+    }
+  }
+
+  const records = source.records.map(row => {
+    const ids = idsBySourceKey.get(row.source_record_key);
+    let decision = "nova_ficha_proposta";
+    let review_reason = null;
+    let technician_registry_id = null;
+    if (ids && ids.size !== 1) {
+      decision = "conflito_revisao";
+      review_reason = "alias_com_destinos_distintos";
+    } else if (ids) {
+      const [id] = ids;
+      if (id !== null && techniciansById.has(id)) {
+        decision = "alias_conhecido";
+        technician_registry_id = id;
+      } else {
+        decision = "conflito_revisao";
+        review_reason = id === null ? "alias_sem_identidade" : "destino_nao_encontrado";
+      }
+    } else if (row.possible_same_name_rows.length > 0) {
+      decision = "conflito_revisao";
+      review_reason = "nome_repetido_na_captura";
+    } else if (techniciansByName.has(normalizeLabel(row.public_name)) ||
+               previousNames.has(normalizeLabel(row.public_name))) {
+      decision = "conflito_revisao";
+      review_reason = "nome_coincidente_sem_prova";
+    }
+    return Object.freeze({
+      source_record_key: row.source_record_key,
+      source_row: row.source_row,
+      public_name: row.public_name,
+      decision,
+      technician_registry_id,
+      review_reason,
+    });
+  });
+  return Object.freeze({
+    source: source.source,
+    source_page_city_ibge: source.source_page_city_ibge,
+    quarantined_count: source.quarantined_count,
+    enabled_count: 0,
+    published_count: 0,
+    counts: Object.freeze({
+      alias_conhecido: records.filter(r => r.decision === "alias_conhecido").length,
+      nova_ficha_proposta: records.filter(r => r.decision === "nova_ficha_proposta").length,
+      conflito_revisao: records.filter(r => r.decision === "conflito_revisao").length,
+    }),
+    records: Object.freeze(records),
+  });
+}
