@@ -39,7 +39,10 @@ describe("P0 técnico: rascunho restaurado não perde cidade oficial na etapa 3"
       [{ ...restored, city: "Grande Curitiba" }, "PR", cities],
       [{ ...restored, city: "" }, "PR", cities],
       [{ ...restored, state_uf: "AC" }, "AC", cities],
-      [restored, "PR", [{ ...cities[0] }, { ...cities[0], id: 4125507 }]],
+      [restored, "PR", [
+        { id: 4125506, name: "São José dos Pinhais", uf: "PR" },
+        { id: 4125507, name: "São José dos Pinhais", uf: "PR" },
+      ]],
     ] as const) {
       expect(hydrateTechnicianOfficialCity(input, source, uf)).toBe(input);
     }
