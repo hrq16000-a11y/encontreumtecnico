@@ -21,6 +21,10 @@ describe("Home1 active category shortcuts", () => {
     expect(hook).toContain('.order("display_order")');
     expect(hook).toContain("setCategories(queryError ? [] : (data ?? []))");
     expect(home).toContain("{category.label}");
+    // Do not show empty shortcuts while loading or on a failed catalog request.
+    expect(home).toContain("loading: catalogLoading, error: catalogError");
+    expect(home).toContain("!catalogLoading && !catalogError && activeCategories.length > 0");
+    expect(home).toContain("hover:bg-accent");
     expect(home).toContain("<CategoryGrid categories={activeCategories} />");
     expect(grid).toContain("CategoryGrid({ categories }");
     expect(grid).not.toContain("useActiveCategories()");
