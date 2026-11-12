@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { previewCitySurface } from "./external-directory-city-surface.mjs";
+import { previewCitySurface, previewCityRouteIntegration, CITY_ROUTE_TARGETS, CITY_ROUTE_INTEGRATION_ENABLED } from "./external-directory-city-surface.mjs";
+import { readFileSync } from "node:fs";
 
 const city = { cityIbgeId:4118204,cityLabel:"Paranaguá",regionDdds:["41"] };
 const complete = {
@@ -160,4 +161,81 @@ test("invalid contexts and duplicate catalogue identities fail closed", () => {
     /duplicada/);
   assert.throws(()=>previewCitySurface({...complete,
     context:"service",serviceSlug:"<unsafe>",records:[row(1)]}));
+});
+
+
+test("Home/categorias/serviços have real, intact integration anchors but no public import", () => {
+  assert.equal(CITY_ROUTE_INTEGRATION_ENABLED, false);
+  assert.deepEqual(Object.keys(CITY_ROUTE_TARGETS),
+    ["home","category","services","service_category"]);
+  for (const [key, seam] of Object.entries(CITY_ROUTE_TARGETS)) {
+    const liveRoute = readFileSync(new URL("../"+seam.path, import.meta.url),"utf8");
+    assert(liveRoute.includes(seam.anchor), seam.path+" missing "+seam.anchor);
+    assert(!liveRoute.includes("external-directory-city-surface.mjs"));
+    assert(!liveRoute.includes("external-directory-city-discovery.mjs"));
+    const preview = previewCityRouteIntegration({
+      routeKey:key,
+      ...(seam.facet==="category" ? {routeCategorySlug:"computadores"}:{}),
+      ...complete, records:[row(1)],
+      // Existing route sources are partial. Never convert them to counts.
+      sourceExhaustive:false,
+    });
+    assert.equal(preview.public_integration_enabled,false);
+    assert.equal(preview.current_source_is_exhaustive,false);
+    assert.equal(preview.preview.verified_counts,false);
+    assert.equal(preview.preview.declared_count,null);
+    assert.equal(preview.preview.approximate_ddd_count,null);
+    assert.equal(preview.preview.sections.length,0);
+  }
+});
+
+test("existing /servicos/$categoria is a CATEGORY facet, not a service slug", () => {
+  const rows=[
+    row(1,{declaredCategorySlugs:["computadores"],declaredServiceSlugs:[]}),
+    row(2,{declaredCategorySlugs:["redes"],declaredServiceSlugs:["computadores"]}),
+    row(3,{declaredCategorySlugs:[],declaredServiceSlugs:[]}),
+  ];
+  for (const routeKey of ["category","service_category"]) {
+    const result=previewCityRouteIntegration({
+      routeKey,routeCategorySlug:"computadores",
+      ...complete,records:rows,referenceTime:null,
+    });
+    assert.equal(result.preview.total,1);
+    assert.equal(result.preview.sections[0].cards[0].stable_key,rows[0].stableKey);
+    assert.equal(result.preview.sections[0].cards.some(c=>c.stable_key===rows[1].stableKey),false);
+  }
+  for (const routeKey of ["home","services"]) {
+    const result=previewCityRouteIntegration({
+      routeKey,...complete,records:rows,referenceTime:null,
+    });
+    assert.equal(result.preview.total,3);
+  }
+});
+
+test("unknown integration routes and implicit categories fail closed", () => {
+  assert.throws(()=>previewCityRouteIntegration({routeKey:"__proto__"}));
+  assert.throws(()=>previewCityRouteIntegration({routeKey:"/admin"}));
+  assert.throws(()=>previewCityRouteIntegration({
+    routeKey:"home",routeCategorySlug:"computadores",...complete,records:[],
+  }));
+  assert.throws(()=>previewCityRouteIntegration({
+    routeKey:"service_category",...complete,records:[row(1)],
+  }));
+});
+
+test("local hint has no proven IBGE mapping and cannot make a city count", () => {
+  const hint={
+    city:"Paranaguá",uf:"PR",source:"ip",
+  };
+  // Existing Home IP hint is a visitor-correctable suggestion only.
+  // A city label / UF from a hint is not an official IBGE id.
+  assert.equal(Object.hasOwn(hint,"cityIbgeId"),false);
+  const result=previewCityRouteIntegration({
+    routeKey:"home",records:[row(1)],cityLabel:hint.city,
+    cityIbgeId:null,regionDdds:[],state:"unavailable",
+  });
+  assert.equal(result.preview.verified_counts,false);
+  assert.equal(result.preview.declared_count,null);
+  assert.equal(result.preview.sections.length,0);
+  assert.equal(result.public_integration_enabled,false);
 });
