@@ -37,3 +37,23 @@ export const GUIDE_ARTWORK = {
 export function getGuideArtwork(categorySlug: string) {
   return GUIDE_ARTWORK[categorySlug as keyof typeof GUIDE_ARTWORK] ?? GUIDE_ARTWORK.computadores;
 }
+/**
+ * Exact curated illustration for a real category, never the fallback image
+ * used by editorial guide pages. Unknown/private slugs return no artwork.
+ */
+export function getExactGuideArtwork(categorySlug: string): (typeof GUIDE_ARTWORK)[keyof typeof GUIDE_ARTWORK] | null {
+  return Object.prototype.hasOwnProperty.call(GUIDE_ARTWORK, categorySlug)
+    ? GUIDE_ARTWORK[categorySlug as keyof typeof GUIDE_ARTWORK]
+    : null;
+}
+
+/** Illustrations of declared service topics, NOT a technician's work gallery. */
+export function getDeclaredServiceIllustrations(specialties: readonly string[], limit = 3) {
+  const safeLimit = Number.isSafeInteger(limit) ? Math.max(0, Math.min(3, limit)) : 0;
+  return [...new Set(specialties)]
+    .flatMap(slug => {
+      const artwork = getExactGuideArtwork(slug);
+      return artwork ? [{ slug, ...artwork }] : [];
+    })
+    .slice(0, safeLimit);
+}

@@ -7,6 +7,10 @@ on:
       - 'src/routes/tecnicos.index.tsx'
       - 'src/routes/tecnicos.$tecnicoId.tsx'
       - 'src/components/public-technician-profile.tsx'
+      - 'src/components/public-technician-profile.test.tsx'
+      - 'src/routes/servicos.tsx'
+      - 'src/lib/guide-artwork.ts'
+      - 'src/lib/public-service-illustrations.test.ts'
       - 'src/lib/technicians.functions.ts'
       - 'src/hooks/use-active-services.ts'
       - 'src/integrations/supabase/types.ts'
@@ -28,6 +32,8 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - name: Install dependencies
         run: bun install --frozen-lockfile
+      - name: Test editorial imagery and protected public profiles
+        run: bunx vitest run src/lib/public-service-illustrations.test.ts src/components/public-technician-profile.test.tsx src/lib/service-catalog.test.ts
       - name: Build TanStack Start
         run: bun run build
       - name: TypeScript check
