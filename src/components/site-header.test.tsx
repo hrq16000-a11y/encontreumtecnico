@@ -60,6 +60,20 @@ describe("Cabeçalho do novo portal", () => {
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
   });
 
+  it("não rouba o foco de um campo externo quando Escape fecha o menu", () => {
+    render(<><SiteHeader /><input aria-label="Campo fora do menu" /></>);
+    fireEvent.click(screen.getByRole("button", { name: "Abrir menu" }));
+    const outside = screen.getByRole("textbox", { name: "Campo fora do menu" });
+    outside.focus();
+    expect(document.activeElement).toBe(outside);
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(screen.queryByRole("navigation", { name: "Navegação móvel" })).toBeNull();
+    expect(document.activeElement).toBe(outside);
+    expect(screen.getByRole("button", { name: "Abrir menu" }).getAttribute("aria-expanded")).toBe("false");
+  });
+
   it("fecha com Escape e após tocar em um link", () => {
     render(<SiteHeader />);
     fireEvent.click(screen.getByRole("button", { name: "Abrir menu" }));
