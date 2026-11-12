@@ -10,3 +10,15 @@ export function cleanAdminSearch(value: string): string {
   // a broad unauthorized query. RLS is still the ultimate guard.
   return value.replace(/[%_*,()\\]/g, " ").trim().replace(/\s+/g, " ").slice(0, 80);
 }
+
+/** Last valid zero-based page of a server-backed admin list, including empty lists. */
+export function adminLastPageIndex(total: number, pageSize: number): number {
+  if (!Number.isFinite(total) || total <= 0 || !Number.isFinite(pageSize) || pageSize <= 0) return 0;
+  return Math.max(0, Math.ceil(total / pageSize) - 1);
+}
+
+/** Keep refresh/moderation results on a valid page without requesting every account. */
+export function boundedAdminPage(page: number, total: number, pageSize: number): number {
+  const safe = Number.isSafeInteger(page) && page >= 0 ? page : 0;
+  return Math.min(safe, adminLastPageIndex(total, pageSize));
+}
