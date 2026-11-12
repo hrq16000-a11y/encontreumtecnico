@@ -73,7 +73,7 @@ export function AdminCommandOverview() {
       <div>
         <h2 className="text-xl font-bold text-foreground">Operação em tempo real</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Contagens exatas e RPCs administrativas existentes. Sem leitura de descrições, telefones ou e-mails neste resumo.
+          Contagens exatas e RPCs administrativas existentes. Apenas os números são mantidos no resumo; a consulta administrativa é descartada após a extração.
         </p>
       </div>
       <button type="button" disabled={loading} onClick={() => setRevision((value) => value + 1)}
