@@ -211,5 +211,42 @@ BEGIN
  EXCEPTION WHEN SQLSTATE '22023' THEN refused:=true; END;
  IF NOT refused THEN RAISE EXCEPTION 'Cleanup accepted unsafe batch size'; END IF;
 END $assert$;
+
+\echo 'QA: least-privilege maintenance can delete expired, not read payload'
+-- Recreate an expired row for technical account 11, without real identities.
+INSERT INTO public.eut_technician_drafts (owner_id,draft,step)
+VALUES ('00000000-0000-4000-8000-000000000011','{"city":"Curitiba"}'::jsonb,1);
+ALTER TABLE public.eut_technician_drafts DISABLE TRIGGER eut_guard_technician_draft;
+UPDATE public.eut_technician_drafts SET
+  updated_at=now()-INTERVAL '31 days',
+  expires_at=now()-INTERVAL '1 day'
+WHERE owner_id='00000000-0000-4000-8000-000000000011';
+ALTER TABLE public.eut_technician_drafts ENABLE TRIGGER eut_guard_technician_draft;
+
+SET ROLE eut_draft_maint;
+DO $assert$
+DECLARE blocked boolean:=false;
+BEGIN
+ IF (SELECT count(*) FROM public.eut_technician_drafts WHERE expires_at>now())<>0 THEN
+   RAISE EXCEPTION 'Maintenance sees a nonexpired draft'; END IF;
+ BEGIN
+   PERFORM draft FROM public.eut_technician_drafts;
+ EXCEPTION WHEN SQLSTATE '42501' THEN blocked:=true; END;
+ IF NOT blocked THEN RAISE EXCEPTION 'Maintenance can read private draft payload'; END IF;
+END $assert$;
+SELECT eut_moderation.eut_purge_expired_technician_drafts(1) AS removed_by_restricted_role \gset
+RESET ROLE;
+DO $assert$
+BEGIN
+ IF (SELECT count(*) FROM public.eut_technician_drafts
+      WHERE owner_id='00000000-0000-4000-8000-000000000011')<>0 THEN
+   RAISE EXCEPTION 'Maintenance failed to remove expired row'; END IF;
+ IF (SELECT count(*) FROM public.eut_technician_drafts)<>1 OR
+   NOT EXISTS (SELECT 1 FROM public.eut_technician_drafts
+      WHERE owner_id='00000000-0000-4000-8000-000000000012'
+      AND expires_at>now()) THEN
+   RAISE EXCEPTION 'Maintenance changed another owners valid draft'; END IF;
+END $assert$;
+
 \echo 'PASS: durable drafts RLS, optimistic revision, expiry and private bounded cleanup'
 
