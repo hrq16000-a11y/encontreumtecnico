@@ -7,7 +7,7 @@ on:
       - 'src/lib/public-seo-graph.test.ts'
       - 'src/lib/public-sitemap.ts'
       - 'src/lib/public-sitemap.test.ts'
-      - 'src/routes/sitemap[.]xml.ts'
+      - 'src/routes/sitemap*.xml.ts'
       - 'src/routes/cidades.$uf.$cidade.tsx'
       - 'src/routes/categorias.$categoria.tsx'
       - 'src/routes/tecnicos.$tecnicoId.tsx'
