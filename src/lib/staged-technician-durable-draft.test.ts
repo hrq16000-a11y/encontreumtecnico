@@ -96,7 +96,7 @@ describe("Adapter staged durable draft: never active before backend QA", () => {
     const adapter = createStagedTechnicianDraftAdapter(fake.client, true);
     expect(await adapter.clearAfterConfirmedPublication(OWNER, false, 3)).toBe(false);
     expect(fake.from).not.toHaveBeenCalled();
-    expect(await adapter.clearAfterConfirmedPublication(OWNER, true)).toBe(true);
+    expect(await adapter.clearAfterConfirmedPublication(OWNER, true, 3)).toBe(true);
     expect(fake.calls.some(c => c.method === "delete")).toBe(true);
     expect(fake.calls.some(c => c.method === "eq" && c.args[0] === "owner_id" &&
       c.args[1] === OWNER)).toBe(true);
