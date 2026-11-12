@@ -90,7 +90,9 @@ BEGIN
     IF TG_TABLE_NAME='eut_technician_presence' AND TG_OP='UPDATE' THEN
       IF NEW.available IS FALSE
          AND NEW.user_id=v_user
-         AND OLD.user_id=v_user THEN
+         AND OLD.user_id=v_user
+         -- Preserve ALL other columns, including timestamps, while revoked.
+         AND to_jsonb(NEW) - 'available' IS NOT DISTINCT FROM to_jsonb(OLD) - 'available' THEN
         RETURN NEW;
       END IF;
     END IF;
