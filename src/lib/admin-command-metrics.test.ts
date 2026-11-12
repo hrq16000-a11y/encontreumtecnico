@@ -21,6 +21,24 @@ describe("Rodada 1 — comando administrativo", () => {
     expect(advertisingCounters({ sponsors: [], campaigns: [], totals: { sponsors: 0, campaigns: 0 } }))
       .toEqual({ sponsors: 0, campaigns: 0, drafts: 0 });
   });
+  it("não apresenta como completo o subtotal de rascunhos quando o RPC pagina 100 campanhas", () => {
+    const campaigns = Array.from({ length: 100 }, (_, i) => ({
+      status: i < 10 ? "draft" : "active",
+    }));
+    expect(advertisingCounters({
+      sponsors: [], campaigns,
+      totals: { sponsors: 105, campaigns: 101 },
+    })).toEqual({ sponsors: 105, campaigns: 101, drafts: null });
+  });
+  it("trata respostas de campanhas inconsistentes como indisponíveis", () => {
+    expect(advertisingCounters({
+      sponsors: [], campaigns: [{ id: "qa-fixture" }],
+      totals: { sponsors: 3, campaigns: 1 },
+    })).toEqual({ sponsors: 3, campaigns: 1, drafts: null });
+    expect(advertisingCounters({
+      sponsors: [], campaigns: [], totals: { sponsors: 0, campaigns: 0 },
+    })).toEqual({ sponsors: 0, campaigns: 0, drafts: 0 });
+  });
   it("consulta apenas contagens e RPCs existentes sob o gate administrativo", () => {
     const view = readFileSync("src/components/admin-command-overview.tsx", "utf8");
     const admin = readFileSync("src/routes/admin.tsx", "utf8");
