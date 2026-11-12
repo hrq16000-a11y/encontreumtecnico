@@ -24,14 +24,30 @@ async function mobile(browser) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: "pt-BR" });
   try {
     const page = await context.newPage();
+    const browserErrors = [];
+    page.on("pageerror", error => browserErrors.push(error.message));
+    page.on("console", message => { if (message.type() === "error") browserErrors.push(message.text()); });
     await page.goto(base, { waitUntil: "domcontentloaded", timeout: 30000 });
     const trigger = page.locator('button[aria-controls="eut-mobile-menu"]');
     await trigger.waitFor({ state: "visible" });
     // Allow TanStack client hydration to attach its event handlers.
     await page.waitForTimeout(1000);
     await trigger.click();
-    await page.waitForFunction(() =>
-      document.querySelector('button[aria-controls="eut-mobile-menu"]')?.getAttribute("aria-expanded") === "true");
+    try {
+      await page.waitForFunction(() =>
+        document.querySelector('button[aria-controls="eut-mobile-menu"]')?.getAttribute("aria-expanded") === "true",
+        null, { timeout: 12000 });
+    } catch (error) {
+      const diagnostic = await page.evaluate(() => ({
+        pathname: location.pathname,
+        title: document.title,
+        scripts: document.scripts.length,
+        expanded: document.querySelector('button[aria-controls="eut-mobile-menu"]')?.getAttribute("aria-expanded"),
+        hasMenu: Boolean(document.querySelector('#eut-mobile-menu')),
+      }));
+      console.error("LOCAL_CHROMIUM_DIAGNOSTIC", JSON.stringify({ diagnostic, browserErrors: browserErrors.slice(0, 8) }));
+      throw error;
+    }
     const menu = page.getByRole("navigation", { name: "Navegação móvel" });
     const services = menu.getByRole("link", { name: "Serviços" });
     await services.focus();
