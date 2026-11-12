@@ -1,3 +1,4 @@
+import { previewQuarantinedSourceAliases } from "./external-directory-identity-preview.mjs";
 /**
  * Isolated reconciliation preview. This is NOT the registry and creates no IDs,
  * accounts, data or database writes. Approved bindings are hypothetical inputs
