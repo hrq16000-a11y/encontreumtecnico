@@ -66,6 +66,8 @@ RETURNS trigger LANGUAGE plpgsql SET search_path='pg_catalog'
 AS $function$
 BEGIN
   IF TG_OP = 'UPDATE' THEN
+    IF OLD.expires_at <= clock_timestamp() THEN
+      RAISE EXCEPTION 'Draft expired; delete and start a new draft' USING ERRCODE='22023'; END IF;
     IF NEW.owner_id IS DISTINCT FROM OLD.owner_id THEN
       RAISE EXCEPTION 'Draft ownership is immutable' USING ERRCODE='42501'; END IF;
     IF NEW.revision IS DISTINCT FROM OLD.revision THEN
@@ -90,11 +92,12 @@ REVOKE ALL ON public.eut_technician_drafts FROM PUBLIC,anon,authenticated;
 GRANT SELECT,INSERT,UPDATE,DELETE ON public.eut_technician_drafts TO authenticated;
 
 -- Authenticated is necessary but not sufficient: ownership AND technical role.
+-- Owner SELECT includes expired rows so that owner DELETE can remove them.
+-- Recover only with expires_at > now(), and schedule privileged physical cleanup.
 CREATE POLICY eut_draft_owner_select ON public.eut_technician_drafts
   FOR SELECT TO authenticated
   USING (owner_id=(SELECT auth.uid())
-    AND public.has_role((SELECT auth.uid()),'tecnico'::public.app_role)
-    AND expires_at > now());
+    AND public.has_role((SELECT auth.uid()),'tecnico'::public.app_role));
 CREATE POLICY eut_draft_owner_insert ON public.eut_technician_drafts
   FOR INSERT TO authenticated
   WITH CHECK (owner_id=(SELECT auth.uid())
@@ -102,8 +105,7 @@ CREATE POLICY eut_draft_owner_insert ON public.eut_technician_drafts
 CREATE POLICY eut_draft_owner_update ON public.eut_technician_drafts
   FOR UPDATE TO authenticated
   USING (owner_id=(SELECT auth.uid())
-    AND public.has_role((SELECT auth.uid()),'tecnico'::public.app_role)
-    AND expires_at > now())
+    AND public.has_role((SELECT auth.uid()),'tecnico'::public.app_role))
   WITH CHECK (owner_id=(SELECT auth.uid())
     AND public.has_role((SELECT auth.uid()),'tecnico'::public.app_role));
 CREATE POLICY eut_draft_owner_delete ON public.eut_technician_drafts
@@ -112,6 +114,6 @@ CREATE POLICY eut_draft_owner_delete ON public.eut_technician_drafts
     AND public.has_role((SELECT auth.uid()),'tecnico'::public.app_role));
 
 COMMENT ON TABLE public.eut_technician_drafts IS
-  'Private unsent technician registration drafts, 30-day TTL. Never published, synced with public profile or exposed to other users. Cleanup of expired rows must be scheduled before production rollout.';
+  'Private unsent technician registration drafts. Owner-only RLS; recover only unexpired rows. Expired records cannot be updated, may be deleted by owner, and require scheduled physical cleanup before production rollout.';
 
 COMMIT;
