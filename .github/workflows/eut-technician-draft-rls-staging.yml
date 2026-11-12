@@ -10,6 +10,9 @@ on:
       - '.github/workflows/eut-technician-draft-rls-staging.yml'
       - 'src/lib/staged-technician-durable-draft.ts'
       - 'src/lib/staged-technician-durable-draft.test.ts'
+      - 'src/lib/technician-draft-recovery-decision.ts'
+      - 'src/lib/technician-draft-recovery-decision.test.ts'
+      - '.github/workflows/eut-draft-maintenance-manual.yml'
 
 permissions:
   contents: read
@@ -67,8 +70,13 @@ jobs:
       - name: Locked dependencies
         run: bun install --frozen-lockfile
       - name: Check staged PostgREST adapter with synthetic clients
-        run: bunx vitest run src/lib/staged-technician-durable-draft.test.ts
+        run: bunx vitest run src/lib/staged-technician-durable-draft.test.ts src/lib/technician-draft-recovery-decision.test.ts
       - name: Build TanStack and generate route types
         run: bun run build
       - name: TypeScript check
         run: bunx tsc --noEmit --pretty false
+      - name: Verify maintenance workflow is manual only and not installed in production
+        run: |
+          test -f .github/workflows/eut-draft-maintenance-manual.yml
+          ! grep -Eq '^  schedule:|^  push:|^  pull_request:' .github/workflows/eut-draft-maintenance-manual.yml
+          ! grep -Eq 'service_role|SUPABASE_SERVICE_ROLE_KEY' .github/workflows/eut-draft-maintenance-manual.yml
