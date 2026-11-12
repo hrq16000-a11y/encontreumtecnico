@@ -21,16 +21,18 @@ import { TechnicianPrivateContact } from "@/components/technician-private-contac
 import { PioneerPhoneVerification } from "@/components/pioneer-phone-verification";
 import { TechnicianDirectRequests } from "@/components/technician-direct-requests";
 import { CustomerLocationButton } from "@/components/customer-location-button";
+import { TechnicianCepSuggestion } from "@/components/technician-cep-suggestion";
 import { suggestTechnicianArea } from "@/lib/customer-location";
 import { placeKey, safeNeighborhood, sameMunicipalityAsNeighborhood } from "@/lib/location-labels";
 import { neighborhoodCatalogFor, neighborhoodOptions } from "@/lib/neighborhood-sources";
-import { changeTechnicianPlace, needsLocationDraftConfirmation } from "@/lib/technician-place-change";
+import { changeTechnicianPlace, needsLocationDraftConfirmation, previewTechnicianAreaSuggestion } from "@/lib/technician-place-change";
 import { clearProtectedDraft, readProtectedDraft, saveProtectedDraft } from "@/lib/protected-session-draft";
 import { saveTechnicianDraftImmediately } from "@/lib/technician-live-draft";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
 import { registrationStepError, type RegistrationStep } from "@/lib/technician-registration-wizard";
 import { publicTextProblem } from "@/lib/public-profile-text";
+import { technicianPublishErrorMessage } from "@/lib/technician-publish-error";
 import { TechnicianPanelNavigation } from "@/components/technician-panel-navigation";
 import { technicianTabFromHash, technicianTabHref, type TechnicianPanelTab } from "@/lib/technician-panel-navigation";
 import { ArrowRight, ShieldCheck, MapPin, UserRound, Inbox, Camera } from "lucide-react";
@@ -313,6 +315,7 @@ export function TechnicianAreaPage() {
     if (servicesLoading || servicesError) return setMsg("O catálogo de serviços não está disponível. Tente novamente.");
     if (form.service_slugs.length === 0) return setMsg("Escolha pelo menos um serviço específico que você executa.");
     if (form.service_slugs.some((slug) => !services.some((service) => service.slug === slug && form.specialties.includes(service.category_slug)))) return setMsg("Os serviços precisam pertencer às categorias selecionadas e estar ativos.");
+    writeDraft(form, 3); // Secure recovery point before publication request.
     setSaving(true);
     setMsg(null);
     try {
@@ -329,7 +332,7 @@ export function TechnicianAreaPage() {
       });
       if (currentUserRef.current !== savingOwner) return;
       if (error) {
-        setMsg("Não foi possível publicar. Confira cidade, categorias e serviços e tente novamente.");
+        setMsg(technicianPublishErrorMessage(error));
       } else if (data?.state === "bloqueado_por_seguranca") {
         setMsg("Seu perfil tem uma restrição de segurança e não pode ser reativado automaticamente. Entre em contato.");
       } else if (data?.state === "publicado") {
@@ -520,11 +523,23 @@ export function TechnicianAreaPage() {
                 purpose="technician"
                 autoIfGranted={!profileId && !form.state_uf && !form.city.trim() && !form.neighborhood.trim()}
                 onLocated={(area, source) => {
-                  // Use the current rendered form, not a stale pre-location state.
+                  // Device location is a hint, not an official IBGE selection.
+                  // Never keep a previous municipality ID when the city/UF changes.
                   const current = form;
-                  updateRegistration(suggestTechnicianArea(current, area, source));
+                  const { next, requiresConfirmation } = previewTechnicianAreaSuggestion(current, area, source);
+                  if (next === current) return;
+                  if (requiresConfirmation &&
+                      !window.confirm("A localização sugerida é diferente da informada. Trocar município ou UF limpará o bairro e as regiões anteriores. Deseja continuar?")) return;
+                  updateRegistration(next);
                 }}
               />
+              <TechnicianCepSuggestion onChoose={(city, bairro) => {
+                const next = { state_uf: city.uf, city: city.name, base_city_ibge_id: city.id };
+                if (needsLocationDraftConfirmation(form, next) &&
+                    !window.confirm("Usar a localidade do CEP substituirá os bairros e áreas anteriores. Deseja continuar?")) return;
+                const changed = changeTechnicianPlace(form, next);
+                updateRegistration({ ...changed, neighborhood: safeNeighborhood(bairro, city.name) || changed.neighborhood });
+              }} />
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="text-sm font-medium text-foreground">Estado (UF)
                   <select required className={input} value={form.state_uf} onChange={(e) => selectBaseMunicipality({ state_uf: e.target.value, city: "", base_city_ibge_id: null })}>

@@ -79,6 +79,22 @@ const CLIMATE: VisualConfig[] = [
   { label: "Atendimento qualificado", subtitle: "O orçamento deve esclarecer diagnóstico e escopo", color: "from-indigo-950 via-blue-800 to-cyan-700", Icon: Wrench, symbols: [ClipboardCheck, Wrench, CheckCircle2], stages: ["Solicitar", "Avaliar", "Combinar"] },
 ];
 
+const AUTOMATION: VisualConfig[] = [
+  { label: "Ambientes e objetivos", subtitle: "Defina funções por ambiente antes de escolher produtos", color: "from-indigo-950 via-blue-800 to-teal-700", Icon: Settings, symbols: [ClipboardCheck, Monitor, CheckCircle2], stages: ["Ambiente", "Função", "Prioridade"] },
+  { label: "Compatibilidade", subtitle: "Confirme dependências de rede, protocolos e nuvem", color: "from-slate-950 via-indigo-800 to-sky-700", Icon: Network, symbols: [Wifi, Network, Settings], stages: ["Modelo", "Integração", "Teste"] },
+  { label: "Acesso protegido", subtitle: "Contas individuais e revogação reduzem exposição", color: "from-indigo-950 via-violet-800 to-cyan-700", Icon: LockKeyhole, symbols: [LockKeyhole, ShieldCheck, ClipboardCheck], stages: ["Permissão", "Configuração", "Revisão"] },
+  { label: "Instalação segura", subtitle: "Não improvise instalações elétricas ou proteções", color: "from-slate-950 via-blue-800 to-teal-700", Icon: ShieldAlert, symbols: [ClipboardCheck, ShieldAlert, Wrench], stages: ["Vistoria", "Segurança", "Entrega"] },
+  { label: "Escopo e suporte", subtitle: "Planeje manutenção, testes e documentação", color: "from-blue-950 via-sky-800 to-cyan-700", Icon: FileCheck, symbols: [ClipboardCheck, CheckCircle2, Wrench], stages: ["Proposta", "Teste", "Suporte"] },
+];
+
+const TELEPHONY: VisualConfig[] = [
+  { label: "Fluxo de chamadas", subtitle: "Os destinos e permissões variam conforme o imóvel", color: "from-slate-950 via-indigo-800 to-sky-700", Icon: Smartphone, symbols: [Smartphone, Network, Monitor], stages: ["Origem", "Ramal", "Destino"] },
+  { label: "Infraestrutura", subtitle: "Conexão e alimentação adequadas exigem vistoria", color: "from-blue-950 via-cyan-800 to-indigo-700", Icon: Cable, symbols: [Cable, Router, CheckCircle2], stages: ["Pontos", "Rede", "Teste"] },
+  { label: "Disponibilidade", subtitle: "Entenda dependências da operadora e internet", color: "from-indigo-950 via-blue-800 to-teal-700", Icon: Wifi, symbols: [Wifi, Signal, ShieldCheck], stages: ["Serviço", "Falha", "Contingência"] },
+  { label: "Contas e dados", subtitle: "Restrinja acesso a sistemas e gravações", color: "from-slate-950 via-indigo-900 to-cyan-700", Icon: LockKeyhole, symbols: [LockKeyhole, FileCheck, ShieldCheck], stages: ["Usuários", "Gravação", "Controle"] },
+  { label: "Pedido e orçamento", subtitle: "Especifique quantidade de ramais e necessidade", color: "from-blue-950 via-sky-800 to-teal-700", Icon: ClipboardCheck, symbols: [ClipboardCheck, Wrench, CheckCircle2], stages: ["Relato", "Escopo", "Entrega"] },
+];
+
 const SECTION_VISUALS: Record<string, VisualConfig[]> = {
   computadores: COMPUTER,
   cftv: CCTV,
@@ -86,6 +102,8 @@ const SECTION_VISUALS: Record<string, VisualConfig[]> = {
   impressoras: PRINTERS,
   software: BACKUP,
   climatizacao: CLIMATE,
+  automacao: AUTOMATION,
+  comunicacoes: TELEPHONY,
 };
 
 export function GuideSectionVisual({ categorySlug, index }: { categorySlug: string; index: number }) {

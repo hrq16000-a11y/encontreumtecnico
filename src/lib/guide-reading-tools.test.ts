@@ -8,7 +8,7 @@ const read = (path: string) => readFileSync(path, "utf8");
 describe("Guias — navegação, FAQ e desempenho mobile", () => {
   it("mantém quatro perguntas originais por guia, sem conteúdo inventado", () => {
     expect(GUIDES).toHaveLength(6);
-    expect(Object.keys(GUIDE_FAQS).sort()).toEqual(GUIDES.map(g => g.slug).sort());
+    expect(Object.keys(GUIDE_FAQS).sort()).toEqual([...GUIDES.map(g => g.slug), "automacao-residencial-comercial-planejamento", "interfonia-telefonia-ip-comunicacoes-planejamento"].sort());
     const questions = new Set<string>();
     for (const guide of GUIDES) {
       const faqs = getGuideFaqs(guide.slug);

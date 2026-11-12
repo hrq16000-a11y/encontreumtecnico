@@ -1,4 +1,5 @@
 import { placeKey } from "./location-labels";
+import { suggestTechnicianArea, type CustomerArea } from "./customer-location";
 
 /**
  * A city/UF change invalidates dependent neighborhood and extra coverage.
@@ -42,5 +43,25 @@ export function changeTechnicianPlace<T extends TechnicianPlace>(
     base_city_ibge_id: next.base_city_ibge_id,
     neighborhood: locationChanged ? "" : current.neighborhood,
     region: locationChanged ? "" : current.region,
+  };
+}
+
+/** Preview the device suggestion without mutating a draft or trusting GPS as IBGE.
+ * Caller must obtain confirmation before applying any changed dependent fields.
+ */
+export function previewTechnicianAreaSuggestion<T extends TechnicianPlace>(
+  current: T, area: CustomerArea, source: "manual" | "automatic",
+): { next: T; requiresConfirmation: boolean } {
+  const suggested = suggestTechnicianArea(current, area, source);
+  if (suggested === current) return { next: current, requiresConfirmation: false };
+  const changed = isDifferentDeclaredMunicipality(current, suggested);
+  const next = changeTechnicianPlace(current, {
+    state_uf: suggested.state_uf,
+    city: suggested.city,
+    base_city_ibge_id: changed ? null : current.base_city_ibge_id,
+  });
+  return {
+    next: { ...next, neighborhood: changed ? "" : suggested.neighborhood },
+    requiresConfirmation: needsLocationDraftConfirmation(current, suggested),
   };
 }

@@ -1,11 +1,47 @@
 /**
- * Perguntas originais associadas aos seis guias publicados.
+ * Perguntas originais dos conteúdos integrados às especialidades do catálogo.
  * Renderizadas como conteúdo HTML nativo, sem prometer rich result FAQPage,
  * certificação de profissional ou diagnóstico à distância.
  */
 export type GuideFaq = { question: string; answer: string };
 
 export const GUIDE_FAQS: Readonly<Record<string, readonly GuideFaq[]>> = {
+  "automacao-residencial-comercial-planejamento": [
+    {
+      question: "Automação residencial funciona quando a internet cai?",
+      answer: "Depende dos equipamentos e de como foram configurados. Algumas funções podem operar pela rede local, enquanto outras exigem acesso a serviços externos. Peça ao profissional para demonstrar o comportamento do sistema sem internet antes de concluir a instalação.",
+    },
+    {
+      question: "Posso misturar sensores, interruptores e controles de marcas diferentes?",
+      answer: "A compatibilidade não deve ser presumida. Verifique modelos, versões, controladoras e protocolos antes de comprar. O orçamento deve esclarecer quais integrações serão testadas, quais têm restrições e quem manterá o sistema.",
+    },
+    {
+      question: "Preciso entregar minhas senhas pessoais ao instalador de automação?",
+      answer: "Não compartilhe senhas pessoais nem códigos de autenticação. Combine o uso de contas individuais ou acesso temporário quando possível e confirme como remover permissões administrativas depois da entrega do serviço.",
+    },
+    {
+      question: "O que devo informar ao pedir um orçamento de automação?",
+      answer: "Descreva a cidade, o tipo de imóvel, os ambientes, as funções desejadas, os dispositivos existentes e possíveis restrições de instalação. O preço e o prazo dependem da vistoria e da compatibilidade real, não apenas da quantidade de sensores.",
+    },
+  ],
+  "interfonia-telefonia-ip-comunicacoes-planejamento": [
+    {
+      question: "Um sistema de telefonia IP funciona sem acesso à internet?",
+      answer: "Algumas chamadas internas podem funcionar por rede local, mas funções externas podem depender da internet, da operadora e de configurações específicas. Confirme o cenário com o prestador antes de contratar.",
+    },
+    {
+      question: "Interfone antigo pode ser integrado a novos ramais?",
+      answer: "Isso depende da tecnologia e dos modelos existentes. Um sistema antigo pode exigir adaptadores ou substituição de partes. Solicite avaliação da central, dos pontos e do cabeamento antes de prometer integração.",
+    },
+    {
+      question: "Por que a chamada pode ficar com ruídos ou interrupções?",
+      answer: "A causa pode estar em alimentação, cabos, rede, configuração ou serviço da operadora. Anote quando o problema acontece, os pontos afetados e as mensagens do equipamento; não altere instalações elétricas ou configurações críticas sem orientação.",
+    },
+    {
+      question: "Que cuidados são necessários com gravações e senhas de telefonia?",
+      answer: "Restrinja acesso a contas e gravações a pessoas autorizadas, defina retenção conforme o contexto e evite compartilhar credenciais no pedido de atendimento. Solicite orientações para remover permissões temporárias após a manutenção.",
+    },
+  ],
   "backup-arquivos-antes-manutencao-computador": [
     {
       question: "Sincronizar uma pasta na nuvem já garante um backup?",

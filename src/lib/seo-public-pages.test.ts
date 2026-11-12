@@ -269,7 +269,7 @@ describe("SEO global do Encontre um Técnico", () => {
     expect(cta).toContain('software: "Sistemas e software"');
     expect(cta).toContain('climatizacao: "Climatização"');
     expect(cta).toContain("openFreeHelp");
-    expect(article).toContain("getRelatedGuides(guide.slug)");
+    expect(article).toContain("getRelatedServiceCategories(category.slug)");
     expect(article).toContain('to="/servicos/$categoria"');
     expect(visual).toContain("software: BACKUP");
     expect(visual).toContain("climatizacao: CLIMATE");
@@ -300,7 +300,12 @@ describe("SEO global do Encontre um Técnico", () => {
     expect(style).toContain(".eut-guide-stable-type h1,");
     expect(style).not.toContain("body { font-family: system-ui");
     expect(cta).toContain('climatizacao: "Climatização"');
-    expect(funnel).toContain('"Sistemas e software", "Climatização", "Outro serviço"');
+    const services = funnel.match(/const services = \[([^\]]+)\];/)?.[1];
+    expect(services?.match(/"[^"]+"/g)).toEqual(expect.arrayContaining([
+      '"Sistemas e software"',
+      '"Climatização"',
+      '"Outro serviço"',
+    ]));
     expect(funnel).toContain("if (requestError) throw requestError;");
     expect(funnel.indexOf("setSavedWhatsAppLead(lead);")).toBeGreaterThan(funnel.indexOf("if (requestError) throw requestError;"));
     expect(funnel).not.toContain("verifyMetaWebhookSignature");
