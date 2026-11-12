@@ -28,7 +28,7 @@ function fakeClient(response: { data: unknown; error: { code: string } | null } 
       return query;
     };
   }
-  query.maybeSingle = () => Promise.resolve(result);
+  query["maybeSingle"] = () => Promise.resolve(result);
   const from = vi.fn((_table: string) => query);
   return {
     client: { from } as unknown as SupabaseClient,
@@ -53,11 +53,11 @@ describe("Adapter staged durable draft: never active before backend QA", () => {
     expect(fake.from).toHaveBeenCalledWith("eut_technician_drafts");
     const insert = fake.calls.find(x => x.method === "insert");
     const body = insert?.args[0] as Record<string, unknown>;
-    expect(body.owner_id).toBe(OWNER);
-    expect(body.step).toBe(2);
-    expect((body.draft as TechnicianDraftFields).neighborhood).toBe("Jardim Itália");
-    expect((body.draft as TechnicianDraftFields).base_city_ibge_id).toBe(4125506);
-    expect(Object.keys(body.draft as object).sort()).toEqual(Object.keys(form).sort());
+    expect(body["owner_id"]).toBe(OWNER);
+    expect(body["step"]).toBe(2);
+    expect((body["draft"] as TechnicianDraftFields).neighborhood).toBe("Jardim Itália");
+    expect((body["draft"] as TechnicianDraftFields).base_city_ibge_id).toBe(4125506);
+    expect(Object.keys(body["draft"] as object).sort()).toEqual(Object.keys(form).sort());
     expect(Object.keys(body)).not.toContain("allow_paid_contact");
   });
   it("accepts a read only when owner matches and TTL is not expired", async () => {
