@@ -17,19 +17,18 @@ BEGIN
   IF _batch_size IS NULL OR _batch_size < 1 OR _batch_size > 1000 THEN
     RAISE EXCEPTION 'Invalid cleanup batch size' USING ERRCODE='22023';
   END IF;
-  -- SKIP LOCKED avoids blocking a concurrent edit and keeps each run bounded.
-  -- Expired rows cannot be renewed by the draft UPDATE trigger.
-  WITH doomed AS (
-    SELECT d.owner_id
-    FROM public.eut_technician_drafts d
-    WHERE d.expires_at <= clock_timestamp()
-    ORDER BY d.expires_at, d.owner_id
-    LIMIT _batch_size
-    FOR UPDATE SKIP LOCKED
-  )
+  -- DELETE obtains the row locks; no UPDATE privileges are granted to
+  -- maintenance. Recheck expiry on the target row to prevent stale selection.
+  -- At most one bounded batch is processed per invocation.
   DELETE FROM public.eut_technician_drafts d
-  USING doomed
-  WHERE d.owner_id = doomed.owner_id;
+  WHERE d.expires_at <= clock_timestamp()
+    AND d.owner_id IN (
+      SELECT q.owner_id
+      FROM public.eut_technician_drafts q
+      WHERE q.expires_at <= clock_timestamp()
+      ORDER BY q.expires_at, q.owner_id
+      LIMIT _batch_size
+    );
 
   GET DIAGNOSTICS v_deleted = ROW_COUNT;
   RETURN v_deleted;
