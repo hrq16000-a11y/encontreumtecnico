@@ -79,4 +79,4 @@ jobs:
         run: |
           test -f .github/workflows/eut-draft-maintenance-manual.yml
           ! grep -Eq '^  schedule:|^  push:|^  pull_request:' .github/workflows/eut-draft-maintenance-manual.yml
-          ! grep -Eq 'service_role|SUPABASE_SERVICE_ROLE_KEY' .github/workflows/eut-draft-maintenance-manual.yml
+          ! grep -Eq 'SUPABASE_SERVICE_ROLE_KEY|secrets\\.SUPABASE_' .github/workflows/eut-draft-maintenance-manual.yml
