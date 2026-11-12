@@ -117,7 +117,10 @@ jobs:
           console.log('Auth settings reachable; signups and Google provider enabled');
           for (const host of [
             'https://encontreumtecnico.vercel.app',
-            'https://www.encontreumtecnico.com'
+            'https://www.encontreumtecnico.com',
+            'https://encontreumtecnico.com',
+            'https://www.encontreumtecnico.com.br',
+            'https://encontreumtecnico.com.br'
           ]) {
             const url=base+'/auth/v1/authorize?provider=google&redirect_to='+encodeURIComponent(host+'/entrar');
             const r=await fetch(url,{
