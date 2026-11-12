@@ -336,8 +336,8 @@ Para cada contrato foi consultado o **histórico do caminho no GitHub** e a asso
 |---|---|---:|
 | **G** | Arquivo com versão exata sob `supabase/migrations/` preservado em **PR histórica**, mas ausente da main | **4** |
 | **C** | Contrato ou referência SQL em arquivo Git (main ou PR), com correlação documental/nominal à versão; conteúdo aplicado **não comparado** | **16** |
-| **D** | Documento/relato histórico associado à versão, **sem recuperar o corpo SQL original** | **2** |
-| **N** | Nenhuma fonte específica de SQL ou documento de procedência encontrada nas referências examinadas, **além do nome/versão aplicado** | **38** |
+| **D** | Documento/relato histórico associado à versão, **sem recuperar o corpo SQL original** | **17** |
+| **N** | Nenhuma fonte específica de SQL ou documento de procedência encontrada nas referências examinadas, **além do nome/versão aplicado** | **23** |
 | **Total** | Classificação documental (não prova de equivalência de esquema) | **60** |
 
 **Fonte primária histórica recuperada (G):** a [PR #122](https://github.com/hrq16000-a11y/encontreumtecnico/pull/122) está fechada **sem merge** e preserva quatro arquivos `.sql` sob `supabase/migrations/`, com prefixos coincidentes às quatro versões registradas. Hashes Git Blob SHA-1 conferidos diretamente no HEAD histórico `5870562566b2c85324d24ba2684b3e97aad3c0a6`:
@@ -379,26 +379,26 @@ Todas as linhas têm a mesma condição técnica: **corpo executado no Supabase 
 | `20261109174141` | `eut_claim_uses_confirmed_services_and_location_only_20261109` | N | — | nenhum arquivo original ou contrato específico localizado nas fontes consultadas |
 | `20261109175135` | `eut_dynamic_filters_and_multiple_coverage_20261109` | N | — | nenhum arquivo original ou contrato específico localizado nas fontes consultadas |
 | `20261109175657` | `eut_claim_copies_confirmed_uf_and_neighborhood_20261109` | N | — | nenhum arquivo original ou contrato específico localizado nas fontes consultadas |
-| `20261109192140` | `eut_verified_email_password_role_choice_20261109` | N | — | nenhum arquivo original ou contrato específico localizado nas fontes consultadas |
-| `20261109192241` | `eut_pending_claim_verified_password_tech_20261109` | N | — | nenhum arquivo original ou contrato específico localizado nas fontes consultadas |
-| `20261109193711` | `eut_verified_email_private_legacy_lookup_20261109` | N | — | nenhum arquivo original ou contrato específico localizado nas fontes consultadas |
+| `20261109192140` | `eut_verified_email_password_role_choice_20261109` | D | [PR #29](https://github.com/hrq16000-a11y/encontreumtecnico/pull/29) | PR descreve mudança de escolha de papel por e-mail confirmado; nenhum SQL no diff; não há verificação do corpo aplicado |
+| `20261109192241` | `eut_pending_claim_verified_password_tech_20261109` | D | [PR #29](https://github.com/hrq16000-a11y/encontreumtecnico/pull/29) | PR descreve regra de reivindicação técnica por senha verificada; nenhum SQL no diff; não há verificação do corpo aplicado |
+| `20261109193711` | `eut_verified_email_private_legacy_lookup_20261109` | D | [PR #30](https://github.com/hrq16000-a11y/encontreumtecnico/pull/30) | PR declara RPC de consulta privada a cadastro legado; nenhum SQL no diff; não há verificação do corpo aplicado |
 | `20261109200126` | `eut_stage_912_accounts_by_role_for_owner_activation_20261109` | N | — | nenhum arquivo original ou contrato específico localizado nas fontes consultadas |
 | `20261109200317` | `eut_verified_legacy_account_activation_rpc_20261109` | N | — | nenhum arquivo original ou contrato específico localizado nas fontes consultadas |
 | `20261109200358` | `eut_complete_legacy_claim_with_verified_password_identity_20261109` | N | — | nenhum arquivo original ou contrato específico localizado nas fontes consultadas |
-| `20261109201057` | `eut_one_time_verified_wordpress_admin_bootstrap_20261109` | N | — | nenhum arquivo original ou contrato específico localizado nas fontes consultadas |
-| `20261109201452` | `eut_safe_public_historical_wordpress_paths_v2_20261109` | N | — | nenhum arquivo original ou contrato específico localizado nas fontes consultadas |
+| `20261109201057` | `eut_one_time_verified_wordpress_admin_bootstrap_20261109` | D | [PR #33](https://github.com/hrq16000-a11y/encontreumtecnico/pull/33) | PR descreve bootstrap único de admin legado verificado; nenhum SQL no diff; não há verificação do corpo aplicado |
+| `20261109201452` | `eut_safe_public_historical_wordpress_paths_v2_20261109` | D | [PR #34](https://github.com/hrq16000-a11y/encontreumtecnico/pull/34) | PR relata migração das rotas históricas WordPress; nenhum SQL no diff; não há verificação do corpo aplicado |
 | `20261109203155` | `eut_wordpress_specific_sector_evidence_review_only_20261109` | N | — | nenhum arquivo original ou contrato específico localizado nas fontes consultadas |
 | `20261109203954` | `eut_private_media_bucket_and_transfer_queue_20261109` | N | — | nenhum arquivo original ou contrato específico localizado nas fontes consultadas |
-| `20261109221030` | `eut_technician_specific_service_slugs_with_catalog_validation_20261109` | N | — | nenhum arquivo original ou contrato específico localizado nas fontes consultadas |
-| `20261109222732` | `eut_block_legacy_account_role_mismatch_20261109` | N | — | nenhum arquivo original ou contrato específico localizado nas fontes consultadas |
+| `20261109221030` | `eut_technician_specific_service_slugs_with_catalog_validation_20261109` | D | [PR #38](https://github.com/hrq16000-a11y/encontreumtecnico/pull/38) | PR declara migração de serviços específicos e validação de catálogo; nenhum SQL no diff; não há verificação do corpo aplicado |
+| `20261109222732` | `eut_block_legacy_account_role_mismatch_20261109` | D | [PR #39](https://github.com/hrq16000-a11y/encontreumtecnico/pull/39) | PR relata função de proteção do papel de contas legadas; nenhum SQL no diff; não há verificação do corpo aplicado |
 | `20261110000735` | `eut_real_candidate_avatar_evidence_from_nov09_xml_zip` | N | — | nenhum arquivo original ou contrato específico localizado nas fontes consultadas |
-| `20261110002510` | `eut_atomic_self_service_legacy_role_account_and_professional_claim_20261109` | N | — | nenhum arquivo original ou contrato específico localizado nas fontes consultadas |
-| `20261110003405` | `eut_self_published_complete_technician_profile_without_admin_review_20261109` | N | — | nenhum arquivo original ou contrato específico localizado nas fontes consultadas |
-| `20261110010242` | `eut_optional_technician_presence_heartbeat_private_20261110` | N | — | nenhum arquivo original ou contrato específico localizado nas fontes consultadas |
-| `20261110010442` | `eut_presence_batched_public_lookup_no_enumeration_20261110` | N | — | nenhum arquivo original ou contrato específico localizado nas fontes consultadas |
-| `20261110011433` | `eut_opt_in_technician_referral_missions_no_fabricated_reward_20261109` | N | — | nenhum arquivo original ou contrato específico localizado nas fontes consultadas |
+| `20261110002510` | `eut_atomic_self_service_legacy_role_account_and_professional_claim_20261109` | D | [PR #42](https://github.com/hrq16000-a11y/encontreumtecnico/pull/42) | PR relata vínculo atômico de conta WordPress com identidade confirmada; nenhum SQL no diff; não há verificação do corpo aplicado |
+| `20261110003405` | `eut_self_published_complete_technician_profile_without_admin_review_20261109` | D | [PR #44](https://github.com/hrq16000-a11y/encontreumtecnico/pull/44) | PR descreve RPC de publicação autônoma de técnico; nenhum SQL no diff; não há verificação do corpo aplicado |
+| `20261110010242` | `eut_optional_technician_presence_heartbeat_private_20261110` | D | [PR #48](https://github.com/hrq16000-a11y/encontreumtecnico/pull/48) | PR relata heartbeat privado de presença; nenhum SQL no diff; não há verificação do corpo aplicado |
+| `20261110010442` | `eut_presence_batched_public_lookup_no_enumeration_20261110` | D | [PR #48](https://github.com/hrq16000-a11y/encontreumtecnico/pull/48) | PR relata consulta em lote de presença pública; nenhum SQL no diff; não há verificação do corpo aplicado |
+| `20261110011433` | `eut_opt_in_technician_referral_missions_no_fabricated_reward_20261109` | D | [PR #49](https://github.com/hrq16000-a11y/encontreumtecnico/pull/49) | PR relata referências e missões por indicação opt-in; nenhum SQL no diff; não há verificação do corpo aplicado |
 | `20261110013046` | `eut_secure_unpaid_requests_and_contact_quote_20261109` | N | — | nenhum arquivo original ou contrato específico localizado nas fontes consultadas |
-| `20261110014712` | `eut_private_technician_whatsapp_and_paid_entitlement_read_20261109` | N | — | nenhum arquivo original ou contrato específico localizado nas fontes consultadas |
+| `20261110014712` | `eut_private_technician_whatsapp_and_paid_entitlement_read_20261109` | D | [PR #55](https://github.com/hrq16000-a11y/encontreumtecnico/pull/55) | PR descreve contato privado e direitos de acesso condicionado; nenhum SQL no diff; não há verificação do corpo aplicado |
 | `20261110023216` | `eut_opt_in_direct_technician_requests_20261109` | C | [PR #61](https://github.com/hrq16000-a11y/encontreumtecnico/pull/61) | SQL documental docs/EUT_PEDIDOS_DIRETOS_SQL_20261109.md (blob bb4cc0d2db6a) |
 | `20261110024447` | `eut_direct_request_private_replies_20261109` | C | [PR #65](https://github.com/hrq16000-a11y/encontreumtecnico/pull/65) | SQL documental docs/sql/eut-direct-request-replies-20261109.md (blob a6614c7a63fa) |
 | `20261110025905` | `eut_project_owner_bootstrap_20261109` | C | [PR #67](https://github.com/hrq16000-a11y/encontreumtecnico/pull/67) | contrato documental docs/sql/eut-project-owner-bootstrap.sql |
@@ -410,12 +410,12 @@ Todas as linhas têm a mesma condição técnica: **corpo executado no Supabase 
 | `20261110181617` | `eut_pioneers_native_pre_registration_20261110` | C | [PR #103](https://github.com/hrq16000-a11y/encontreumtecnico/pull/103) | contrato documental docs/sql/eut-pioneers-native-pre-registry.sql |
 | `20261110182437` | `eut_pioneers_secure_verified_claim_bronze_20261110` | C | [PR #103](https://github.com/hrq16000-a11y/encontreumtecnico/pull/103) | contrato documental docs/sql/eut-pioneer-verified-claim-and-bronze.sql |
 | `20261110184534` | `eut_native_role_choice_not_wp_historical_rule_20261110` | C | [PR #104](https://github.com/hrq16000-a11y/encontreumtecnico/pull/104) | contrato documental docs/sql/eut-choose-new-role-without-wp-rule.sql |
-| `20261110184929` | `eut_pioneer_role_not_legacy_requirement_20261110` | N | — | nenhum arquivo original ou contrato específico localizado nas fontes consultadas |
+| `20261110184929` | `eut_pioneer_role_not_legacy_requirement_20261110` | D | [Issue #54, comentário 6776258170](https://github.com/hrq16000-a11y/encontreumtecnico/issues/54#issuecomment-6776258170) | Comentário da Issue #54 relaciona papel pioneiro e migrations das PRs #103/#104; sem SQL original; não há verificação do corpo aplicado |
 | `20261110220247` | `eut_private_moderation_guards` | G | [PR #122](https://github.com/hrq16000-a11y/encontreumtecnico/pull/122) | arquivo SQL em supabase/migrations/ na branch histórica, Git blob 62515749cd80 |
 | `20261110221557` | `eut_admin_contacts_center_v1` | G | [PR #122](https://github.com/hrq16000-a11y/encontreumtecnico/pull/122) | arquivo SQL em supabase/migrations/ na branch histórica, Git blob 44cb8dc45d94 |
 | `20261110221912` | `eut_admin_contacts_audit_actor_v2` | G | [PR #122](https://github.com/hrq16000-a11y/encontreumtecnico/pull/122) | arquivo SQL em supabase/migrations/ na branch histórica, Git blob 16e42421cebd |
 | `20261110222144` | `eut_moderation_allow_private_contact_disable` | G | [PR #122](https://github.com/hrq16000-a11y/encontreumtecnico/pull/122) | arquivo SQL em supabase/migrations/ na branch histórica, Git blob 5998acfed2ea |
-| `20261111065634` | `eut_protect_public_bio_contact_quarantine_20261111` | N | — | nenhum arquivo original ou contrato específico localizado nas fontes consultadas |
+| `20261111065634` | `eut_protect_public_bio_contact_quarantine_20261111` | D | [PR #155](https://github.com/hrq16000-a11y/encontreumtecnico/pull/155) | PR relata quarentena privada de texto público com contato; nenhum SQL no diff; não há verificação do corpo aplicado |
 | `20261111075718` | `eut_admin_own_technician_role_20261111` | C | [PR #167](https://github.com/hrq16000-a11y/encontreumtecnico/pull/167) | contrato documental docs/sql/eut-admin-self-technician-role-20261111.sql |
 | `20261111081500` | `eut_admin_member_invitations_20261111` | C | [PR #173](https://github.com/hrq16000-a11y/encontreumtecnico/pull/173) | contrato documental docs/sql/eut-admin-member-invitations-20261111.sql |
 | `20261111154543` | `eut_member_invite_actor_lock_20261111` | C | [PR #178](https://github.com/hrq16000-a11y/encontreumtecnico/pull/178) | contrato documental docs/sql/eut-member-invite-actor-lock-20261111.sql |
@@ -458,4 +458,32 @@ Todas as linhas têm a mesma condição técnica: **corpo executado no Supabase 
 
 **Privacidade:** a revisão estática das 20 fontes (quatro arquivos históricos e 16 contratos candidatos) não encontrou padrões de e-mail pessoal, telefone brasileiro completo ou chave de serviço nas formas pesquisadas. Não é garantia de inexistência de todos os tipos de dados pessoais. O presente documento de inventário **não incorpora SQL, dump ou dados privados**: contém apenas metadados, caminhos, hashes e referências. Os dois documentos Markdown de origem contêm SQL, mas seu conteúdo não foi copiado para cá.
 
-**Gates do adendo:** a matriz anterior permanece com 60 versões únicas, distribuídas G=4, C=16, D=2, N=38. Há 16/16 contratos localizados e 4/4 hashes históricos confirmados. **0/60 corpos efetivamente executados autenticados por digest do Supabase.** Esta evidência não autoriza replay, aplicação de SQL, merge, deploy, exclusões, DNS, WordPress, Lovable ou alterações de produção.
+**Gates do adendo:** a matriz de 60 versões únicas foi atualizada com fontes documentais verificadas: G=4, C=16, D=17, N=23. Há 16/16 contratos localizados e 4/4 hashes históricos confirmados. **0/60 corpos efetivamente executados autenticados por digest do Supabase.** Esta evidência não autoriza replay, aplicação de SQL, merge, deploy, exclusões, DNS, WordPress, Lovable ou alterações de produção.
+
+### 4.5 Fontes novas para versões antes classificadas como N (12/11/2026)
+
+Esta micro-rodada **não releu SQL, não consultou o Supabase e não alterou o esquema ou dados**. Foi feita pesquisa literal dos nomes das **38 versões que estavam em N** em Issues e PRs históricas, com conferência do texto original. **15 versões ganharam referência documental específica**: 14 descritas nos corpos de PRs mescladas e 1 mencionada em um comentário na Issue #54. Os diffs das 12 PRs que originam essas 14 referências **não incluem arquivos SQL**. Isso justifica a classificação **D (relato sem corpo original)**, **não G nem C**.
+
+| Versão anteriormente sem referência | Fonte primária do relato | Informação documentada, não reexecutada |
+|---|---|---|
+| `20261109192140` | [PR #29](https://github.com/hrq16000-a11y/encontreumtecnico/pull/29) | PR descreve mudança de escolha de papel por e-mail confirmado |
+| `20261109192241` | [PR #29](https://github.com/hrq16000-a11y/encontreumtecnico/pull/29) | PR descreve regra de reivindicação técnica por senha verificada |
+| `20261109193711` | [PR #30](https://github.com/hrq16000-a11y/encontreumtecnico/pull/30) | PR declara RPC de consulta privada a cadastro legado |
+| `20261109201057` | [PR #33](https://github.com/hrq16000-a11y/encontreumtecnico/pull/33) | PR descreve bootstrap único de admin legado verificado |
+| `20261109201452` | [PR #34](https://github.com/hrq16000-a11y/encontreumtecnico/pull/34) | PR relata migração das rotas históricas WordPress |
+| `20261109221030` | [PR #38](https://github.com/hrq16000-a11y/encontreumtecnico/pull/38) | PR declara migração de serviços específicos e validação de catálogo |
+| `20261109222732` | [PR #39](https://github.com/hrq16000-a11y/encontreumtecnico/pull/39) | PR relata função de proteção do papel de contas legadas |
+| `20261110002510` | [PR #42](https://github.com/hrq16000-a11y/encontreumtecnico/pull/42) | PR relata vínculo atômico de conta WordPress com identidade confirmada |
+| `20261110003405` | [PR #44](https://github.com/hrq16000-a11y/encontreumtecnico/pull/44) | PR descreve RPC de publicação autônoma de técnico |
+| `20261110010242` | [PR #48](https://github.com/hrq16000-a11y/encontreumtecnico/pull/48) | PR relata heartbeat privado de presença |
+| `20261110010442` | [PR #48](https://github.com/hrq16000-a11y/encontreumtecnico/pull/48) | PR relata consulta em lote de presença pública |
+| `20261110011433` | [PR #49](https://github.com/hrq16000-a11y/encontreumtecnico/pull/49) | PR relata referências e missões por indicação opt-in |
+| `20261110014712` | [PR #55](https://github.com/hrq16000-a11y/encontreumtecnico/pull/55) | PR descreve contato privado e direitos de acesso condicionado |
+| `20261110184929` | [Issue #54, comentário](https://github.com/hrq16000-a11y/encontreumtecnico/issues/54#issuecomment-6776258170) | Comentário da Issue #54 relaciona papel pioneiro e migrations das PRs #103/#104; sem SQL original |
+| `20261111065634` | [PR #155](https://github.com/hrq16000-a11y/encontreumtecnico/pull/155) | PR relata quarentena privada de texto público com contato |
+
+**Distinção de evidências:** o corpo de cada PR relata uma mudança ou aplicação no Supabase, mas **não identifica os bytes do SQL efetivamente executado, não constitui registro de execução assinado e não prova equivalência de conteúdo**. A Issue #54 também é um relato histórico, não um arquivo original. Nenhuma versão teve seu SQL original recuperado nesta micro-rodada. O inventário passa de **G=4, C=16, D=2, N=38** para **G=4, C=16, D=17, N=23**; total 60 e **0/60 corpos SQL aplicados autenticados**.
+
+**Busca negativa delimitada:** os nomes exatos das 38 versões foram pesquisados nas Issues e PRs do repositório, e os documentos Markdown e scripts SQL presentes na main foram examinados sem encontrar outras referências exatas fora do inventário. Árvores de branches/backups históricas selecionadas também não revelaram arquivos adicionais de migrations executáveis. Isso **não demonstra inexistência** em backups privados, comentários não indexados, serviços externos ou SQL aplicado diretamente no Supabase.
+
+**Proteções:** nenhum SQL foi executado, importado, reconstruído ou copiado ao inventário. Nenhum dado pessoal ou segredo foi incluído. Os hashes de Git e a classificação histórica das quatro fontes G e dos 16 contratos C permanecem intactos. Esta documentação **não autoriza replay**, alteração de banco, merge, deploy, DNS, WordPress, Lovable, exclusões ou mudanças em produção.
