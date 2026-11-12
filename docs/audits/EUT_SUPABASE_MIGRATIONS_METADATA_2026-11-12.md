@@ -312,6 +312,8 @@ Para cada contrato foi consultado o **histórico do caminho no GitHub** e a asso
 - Próxima prova necessária: export autorizado de corpo/digest de versão da fonte privada original (quando disponível) com verificação de integridade, sem contato/dados/segredos e sem publicar dump; só após isso classificar **cópia idêntica**, **parcialmente correlata** ou **ausente**.
 - **PR #229 está mesclada** no commit `09b17fde85a59f4d4a02cec1f040736d8f3db9fd`. Este adendo da **PR #235** é apenas documentação; não executa SQL, não altera migrações, contas, contatos, backups, produção, DNS, Supabase, Lovable ou WordPress. O merge operacional separado da #234 ocorreu em fluxo paralelo e **não é consequência deste inventário**. Nenhum deploy deve ser disparado pelo merge documental.
 
+**Aviso de segurança da auditoria:** este inventário **não autoriza replay** de migrations, aplicação de SQL, restauração ou mudanças no esquema. Correspondência por nome, commit ou registro de versão não equivale à comprovação do conteúdo executado.
+
 **Correção de status histórica:** qualquer tabela anterior que liste #4 ou #5 como `open` é snapshot da consulta anterior; prevalece nesta rodada `closed/merged=false`, com fontes preservadas em #232.
 
 
