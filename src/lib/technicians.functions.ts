@@ -1,10 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
+import { setResponseHeader } from "@tanstack/react-start/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
 import { rankTechniciansByDeclaredArea } from "@/lib/technician-local-ranking";
 import { isValidTechnicianId, isValidTechnicianSlug } from "@/lib/technician-id";
 import { sanitizePublicTechnician } from "@/lib/public-profile-text";
+import { readPublicEligibleRows, type PublicEligibilityRpc } from "@/lib/public-eligibility";
 
 export type PublicTechnician = {
   id: string;
@@ -49,7 +51,7 @@ function publicClient() {
         const h = new Headers(init?.headers);
         if (key.startsWith("sb_") && h.get("Authorization") === `Bearer ${key}`) h.delete("Authorization");
         h.set("apikey", key);
-        return fetch(input, { ...init, headers: h });
+        return fetch(input, { ...init, headers: h, cache: "no-store" });
       },
     },
   });
@@ -143,6 +145,7 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
     z.object({ especialidade: z.string().max(80), cidade: z.string().max(80), regiao: z.string().max(80), servico: z.string().max(80).default(""), uf: z.string().max(2).default(""), bairro: z.string().max(80).default(""), prioridade: z.string().max(12).default("") }).parse(d),
   )
   .handler(async ({ data }): Promise<PublicTechnician[]> => {
+    setResponseHeader("Cache-Control", "no-store");
     // "Priorizar minha região" is not a strict geography filter. It ranks
     // among approved matching professionals so other regions remain options.
     const regionalPriority = data.prioridade === "regiao" && Boolean(data.uf || data.cidade.trim());
@@ -184,7 +187,8 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
       console.error("listApprovedTechnicians", error);
       throw new Error("Não foi possível carregar os técnicos.");
     }
-    const published = await withCoverageCities(await withReferralHighlights(await withPioneerBadges(await withOnlineStatus((rows ?? []).map(sanitizePublicTechnician)))));
+    const eligible = await readPublicEligibleRows(publicClient() as unknown as PublicEligibilityRpc, rows ?? []);
+    const published = await withCoverageCities(await withReferralHighlights(await withPioneerBadges(await withOnlineStatus(eligible.map(sanitizePublicTechnician)))));
     if (!regionalPriority) return published.sort((a,b) => Number(b.online_now)-Number(a.online_now) || Number(Boolean(b.referral_highlight))-Number(Boolean(a.referral_highlight)) || Number(Boolean(b.pioneer_bronze))-Number(Boolean(a.pioneer_bronze)));
     return rankTechniciansByDeclaredArea(published, {
       uf, cidade: data.cidade, bairro: data.bairro,
@@ -194,6 +198,7 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
 export const getApprovedTechnician = createServerFn({ method: "GET" })
   .inputValidator((d) => z.object({ id: z.string().min(1).max(96) }).parse(d))
   .handler(async ({ data }): Promise<PublicTechnician | null> => {
+    setResponseHeader("Cache-Control", "no-store");
     const isUuid = isValidTechnicianId(data.id);
     if (!isUuid && !isValidTechnicianSlug(data.id)) return null;
     const lookupColumn = isUuid ? "id" : "public_slug";
@@ -209,5 +214,8 @@ export const getApprovedTechnician = createServerFn({ method: "GET" })
       console.error("getApprovedTechnician lookup failed", error.code ?? "unknown");
       throw new Error("Não foi possível consultar o perfil do técnico.");
     }
-    return row ? (await withCoverageCities(await withReferralHighlights(await withPioneerBadges(await withOnlineStatus([sanitizePublicTechnician(row)])))))[0] ?? null : null;
+    if (!row) return null;
+    const eligible = await readPublicEligibleRows(publicClient() as unknown as PublicEligibilityRpc, [row]);
+    if (!eligible.length) return null; // Suspended/banned/not eligible => real 404 in route loader.
+    return (await withCoverageCities(await withReferralHighlights(await withPioneerBadges(await withOnlineStatus([sanitizePublicTechnician(eligible[0]!)])))))[0] ?? null;
   });

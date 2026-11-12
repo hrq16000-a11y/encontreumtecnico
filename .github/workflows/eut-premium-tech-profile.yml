@@ -5,6 +5,9 @@ on:
       - 'src/routes/tecnicos.$tecnicoId.tsx'
       - 'src/components/public-technician-profile.tsx'
       - 'src/components/public-technician-profile.test.tsx'
+      - 'src/lib/public-seo-graph.functions.ts'
+      - 'src/lib/public-sitemap-index.ts'
+      - 'src/lib/public-technician-ban-404.test.tsx'
       - 'src/lib/location-labels.ts'
       - 'src/lib/location-labels.test.ts'
       - 'src/components/back-to-top.tsx'
@@ -20,7 +23,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: UI behavior, factual badges, privacy
-        run: bunx vitest run src/components/public-technician-profile.test.tsx src/lib/location-labels.test.ts
+        run: bunx vitest run src/components/public-technician-profile.test.tsx src/lib/location-labels.test.ts src/lib/public-seo-graph.test.ts src/lib/public-sitemap.test.ts src/lib/seo-public-pages.test.ts src/lib/public-sitemap-index.test.ts src/lib/public-sitemap-http.test.ts src/components/public-seo-discovery.ssr.test.tsx src/routes/public-seo-routes.test.tsx src/lib/public-technician-ban-404.test.tsx
       - name: WordPress runtime independence
         run: node scripts/eut-wordpress-runtime-boundary.mjs
       - name: Generate TanStack routes and build

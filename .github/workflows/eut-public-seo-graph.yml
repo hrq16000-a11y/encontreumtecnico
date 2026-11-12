@@ -1,0 +1,36 @@
+name: EUT public SEO graph and sitemap
+on:
+  pull_request:
+    paths:
+      - 'src/lib/public-seo-graph.ts'
+      - 'src/lib/public-seo-graph.functions.ts'
+      - 'src/lib/public-seo-graph.test.ts'
+      - 'src/lib/public-sitemap.ts'
+      - 'src/lib/public-sitemap.test.ts'
+      - 'src/routes/sitemap[.]xml.ts'
+      - 'src/routes/cidades.$uf.$cidade.tsx'
+      - 'src/routes/categorias.$categoria.tsx'
+      - 'src/routes/tecnicos.$tecnicoId.tsx'
+      - 'src/components/public-seo-discovery.tsx'
+      - 'src/components/public-technician-profile.tsx'
+      - 'docs/seo/EUT_GRAFO_PUBLICO_2026-11-11.md'
+      - '.github/workflows/eut-public-seo-graph.yml'
+permissions:
+  contents: read
+concurrency:
+  group: eut-public-seo-graph-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  graph:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Validate real city/category associations, sitemap and public profile
+        run: bunx vitest run src/lib/public-seo-graph.test.ts src/lib/public-sitemap.test.ts src/lib/seo-public-pages.test.ts src/components/public-technician-profile.test.tsx
+      - name: TanStack Start build (no deployment)
+        run: bun run build
+      - name: TypeScript after route generation
+        run: bunx tsc --noEmit --pretty false
