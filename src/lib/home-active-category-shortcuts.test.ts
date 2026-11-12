@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
  */
 const home = readFileSync("src/routes/index.tsx", "utf8");
 const hook = readFileSync("src/hooks/use-active-categories.ts", "utf8");
+const grid = readFileSync("src/components/home-rich.tsx", "utf8");
 const directory = readFileSync("src/lib/technicians.functions.ts", "utf8");
 
 describe("Home1 active category shortcuts", () => {
@@ -20,6 +21,9 @@ describe("Home1 active category shortcuts", () => {
     expect(hook).toContain('.order("display_order")');
     expect(hook).toContain("setCategories(queryError ? [] : (data ?? []))");
     expect(home).toContain("{category.label}");
+    expect(home).toContain("<CategoryGrid categories={activeCategories} />");
+    expect(grid).toContain("CategoryGrid({ categories }");
+    expect(grid).not.toContain("useActiveCategories()");
   });
 
   it("links each real slug to public filtered search with the existing region", () => {
