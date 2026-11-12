@@ -28,3 +28,12 @@ Cinco gatilhos são a segunda barreira para alterações oriundas de RPCs privil
 **Limites importantes:** esta rodada não revoga refresh tokens do Auth, não faz logout Google, não altera `auth.sessions`, não desativa automaticamente todas as interfaces ou endpoints não mapeados e não identifica alguém com e-mail/telefone inteiramente diferentes. Para revogação integral e imediata, o backend precisará de rotina privilegiada, auditada, com API do provedor e validação de autorizações. Até lá o bloqueio é das operações explicitamente cobertas por estas políticas/triggers.
 
 Não usar segredos no navegador; sem alterações em `supabase/migrations/`, Lovable, WordPress, 20 demos, DNS ou Vercel.
+
+## Revisão do rascunho após reconciliação com a main (12/11/2026)
+
+- **Ainda não aplicado**: a consulta anterior confirmou que a função `eut_sensitive_session_active`, as cinco políticas `eut_session_%` e os cinco triggers `eut_active_session_%` não constavam do banco dedicado.
+- A função de elegibilidade de outra identidade agora exige a existência real do UUID em `auth.users`, correção identificada na PR #153. Não se basear apenas na ausência do UUID nas listas de banimentos.
+- O gatilho agora rejeita explicitamente `auth.uid() IS NULL`. Não usar `SECURITY DEFINER` para inferir que o chamador é serviço confiável. **Risco operacional**: rotinas agendadas/administrativas que escrevem sem JWT podem ser afetadas; mapear uma a uma em staging e criar mecanismo de manutenção explícito, autenticado, minimamente privilegiado e auditado antes de qualquer instalação.
+- A exceção para colocar o técnico offline exige `UPDATE` com `OLD.user_id = NEW.user_id = auth.uid()`. Nenhum outro perfil pode ser alterado pela exceção. Confirmar com RLS/RPC real; testes do contrato em código não comprovam segurança do banco.
+- Revisar titularidade e `search_path` de funções, acesso por `anon` e `authenticated`, cancelamento de sessão em `auth.sessions`, clientes OAuth móveis/desktop, permissões de Storage e operações de serviço.
+- **NÃO executar nem fazer merge/publicação** deste SQL sem plano de staging, transação ensaiada, testes com identidades sintéticas, validação de rotinas internas e autorização própria. O commit desta revisão muda somente arquivos desta branch Draft, sem tocar no Supabase ou em migrations de produção.
