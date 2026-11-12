@@ -8,6 +8,7 @@ CREATE OR REPLACE FUNCTION eut_moderation.subject_operational(_user_id uuid)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path='pg_catalog' AS $$
   SELECT _user_id IS NOT NULL
+    AND EXISTS (SELECT 1 FROM auth.users u WHERE u.id=_user_id)
     AND NOT EXISTS (
       SELECT 1 FROM eut_moderation.blocked_accounts b WHERE b.user_id=_user_id
     )
@@ -74,13 +75,24 @@ RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER
 SET search_path='pg_catalog' AS $$
 DECLARE v_user uuid := auth.uid(); v_subject uuid;
 BEGIN
-  -- Rotinas de manutenção internas sem JWT continuam disponíveis.
-  -- RPCs públicas afetadas já exigem auth.uid() válido antes do INSERT/UPDATE.
-  IF v_user IS NOT NULL AND NOT public.eut_sensitive_session_active() THEN
-    -- Permite DESLIGAR presença, sem permitir que conta restrita fique online.
-    IF TG_TABLE_NAME='eut_technician_presence'
-       AND NEW.available IS FALSE THEN
-      RETURN NEW;
+  -- Sem JWT autenticado: falhar fechado, inclusive em SECURITY DEFINER.
+  -- Operações internas sem contexto JWT devem ter caminho de manutenção
+  -- explicitamente autorizado e auditado, validado em staging ANTES do rollout.
+  IF v_user IS NULL THEN
+    RAISE EXCEPTION 'Sua conta não pode executar esta operação. Consulte o suporte.'
+      USING ERRCODE='42501';
+  END IF;
+
+  IF NOT public.eut_sensitive_session_active() THEN
+    -- Exceção de segurança: apenas o TITULAR da presença pode ficar offline,
+    -- sem mudar o proprietário da linha, mesmo com a sessão já revogada.
+    -- Nunca permitir que sessão ausente ou outro usuário use essa exceção.
+    IF TG_TABLE_NAME='eut_technician_presence' AND TG_OP='UPDATE' THEN
+      IF NEW.available IS FALSE
+         AND NEW.user_id=v_user
+         AND OLD.user_id=v_user THEN
+        RETURN NEW;
+      END IF;
     END IF;
     RAISE EXCEPTION 'Sua conta não pode executar esta operação. Consulte o suporte.'
       USING ERRCODE='42501';
