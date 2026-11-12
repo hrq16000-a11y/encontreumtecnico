@@ -27,7 +27,7 @@ on:
       - 'src/lib/seo-public-pages.test.ts'
       - 'src/lib/public-sitemap.ts'
       - 'src/lib/public-sitemap.test.ts'
-      - 'src/routes/sitemap[.]xml.ts'
+      - 'src/routes/sitemap*.xml.ts'
       - 'src/lib/social-preview.test.ts'
       - 'public/social-preview.jpg'
       - '.github/workflows/eut-standalone-onboarding.yml'
