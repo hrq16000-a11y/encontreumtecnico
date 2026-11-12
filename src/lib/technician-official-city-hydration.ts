@@ -22,7 +22,6 @@ export function hydrateTechnicianOfficialCity<T extends {
     Number.isInteger(city.id) && city.id >= 1000000 && city.id <= 9999999 &&
     city.uf === form.state_uf && placeKey(city.name) === name,
   );
-  return matches.length === 1
-    ? { ...form, base_city_ibge_id: matches[0].id }
-    : form;
+  const uniqueMatch = matches.length === 1 ? matches[0] : undefined;
+  return uniqueMatch ? { ...form, base_city_ibge_id: uniqueMatch.id } : form;
 }
