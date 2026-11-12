@@ -100,15 +100,6 @@ export function JoinNetworkSection() {
         Nossa meta é construir a maior rede nacional de técnicos parceiros, valorizando cada profissional.
         Nada de disputar o menor lance: valorizamos conhecimento, experiência e negociação direta.
       </p>
-      <div className="mt-5 max-w-3xl rounded-2xl border border-primary/25 bg-primary/5 p-5">
-        <p className="text-lg font-bold text-foreground">Na rede nacional de parceiros: referência sugerida a partir de R$ 150 por até 1 hora.</p>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          É uma orientação de valorização, não preço fixado pela plataforma.
-          Cada profissional combina diretamente seu orçamento com o cliente; deslocamento, urgência,
-          peças, complexidade e tempo adicional podem alterar o valor final.
-          O atendimento local do Preciso de um Técnico tem condições próprias, informadas no site correspondente.
-        </p>
-      </div>
       <div className="mt-5 flex flex-col gap-3 sm:flex-row">
         <Link to="/cadastro" className="inline-flex min-h-12 items-center justify-center rounded-xl bg-primary px-5 text-center text-sm font-bold text-primary-foreground hover:bg-primary/90">
           Sou técnico — quero me cadastrar gratuitamente
