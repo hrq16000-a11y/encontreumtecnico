@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { watchGooglePopupReturn } from "./google-popup-return";
 
 function popupMessage(origin: string, source: unknown, type: string) {
-  const event = new MessageEvent("message", { origin, data: { type, nonce: "qa-nonce" } });
+  const event = new MessageEvent("message", {
+    origin, data: { type, nonce: "qa-nonce", userId: "00000000-0000-4000-8000-000000000012" },
+  });
   Object.defineProperty(event, "source", { value: source });
   window.dispatchEvent(event);
 }
@@ -36,15 +38,16 @@ describe("Google popup return coordination", () => {
     const popup = { closed: false } as Window;
     const verify = vi.fn().mockResolvedValue(false);
     const onVerified = vi.fn(), onFailure = vi.fn();
-    watchGooglePopupReturn({
+    const stop = watchGooglePopupReturn({
       popup, origin: window.location.origin, nonce: "qa-nonce",
       verifySession: verify, onVerified, onFailure, onClosed: vi.fn(),
     });
     popupMessage(window.location.origin, popup, "eut:google-oauth-complete");
     await flush();
-    expect(verify).toHaveBeenCalledOnce();
+    expect(verify).toHaveBeenCalledWith("00000000-0000-4000-8000-000000000012");
     expect(onVerified).not.toHaveBeenCalled();
-    expect(onFailure).toHaveBeenCalledOnce();
+    expect(onFailure).not.toHaveBeenCalled(); // Wait for matching account, not A.
+    stop();
   });
 
   it("finishes when same-origin storage changes even if COOP breaks opener", async () => {
@@ -55,8 +58,8 @@ describe("Google popup return coordination", () => {
       popup, origin: window.location.origin, nonce: "qa-nonce",
       verifySession: verify, onVerified, onFailure, onClosed: vi.fn(),
     });
-    window.localStorage.setItem("eut-google-popup-result:qa-nonce", "complete");
-    window.dispatchEvent(new StorageEvent("storage", { key: "eut-google-popup-result:qa-nonce", newValue: "complete", storageArea: window.localStorage }));
+    window.localStorage.setItem("eut-google-popup-result:qa-nonce", "complete:00000000-0000-4000-8000-000000000012");
+    window.dispatchEvent(new StorageEvent("storage", { key: "eut-google-popup-result:qa-nonce", newValue: "complete:00000000-0000-4000-8000-000000000012", storageArea: window.localStorage }));
     await flush();
     expect(verify).toHaveBeenCalledOnce();
     expect(onVerified).toHaveBeenCalledOnce();
@@ -75,8 +78,8 @@ describe("Google popup return coordination", () => {
     await vi.advanceTimersByTimeAsync(650);
     expect(onClosed).toHaveBeenCalledOnce();
     expect(verify).not.toHaveBeenCalled(); // Closing the popup alone is not callback proof.
-    window.localStorage.setItem("eut-google-popup-result:qa-nonce", "complete");
-    window.dispatchEvent(new StorageEvent("storage", { key: "eut-google-popup-result:qa-nonce", newValue: "complete", storageArea: window.localStorage }));
+    window.localStorage.setItem("eut-google-popup-result:qa-nonce", "complete:00000000-0000-4000-8000-000000000012");
+    window.dispatchEvent(new StorageEvent("storage", { key: "eut-google-popup-result:qa-nonce", newValue: "complete:00000000-0000-4000-8000-000000000012", storageArea: window.localStorage }));
     await flush();
     expect(onVerified).toHaveBeenCalledOnce();
     expect(onFailure).not.toHaveBeenCalled();
@@ -108,6 +111,30 @@ describe("Google popup return coordination", () => {
     stop();
   });
 
+  it("waits for account B when account A is still active after a legitimate callback", async () => {
+    const popup = { closed: false } as Window;
+    let currentUserId = "00000000-0000-4000-8000-000000000011";
+    const verify = vi.fn().mockImplementation(async (callbackId: string) => currentUserId === callbackId);
+    const onVerified = vi.fn(), onFailure = vi.fn();
+    const stop = watchGooglePopupReturn({
+      popup, origin: window.location.origin, nonce: "qa-nonce",
+      verifySession: verify, onVerified, onFailure, onClosed: vi.fn(),
+    });
+    popupMessage(window.location.origin, popup, "eut:google-oauth-complete");
+    await flush();
+    expect(verify).toHaveBeenCalledWith("00000000-0000-4000-8000-000000000012");
+    expect(onVerified).not.toHaveBeenCalled(); // The previous user A is not B.
+    expect(onFailure).not.toHaveBeenCalled();
+    currentUserId = "00000000-0000-4000-8000-000000000012";
+    window.dispatchEvent(new StorageEvent("storage", {
+      key: "sb-synthetic-auth-token", storageArea: window.localStorage,
+    }));
+    await flush();
+    expect(onVerified).toHaveBeenCalledOnce();
+    expect(onFailure).not.toHaveBeenCalled();
+    stop();
+  });
+
   it("handles network verification failure without unhandled promises, and expires cleanly", async () => {
     vi.useFakeTimers();
     const popup = { closed: false } as Window;
@@ -119,7 +146,7 @@ describe("Google popup return coordination", () => {
     });
     popupMessage(window.location.origin, popup, "eut:google-oauth-complete");
     await flush();
-    expect(onFailure).toHaveBeenCalledOnce();
+    expect(onFailure).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(120_000);
     expect(onFailure).toHaveBeenCalledOnce();
   });

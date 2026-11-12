@@ -144,9 +144,9 @@ export function AuthDialogProvider({ children }: { children: ReactNode }) {
         popup,
         origin: window.location.origin,
         nonce: nonce!,
-        verifySession: async () => {
+        verifySession: async (callbackUserId) => {
           const { data: result, error: sessionError } = await supabase.auth.getUser();
-          return !sessionError && Boolean(result.user);
+          return !sessionError && result.user?.id === callbackUserId;
         },
         onVerified: () => {
           window.location.assign("/entrar"); // Existing role and WordPress reconciliation.

@@ -122,14 +122,18 @@ function googlePopupNonce(): string | null {
   } catch { return null; }
 }
 function isGooglePopup(): boolean { return Boolean(googlePopupNonce()); }
-function signalGooglePopupReturn(result: "complete" | "error") {
+function signalGooglePopupReturn(result: "complete" | "error", userId?: string) {
   const nonce = googlePopupNonce();
   if (!nonce) return;
-  // This contains no session token or personal data. The opener independently
-  // calls Auth to verify the session before accepting the OAuth return.
-  try { localStorage.setItem(`eut-google-popup-result:${nonce}`, result); } catch { /* COOP fallback. */ }
+  // The ephemeral same-origin signal contains no access token, email or
+  // phone. The user UUID lets the opener reject a different existing account.
+  if (result === "complete" && (!userId ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId))) return;
+  const marker = result === "complete" ? `complete:${userId}` : "error";
+  try { localStorage.setItem(`eut-google-popup-result:${nonce}`, marker); }
+  catch { /* COOP fallback. */ }
   if (window.opener)
-    window.opener.postMessage({ type: `eut:google-oauth-${result}`, nonce }, window.location.origin);
+    window.opener.postMessage({ type: `eut:google-oauth-${result}`, nonce, ...(userId ? { userId } : {}) }, window.location.origin);
 }
 
 export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
@@ -277,7 +281,7 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
   useEffect(() => {
     if (loading || !user || !isGooglePopup()) return;
     // COOP may remove window.opener; storage remains same-origin and correlated.
-    signalGooglePopupReturn("complete");
+    signalGooglePopupReturn("complete", user.id);
     window.close();
   }, [loading, user?.id]);
 

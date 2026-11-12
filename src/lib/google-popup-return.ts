@@ -8,7 +8,7 @@ type PopupReturnOptions = {
   popup: PopupWindow;
   origin: string;
   nonce: string;
-  verifySession: () => Promise<boolean>;
+  verifySession: (callbackUserId: string) => Promise<boolean>;
   onVerified: () => void;
   onFailure: () => void;
   onClosed: () => void;
@@ -20,6 +20,8 @@ export function watchGooglePopupReturn({
   let stopped = false;
   let checking = false;
   let closedReported = false;
+  let callbackUserId: string | null = null;
+  const userIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   // Only a matching callback signal proves that this OAuth attempt returned.
   // Existing account sessions must not be mistaken for a new Google login.
   const proofKey = `eut-google-popup-result:${nonce}`;
@@ -29,8 +31,12 @@ export function watchGooglePopupReturn({
   }
   function handleProof(value: string | null) {
     if (stopped) return;
-    if (value === "complete") void confirmSession();
-    else if (value === "error") { stop(); onFailure(); }
+    if (value === "error") { stop(); onFailure(); return; }
+    if (!value?.startsWith("complete:")) return;
+    const id = value.slice("complete:".length);
+    if (!userIdPattern.test(id)) return;
+    callbackUserId = id;
+    void confirmSession();
   }
 
   function stop() {
@@ -44,14 +50,16 @@ export function watchGooglePopupReturn({
     try { window.localStorage.removeItem(proofKey); } catch { /* Unavailable storage. */ }
   }
 
-  async function confirmSession(fromPopupMessage = false) {
-    if (stopped || checking) return;
+  async function confirmSession() {
+    if (stopped || checking || !callbackUserId) return;
     checking = true;
     let verified = false;
     try {
-      verified = await verifySession();
+      // The callback identifies B, but the opener may still hold A briefly.
+      // The server must confirm the *same* account before continuing.
+      verified = await verifySession(callbackUserId);
     } catch {
-      // Auth may be unavailable during navigation; wait for the next signal.
+      // Auth may be unavailable during navigation; allow later recheck.
     } finally {
       checking = false;
     }
@@ -59,10 +67,9 @@ export function watchGooglePopupReturn({
     if (verified) {
       stop();
       onVerified();
-    } else if (fromPopupMessage) {
-      stop();
-      onFailure();
     }
+    // A mismatch can be temporary while Supabase synchronizes tabs; do not
+    // grant A access or fail permanently before callback timeout.
   }
 
   function onMessage(event: MessageEvent) {
@@ -71,15 +78,23 @@ export function watchGooglePopupReturn({
       stop();
       onFailure();
     } else if (event.data?.type === "eut:google-oauth-complete") {
-      void confirmSession(true);
+      const id = event.data?.userId;
+      if (typeof id !== "string" || !userIdPattern.test(id)) return;
+      callbackUserId = id;
+      void confirmSession();
     }
   }
 
   function onStorage(event: StorageEvent) {
     // COOP may sever opener; only a same-attempt callback marker can trigger
     // server verification. Generic Supabase storage updates are not proof.
-    if (event.storageArea === window.localStorage && event.key === proofKey)
-      handleProof(event.newValue);
+    if (event.storageArea !== window.localStorage) return;
+    if (event.key === proofKey) handleProof(event.newValue);
+    else if (callbackUserId && event.key?.startsWith("sb-")) {
+      // A matching callback exists; a later Supabase storage update may
+      // have replaced A with B. This event alone never grants access.
+      void confirmSession();
+    }
   }
 
   function onFocus() {
