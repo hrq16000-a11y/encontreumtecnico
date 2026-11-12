@@ -28,6 +28,6 @@ jobs:
           assert len({version for version, _ in contracts}) == 12
           assert all(version in {item[0] for item in migrations} for version, _ in contracts)
           assert "**PR #229 está mesclada**" in doc, "Outdated PR status in audit"
-          assert "não autoriza replay" in doc.lower(), "Missing explicit no-replay warning"
+          assert "nem autoriza replay" in doc.lower() and "não reaplicar" in doc.lower(), "Missing explicit no-replay / no-reapply warnings"
           print("Inventory format verified: 66 versions and 12 linked provenance records. Offline only.")
           PY
