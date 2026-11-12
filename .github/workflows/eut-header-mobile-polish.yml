@@ -36,7 +36,7 @@ jobs:
           npm install --no-audit --no-fund playwright@1.56.1
           npx playwright install chromium
           cd "$GITHUB_WORKSPACE"
-          bunx vite dev --host 127.0.0.1 --port 4175 --strictPort > "$RUNNER_TEMP/eut-header-dev.log" 2>&1 &
+          bunx vite preview --host 127.0.0.1 --port 4175 --strictPort > "$RUNNER_TEMP/eut-header-dev.log" 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           NODE_PATH="$RUNNER_TEMP/eut-header-browser/node_modules" EUT_BASE_URL="http://127.0.0.1:4175" node scripts/eut-header-focus-browser.cjs || {
