@@ -15,6 +15,7 @@ const SHORTCUTS: AdminShortcut[] = [
   { key: "reivindicacoes", name: "Reivindicações", description: "Analisar pedidos de titularidade" },
   { key: "tecnicos", name: "Técnicos cadastrados", description: "Aprovar, suspender e revisar perfis ativos" },
   { key: "contas", name: "Contas e bloqueios", description: "Consultar identidades, banir/desbanir contas e telefones com auditoria" },
+  { key: "contatos", name: "Central de contatos", description: "Ler números completos mediante justificativa e auditar bloqueios e suspensões" },
   { key: "solicitacoes", name: "Solicitações", description: "Acompanhar demandas dos clientes" },
   { key: "mensagens", name: "Mensagens", description: "Responder e arquivar contatos" },
   { key: "metricas", name: "Buscas e indicadores", description: "Consultar estatísticas com consentimento" },

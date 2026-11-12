@@ -6,10 +6,12 @@ import heroImg from "@/assets/tecnico-cftv-instalacao.jpg";
 import techImg from "@/assets/tecnica-informatica.jpg";
 import { PageShell } from "../components/page-placeholder";
 import { SponsoredPublicSlot } from "@/components/sponsored-public-slot";
+import { AdSensePublicUnit } from "@/components/adsense-public-unit";
 import { HomePublicProof } from "@/components/home-public-proof";
 import { HomeCommunityInvite } from "@/components/home-community-invite";
 import { ProblemAssistant } from "../components/problem-assistant";
 import { CustomerLocationButton } from "@/components/customer-location-button";
+import { safeNeighborhood } from "@/lib/location-labels";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { readUiTextDraft, saveUiTextDraft } from "@/lib/unsent-ui-draft";
 import { Reveal } from "../components/motion";
@@ -21,9 +23,9 @@ import {
   FaqPreview,
   ContactBand,
 } from "../components/home-rich";
-import { FindOneSection, JoinNetworkSection, CtaBand, ValuesSection, StepsSection } from "../components/home-sections";
+import { CanaisDeAtendimento, FindOneSection, JoinNetworkSection, CtaBand, ValuesSection, StepsSection } from "../components/home-sections";
 
-const SITE = "https://www.encontreumtecnico.com";
+const SITE = "https://www.encontreumtecnico.com.br";
 const TITLE = "Encontre um Técnico — Portal nacional de técnicos de CFTV e informática, sem custo para o profissional";
 const DESC = "Portal brasileiro que conecta clientes a técnicos de CFTV, informática, redes e impressoras com transparência: cadastro livre, sem cobrança ao profissional e sem leilão de preço.";
 
@@ -96,26 +98,37 @@ const CHIPS = [
 
 function HomePage() {
   const navigate = useNavigate();
-  const [savedSearch] = useState(() => readUiTextDraft("home"));
-  const [specialty, setSpecialty] = useState(savedSearch?.["specialty"] ?? "");
-  const [city, setCity] = useState(savedSearch?.["city"] ?? "");
-  const [locationUf, setLocationUf] = useState(savedSearch?.["uf"] ?? "");
-  const [locationNeighborhood, setLocationNeighborhood] = useState(savedSearch?.["neighborhood"] ?? "");
-  const cityEditedByUser = useRef(Boolean(savedSearch?.["city"]));
+  // Initial SSR and client render agree; the saved search is loaded only
+  // after hydration, while the empty form stays hidden from the visitor.
+  const [specialty, setSpecialty] = useState("");
+  const [city, setCity] = useState("");
+  const [locationUf, setLocationUf] = useState("");
+  const [locationNeighborhood, setLocationNeighborhood] = useState("");
+  const [draftReady, setDraftReady] = useState(false);
+  const cityEditedByUser = useRef(false);
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      saveUiTextDraft("home", { specialty, city, uf: locationUf, neighborhood: locationNeighborhood });
-    }, 400);
-    return () => window.clearTimeout(timer);
-  }, [specialty, city, locationUf, locationNeighborhood]);
+    const saved = readUiTextDraft("home");
+    if (saved) {
+      setSpecialty(saved["specialty"] ?? "");
+      setCity(saved["city"] ?? "");
+      setLocationUf(saved["uf"] ?? "");
+      setLocationNeighborhood(safeNeighborhood(saved["neighborhood"] ?? "", saved["city"] ?? ""));
+      cityEditedByUser.current = Boolean(saved["city"]);
+    }
+    setDraftReady(true);
+  }, []);
+  useEffect(() => {
+    if (!draftReady) return;
+    saveUiTextDraft("home", { specialty, city, uf: locationUf, neighborhood: locationNeighborhood });
+  }, [draftReady, specialty, city, locationUf, locationNeighborhood]);
   const { area: suggestedRegion, loading: regionLoading } = useRegionalSuggestion();
   useEffect(() => {
     // The user may edit while the lookup is pending; never override typed city.
-    if (!suggestedRegion || city.trim() || cityEditedByUser.current) return;
+    if (!draftReady || !suggestedRegion || city.trim() || cityEditedByUser.current) return;
     setCity(suggestedRegion.city);
     setLocationUf(suggestedRegion.uf);
-    setLocationNeighborhood(suggestedRegion.neighborhood);
-  }, [suggestedRegion?.city, suggestedRegion?.uf, city]);
+    setLocationNeighborhood(""); // IP cannot establish a neighborhood.
+  }, [draftReady, suggestedRegion?.city, suggestedRegion?.uf, city]);
 
 
   return (
@@ -138,6 +151,12 @@ function HomePage() {
             <p className="mt-4 max-w-xl text-lg text-muted-foreground">
               Encontre prestadores cadastrados de CFTV, informática, redes e impressoras na sua região. Negocie diretamente, sem leilão de menor preço.
             </p>
+            {!draftReady ? (
+              <div role="status" aria-live="polite" aria-busy="true"
+                className="mt-8 flex min-h-16 items-center rounded-xl bg-card px-4 py-3 text-sm text-muted-foreground shadow-soft">
+                Recuperando sua busca…
+              </div>
+            ) : (
             <form
               className="mt-8 flex flex-col gap-3 rounded-xl bg-card p-3 shadow-soft sm:flex-row"
               onSubmit={(e) => {
@@ -158,17 +177,17 @@ function HomePage() {
                 id="busca-especialidade"
                 type="text"
                 value={specialty}
-                onChange={(e) => setSpecialty(e.target.value)}
+                onChange={(e) => { saveUiTextDraft("home", { specialty:e.target.value, city, uf:locationUf, neighborhood:locationNeighborhood }); setSpecialty(e.target.value); }}
                 placeholder="Especialidade (ex.: Computador)"
                 className="h-11 min-h-11 w-full shrink-0 sm:w-auto sm:flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
-              <label className="sr-only" htmlFor="busca-cidade">Cidade</label>
+              <label className="sr-only" htmlFor="busca-cidade">Município</label>
               <input
                 id="busca-cidade"
                 type="text"
                 value={city}
-                onChange={(e) => { cityEditedByUser.current = true; setCity(e.target.value); setLocationUf(""); setLocationNeighborhood(""); }}
-                placeholder="Cidade ou região"
+                onChange={(e) => { cityEditedByUser.current = true; saveUiTextDraft("home", { specialty, city:e.target.value, uf:"", neighborhood:"" }); setCity(e.target.value); setLocationUf(""); setLocationNeighborhood(""); }}
+                placeholder="Município (ex.: São José dos Pinhais)"
                 className="h-11 min-h-11 w-full shrink-0 sm:w-auto sm:flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
               <button
@@ -178,21 +197,23 @@ function HomePage() {
                 Buscar
               </button>
             </form>
+            )}
             <div className="mt-3 max-w-xl">
-              <div aria-live="polite" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/20 bg-card/90 px-4 py-3 text-xs shadow-sm sm:text-sm">
+              {!cityEditedByUser.current && <div aria-live="polite" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/20 bg-card/90 px-4 py-3 text-xs shadow-sm sm:text-sm">
                 <span className="flex items-start gap-2 text-foreground">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                   {suggestedRegion
-                    ? <span><strong>Você pode estar em {suggestedRegion.city}/{suggestedRegion.uf}.</strong> <span className="text-muted-foreground">Estimativa aproximada; confira antes de pesquisar.</span></span>
+                    ? <span><strong>{city.trim() ? "Município sugerido por IP; confira antes de buscar." : "Localidade estimada; informe o município para buscar."}</strong></span>
                     : <span className="text-muted-foreground">{regionLoading ? "Buscando sua região aproximada…" : "Informe sua cidade para buscar técnicos."}</span>}
                 </span>
                 {suggestedRegion && <button type="button" onClick={() => document.getElementById("busca-cidade")?.focus()} className="min-h-10 rounded-lg border border-primary/25 px-3 text-xs font-semibold text-primary hover:bg-accent">Corrigir cidade</button>}
-              </div>
+              </div>}
               <CustomerLocationButton onLocated={(area, source) => {
                 if (source === "automatic" && city.trim()) return;
+                saveUiTextDraft("home", { specialty, city:area.city, uf:area.uf, neighborhood:safeNeighborhood(area.neighborhood,area.city) });
                 setCity(area.city);
                 setLocationUf(area.uf);
-                setLocationNeighborhood(area.neighborhood);
+                setLocationNeighborhood(safeNeighborhood(area.neighborhood, area.city));
               }} />
               {locationUf && city.trim() && (
                 <Link
@@ -227,6 +248,8 @@ function HomePage() {
         </div>
       </section>
 
+      <CanaisDeAtendimento />
+
       <section aria-label="Por que o Encontre um Técnico" className="bg-brand-navy px-4 py-12 text-brand-navy-foreground">
         <ul className="mx-auto grid max-w-6xl gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {TRUST.map(({ icon: I, title, text }) => (
@@ -249,6 +272,8 @@ function HomePage() {
       </section>
 
       <Reveal><HowItWorksRich /></Reveal>
+
+      <AdSensePublicUnit />
 
       <section className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 lg:grid-cols-2">
         <img src={techImg} alt="Técnica de informática fazendo manutenção em computador e roteador" width={1280} height={960} loading="lazy" className="aspect-[4/3] w-full rounded-3xl object-cover shadow-soft" />

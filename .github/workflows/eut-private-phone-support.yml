@@ -1,0 +1,24 @@
+name: EUT private phone support regression
+on:
+  pull_request:
+    paths:
+      - 'src/components/technician-private-contact.tsx'
+      - 'src/components/technician-private-contact.test.tsx'
+      - 'docs/admin/EUT_PRIVATE_MODERATION_MIGRATION_HISTORY_2026-11-12.md'
+      - '.github/workflows/eut-private-phone-support.yml'
+permissions:
+  contents: read
+jobs:
+  support-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Private-contact UI error/success regression (no real RPCs)
+        run: bunx vitest run src/components/technician-private-contact.test.tsx
+      - name: TanStack SSR build
+        run: bun run build
+      - name: TypeScript after route generation
+        run: bunx tsc --noEmit --pretty false

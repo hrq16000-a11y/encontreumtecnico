@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync, statSync } from "node:fs";
 
 const read = (path: string) => readFileSync(path, "utf8");
-const social = "https://www.encontreumtecnico.com/social-preview.jpg";
+const social = "https://www.encontreumtecnico.com.br/social-preview.jpg";
 
 describe("imagem social global — Encontre um Técnico", () => {
   it("usa uma imagem JPG pública própria, estável e não dependente do WordPress", () => {
@@ -38,6 +38,6 @@ describe("imagem social global — Encontre um Técnico", () => {
     expect(smoke).toContain('["/social-preview.jpg", 200]');
     expect(smoke).toContain("hasSocialMetadata(await response.text())");
     expect(smoke).toContain("allowed.has(next.origin)");
-    expect(smoke).toContain('"https://www.encontreumtecnico.com"');
+    expect(smoke).toContain('"https://www.encontreumtecnico.com.br"');
   });
 });

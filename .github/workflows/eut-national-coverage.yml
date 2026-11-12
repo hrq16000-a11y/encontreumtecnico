@@ -1,0 +1,32 @@
+name: EUT national city coverage gate
+
+on:
+  pull_request:
+    paths:
+      - 'src/lib/national-coverage.ts'
+      - 'src/lib/national-coverage.test.ts'
+      - 'src/components/national-coverage.tsx'
+      - 'src/components/home-rich.tsx'
+      - '.github/workflows/eut-national-coverage.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  national-coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install pinned dependencies
+        run: bun install --frozen-lockfile
+      - name: Verify 27 capitals, 79 listed partner cities and deduplicated total
+        run: bunx vitest run src/lib/national-coverage.test.ts
+      - name: Build TanStack Start
+        run: bun run build
+      - name: Check TypeScript
+        run: bunx tsc --noEmit --pretty false
+      - name: Release policy
+        run: echo "CI completed without deployment, DNS changes or database writes."

@@ -37,6 +37,9 @@ export function SiteFooter() {
           <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
             <li><Link to="/tecnicos" className="hover:text-foreground">Encontrar técnico</Link></li>
             <li><Link to="/servicos" className="hover:text-foreground">Serviços</Link></li>
+            <li><Link to="/cobertura" className="hover:text-foreground">Cobertura por localidade</Link></li>
+            <li><Link to="/guias" className="hover:text-foreground">Guias técnicos</Link></li>
+            <li><Link to="/ecossistema" className="hover:text-foreground">Ecossistema de serviços</Link></li>
             <li><Link to="/como-funciona" className="hover:text-foreground">Como funciona</Link></li>
             <li><Link to="/entrar" className="hover:text-foreground">Cadastrar / entrar</Link></li>
           </ul>

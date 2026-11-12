@@ -115,6 +115,28 @@ describe("role isolation after Google/email login", () => {
     expect(hook.result.current.roles).toEqual(["tecnico"]);
     hook.unmount();
   });
+  it.each(["tecnico", "admin"] as const)(
+    "preserva o papel %s sem desmontar formulários no retorno Alt+Tab",
+    async (role) => {
+      mocked.queryRoles.mockResolvedValue(roles(role));
+      const hook = renderHook(() => useAuth());
+      await waitFor(() => expect(hook.result.current.loading).toBe(false));
+      await waitFor(() => expect(mocked.notify).not.toBeNull());
+      const calls = mocked.queryRoles.mock.calls.length;
+      await act(async () => {
+        mocked.notify?.("SIGNED_IN", { user: user("account-a") });
+        mocked.notify?.("INITIAL_SESSION", { user: user("account-a") });
+        mocked.notify?.("USER_UPDATED", { user: user("account-a") });
+        await Promise.resolve();
+      });
+      expect(hook.result.current.user?.id).toBe("account-a");
+      expect(hook.result.current.roles).toEqual([role]);
+      expect(hook.result.current.loading).toBe(false);
+      expect(mocked.queryRoles).toHaveBeenCalledTimes(calls);
+      hook.unmount();
+    },
+  );
+
   it("ignora SIGNED_IN duplicado ao voltar para a aba com a mesma conta", async () => {
     mocked.queryRoles.mockResolvedValue(roles("cliente"));
     const hook = renderHook(() => useAuth());

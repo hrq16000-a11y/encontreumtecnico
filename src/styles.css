@@ -381,3 +381,20 @@ html {
 @media (prefers-reduced-motion: reduce) {
   .eut-soft-arrival { animation: none !important; transform: none !important; }
 }
+
+
+/*
+ * Guías mobile — Lighthouse 11/11/2026: late Manrope/Sora font swaps shifted
+ * the intro text and illustration in 5/6 measured guides (CLS up to 0.214).
+ * Scope system fonts to editorial articles only; the common header, admin,
+ * funnel/modal and rest of the site keep their existing branding.
+ * All typography is available immediately without external font layout swaps.
+ */
+.eut-guide-stable-type {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.eut-guide-stable-type h1,
+.eut-guide-stable-type h2,
+.eut-guide-stable-type h3 {
+  font-family: inherit;
+}

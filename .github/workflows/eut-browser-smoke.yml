@@ -1,0 +1,42 @@
+name: EUT Chromium live navigation smoke (read only)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/eut-browser-smoke.yml'
+      - 'scripts/eut-browser-smoke.cjs'
+      - 'src/routes/tecnicos.index.tsx'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public-browser-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Assert location touch targets in the reviewed source
+        run: |
+          node <<'NODE'
+          const { readFileSync } = require('node:fs');
+          const assert = require('node:assert/strict');
+          const src = readFileSync('src/routes/tecnicos.index.tsx', 'utf8');
+          const ufStart = src.indexOf('id="filtro-uf"');
+          assert(ufStart >= 0 && src.slice(ufStart, ufStart + 300).includes('min-h-11'),
+            'UF select must have 44px minimum height');
+          assert.match(src, /min-h-11[^"]*">Buscar na região/);
+          console.log('UF select and regional search touch targets: >= 44px in source');
+          NODE
+      - name: Install isolated Chromium runner
+        run: |
+          mkdir -p "$RUNNER_TEMP/eut-browser"
+          cd "$RUNNER_TEMP/eut-browser"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund playwright@1.56.1
+          npx playwright install chromium
+      - name: Real public navigation in Chromium and mobile emulation
+        env:
+          EUT_BASE_URL: https://www.encontreumtecnico.com.br
+        run: NODE_PATH="$RUNNER_TEMP/eut-browser/node_modules" node scripts/eut-browser-smoke.cjs

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { clearPendingFilter, readPendingFilter, savePendingFilter } from "@/lib/pending-search-filter";
 
 /**
  * Keeps typing local so TanStack does not re-run the server loader for every
@@ -11,24 +12,42 @@ type DebouncedTextFilterProps = {
   label: string;
   value: string;
   placeholder: string;
+  list?: string | undefined;
   onCommit: (value: string) => void;
   onBlurTrack: (value: string) => void;
 };
 
 export function DebouncedTextFilter({
-  id, label, value, placeholder, onCommit, onBlurTrack,
+  id, label, value, placeholder, list, onCommit, onBlurTrack,
 }: DebouncedTextFilterProps) {
-  const [draft, setDraft] = useState(value);
+  const [draft, setDraft] = useState(() => readPendingFilter(id, value) ?? value);
   const focused = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latest = useRef({ value, onCommit });
+  const latestDraft = useRef(draft);
   latest.current = { value, onCommit };
+  latestDraft.current = draft;
+
+  const inactive = () => document.visibilityState === "hidden" || !document.hasFocus();
+  function schedule(next: string) {
+    if (timer.current !== null) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      timer.current = null;
+      if (!inactive()) commit(next);
+      // Backgrounded tabs keep the last keystroke in sessionStorage until focus returns.
+    }, FILTER_DEBOUNCE_MS);
+  }
 
   // Back/forward navigation and external filter changes keep the input in
   // sync unless the visitor is actively typing.
   useEffect(() => {
-    if (!focused.current) setDraft(value);
-  }, [value]);
+    if (focused.current || readPendingFilter(id, value) !== null) return;
+    // URL history wins over an unrelated old draft; cancel stale commits.
+    if (timer.current !== null) clearTimeout(timer.current);
+    timer.current = null;
+    setDraft(value);
+    latestDraft.current = value;
+  }, [id, value]);
 
   useEffect(() => () => {
     if (timer.current !== null) clearTimeout(timer.current);
@@ -37,13 +56,15 @@ export function DebouncedTextFilter({
   function commit(next: string) {
     if (timer.current !== null) clearTimeout(timer.current);
     timer.current = null;
+    clearPendingFilter(id);
     if (next !== latest.current.value) latest.current.onCommit(next);
   }
 
   function change(next: string) {
+    savePendingFilter(id, latest.current.value, next);
+    latestDraft.current = next;
     setDraft(next);
-    if (timer.current !== null) clearTimeout(timer.current);
-    timer.current = setTimeout(() => commit(next), FILTER_DEBOUNCE_MS);
+    schedule(next);
   }
 
   return (
@@ -53,17 +74,27 @@ export function DebouncedTextFilter({
       </label>
       <input
         id={id}
+        list={list}
         type="text"
         value={draft}
         onFocus={() => { focused.current = true; }}
         onChange={(event) => change(event.target.value)}
         onBlur={() => {
           focused.current = false;
+          if (inactive()) {
+            // Alt+Tab and mobile app backgrounding must not trigger navigation.
+            if (timer.current !== null) clearTimeout(timer.current);
+            timer.current = null;
+            return;
+          }
           commit(draft);
           onBlurTrack(draft);
         }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && !inactive()) commit(draft);
+        }}
         placeholder={placeholder}
-        className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground"
+        className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground"
       />
     </div>
   );

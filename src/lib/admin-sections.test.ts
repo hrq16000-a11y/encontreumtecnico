@@ -7,13 +7,13 @@ import {
 const read = (path: string) => readFileSync(path, "utf8");
 
 describe("Central administrativa: URLs próprias e RLS intacta", () => {
-  it("oferece onze seções únicas, uma home e dez módulos reais", () => {
+  it("oferece doze seções únicas, uma home e onze módulos reais", () => {
     expect(ADMIN_SECTIONS.map((x) => x.key)).toEqual([
-      "inicio", "tecnicos", "clientes", "contas", "solicitacoes",
+      "inicio", "tecnicos", "clientes", "contas", "contatos", "solicitacoes",
       "patrocinadores", "mensagens", "catalogo",
       "legado", "reivindicacoes", "metricas",
     ]);
-    expect(new Set(ADMIN_SECTIONS.map((x) => x.key)).size).toBe(11);
+    expect(new Set(ADMIN_SECTIONS.map((x) => x.key)).size).toBe(12);
     expect(adminModulePath("inicio")).toBe("/admin");
     for (const entry of ADMIN_SECTIONS.filter((x) => x.key !== "inicio")) {
       expect(validAdminModule(entry.key)).toBe(true);
@@ -51,7 +51,7 @@ describe("Central administrativa: URLs próprias e RLS intacta", () => {
       "<AdminAdvertisingManager />", "<EutAdminManager />",
       "<LegacyReviewQueue />", "<LegacyClaimReview />",
       "<SearchMetrics />", "contact_messages",
-      '<AdminTechnicianManager technicians={techs} onChanged={load} />',
+      '<AdminTechnicianManager adminOwnerId={user.id} />',
     ]) expect(page).toContain(source);
     expect(page).not.toContain("auth.admin.deleteUser");
     expect(page).not.toContain("service_role");

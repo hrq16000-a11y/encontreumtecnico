@@ -54,7 +54,25 @@ describe("Escolha de técnico dentro do formulário mobile", () => {
       expect(route).toContain(`updateRequestField("${key}", e.target.value)`);
     }
     expect(route).toContain("receiving a different target never carries a prior opt-in");
-    expect(route).toContain("setShareNow(false);\n                  }} />");
+    const locationStart = route.indexOf("<CustomerLocationButton onLocated=");
+    const locationEnd = route.indexOf("}} />", locationStart);
+    const locationHandler = route.slice(locationStart, locationEnd);
+    expect(locationStart).toBeGreaterThan(-1);
+    expect(locationEnd).toBeGreaterThan(locationStart);
+    expect(locationHandler).toContain('source === "automatic" && form.city.trim()');
+    expect(locationHandler).toContain("saveLiveDraft(nextForm, step)");
+    expect(locationHandler).toContain("setShareNow(false)");
+
+  });
+
+  it("ao mudar a categoria, descarta o destinatário anterior", () => {
+    const route = readFileSync("src/routes/area-cliente.tsx", "utf8");
+    const update = route.slice(route.indexOf("function updateRequestField("),
+      route.indexOf("function chooseTechnicianInWizard("));
+    expect(update).toContain('key === "category" && value !== form.category');
+    expect(update).toContain("clearTechnicianTarget()");
+    expect(update).toContain("setTechnicianTarget(null)");
+    expect(update).toContain("setShareNow(false)");
   });
 
   it("seleciona sem navegar, preserva rascunho e exige novo consentimento", () => {

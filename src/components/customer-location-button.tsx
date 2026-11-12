@@ -30,8 +30,8 @@ export function CustomerLocationButton({
       rememberRegionalHint({ ...area, source: "gps" });
       setFound(area);
       setFeedback(purpose === "technician"
-        ? "Localidade sugerida. Confira sua cidade e bairro antes de publicar o perfil profissional."
-        : "Região aproximada preenchida. Confira cidade e bairro antes de continuar.");
+        ? "Município sugerido. Escolha-o na lista oficial e digite seu bairro, se desejar."
+        : "Município sugerido. Confira e informe o bairro manualmente, se necessário.");
     } catch {
       if (mounted.current) setFeedback("Localização indisponível ou não autorizada. Você pode informar ou corrigir sua cidade manualmente.");
     } finally {
@@ -60,23 +60,16 @@ export function CustomerLocationButton({
           className="inline-flex min-h-10 items-center gap-2 rounded-md border border-primary px-4 py-2 font-semibold text-primary disabled:opacity-60">
           <span aria-hidden="true">⌖</span>
           {loading ? "Identificando sua região…" :
-            purpose === "technician" ? "Preencher cidade e bairro pelo GPS" : "Usar minha localização"}
+            purpose === "technician" ? "Sugerir município pelo GPS" : "Usar minha localização"}
         </button>
         {found && <span className="font-medium text-foreground">
           {found.city}/{found.uf}{found.neighborhood ? " · " + found.neighborhood : ""}
         </span>}
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
-        Com sua permissão, o GPS identifica a região. A consulta é feita diretamente
-        pelo seu dispositivo à BigDataCloud, que recebe suas coordenadas e IP.
-        {purpose === "technician" ? (
-          <> Revise os dados sugeridos: se você publicar seu cadastro, cidade, UF e
-            bairro informados poderão aparecer no perfil público. O GPS exato não
-            é armazenado pelo portal.</>
-        ) : (
-          <> O portal utiliza apenas cidade, UF e bairro aproximado para busca;
-            não grava o GPS nem envia seu endereço exato ao técnico.</>
-        )}
+        Com sua permissão, o dispositivo consulta a BigDataCloud (que recebe coordenadas e IP)
+        para sugerir município e UF. Bairro não é identificado com segurança e deve ser informado
+        por você. O portal não armazena as coordenadas exatas.
       </p>
       {feedback && <p className="mt-2 text-xs text-foreground" role="status">{feedback}</p>}
     </div>

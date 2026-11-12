@@ -58,6 +58,13 @@ describe("Perfil técnico premium sem prova social fabricada", () => {
     expect(container.textContent).not.toMatch(/\+55\d{10,11}/);
   });
 
+  it("mantém a seção Sobre visível quando não há apresentação pública", () => {
+    render(<PublicTechnicianProfile technician={{ ...profile, bio: null }} />);
+    expect(screen.getByRole("heading", { name: "Sobre o profissional" })).toBeTruthy();
+    expect(screen.getByText(/A apresentação pessoal ainda não está disponível/)).toBeTruthy();
+    expect(screen.queryByText("Texto fornecido pelo titular do perfil.")).toBeNull();
+  });
+
   it("só apresenta Bronze e indicação se vierem dos dados do perfil", () => {
     const { rerender } = render(<PublicTechnicianProfile technician={profile} />);
     expect(screen.queryByText("Pioneiro Bronze")).toBeNull();

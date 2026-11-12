@@ -7,16 +7,21 @@ import {
 } from "lucide-react";
 import type { PublicTechnician } from "@/lib/technicians.functions";
 import { TechnicianAvatar } from "@/components/technician-avatar";
+import { PublicProfileConnections, type PublicSeoLinks } from "@/components/public-seo-discovery";
+import { formatPublicLocation, placeKey } from "@/lib/location-labels";
 import { categoryLabel, useActiveCategories } from "@/hooks/use-active-categories";
 import { serviceLabel, useActiveServices } from "@/hooks/use-active-services";
 
 /** Presentation only: uses fields from the published and sanitized technician
  * profile. Never loads or guesses private contacts, ratings or endorsements.
  */
-export function PublicTechnicianProfile({ technician: t }: { technician: PublicTechnician }) {
+export function PublicTechnicianProfile({ technician: t, links }: { technician: PublicTechnician; links?: PublicSeoLinks }) {
   const { categories } = useActiveCategories();
   const { services } = useActiveServices();
-  const location = [t.city + (t.state_uf ? "/" + t.state_uf : ""), t.neighborhood, t.region].filter(Boolean).join(" · ");
+  const location = formatPublicLocation(t);
+  const additionalCities = (t.coverage_cities ?? []).filter((c, i, all) =>
+    (placeKey(c.name) !== placeKey(t.city) || c.uf !== t.state_uf) &&
+    all.findIndex(x => placeKey(x.name) === placeKey(c.name) && x.uf === c.uf) === i);
   const topCategories = t.specialties.slice(0, 4);
   const extraCategories = Math.max(0, t.specialties.length - topCategories.length);
 
@@ -117,22 +122,19 @@ export function PublicTechnicianProfile({ technician: t }: { technician: PublicT
                   <h2 id="titulo-atendimento" className="mt-1 text-xl font-bold text-card-foreground sm:text-2xl">Onde este técnico atende</h2>
                 </div>
               </div>
-              <p className="mt-4 text-sm text-foreground">
-                <strong>Cidade-base:</strong> {t.city}{t.state_uf ? " · " + t.state_uf : ""}
-              </p>
               {t.service_radius_km != null && (
                 <p className="mt-3 rounded-xl bg-accent/60 p-3 text-sm font-semibold text-foreground">
                   Raio declarado: até {t.service_radius_km} km em linha reta, aproximadamente, a partir
                   do centro de referência da cidade-base.
                 </p>
               )}
-              {(t.coverage_cities?.length ?? 0) > 0 ? (
+              {additionalCities.length > 0 ? (
                 <>
                   <h3 className="mt-5 text-sm font-semibold text-foreground">
-                    Municípios de atendimento declarados ({t.coverage_cities?.length}/5)
+                    Outros municípios atendidos ({additionalCities.length})
                   </h3>
                   <ul className="mt-3 flex flex-wrap gap-2">
-                    {t.coverage_cities?.map(city => (
+                    {additionalCities.map(city => (
                       <li key={city.id} className="rounded-full border border-primary/20 bg-primary/5 px-3 py-2 text-sm font-medium text-primary">
                         {city.name}/{city.uf}
                       </li>
@@ -140,24 +142,39 @@ export function PublicTechnicianProfile({ technician: t }: { technician: PublicT
                   </ul>
                 </>
               ) : <p className="mt-3 text-sm text-muted-foreground">
-                Cidades adicionais e raio ainda não declarados neste perfil.
+                Outros municípios não informados neste perfil.
               </p>}
               <p className="mt-4 border-t border-border pt-4 text-xs leading-5 text-muted-foreground">
                 Os nomes são selecionados do catálogo de municípios com códigos IBGE. A área é declarada
                 pelo técnico, não georreferenciamento de sua residência nem garantia de deslocamento,
                 tempo de chegada ou disponibilidade.
               </p>
+              <div className="mt-4 flex flex-wrap gap-3 text-sm">
+                <Link to="/tecnicos" search={{ especialidade: "Todas", cidade: t.city, regiao: "", uf: t.state_uf ?? "" }}
+                  className="font-semibold text-primary underline-offset-4 hover:underline">
+                  Ver outros perfis com esta localidade →
+                </Link>
+                <Link to="/cobertura" className="font-semibold text-primary underline-offset-4 hover:underline">
+                  Explorar cobertura publicada →
+                </Link>
+              </div>
             </section>
-            {t.bio && (
-              <section id="sobre" aria-labelledby="titulo-sobre" className="eut-card-lift rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
-                <div className="flex items-start gap-3">
-                  <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><BadgeInfo className="h-5 w-5" aria-hidden="true" /></span>
-                  <div><p className="text-xs font-bold uppercase tracking-[.17em] text-primary">Apresentação pessoal</p><h2 id="titulo-sobre" className="mt-1 text-xl font-bold text-card-foreground sm:text-2xl">Sobre o profissional</h2></div>
-                </div>
-                <p className="mt-5 whitespace-pre-line text-sm leading-7 text-foreground sm:text-base">{t.bio}</p>
-                <p className="mt-4 text-xs text-muted-foreground">Texto fornecido pelo titular do perfil.</p>
-              </section>
-            )}
+            <section id="sobre" aria-labelledby="titulo-sobre" className="eut-card-lift rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
+              <div className="flex items-start gap-3">
+                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><BadgeInfo className="h-5 w-5" aria-hidden="true" /></span>
+                <div><p className="text-xs font-bold uppercase tracking-[.17em] text-primary">Apresentação pessoal</p><h2 id="titulo-sobre" className="mt-1 text-xl font-bold text-card-foreground sm:text-2xl">Sobre o profissional</h2></div>
+              </div>
+              {t.bio ? (
+                <>
+                  <p className="mt-5 whitespace-pre-line text-sm leading-7 text-foreground sm:text-base">{t.bio}</p>
+                  <p className="mt-4 text-xs text-muted-foreground">Texto fornecido pelo titular do perfil.</p>
+                </>
+              ) : (
+                <p className="mt-5 text-sm leading-7 text-muted-foreground">
+                  A apresentação pessoal ainda não está disponível. Consulte as especialidades e os serviços declarados acima.
+                </p>
+              )}
+            </section>
             <section aria-labelledby="titulo-transparencia" className="rounded-2xl border border-primary/15 bg-accent/60 p-6 sm:p-8">
               <p className="text-xs font-bold uppercase tracking-[.17em] text-primary">Confiança é transparência</p>
               <h2 id="titulo-transparencia" className="mt-2 text-xl font-bold text-foreground sm:text-2xl">Saiba como o portal funciona</h2>
@@ -190,6 +207,7 @@ export function PublicTechnicianProfile({ technician: t }: { technician: PublicT
             <Link to="/tecnicos" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-primary hover:underline"><ArrowLeft className="h-4 w-4" aria-hidden="true" /> Voltar à busca</Link>
           </aside>
         </div>
+        <PublicProfileConnections links={links} />
       </div>
 
       <nav aria-label="Ações rápidas deste técnico" className="fixed inset-x-3 bottom-3 z-30 flex gap-2 rounded-2xl border border-border bg-background/95 p-2 shadow-[0_12px_44px_-16px_rgba(7,28,57,.45)] backdrop-blur-xl lg:hidden">

@@ -18,6 +18,9 @@ on:
       - 'src/components/technician-avatar-editor.tsx'
       - 'src/components/technician-avatar.tsx'
       - 'src/components/public-technician-profile.tsx'
+      - 'src/lib/public-seo-moderation-synthetic.test.tsx'
+      - 'src/lib/public-technician-ban-404.test.tsx'
+      - 'docs/sql/eut-public-eligibility-moderation-proposal-20261111.sql'
       - 'src/integrations/supabase/types.ts'
       - 'src/components/page-placeholder.tsx'
       - 'src/components/back-to-top.tsx'
@@ -25,6 +28,13 @@ on:
       - 'src/components/customer-location-button.tsx'
       - 'src/lib/customer-location.ts'
       - 'src/lib/customer-location.test.ts'
+      - 'src/lib/location-labels.ts'
+      - 'src/lib/location-labels.test.ts'
+      - 'src/lib/neighborhood-sources.ts'
+      - 'src/lib/neighborhood-sources.test.ts'
+      - 'src/lib/technician-place-change.ts'
+      - 'src/lib/technician-place-change.test.ts'
+      - 'src/components/municipality-picker.mobile.test.tsx'
       - '.github/workflows/eut-technician-location.yml'
 permissions:
   contents: read
@@ -37,16 +47,18 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: GPS, official municipalities, secure coverage and avatars
-        run: bunx vitest run src/lib/customer-location.test.ts src/lib/technician-registration-wizard.test.ts src/lib/municipality-coverage.test.ts src/lib/technicians.functions.test.ts src/lib/technician-panel-navigation.test.ts
+        run: bunx vitest run src/lib/customer-location.test.ts src/lib/location-labels.test.ts src/lib/neighborhood-sources.test.ts src/lib/technician-place-change.test.ts src/components/municipality-picker.mobile.test.tsx src/lib/technician-registration-wizard.test.ts src/lib/municipality-coverage.test.ts src/lib/technicians.functions.test.ts src/lib/public-seo-moderation-synthetic.test.tsx src/lib/public-technician-ban-404.test.tsx src/lib/technician-panel-navigation.test.ts
       - run: bun run build
+        if: ${{ !cancelled() }}
       - name: TypeScript after route generation
+        if: ${{ !cancelled() }}
         run: bunx tsc --noEmit --pretty false
       - name: Check UF, municipality, neighborhood, regions
         run: |
           node --input-type=module <<'NODE'
           import { readFileSync } from 'node:fs';
           const s=readFileSync('src/routes/area-tecnico.tsx','utf8');
-          for(const v of ['BRAZIL_STATES','validMunicipality(form.state_uf, form.city)','state_uf: form.state_uf','_neighborhood: form.neighborhood.trim()','Regiões e outros bairros atendidos','eut_publish_my_technician']) {
+          for(const v of ['BRAZIL_STATES','validMunicipality(form.state_uf, form.city)','state_uf: form.state_uf','_neighborhood: safeNeighborhood(form.neighborhood, form.city) || null','Outros bairros ou regiões atendidos','eut_publish_my_technician']) {
             if(!s.includes(v))throw Error('Missing location/approval guard: '+v);
           }
           if (!s.includes('data?.state === "publicado"')) throw Error('Server-confirmed automatic publication missing');

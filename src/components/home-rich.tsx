@@ -19,6 +19,7 @@ import {
 import { useActiveCategories } from "@/hooks/use-active-categories";
 import { FAQ } from "../lib/faq";
 import { SectionHeading } from "./motion";
+import { NationalCoverage } from "./national-coverage";
 
 const ALL = { especialidade: "Todas", cidade: "", regiao: "" };
 
@@ -154,6 +155,7 @@ export function CoverageSection() {
           </li>
         ))}
       </ul>
+      <NationalCoverage />
       <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
         <span>Prefere procurar por cidade?</span>
         <Link
