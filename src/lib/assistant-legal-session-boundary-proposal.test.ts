@@ -49,12 +49,15 @@ describe("#261 server-bound legal writer proposal — isolated synthetic boundar
 
   it("never invokes storage for missing, expired, blocked, foreign or unauthorized identities", async () => {
     let writes = 0;
+    let roleLookups = 0;
     const appendOnce: LocalLegalAppendOnce = async () => {
       writes++;
       return { status: "unavailable" };
     };
     const cases = [
       { verifySession: async () => null, readAccount: async () => null },
+      { verifySession: async () => ({ userId: "invalid-subject", expiresAtMs: NOW + 1000 }),
+        readAccount: async () => { roleLookups++; return null; } },
       { verifySession: async () => ({ userId: USER, expiresAtMs: NOW }),
         readAccount: async () => ({ userId: USER, isActive: true, roles: ["cliente"] }) },
       { verifySession: async () => ({ userId: USER, expiresAtMs: NOW + 1000 }),
@@ -69,6 +72,7 @@ describe("#261 server-bound legal writer proposal — isolated synthetic boundar
       expect(await write("accept", KEY, NOW)).toEqual({ status: "denied" });
     }
     expect(writes).toBe(0);
+    expect(roleLookups).toBe(0);
   });
 
   it("fails closed when session or server-authorized role lookup throws", async () => {
