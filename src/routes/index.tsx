@@ -354,31 +354,58 @@ function HomePage() {
       <Reveal><FaqPreview /></Reveal>
       <Reveal><ContactBand /></Reveal>
 
-      <section className="mx-auto max-w-6xl px-4 py-12 sm:py-16">
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-lg border border-border bg-card p-8 text-center">
-            <h2 className="text-lg font-semibold text-card-foreground">Sou Cliente</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Cadastre-se, pesquise profissionais por região e negocie diretamente com o prestador.
+      <section aria-labelledby="home-journeys-title" className="px-4 py-16 sm:py-20">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-7 max-w-2xl">
+            <span className="text-xs font-extrabold uppercase tracking-widest text-primary">A jornada é sua</span>
+            <h2 id="home-journeys-title" className="mt-2 text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
+              Como você quer começar?
+            </h2>
+            <p className="mt-3 text-sm leading-7 text-muted-foreground sm:text-base">
+              Encontre ajuda para um serviço ou apresente seu trabalho à rede. Escolha seu caminho.
             </p>
-            <Link
-              to="/entrar"
-              className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              <UsersRound className="h-4 w-4" aria-hidden="true" /> Criar conta de cliente
-            </Link>
           </div>
-          <div className="rounded-lg border border-border bg-card p-8 text-center">
-            <h2 className="text-lg font-semibold text-card-foreground">Sou Técnico</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Faça parte da rede de técnicos de TI do Brasil e seja encontrado por novos clientes.
-            </p>
-            <Link
-              to="/entrar"
-              className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-primary px-6 py-2.5 text-sm font-medium text-primary hover:bg-primary/5"
-            >
-              <Wrench className="h-4 w-4" aria-hidden="true" /> Criar conta de técnico
-            </Link>
+          <div className="grid gap-5 md:grid-cols-2">
+            <article className="eut-card-lift group relative isolate flex min-h-80 flex-col overflow-hidden rounded-[28px] border border-primary/30 bg-gradient-to-br from-card via-card to-accent/70 p-6 shadow-soft sm:p-8">
+              <div aria-hidden="true" className="pointer-events-none absolute -right-12 -top-12 text-primary/10">
+                <UsersRound className="h-56 w-56" strokeWidth={0.8} />
+              </div>
+              <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl border border-primary/15 bg-primary/10 text-primary">
+                <UsersRound className="h-8 w-8" aria-hidden="true" />
+              </div>
+              <div className="relative mt-6 flex-1">
+                <p className="text-xs font-extrabold uppercase tracking-widest text-primary">Quero resolver</p>
+                <h3 className="mt-2 text-2xl font-extrabold text-card-foreground">Sou Cliente</h3>
+                <p className="mt-3 max-w-sm text-sm leading-7 text-muted-foreground">
+                  Cadastre-se, encontre profissionais por região e especialidade e combine diretamente o serviço.
+                </p>
+              </div>
+              <Link to="/entrar"
+                className="relative mt-6 inline-flex min-h-12 w-fit items-center justify-center gap-3 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground shadow-sm transition-all hover:shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none">
+                <Search className="h-5 w-5" aria-hidden="true" /> Criar conta de cliente
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1 motion-reduce:transform-none" aria-hidden="true" />
+              </Link>
+            </article>
+            <article className="eut-card-lift group relative isolate flex min-h-80 flex-col overflow-hidden rounded-[28px] border border-brand-glow/30 bg-gradient-to-br from-brand-navy via-[#173e64] to-brand-navy p-6 text-brand-navy-foreground shadow-[0_20px_55px_-25px_rgba(5,20,44,.55)] sm:p-8">
+              <div aria-hidden="true" className="pointer-events-none absolute -right-12 -top-12 text-white/10">
+                <Wrench className="h-56 w-56" strokeWidth={0.8} />
+              </div>
+              <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl border border-brand-glow/30 bg-white/10 text-brand-glow">
+                <Wrench className="h-8 w-8" aria-hidden="true" />
+              </div>
+              <div className="relative mt-6 flex-1">
+                <p className="text-xs font-extrabold uppercase tracking-widest text-brand-glow">Quero participar</p>
+                <h3 className="mt-2 text-2xl font-extrabold text-white">Sou Técnico</h3>
+                <p className="mt-3 max-w-sm text-sm leading-7 text-white/85">
+                  Mostre suas especialidades, informe sua região de atendimento e participe gratuitamente da rede.
+                </p>
+              </div>
+              <Link to="/entrar"
+                className="relative mt-6 inline-flex min-h-12 w-fit items-center justify-center gap-3 rounded-xl border border-white/30 bg-white px-5 py-3 text-sm font-bold text-brand-navy shadow-sm transition-all hover:shadow-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none">
+                <Wrench className="h-5 w-5" aria-hidden="true" /> Criar conta de técnico
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1 motion-reduce:transform-none" aria-hidden="true" />
+              </Link>
+            </article>
           </div>
         </div>
       </section>
