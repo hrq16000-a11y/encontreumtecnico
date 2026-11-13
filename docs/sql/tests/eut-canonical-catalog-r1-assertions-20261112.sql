@@ -14,6 +14,16 @@ BEGIN
    RAISE EXCEPTION 'Banned approved record was not disabled';
  END IF;
 END $qa$;
+\echo 'EUT canonical R1: source keys never in public table'
+DO $qa$
+BEGIN
+ IF EXISTS(SELECT 1 FROM pg_attribute
+   WHERE attrelid='public.technicians'::regclass AND attname='catalog_source_key'
+     AND NOT attisdropped) THEN RAISE EXCEPTION 'Public origin/source key leak'; END IF;
+ IF NOT EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+   WHERE n.nspname='eut_moderation' AND c.relname='catalog_provenance'
+   AND c.relrowsecurity) THEN RAISE EXCEPTION 'Private provenance RLS missing'; END IF;
+END $qa$;
 \echo 'EUT canonical R1: reject anonymous and non-admin'
 SET request.jwt.claim.sub='00000000-0000-4000-8000-000000000001';
 SET ROLE anon;
@@ -64,6 +74,10 @@ BEGIN
      WHERE c.technician_id=v_id AND c.phone_e164='+5541999998080'
        AND c.allow_paid_contact=false)
  THEN RAISE EXCEPTION 'Phone not stored privately'; END IF;
+ IF NOT EXISTS(SELECT 1 FROM eut_moderation.catalog_provenance p
+     WHERE p.technician_id=v_id AND p.catalog_origin='admin_manual'
+       AND p.source_key='manual:lead-001')
+ THEN RAISE EXCEPTION 'Private source key not persisted'; END IF;
  -- Actual hosted technicians.public_slug is NOT NULL and assigned by trigger.
  IF (SELECT public_slug FROM public.technicians WHERE id=v_id)<>'tecnico' THEN
    RAISE EXCEPTION 'Required slug trigger failed for null name and city'; END IF;
@@ -122,7 +136,9 @@ BEGIN
     (v_result->'results'->1->>'created')<>'false'
  THEN RAISE EXCEPTION 'Batch replay was not idempotent'; END IF;
  SELECT id,updated_at INTO v_id,v_version FROM public.technicians
- WHERE catalog_origin='wordpress' AND catalog_source_key='wp:old-42';
+ WHERE catalog_origin='wordpress' AND id=(
+   SELECT technician_id FROM eut_moderation.catalog_provenance
+     WHERE catalog_origin='wordpress' AND source_key='wp:old-42');
  v_reply:=public.eut_admin_catalog_set_enabled(v_id,v_version,false,'Desabilitação administrativa explícita');
  IF v_reply->>'catalog_enabled'<>'false' OR NOT EXISTS (
     SELECT 1 FROM public.technicians WHERE id=v_id AND catalog_enabled=false
@@ -223,7 +239,8 @@ BEGIN
    'Falha forçada no registro auditado');
  EXCEPTION WHEN SQLSTATE 'P0001' THEN failed:=true; END;
  IF NOT failed OR EXISTS (
-  SELECT 1 FROM public.technicians t WHERE t.catalog_source_key='manual:atomic-1'
+  SELECT 1 FROM eut_moderation.catalog_provenance p
+    WHERE p.catalog_origin='admin_manual' AND p.source_key='manual:atomic-1'
  ) OR EXISTS (
   SELECT 1 FROM eut_moderation.catalog_private_contacts c
    WHERE c.phone_e164='+5541999995050'
@@ -231,7 +248,19 @@ BEGIN
 END $qa$;
 DROP TRIGGER qa_fail_catalog_audit ON public.eut_admin_management_log;
 
-\echo 'EUT canonical R1: private contacts forbidden to anonymous'
+\echo 'EUT canonical R1: unaudited direct toggle must be blocked'
+DO $qa$
+DECLARE v_id uuid; rejected boolean:=false;
+BEGIN
+ SELECT technician_id INTO v_id FROM eut_moderation.catalog_provenance
+ WHERE catalog_origin='admin_manual' AND source_key='manual:lead-001';
+ BEGIN UPDATE public.technicians SET catalog_enabled=false WHERE id=v_id;
+ EXCEPTION WHEN SQLSTATE '42501' THEN rejected:=true; END;
+ IF NOT rejected THEN RAISE EXCEPTION 'Unaudited toggle was permitted'; END IF;
+ IF NOT (SELECT catalog_enabled FROM public.technicians WHERE id=v_id)
+ THEN RAISE EXCEPTION 'Unaudited toggle persisted'; END IF;
+END $qa$;
+\echo 'EUT canonical R1: private contacts and provenance denied to anonymous'
 SET ROLE anon;
 DO $qa$
 DECLARE denied boolean:=false;
@@ -239,6 +268,10 @@ BEGIN
  BEGIN EXECUTE 'SELECT 1 FROM eut_moderation.catalog_private_contacts LIMIT 1';
  EXCEPTION WHEN SQLSTATE '42501' THEN denied:=true; END;
  IF NOT denied THEN RAISE EXCEPTION 'Anonymous private access succeeded'; END IF;
+ denied:=false;
+ BEGIN EXECUTE 'SELECT 1 FROM eut_moderation.catalog_provenance LIMIT 1';
+ EXCEPTION WHEN SQLSTATE '42501' THEN denied:=true; END;
+ IF NOT denied THEN RAISE EXCEPTION 'Anonymous provenance access succeeded'; END IF;
 END $qa$;
 RESET ROLE;
 \echo 'QA passed: canonical IDs, idempotent batches, Auth-less enabled, private phone, auditable toggle, restrictions'

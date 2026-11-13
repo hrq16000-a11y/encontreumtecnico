@@ -11,17 +11,14 @@ ALTER TABLE public.technicians
 ALTER TABLE public.technicians
   ADD COLUMN IF NOT EXISTS catalog_enabled boolean NOT NULL DEFAULT true,
   ADD COLUMN IF NOT EXISTS catalog_origin text NOT NULL DEFAULT 'organic_auth',
-  ADD COLUMN IF NOT EXISTS catalog_source_key text,
   ADD COLUMN IF NOT EXISTS ddd_hint text;
-CREATE UNIQUE INDEX IF NOT EXISTS eut_technicians_origin_key_unique
-  ON public.technicians(catalog_origin,catalog_source_key)
-  WHERE catalog_source_key IS NOT NULL;
+-- Source keys are not kept in public: anon has SELECT on this RLS-protected table.
 
 -- Existing suspensions, rejections and bans MUST NOT be reset when catalog
 -- activation is introduced. New Auth-less admin imports still default to true.
 UPDATE public.technicians AS t SET catalog_enabled=false
 WHERE t.user_id IS NOT NULL AND (
-   t.status IN ('suspenso'::public.approval_status,'rejeitado'::public.approval_status)
+   t.status IS DISTINCT FROM 'aprovado'::public.approval_status
    OR EXISTS(SELECT 1 FROM eut_moderation.blocked_accounts b WHERE b.user_id=t.user_id)
    OR EXISTS(SELECT 1 FROM public.eut_technician_private_contacts c
       JOIN eut_moderation.blocked_phones b
@@ -43,8 +40,47 @@ CREATE TABLE IF NOT EXISTS eut_moderation.catalog_private_contacts(
 );
 ALTER TABLE eut_moderation.catalog_private_contacts ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON eut_moderation.catalog_private_contacts FROM PUBLIC, anon, authenticated;
+CREATE TABLE IF NOT EXISTS eut_moderation.catalog_provenance(
+  technician_id uuid PRIMARY KEY REFERENCES public.technicians(id) ON DELETE RESTRICT,
+  catalog_origin text NOT NULL CHECK(catalog_origin IN ('admin_manual','external_import','wordpress')),
+  source_key text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(catalog_origin,source_key)
+);
+ALTER TABLE eut_moderation.catalog_provenance ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON eut_moderation.catalog_provenance FROM PUBLIC, anon, authenticated;
+-- This private 1:1 mapping is provenance, NOT a parallel technician registry.
 -- This is the private Auth-less bridge keyed to the SAME technicians.id, not a second
 -- people registry. Existing public.eut_technician_private_contacts is untouched.
+
+CREATE OR REPLACE FUNCTION eut_moderation.audit_catalog_operational_edit()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path='pg_catalog' AS $guard$
+DECLARE v_actor uuid:=auth.uid();
+        v_reason text:=btrim(coalesce(current_setting('eut.catalog_change_reason',true),''));
+BEGIN
+  IF OLD.catalog_origin IS DISTINCT FROM NEW.catalog_origin
+     OR OLD.ddd_hint IS DISTINCT FROM NEW.ddd_hint
+  THEN RAISE EXCEPTION 'Origem ou DDD somente por operação auditada'
+    USING ERRCODE='42501'; END IF;
+  IF OLD.catalog_enabled IS DISTINCT FROM NEW.catalog_enabled THEN
+    IF v_actor IS NULL OR NOT public.has_role(v_actor,'admin'::public.app_role)
+       OR NOT public.eut_account_operational()
+       OR length(v_reason) NOT BETWEEN 8 AND 400
+       OR v_reason ~* '(https?://|www[.]|wa[.]me|@|[+][0-9][0-9 ()-]{8,})'
+    THEN RAISE EXCEPTION 'Use operação administrativa auditada'
+      USING ERRCODE='42501'; END IF;
+    INSERT INTO public.eut_admin_management_log(
+      actor_id,target_type,target_key,action,reason,before_state,after_state)
+    VALUES(v_actor,'technician',NEW.id::text,'catalog_enabled_changed',v_reason,
+      jsonb_build_object('enabled',OLD.catalog_enabled),
+      jsonb_build_object('enabled',NEW.catalog_enabled));
+  END IF;
+  RETURN NEW;
+END;
+$guard$;
+CREATE TRIGGER eut_catalog_operational_guard
+BEFORE UPDATE OF catalog_enabled,catalog_origin,ddd_hint ON public.technicians
+FOR EACH ROW EXECUTE FUNCTION eut_moderation.audit_catalog_operational_edit();
 
 CREATE OR REPLACE FUNCTION public.eut_admin_catalog_upsert(
   _origin text, _source_key text, _label text, _city_ibge integer,
@@ -66,7 +102,6 @@ DECLARE
   v_id uuid;
   v_existing uuid;
   v_old_phone text;
-  v_created boolean:=false;
 BEGIN
   IF v_actor IS NULL OR NOT public.has_role(v_actor,'admin'::public.app_role)
     OR NOT public.eut_account_operational()
@@ -117,8 +152,13 @@ BEGIN
        USING ERRCODE='22023'; END IF;
   END IF;
 
-  SELECT t.id INTO v_existing FROM public.technicians t
-    WHERE t.catalog_origin=v_origin AND t.catalog_source_key=v_source FOR UPDATE;
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(v_origin||':'||v_source,0));
+  SELECT p.technician_id INTO v_existing
+    FROM eut_moderation.catalog_provenance p
+    JOIN public.technicians t ON t.id=p.technician_id
+    WHERE p.catalog_origin=v_origin AND p.source_key=v_source
+    FOR UPDATE OF p,t;
   IF v_existing IS NOT NULL THEN
     SELECT c.phone_e164 INTO v_old_phone FROM eut_moderation.catalog_private_contacts c
       WHERE c.technician_id=v_existing;
@@ -134,26 +174,16 @@ BEGIN
   -- Stable source key wins concurrent races. Never auto-merge by a matching name or phone.
   INSERT INTO public.technicians(
     id,user_id,display_name,city,state_uf,specialties,service_slugs,
-    coverage_city_ids,status,catalog_enabled,catalog_origin,catalog_source_key,ddd_hint
+    coverage_city_ids,status,catalog_enabled,catalog_origin,ddd_hint
   ) VALUES(
     pg_catalog.gen_random_uuid(),NULL,v_label,v_city,v_uf,
     CASE WHEN v_category IS NULL THEN '{}'::text[] ELSE ARRAY[v_category] END,
     '{}'::text[],'{}'::integer[],'pendente'::public.approval_status,
-    true,v_origin,v_source,v_ddd
-  ) ON CONFLICT(catalog_origin,catalog_source_key)
-      WHERE catalog_source_key IS NOT NULL DO NOTHING
-  RETURNING id INTO v_id;
+    true,v_origin,v_ddd
+  ) RETURNING id INTO v_id;
 
-  v_created:=v_id IS NOT NULL;
-  IF NOT v_created THEN
-    SELECT id INTO v_id FROM public.technicians
-      WHERE catalog_origin=v_origin AND catalog_source_key=v_source;
-    IF v_id IS NULL THEN RAISE EXCEPTION 'Conflito de chave sem registro'
-      USING ERRCODE='40001'; END IF;
-    RETURN jsonb_build_object('ok',true,'created',false,'technician_id',v_id,
-      'catalog_enabled',(SELECT catalog_enabled FROM public.technicians WHERE id=v_id),
-      'published',false);
-  END IF;
+  INSERT INTO eut_moderation.catalog_provenance(technician_id,catalog_origin,source_key)
+  VALUES(v_id,v_origin,v_source);
 
   IF v_phone IS NOT NULL THEN
     INSERT INTO eut_moderation.catalog_private_contacts(technician_id,phone_e164)
@@ -229,12 +259,9 @@ BEGIN
   ) THEN RAISE EXCEPTION 'Contato restrito' USING ERRCODE='42501'; END IF;
   v_changed:=v_row.catalog_enabled IS DISTINCT FROM _enabled;
   IF v_changed THEN
+    -- Mandatory audit is written once by the catalog_enabled trigger.
+    PERFORM pg_catalog.set_config('eut.catalog_change_reason',v_reason,true);
     UPDATE public.technicians SET catalog_enabled=_enabled WHERE id=_id;
-    INSERT INTO public.eut_admin_management_log(
-      actor_id,target_type,target_key,action,reason,before_state,after_state)
-    VALUES(v_actor,'technician',_id::text,'catalog_enabled_changed',v_reason,
-      jsonb_build_object('enabled',v_row.catalog_enabled),
-      jsonb_build_object('enabled',_enabled));
   END IF;
   RETURN jsonb_build_object('ok',true,'technician_id',_id,
     'changed',v_changed,'catalog_enabled',_enabled,'published',false);
