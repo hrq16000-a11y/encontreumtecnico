@@ -85,6 +85,14 @@ AS $eligible$
              AND log.after_state->>'catalog_enabled'='true'
              AND log.after_state->>'auth_user_created'='false'
          )
+         -- The offer requires an actual, private, paid-contact-eligible
+         -- phone. A metadata-only WordPress record must stay invisible.
+         AND EXISTS (
+           SELECT 1 FROM eut_moderation.catalog_private_contacts c
+           WHERE c.technician_id=t.id
+             AND c.allow_paid_contact IS TRUE
+             AND c.phone_e164 ~ '^[+]55[1-9]{2}[2-9][0-9]{7,8}$'
+         )
          AND NOT EXISTS (
            SELECT 1 FROM eut_moderation.catalog_private_contacts c
            JOIN eut_moderation.blocked_phones b ON

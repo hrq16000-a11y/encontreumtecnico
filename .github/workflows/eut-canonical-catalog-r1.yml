@@ -239,6 +239,18 @@ jobs:
           # Two contacts from base API QA plus one from the integrated legacy-guard fixture.
           test "$count" -eq 3 || { echo "LOCAL_R1_PRIVATE_FLAG_COUNT_MISMATCH: expected=3 actual=$count"; exit 1; }
           echo 'LOCAL_R1_PRIVATE_ELIGIBILITY_OK: local-only flags, no contact disclosure'
+      - name: Verify WordPress telephone eligibility through LOCAL R2 and PostgREST
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          . "$RUNNER_TEMP/eut-local.env"
+          set +a
+          # Existing local stack only: refuse hosted database destinations.
+          [[ "${DB_URL:-}" == postgresql://*'@127.0.0.1:'* || "${DB_URL:-}" == postgres://*'@127.0.0.1:'* ]] || { echo 'LOCAL_DB_URL_REQUIRED'; exit 1; }
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/docs/sql/eut-canonical-catalog-r2-eligibility-proposal-20261113.sql" >/dev/null
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -c "NOTIFY pgrst, 'reload schema';" >/dev/null
+          node "$GITHUB_WORKSPACE/scripts/qa/eut-local-wordpress-eligibility-api.mjs"
       - name: Destroy local stack and ephemeral credentials
         if: always()
         shell: bash
