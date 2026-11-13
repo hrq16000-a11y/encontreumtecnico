@@ -115,8 +115,10 @@ function TechniciansPage() {
   const [showAdvanced, setShowAdvanced] = useState(
     () => Boolean(search.municipio_ibge || search.servico || search.bairro || search.regiao || search.prioridade === "regiao"),
   );
+  const advancedClosedByUser = useRef(false);
   useEffect(() => {
-    if (search.municipio_ibge || search.servico || search.bairro || search.regiao || search.prioridade === "regiao") {
+    if (!advancedClosedByUser.current &&
+      (search.municipio_ibge || search.servico || search.bairro || search.regiao || search.prioridade === "regiao")) {
       setShowAdvanced(true);
     }
   }, [search.municipio_ibge, search.servico, search.bairro, search.regiao, search.prioridade]);
@@ -231,7 +233,11 @@ function TechniciansPage() {
           </div>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
             <button type="button" aria-expanded={showAdvanced} aria-controls="filtros-avancados"
-              onClick={() => setShowAdvanced(value => !value)}
+              onClick={() => {
+                // URL commits may finish after a click; never override a deliberate collapse.
+                advancedClosedByUser.current = showAdvanced;
+                setShowAdvanced(value => !value);
+              }}
               className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-primary/30 bg-accent/60 px-4 text-sm font-bold text-primary transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
               <SlidersHorizontal className="h-4 w-4" aria-hidden="true" /> Mais filtros
               {[search.municipio_ibge, search.servico, search.bairro, search.regiao, prioritizeRegion ? "regiao" : ""].filter(Boolean).length > 0 &&

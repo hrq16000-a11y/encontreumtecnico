@@ -21,7 +21,9 @@ describe("Busca compacta: filtros e perfis com privacidade", () => {
     }
     expect(page).toContain('aria-expanded={showAdvanced}');
     expect(page).toContain('aria-controls="filtros-avancados"');
-    expect(page).toContain('onClick={() => setShowAdvanced(value => !value)}');
+    expect(page).toContain('advancedClosedByUser.current = showAdvanced');
+    expect(page).toContain('setShowAdvanced(value => !value)');
+    expect(page).toContain('if (!advancedClosedByUser.current &&');
     expect(page).toContain('aria-hidden={!showAdvanced} inert={!showAdvanced}');
     expect(page).toContain('grid-rows-[1fr] opacity-100');
     expect(page).toContain('grid-rows-[0fr] opacity-0');
