@@ -18,8 +18,8 @@ async function checkWidth(browser, width) {
   try {
     const response = await page.goto(BASE, { waitUntil: "networkidle", timeout: 45000 });
     assert.equal(response?.status(), 200, "Local synthetic Vite failed");
-    const demo = page.getByRole("button", { name: "Ver ficha · Demonstração Sintética" });
-    await demo.waitFor();
+    await page.getByRole("button", { name: "Ver ficha · Demonstração Sintética" }).waitFor();
+    const demo = page.locator('button[aria-controls="legacy-details-candidate-207"]');
     const controlledId = await demo.getAttribute("aria-controls");
     assert.equal(controlledId, "legacy-details-candidate-207");
     const details = page.locator("#" + controlledId);
