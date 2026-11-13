@@ -12,6 +12,7 @@ import { LegacyClaimReview } from "@/components/legacy-claim-review";
 import { EutAdminManager } from "@/components/eut-admin-manager";
 import { AdminControlHub } from "@/components/admin-control-hub";
 import { AdminCommandOverview } from "@/components/admin-command-overview";
+import { AdminReferralOverview } from "@/components/admin-referral-overview";
 import { AdminAdvertisingManager } from "@/components/admin-advertising-manager";
 import { AdminNavigation } from "@/components/admin-navigation";
 import { AdminTechnicianManager } from "@/components/admin-technician-manager";
@@ -142,6 +143,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             {error && <p role="alert" className="mt-2 text-sm text-destructive">{error}</p>}
                         {section === "inicio" && (<section aria-label="Resumo administrativo">
               <AdminCommandOverview />
+              <AdminReferralOverview />
               <AdminControlHub />
             </section>)}
             {section === "patrocinadores" && <section aria-label="Patrocinadores e banners"><div id="admin-patrocinadores"><AdminAdvertisingManager /></div></section>}
