@@ -29,13 +29,19 @@ export function FreeSearchHelp() {
     if (!open) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    // Preserve the element that opened the wizard, including contextual CTAs.
+    const previousFocus = document.activeElement;
     closeRef.current?.focus();
     const key = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
     window.addEventListener("keydown", key);
     return () => {
       document.body.style.overflow = previous;
       window.removeEventListener("keydown", key);
-      triggerRef.current?.focus();
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) {
+        previousFocus.focus();
+      } else {
+        triggerRef.current?.focus();
+      }
     };
   }, [open]);
   return (
