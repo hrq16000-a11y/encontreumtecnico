@@ -51,4 +51,18 @@ describe("Painel técnico navegável: abas profundas sem acessar dados de outro 
     expect(nav).toContain('aria-current={selected ? "page" : undefined}');
     expect(nav).toContain("overflow-x-auto");
   });
+  it("apresenta o link e os contadores reais no resumo sem criar outro sistema", () => {
+    const page = readFileSync("src/routes/area-tecnico.tsx", "utf8");
+    const missions = readFileSync("src/components/technician-missions.tsx", "utf8");
+    expect(page).toContain('<TechnicianMissions userId={user.id} compact onOpenDetails={() => setPanelTab("indicacoes")} />');
+    expect(page).toContain('<TechnicianMissions userId={user.id} />');
+    expect(missions).toContain("if (compact) {");
+    expect(missions).toContain('db.rpc("eut_my_referral_dashboard")');
+    expect(missions).toContain("dashboard.invited_accounts");
+    expect(missions).toContain("dashboard.invited_public_profiles");
+    expect(missions).toContain('value={link}');
+    expect(missions).toContain('onClick={() => void copyLink()}');
+    expect(missions).toContain('href="#eut-tecnico-indicacoes"');
+    expect(missions).not.toContain("service_role");
+  });
 });

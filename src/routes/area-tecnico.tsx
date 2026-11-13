@@ -459,6 +459,7 @@ export function TechnicianAreaPage() {
                 Conferir meu perfil publicado
               </Link>
             )}
+            <TechnicianMissions userId={user.id} compact onOpenDetails={() => setPanelTab("indicacoes")} />
             <div className="mt-7 grid gap-3 sm:grid-cols-2">
               {([
                 { tab: "perfil", title: "Meu perfil profissional", detail: "Nome, cidade, especialidades e serviços", icon: UserRound },
