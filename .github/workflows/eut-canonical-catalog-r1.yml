@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 12
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:17-alpine
         env:
           POSTGRES_USER: eut_fixture
           POSTGRES_PASSWORD: local_only_not_a_secret
@@ -42,6 +42,47 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install local PostgreSQL client
         run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+      - name: Offline Supabase local schema reconstruction preflight (no remote access)
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          # Snapshot is metadata only; this cannot verify live hosted SQL bodies.
+          audit = Path("docs/audits/EUT_SUPABASE_MIGRATIONS_METADATA_2026-11-12.md")
+          text = audit.read_text(encoding="utf-8").split("## Inventário dos scripts")[0]
+          hosted = re.findall(r"^\\| `(\\d{14})` \\|", text, re.MULTILINE)
+          local_files = sorted(Path("supabase/migrations").glob("*.sql"))
+          local = [p.name[:14] for p in local_files
+                   if re.fullmatch(r"\\d{14}_.+\\.sql", p.name)]
+          if len(hosted) != 66 or len(set(hosted)) != len(hosted):
+              raise SystemExit("Migration snapshot drift: review hosted metadata before proceeding")
+          if len(local_files) != len(local) or len(set(local)) != len(local):
+              raise SystemExit("Malformed or duplicated local migration names")
+          untracked = sorted(set(local) - set(hosted))
+          if untracked:
+              raise SystemExit(f"Local migrations not in hosted snapshot: {len(untracked)}")
+          missing = sorted(set(hosted) - set(local))
+          summary = [
+              "### EUT local Supabase readiness (offline snapshot)",
+              f"- Hosted versions in metadata snapshot: {len(hosted)}",
+              f"- Git SQL migration files: {len(local)}",
+              f"- SQL bodies missing from repository: {len(missing)}",
+              "- Hosted database PostgreSQL major: 17 (verified separately by read-only project metadata)",
+              "- No Supabase CLI, Auth stack, remote schema pull, database reset, or remote credentials used",
+          ]
+          if missing:
+              summary.append("- **FULL LOCAL SUPABASE STACK: BLOCKED** (missing historical migrations; no attempt made)")
+              summary.append("- PostgreSQL 17 synthetic fixtures below are **NOT** local Auth/GoTrue staging")
+          else:
+              summary.append("- Migration version names match; body hashes and full schema still require validation")
+          print("\\n".join(summary))
+          import os
+          step_summary = os.environ.get("GITHUB_STEP_SUMMARY")
+          if step_summary:
+              with open(step_summary, "a", encoding="utf-8") as fh:
+                  fh.write("\\n".join(summary) + "\\n")
+          PY
       - name: Seed synthetic EUT schema without any user data
         run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-admin-crud-ephemeral-schema-20261111.sql
       - name: Add operational authorization fixture
