@@ -112,6 +112,7 @@ export function createProposedLocalAssistantLegalWriter(
     const initial = decideAssistantAccess(principal, null, nowMs);
     if (
       !principal ||
+      initial.allowed ||
       initial.reason !== "acceptance_required" ||
       (eventKind !== "accept" && eventKind !== "revoke") ||
       typeof idempotencyKey !== "string" ||
