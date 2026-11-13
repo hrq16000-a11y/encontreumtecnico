@@ -1,0 +1,25 @@
+name: EUT one-off TypeScript and SSR - focus integration
+on:
+  push:
+    branches:
+      - fix/free-help-focus-main-20261113
+    paths:
+      - .github/workflows/eut-focus-main-ts-ssr-oneoff-20261113.yml
+permissions:
+  contents: read
+concurrency:
+  group: eut-focus-main-ts-ssr-oneoff-20261113
+  cancel-in-progress: false
+jobs:
+  compile-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install exactly locked dependencies
+        run: bun install --frozen-lockfile
+      - name: TanStack SSR build
+        run: bun run build
+      - name: Full TypeScript check
+        run: bunx tsc --noEmit --pretty false
