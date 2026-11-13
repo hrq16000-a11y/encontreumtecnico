@@ -43,7 +43,7 @@ const ADMIN_QUICK_LINKS = [
   { section: "solicitacoes", label: "Solicitações", icon: ClipboardList },
   { section: "contas", label: "Contas e bloqueios", icon: ShieldBan },
   { section: "contatos", label: "Contatos privados", icon: PhoneCall },
-] as const satisfies ReadonlyArray<{ section: AdminSection; label: string }>;
+] as const satisfies ReadonlyArray<{ section: AdminSection; label: string; icon: typeof Wrench }>;
 
 export function AdminPage() {
   return <AdminWorkspace section="inicio" />;
