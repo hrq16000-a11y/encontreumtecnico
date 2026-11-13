@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageShell } from "@/components/page-placeholder";
 import { getPublicCoverageOverview } from "@/lib/public-coverage.functions";
+import type { CoverageLocation } from "@/lib/public-coverage";
 import { SITE } from "@/lib/public-sitemap";
 
 export const Route = createFileRoute("/cobertura")({
@@ -20,7 +21,7 @@ export const Route = createFileRoute("/cobertura")({
 });
 
 function CoveragePage() {
-  const locations = Route.useLoaderData();
+  const locations: CoverageLocation[] = Route.useLoaderData();
   const approvedCount = locations.reduce((total, location) => total + location.profiles.length, 0);
 
   return (

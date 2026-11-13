@@ -7,6 +7,7 @@ import { getGuideArtwork } from "@/lib/guide-artwork";
 import { getRelatedServiceCategories } from "@/lib/service-catalog";
 import { getEnrichedServiceCategory } from "@/lib/service-catalog";
 import { listApprovedTechnicians } from "@/lib/technicians.functions";
+import type { PublicTechnician } from "@/lib/technicians.functions";
 import { SITE } from "@/lib/public-sitemap";
 
 export const Route = createFileRoute("/servicos/$categoria")({
@@ -65,7 +66,7 @@ export const Route = createFileRoute("/servicos/$categoria")({
 function ServiceCategoryPage() {
   const { categoria } = Route.useParams();
   const entry = getEnrichedServiceCategory(categoria);
-  const { technicians, listingUnavailable } = Route.useLoaderData();
+  const { technicians, listingUnavailable }: { technicians: PublicTechnician[]; listingUnavailable: boolean } = Route.useLoaderData();
   // Loader rejects unknown and thin categories with a real HTTP 404.
   if (!entry) return null;
   const { category, guide } = entry;

@@ -1,4 +1,5 @@
 import {listApprovedTechnicians} from '../../lib/technicians.functions'
+import type {PublicTechnician} from '../../lib/technicians.functions'
 import {createFileRoute,Link,useNavigate} from '@tanstack/react-router'
 import {useEffect,useState} from 'react'
 import {readUiTextDraft,saveUiTextDraft} from '../../lib/unsent-ui-draft'
@@ -41,7 +42,7 @@ function Home(){
    if(!draftReady)return
    saveUiTextDraft("lp2-home",{service,city})
  },[draftReady,service,city])
- const technicians=Route.useLoaderData()
+ const technicians:PublicTechnician[]=Route.useLoaderData()
  const profiles=technicians.slice(0,4).map(fromPublicTechnician)
  const requests:Activity[]=[]
  const loading=false

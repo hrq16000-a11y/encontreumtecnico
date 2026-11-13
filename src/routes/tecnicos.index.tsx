@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { listApprovedTechnicians } from "../lib/technicians.functions";
+import type { PublicTechnician } from "../lib/technicians.functions";
 import { TechnicianSearchCard } from "@/components/technician-search-card";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
@@ -101,7 +102,7 @@ function TechniciansPage() {
   const search = Route.useSearch();
   const { categories, loading: catalogLoading } = useActiveCategories();
   const { services, loading: servicesLoading } = useActiveServices();
-  const technicians = Route.useLoaderData();
+  const technicians: PublicTechnician[] = Route.useLoaderData();
   const navigate = useNavigate({ from: "/tecnicos/" });
   const lastRecorded = useRef("");
   const [consentRevision, setConsentRevision] = useState(0);
@@ -147,7 +148,7 @@ function TechniciansPage() {
     : "Todas";
 
   const update = (patch: Partial<typeof search>) =>
-    navigate({ search: (prev) => ({ ...prev, ...patch }), replace: true });
+    navigate({ search: (prev: typeof search) => ({ ...prev, ...patch }), replace: true });
 
   return (
     <PageShell>

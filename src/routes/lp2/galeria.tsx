@@ -15,7 +15,7 @@ export const Route=createFileRoute('/lp2/galeria')({
  loader:()=>getProfiles(),head:()=>({meta:[{title:'Buscar técnicos — LP2 Encontre um Técnico'},{name:'description',content:'Busque técnicos aprovados por especialidade, cidade e estado na plataforma Encontre um Técnico.'},{property:'og:url',content:'https://www.encontreumtecnico.com.br/lp2/galeria'}],links:[{rel:'canonical',href:'https://www.encontreumtecnico.com.br/lp2/galeria'}]}),component:Gallery
 })
 function Gallery(){
- const profiles=Route.useLoaderData(),search=Route.useSearch(),navigate=useNavigate()
+ const profiles:Tech[]=Route.useLoaderData(),search=Route.useSearch(),navigate=useNavigate()
  // Search URL provides identical SSR and initial client values.
  // A same-tab draft is applied after hydration, not during React's first render.
  const [query,setQuery]=useState(search.q),[city,setCity]=useState(search.city),[uf,setUf]=useState(''),[sort,setSort]=useState('name'),[limit,setLimit]=useState(24),[showUnlocated,setShowUnlocated]=useState(false)
