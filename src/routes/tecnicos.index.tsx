@@ -315,7 +315,7 @@ function TechniciansPage() {
             <span><MapPin className="mr-1 inline h-4 w-4 text-primary" aria-hidden="true" />
               Você pode estar perto de <strong>{suggestedArea.city}/{suggestedArea.uf}</strong>. Estimativa por IP, não localização exata.</span>
             <Link to="/tecnicos" search={{especialidade:search.especialidade,cidade:suggestedArea.city,uf:suggestedArea.uf,bairro:suggestedArea.neighborhood,regiao:"",servico:search.servico,prioridade:"regiao"}}
-              className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 text-xs font-bold text-primary-foreground"><MapPin className="h-4 w-4" aria-hidden="true" /> Buscar na região <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
+              className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 text-xs font-bold text-primary-foreground">Buscar na região <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
           </div>
         )}
         <SponsoredPublicSlot slotKey="search.top" routePath="/tecnicos" />
