@@ -78,14 +78,12 @@ describe("assistant access: offline fail-closed server contract (Issue #261)", (
   });
 
   it("rejects an outdated terms or privacy notice version", () => {
-    for (const update of [
-      { termsVersion: "eut-termos-2025-01-01" },
-      { privacyNoticeVersion: "eut-privacidade-2025-01-01" },
-    ]) {
-      expect(decideAssistantAccess(session(), accepted(update), NOW)).toEqual({
-        allowed: false, reason: "acceptance_required",
-      });
-    }
+    expect(decideAssistantAccess(
+      session(), accepted({ termsVersion: "eut-termos-2025-01-01" }), NOW,
+    )).toEqual({ allowed: false, reason: "acceptance_required" });
+    expect(decideAssistantAccess(
+      session(), accepted({ privacyNoticeVersion: "eut-privacidade-2025-01-01" }), NOW,
+    )).toEqual({ allowed: false, reason: "acceptance_required" });
   });
 
   it("rejects malformed or future-dated acceptance timestamps", () => {
