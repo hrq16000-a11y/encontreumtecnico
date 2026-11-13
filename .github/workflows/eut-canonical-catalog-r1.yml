@@ -51,10 +51,10 @@ jobs:
           # Snapshot is metadata only; this cannot verify live hosted SQL bodies.
           audit = Path("docs/audits/EUT_SUPABASE_MIGRATIONS_METADATA_2026-11-12.md")
           text = audit.read_text(encoding="utf-8").split("## Inventário dos scripts")[0]
-          hosted = re.findall(r"^\\| `(\\d{14})` \\|", text, re.MULTILINE)
+          hosted = re.findall(r"^\| `(\d{14})` \|", text, re.MULTILINE)
           local_files = sorted(Path("supabase/migrations").glob("*.sql"))
           local = [p.name[:14] for p in local_files
-                   if re.fullmatch(r"\\d{14}_.+\\.sql", p.name)]
+                   if re.fullmatch(r"\d{14}_.+\.sql", p.name)]
           if len(hosted) != 66 or len(set(hosted)) != len(hosted):
               raise SystemExit("Migration snapshot drift: review hosted metadata before proceeding")
           if len(local_files) != len(local) or len(set(local)) != len(local):
@@ -76,12 +76,12 @@ jobs:
               summary.append("- PostgreSQL 17 synthetic fixtures below are **NOT** local Auth/GoTrue staging")
           else:
               summary.append("- Migration version names match; body hashes and full schema still require validation")
-          print("\\n".join(summary))
+          print("\n".join(summary))
           import os
           step_summary = os.environ.get("GITHUB_STEP_SUMMARY")
           if step_summary:
               with open(step_summary, "a", encoding="utf-8") as fh:
-                  fh.write("\\n".join(summary) + "\\n")
+                  fh.write("\n".join(summary) + "\n")
           PY
       - name: Seed synthetic EUT schema without any user data
         run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-admin-crud-ephemeral-schema-20261111.sql
