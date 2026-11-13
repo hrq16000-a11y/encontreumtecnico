@@ -46,4 +46,14 @@ describe("Identidade visual: adição sem remoção das imagens existentes", () 
     expect(admin).toContain('<item.icon className="mr-2');
     expect(admin).toContain('noindex, nofollow');
   });
+
+  it("mantém os dois campos da busca flexíveis e o exemplo curto em larguras intermediárias", () => {
+    const form = home.slice(home.indexOf("<form"), home.indexOf("</form>") + 7);
+    expect(form).toContain('placeholder="Especialidade (ex.: CFTV)"');
+    expect(form).toContain('htmlFor="busca-especialidade"');
+    expect(form).toContain('htmlFor="busca-cidade"');
+    expect(form.match(/min-w-0 w-full sm:w-auto sm:flex-1/g)).toHaveLength(2);
+    expect(form).not.toContain("w-full shrink-0 sm:w-auto sm:flex-1");
+    expect(form).toContain('<Search className="h-4 w-4" aria-hidden="true" /> Buscar');
+  });
 });
