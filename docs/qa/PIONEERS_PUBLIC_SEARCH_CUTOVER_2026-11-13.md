@@ -177,3 +177,30 @@ proporcional: fixture local sintética de projeção **após R2**, provando
 origem WordPress verdadeira e negativos de origem orgânica/sem procedência,
 apelido editado, desabilitado e contato oculto; sem novo workflow ou CI
 automático sem autorização específica.
+
+
+## Adaptador de rótulo público pós-R2 — contrato isolado (13/11/2026)
+
+`src/lib/pioneer-r2-alias-projection.server.ts` prepara **somente** a projeção
+server-side: consulta primeiro `eut_public_eligible_technician_ids`, em modo
+fail-closed, exige origem WordPress + Auth-less + `pendente` +
+`catalog_enabled=true` e só expõe `id` e
+`provenanceLinkedWordPressAlias`. Nunca serializa fonte, chave, contato,
+bloqueio, auditoria, DDD ou identidade Auth. Para o cliente, todos continuam
+simplesmente **técnicos**, sem distinção pública pelo canal de origem.
+
+**Contrato ainda ausente:** o campo de entrada
+`originalWordPressAlias` deve ser alimentado **exclusivamente por fonte
+imutável e auditada**. A proposta R1 atual persiste `display_name` editável
+e `source_key` privado, mas não uma cópia imutável do apelido; o adaptador
+**não fabrica essa fonte**. Enquanto não houver vínculo real, a entrada deve
+ser `null`; se o administrador editou o nome ou a R2 negou o ID, nenhum
+alias é sugerido. A lista/SSR e o perfil por slug ainda **não importam** o
+adaptador, por isso não há cutover nem consulta extra ao banco existente.
+
+Validação proporcional nesta branch: TypeScript 5.9.3 em modo estrito
+**aprovado** no adaptador e no contrato R2 reaproveitado; Node real com
+**6/6 casos sintéticos** passou (R2 chamada antes, fonte ausente/editada,
+origem não WordPress, desabilitado, ID fora da lista, privacidade e RPC
+indisponível). **Vitest não executado** neste ambiente; nenhum workflow,
+dado real, SQL, RLS, merge ou deploy foi acionado.
