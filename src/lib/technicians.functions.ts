@@ -6,7 +6,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { rankTechniciansByDeclaredArea } from "@/lib/technician-local-ranking";
 import { isValidTechnicianId, isValidTechnicianSlug } from "@/lib/technician-id";
 import { sanitizePublicTechnician } from "@/lib/public-profile-text";
-import { matchingOfficialMunicipalityId } from "@/lib/technician-city-scope";
+import { matchingOfficialMunicipalityId, collectEligibleMunicipalPage, MUNICIPAL_MAX_PAGE } from "@/lib/technician-city-scope";
 import { readPublicEligibleRows, type PublicEligibilityRpc } from "@/lib/public-eligibility";
 
 export type PublicTechnician = {
@@ -143,54 +143,49 @@ const clean = (s: string) => s.replace(/[%,()*\\]/g, " ").trim().slice(0, 80);
 
 export const listApprovedTechnicians = createServerFn({ method: "GET" })
   .inputValidator((d) =>
-    z.object({ especialidade: z.string().max(80), cidade: z.string().max(80), regiao: z.string().max(80), servico: z.string().max(80).default(""), uf: z.string().max(2).default(""), bairro: z.string().max(80).default(""), prioridade: z.string().max(12).default(""), municipio_ibge: z.string().max(7).default(""), pagina: z.number().int().min(1).max(500).default(1) }).parse(d),
+    z.object({ especialidade: z.string().max(80), cidade: z.string().max(80), regiao: z.string().max(80), servico: z.string().max(80).default(""), uf: z.string().max(2).default(""), bairro: z.string().max(80).default(""), prioridade: z.string().max(12).default(""), municipio_ibge: z.string().max(7).default(""), pagina: z.number().int().min(1).max(MUNICIPAL_MAX_PAGE).default(1) }).parse(d),
   )
-  .handler(async ({ data }): Promise<PublicTechnician[]> => {
+  .handler(async ({ data }): Promise<{ technicians: PublicTechnician[]; hasMore: boolean }> => {
     setResponseHeader("Cache-Control", "no-store");
     // "Priorizar minha região" is not a strict geography filter. It ranks
     // among approved matching professionals so other regions remain options.
     // Official municipality lookup; no raw locality or DDD can expand scope.
     let selectedCityId: number | null = null;
     if (data.municipio_ibge) {
-      if (!/^[1-9][0-9]{6}$/.test(data.municipio_ibge)) return [];
+      if (!/^[1-9][0-9]{6}$/.test(data.municipio_ibge)) return { technicians: [], hasMore: false };
       const { data: official, error: cityError } = await publicClient()
         .from("eut_ibge_municipalities").select("id,name,uf")
         .eq("id", Number(data.municipio_ibge)).maybeSingle();
       if (cityError) throw new Error("Não foi possível validar município no catálogo oficial.");
       selectedCityId = matchingOfficialMunicipalityId(data.municipio_ibge, official, data.uf, data.cidade);
-      if (selectedCityId === null) return [];
+      if (selectedCityId === null) return { technicians: [], hasMore: false };
     }
     const regionalPriority = selectedCityId === null &&
       data.prioridade === "regiao" && Boolean(data.uf || data.cidade.trim());
     let q = publicClient().from("technicians").select(COLUMNS)
-      .eq("status", "aprovado").order("created_at", { ascending: false });
-    if (selectedCityId !== null) {
-      // The established approved-technicians source, filtered by declared coverage.
-      q = q.contains("coverage_city_ids", [selectedCityId])
-        .order("id", { ascending: true })
-        .range((data.pagina - 1) * 50, data.pagina * 50 - 1);
-    } else {
-      q = q.limit(200);
-    }
+      .eq("status", "aprovado").order("created_at", { ascending: false })
+      .order("id", { ascending: true });
+    if (selectedCityId !== null)
+      q = q.contains("coverage_city_ids", [selectedCityId]);
     if (data.especialidade && data.especialidade !== "Todas") {
       const slug = LEGACY_CATEGORY_ALIASES[data.especialidade] ?? data.especialidade;
       const { data: active, error: catalogError } = await (publicClient() as unknown as SupabaseClient)
         .from("eut_service_categories").select("slug").eq("slug", slug).eq("active", true).maybeSingle();
       if (catalogError) throw new Error("Não foi possível validar a categoria selecionada.");
-      if (!active) return [];
+      if (!active) return { technicians: [], hasMore: false };
       q = q.contains("specialties", [slug]);
     }
     if (data.servico) {
       const { data: offered, error: serviceError } = await (publicClient() as unknown as SupabaseClient)
         .from("eut_service_types").select("slug,category_slug").eq("slug", data.servico).eq("active", true).maybeSingle();
       if (serviceError) throw new Error("Não foi possível validar o serviço escolhido.");
-      if (!offered) return [];
-      if (data.especialidade && data.especialidade !== "Todas" && (LEGACY_CATEGORY_ALIASES[data.especialidade] ?? data.especialidade) !== offered.category_slug) return [];
+      if (!offered) return { technicians: [], hasMore: false };
+      if (data.especialidade && data.especialidade !== "Todas" && (LEGACY_CATEGORY_ALIASES[data.especialidade] ?? data.especialidade) !== offered.category_slug) return { technicians: [], hasMore: false };
       q = q.contains("service_slugs", [data.servico]);
     }
     const uf = data.uf.toUpperCase();
     if (uf) {
-      if (!/^(AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)$/.test(uf)) return [];
+      if (!/^(AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)$/.test(uf)) return { technicians: [], hasMore: false };
       if (!regionalPriority && selectedCityId === null) q = q.eq("state_uf", uf);
     }
     const bairro = clean(data.bairro);
@@ -203,17 +198,43 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
     }
     const region = clean(data.regiao);
     if (region && !regionalPriority && selectedCityId === null) q = q.ilike("region", `%${region}%`);
-    const { data: rows, error } = await q;
-    if (error) {
-      console.error("listApprovedTechnicians", error);
-      throw new Error("Não foi possível carregar os técnicos.");
-    }
-    const eligible = await readPublicEligibleRows(publicClient() as unknown as PublicEligibilityRpc, rows ?? []);
-    const published = await withCoverageCities(await withReferralHighlights(await withPioneerBadges(await withOnlineStatus(eligible.map(sanitizePublicTechnician)))));
-    if (!regionalPriority) return published.sort((a,b) => Number(b.online_now)-Number(a.online_now) || Number(Boolean(b.referral_highlight))-Number(Boolean(a.referral_highlight)) || Number(Boolean(b.pioneer_bronze))-Number(Boolean(a.pioneer_bronze)));
-    return rankTechniciansByDeclaredArea(published, {
-      uf, cidade: data.cidade, bairro: data.bairro,
-    });
+    // Candidate pages are scanned until the requested number of *eligible*
+    // profiles and one lookahead are found. The RPC is authoritative for EACH batch.
+    const page = selectedCityId !== null
+      ? await collectEligibleMunicipalPage({
+          page: data.pagina,
+          readCandidates: async (from, to) => {
+            const { data: rows, error } = await q.range(from, to);
+            if (error) {
+              console.error("listApprovedTechnicians municipal query", error);
+              throw new Error("Não foi possível carregar técnicos do município.");
+            }
+            return rows ?? [];
+          },
+          readEligible: rows => readPublicEligibleRows(
+            publicClient() as unknown as PublicEligibilityRpc, rows,
+          ),
+        })
+      : await (async () => {
+          const { data: rows, error } = await q.limit(200);
+          if (error) {
+            console.error("listApprovedTechnicians", error);
+            throw new Error("Não foi possível carregar os técnicos.");
+          }
+          return { rows: await readPublicEligibleRows(
+            publicClient() as unknown as PublicEligibilityRpc, rows ?? []), hasMore: false };
+        })();
+    const published = await withCoverageCities(
+      await withReferralHighlights(await withPioneerBadges(
+        await withOnlineStatus(page.rows.map(sanitizePublicTechnician)))));
+    const technicians = !regionalPriority
+      ? published.sort((a,b) => Number(b.online_now)-Number(a.online_now) ||
+          Number(Boolean(b.referral_highlight))-Number(Boolean(a.referral_highlight)) ||
+          Number(Boolean(b.pioneer_bronze))-Number(Boolean(a.pioneer_bronze)))
+      : rankTechniciansByDeclaredArea(published, {
+          uf, cidade: data.cidade, bairro: data.bairro,
+        });
+    return { technicians, hasMore: page.hasMore };
   });
 
 export const getApprovedTechnician = createServerFn({ method: "GET" })

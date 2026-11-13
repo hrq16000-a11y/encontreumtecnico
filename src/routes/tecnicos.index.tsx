@@ -69,7 +69,7 @@ const searchSchema = z.object({
   bairro: fallback(z.string(), "").default(""),
   prioridade: fallback(z.string(), "").default(""),
   municipio_ibge: fallback(z.string(), "").default(""),
-  pagina: fallback(z.coerce.number().int().min(1).max(500), 1).default(1),
+  pagina: fallback(z.coerce.number().int().min(1).max(20), 1).default(1),
 });
 
 export const Route = createFileRoute("/tecnicos/")({
@@ -105,7 +105,7 @@ function TechniciansPage() {
   const { categories, loading: catalogLoading } = useActiveCategories();
   const { services, loading: servicesLoading } = useActiveServices();
   const { cities: officialCities, loading: officialLoading, error: officialError } = useMunicipalities(search.uf);
-  const technicians = Route.useLoaderData();
+  const { technicians, hasMore } = Route.useLoaderData();
   const navigate = useNavigate({ from: "/tecnicos/" });
   const lastRecorded = useRef("");
   const [consentRevision, setConsentRevision] = useState(0);
@@ -400,9 +400,9 @@ function TechniciansPage() {
           <button type="button" disabled={search.pagina <= 1} onClick={() => update({ pagina: search.pagina - 1 })}
             className="min-h-11 rounded-lg border border-input px-4 text-sm disabled:opacity-40">Anterior</button>
           <span className="text-sm text-muted-foreground">Página {search.pagina}</span>
-          <button type="button" disabled={search.pagina >= 500} onClick={() => update({ pagina: search.pagina + 1 })}
+          <button type="button" disabled={!hasMore || search.pagina >= 20} onClick={() => update({ pagina: search.pagina + 1 })}
             className="min-h-11 rounded-lg border border-input px-4 text-sm disabled:opacity-40">Consultar próxima página</button>
-          <p className="text-xs text-muted-foreground">Uma página vazia não prova fim do catálogo: a elegibilidade é revalidada após cada página de candidatos.</p>
+          <p className="text-xs text-muted-foreground">Até 50 perfis elegíveis por página. Próxima página somente quando confirmada; após 20 páginas, refine os filtros. Não há total municipal presumido.</p>
         </nav>}
         <LegacyPublicArchive show={!search.municipio_ibge && canShowLegacyArchive(search)} />
       </section>
