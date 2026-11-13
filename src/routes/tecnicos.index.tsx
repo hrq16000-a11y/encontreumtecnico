@@ -274,7 +274,8 @@ function TechniciansPage() {
             placeholder="Ex.: Zona Sul"
             onCommit={(value) => update({ regiao: value })}
             onBlurTrack={(value) => trackFilter("regiao", value)}
-          />            <div className="sm:col-span-3">
+          />
+            <div className="sm:col-span-3">
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 p-4">
           <label className="flex cursor-pointer items-start gap-3 text-sm text-foreground">
             <input
@@ -309,7 +310,7 @@ function TechniciansPage() {
             <span><MapPin className="mr-1 inline h-4 w-4 text-primary" aria-hidden="true" />
               Você pode estar perto de <strong>{suggestedArea.city}/{suggestedArea.uf}</strong>. Estimativa por IP, não localização exata.</span>
             <Link to="/tecnicos" search={{especialidade:search.especialidade,cidade:suggestedArea.city,uf:suggestedArea.uf,bairro:suggestedArea.neighborhood,regiao:"",servico:search.servico,prioridade:"regiao"}}
-              className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-xs font-bold text-primary-foreground">Buscar na região</Link>
+              className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 text-xs font-bold text-primary-foreground"><MapPin className="h-4 w-4" aria-hidden="true" /> Buscar na região <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
           </div>
         )}
         <SponsoredPublicSlot slotKey="search.top" routePath="/tecnicos" />
@@ -319,7 +320,7 @@ function TechniciansPage() {
               <UserRoundCheck className="h-6 w-6" />
             </span>
             <div>
-              <h2 className="text-lg font-extrabold text-white">{technicians.length} profissional{technicians.length === 1 ? "" : "is"} nesta busca</h2>
+              <h2 className="text-lg font-extrabold text-white">{technicians.length} {technicians.length === 1 ? "profissional" : "profissionais"} nesta busca</h2>
               <p className="text-xs text-white/80">{searchArea || "Em todo o Brasil"} · Perfis públicos declarados</p>
             </div>
           </div>
