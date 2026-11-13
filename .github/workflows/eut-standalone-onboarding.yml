@@ -54,7 +54,8 @@ jobs:
             'Não precisa ter tido conta no site anterior',
             'Registrar minha necessidade',
             'canShowLegacyArchive(search)',
-            '<LegacyPublicArchive show={canShowLegacyArchive(search)} />',
+            // Legacy archive remains available in text search but never leaks into IBGE browsing.
+            '<LegacyPublicArchive show={!search.municipio_ibge && canShowLegacyArchive(search)} />',
           ]) if (!search.includes(term)) throw Error('Independent onboarding regression: '+term);
           if (!search.includes('to="/entrar"') || !search.includes('to="/area-cliente"')) {
             throw Error('Real onboarding endpoints missing');
