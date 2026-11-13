@@ -14,6 +14,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: eut-admin-release-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   consolidated-admin:
     runs-on: ubuntu-latest
