@@ -236,7 +236,8 @@ jobs:
           . "$RUNNER_TEMP/eut-local.env"
           set +a
           count="$(psql "$DB_URL" -X -Atqc "SELECT count(*) FROM eut_moderation.catalog_private_contacts WHERE allow_paid_contact=true")"
-          test "$count" -eq 2
+          # Two contacts from base API QA plus one from the integrated legacy-guard fixture.
+          test "$count" -eq 3 || { echo "LOCAL_R1_PRIVATE_FLAG_COUNT_MISMATCH: expected=3 actual=$count"; exit 1; }
           echo 'LOCAL_R1_PRIVATE_ELIGIBILITY_OK: local-only flags, no contact disclosure'
       - name: Destroy local stack and ephemeral credentials
         if: always()
