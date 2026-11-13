@@ -16,6 +16,19 @@ ALTER TABLE public.technicians
 CREATE UNIQUE INDEX IF NOT EXISTS eut_technicians_origin_key_unique
   ON public.technicians(catalog_origin,catalog_source_key)
   WHERE catalog_source_key IS NOT NULL;
+
+-- Existing suspensions, rejections and bans MUST NOT be reset when catalog
+-- activation is introduced. New Auth-less admin imports still default to true.
+UPDATE public.technicians AS t SET catalog_enabled=false
+WHERE t.user_id IS NOT NULL AND (
+   t.status IN ('suspenso'::public.approval_status,'rejeitado'::public.approval_status)
+   OR EXISTS(SELECT 1 FROM eut_moderation.blocked_accounts b WHERE b.user_id=t.user_id)
+   OR EXISTS(SELECT 1 FROM public.eut_technician_private_contacts c
+      JOIN eut_moderation.blocked_phones b
+        ON b.phone_digits=regexp_replace(c.phone_e164,'[^0-9]','','g')
+      WHERE c.user_id=t.user_id)
+);
+-- Future public eligibility MUST ALSO re-check bans at query time.
 -- Existing Auth profiles keep their current ids, roles, status, slugs and private contacts.
 -- Existing "status" is LEGACY publication/moderation; catalog_enabled is the
 -- new operational toggle. Do not interpret legacy 'pendente' as a manual review

@@ -1,4 +1,19 @@
 -- TEST ONLY: isolated Postgres 16, seeded by the existing synthetic admin fixture.
+\echo 'EUT canonical R1: preserve existing bans and suspensions'
+DO $qa$
+BEGIN
+ IF EXISTS (SELECT 1 FROM public.technicians
+    WHERE user_id IN ('00000000-0000-4000-8000-000000000003',
+                      '00000000-0000-4000-8000-000000000004')
+    AND catalog_enabled=true) THEN
+   RAISE EXCEPTION 'Legacy ban or suspension was incorrectly enabled';
+ END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.technicians t
+    WHERE t.user_id='00000000-0000-4000-8000-000000000003'
+      AND t.status='aprovado' AND t.catalog_enabled=false) THEN
+   RAISE EXCEPTION 'Banned approved record was not disabled';
+ END IF;
+END $qa$;
 \echo 'EUT canonical R1: reject anonymous and non-admin'
 SET request.jwt.claim.sub='00000000-0000-4000-8000-000000000001';
 SET ROLE anon;
