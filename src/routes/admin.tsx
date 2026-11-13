@@ -123,6 +123,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             <nav aria-label="Atalhos rápidos da administração"
               className="mt-4 rounded-xl border border-border bg-muted/20 p-3 sm:p-4">
               <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Acesso rápido</p>
+              <p className="mt-1 text-xs text-muted-foreground">Atalhos internos. As permissões de cada ação continuam protegidas.</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {ADMIN_QUICK_LINKS.map((item) => (
                   <Link key={item.section} to="/admin/$secao" params={{ secao: item.section }}
