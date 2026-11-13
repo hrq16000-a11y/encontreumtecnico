@@ -297,6 +297,7 @@ jobs:
               await logProbe('neighborhood-commit-settled');
               await page.keyboard.press('Enter');
               await page.waitForTimeout(motion === 'reduce' ? 30 : 260);
+              await logProbe('after-keyboard-enter');
               assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
               assert.equal(await panel.getAttribute('aria-hidden'), 'true');
               assert.notEqual(await panel.getAttribute('inert'), null);
