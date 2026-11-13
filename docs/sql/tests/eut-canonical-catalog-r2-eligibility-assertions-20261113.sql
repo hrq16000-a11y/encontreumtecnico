@@ -129,6 +129,17 @@ BEGIN
    RAISE EXCEPTION 'Removal of synthetic block failed to restore eligibility'; END IF;
 END $qa$;
 
+\echo 'R2: private grants inspected as fixture owner; roles cannot resolve private schemas'
+DO $qa$
+BEGIN
+ IF has_table_privilege('anon','eut_moderation.catalog_private_contacts','SELECT')
+    OR has_table_privilege('anon','eut_moderation.catalog_provenance','SELECT')
+    OR has_table_privilege('anon','eut_moderation.blocked_phones','SELECT')
+    OR has_table_privilege('authenticated','eut_moderation.catalog_private_contacts','SELECT')
+    OR has_table_privilege('authenticated','eut_moderation.catalog_provenance','SELECT')
+ THEN RAISE EXCEPTION 'Private catalog/provenance privileges were granted'; END IF;
+END $qa$;
+
 \echo 'R2: anonymous direct SELECT and RPC expose ONLY authorized rows'
 SET request.jwt.claim.sub='';
 SET ROLE anon;
@@ -166,10 +177,6 @@ BEGIN
  IF EXISTS(SELECT 1 FROM public.eut_public_eligible_technician_ids(NULL::uuid[]))
    OR EXISTS(SELECT 1 FROM public.eut_public_eligible_technician_ids(ARRAY[]::uuid[]))
  THEN RAISE EXCEPTION 'RPC accepted null/empty candidate set'; END IF;
- IF has_table_privilege('anon','eut_moderation.catalog_private_contacts','SELECT')
-    OR has_table_privilege('anon','eut_moderation.catalog_provenance','SELECT')
-    OR has_table_privilege('anon','eut_moderation.blocked_phones','SELECT')
- THEN RAISE EXCEPTION 'Private catalog access was granted to anonymous'; END IF;
  IF EXISTS(SELECT 1 FROM pg_catalog.pg_attribute
      WHERE attrelid='public.technicians'::regclass
        AND attname IN ('phone_e164','source_key','private_phone') AND NOT attisdropped)
@@ -189,9 +196,6 @@ BEGIN
    WHERE id=current_setting('qa.r2.disabled')::uuid
       OR id='20000000-0000-4000-8000-000000000001')
  THEN RAISE EXCEPTION 'Client accessed disabled/quarantined candidate'; END IF;
- IF has_table_privilege('authenticated','eut_moderation.catalog_private_contacts','SELECT')
-    OR has_table_privilege('authenticated','eut_moderation.catalog_provenance','SELECT')
- THEN RAISE EXCEPTION 'Authenticated user can read private provenance/contact'; END IF;
 END $qa$;
 RESET ROLE;
 
