@@ -19,7 +19,7 @@ import { useEffect, useRef, useState } from "react";
 import { analyticsAllowed, recordSearch } from "@/lib/search-analytics";
 import { openFreeHelp } from "@/lib/free-search-help";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
-import { MapPin, ShieldCheck, UserRoundCheck, LifeBuoy } from "lucide-react";
+import { ArrowRight, ChevronDown, ListFilter, MapPin, Search, ShieldCheck, SlidersHorizontal, UserRoundCheck, LifeBuoy, X } from "lucide-react";
 
 /** Small contextual help inside *filtered directory results*, not a second blog.
  * Avoid importing the full editorial catalogue into the default search bundle.
@@ -105,6 +105,15 @@ function TechniciansPage() {
   const navigate = useNavigate({ from: "/tecnicos/" });
   const lastRecorded = useRef("");
   const [consentRevision, setConsentRevision] = useState(0);
+  // Keep advanced controls mounted to preserve debounced drafts while collapsed.
+  const [showAdvanced, setShowAdvanced] = useState(
+    () => Boolean(search.servico || search.bairro || search.regiao || search.prioridade === "regiao"),
+  );
+  useEffect(() => {
+    if (search.servico || search.bairro || search.regiao || search.prioridade === "regiao") {
+      setShowAdvanced(true);
+    }
+  }, [search.servico, search.bairro, search.regiao, search.prioridade]);
   useEffect(() => {
     const changed = () => setConsentRevision(value => value + 1);
     window.addEventListener("eut-consent-changed", changed);
@@ -151,11 +160,18 @@ function TechniciansPage() {
 
   return (
     <PageShell>
-      <section className="mx-auto max-w-6xl px-4 py-10">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Técnicos</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Perfis publicados são declarados pelos próprios profissionais. A plataforma não certifica habilidades nem garante atendimento.
-        </p>
+      <section className="mx-auto max-w-6xl px-4 pb-12 pt-6 sm:pt-8">
+        <div className="relative isolate overflow-hidden rounded-[28px] border border-brand-glow/20 bg-gradient-to-br from-brand-navy via-[#173d61] to-brand-navy px-5 py-7 text-brand-navy-foreground shadow-soft sm:px-8 sm:py-9">
+          <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-32 h-72 w-72 rounded-full bg-brand-glow/15 blur-3xl" />
+          <span className="relative inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-widest text-brand-glow"><ListFilter className="h-4 w-4" aria-hidden="true" /> Diretório de profissionais</span>
+          <h1 className="relative mt-3 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">Encontre o técnico certo</h1>
+          <p className="relative mt-3 max-w-2xl text-sm leading-6 text-white/85">
+            Escolha a especialidade e a cidade. Perfis são declarados pelos profissionais; não representam certificação nem garantia de atendimento.
+          </p>
+          <div className="relative mt-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold text-white/90">
+            <ShieldCheck className="h-4 w-4 text-brand-glow" aria-hidden="true" /> Contatos particulares continuam protegidos
+          </div>
+        </div>
 
         <div className="mt-4">
           <CustomerLocationButton onLocated={(area, source) => {
@@ -164,7 +180,11 @@ function TechniciansPage() {
               regiao: "", prioridade: "regiao" });
           }} />
         </div>
-        <div className="mt-6 grid gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-3">
+        <section aria-label="Filtros da busca" className="mt-5 overflow-hidden rounded-2xl border border-primary/20 bg-card p-4 shadow-sm sm:p-5">
+          <div className="flex items-center gap-2 text-sm font-extrabold text-card-foreground">
+            <Search className="h-5 w-5 text-primary" aria-hidden="true" /> Encontre um profissional
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <div>
             <label htmlFor="filtro-especialidade" className="text-xs font-medium text-muted-foreground">
               Especialidade
@@ -186,17 +206,6 @@ function TechniciansPage() {
             </select>
           </div>
           <div>
-            <label htmlFor="filtro-servico" className="text-xs font-medium text-muted-foreground">Serviço específico</label>
-            <select id="filtro-servico" value={services.some((service) => service.slug === search.servico) ? search.servico : ""}
-              onChange={(e) => { update({ servico: e.target.value }); trackFilter("servico", e.target.value); }}
-              disabled={servicesLoading} className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
-              <option value="">Todos os serviços</option>
-              {services.filter((service) => specialty === "Todas" || service.category_slug === specialty).map((service) => (
-                <option key={service.slug} value={service.slug}>{service.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
             <label htmlFor="filtro-uf" className="text-xs font-medium text-muted-foreground">Estado (UF)</label>
             <select id="filtro-uf" value={search.uf} onChange={(e) => { update(technicianSearchAfterUfChange(e.target.value, search.prioridade)); trackFilter("uf", e.target.value); }}
               className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
@@ -213,6 +222,38 @@ function TechniciansPage() {
             onCommit={(value) => update({ cidade: value })}
             onBlurTrack={(value) => trackFilter("cidade", value)}
           />
+          </div>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+            <button type="button" aria-expanded={showAdvanced} aria-controls="filtros-avancados"
+              onClick={() => setShowAdvanced(value => !value)}
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-primary/30 bg-accent/60 px-4 text-sm font-bold text-primary transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+              <SlidersHorizontal className="h-4 w-4" aria-hidden="true" /> Mais filtros
+              {[search.servico, search.bairro, search.regiao, prioritizeRegion ? "regiao" : ""].filter(Boolean).length > 0 &&
+                <span className="rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
+                  {[search.servico, search.bairro, search.regiao, prioritizeRegion ? "regiao" : ""].filter(Boolean).length}
+                </span>}
+              <ChevronDown className={"h-4 w-4 transition-transform motion-reduce:transition-none " + (showAdvanced ? "rotate-180" : "")} aria-hidden="true" />
+            </button>
+            {Boolean(search.especialidade !== "Todas" || search.servico || search.uf || search.cidade || search.bairro || search.regiao || search.prioridade) && (
+              <button type="button"
+                onClick={() => update({ especialidade: "Todas", servico: "", uf: "", cidade: "", bairro: "", regiao: "", prioridade: "" })}
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                <X className="h-4 w-4" aria-hidden="true" /> Limpar filtros
+              </button>
+            )}
+          </div>
+          <div id="filtros-avancados" role="region" aria-label="Filtros avançados" className={showAdvanced ? "mt-3 grid gap-3 border-t border-border pt-4 sm:grid-cols-3" : "hidden"}>
+          <div>
+            <label htmlFor="filtro-servico" className="text-xs font-medium text-muted-foreground">Serviço específico</label>
+            <select id="filtro-servico" value={services.some((service) => service.slug === search.servico) ? search.servico : ""}
+              onChange={(e) => { update({ servico: e.target.value }); trackFilter("servico", e.target.value); }}
+              disabled={servicesLoading} className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
+              <option value="">Todos os serviços</option>
+              {services.filter((service) => specialty === "Todas" || service.category_slug === specialty).map((service) => (
+                <option key={service.slug} value={service.slug}>{service.label}</option>
+              ))}
+            </select>
+          </div>
           <DebouncedTextFilter
             key={`filtro-bairro-${search.uf}`}
             id="filtro-bairro"
@@ -239,8 +280,7 @@ function TechniciansPage() {
             onCommit={(value) => update({ regiao: value })}
             onBlurTrack={(value) => trackFilter("regiao", value)}
           />
-        </div>
-
+            <div className="sm:col-span-3">
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 p-4">
           <label className="flex cursor-pointer items-start gap-3 text-sm text-foreground">
             <input
@@ -267,36 +307,31 @@ function TechniciansPage() {
             </p>
           )}
         </div>
+            </div>
+          </div>
+        </section>
         {suggestedArea && (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/20 bg-accent/50 px-4 py-3 text-sm">
             <span><MapPin className="mr-1 inline h-4 w-4 text-primary" aria-hidden="true" />
               Você pode estar perto de <strong>{suggestedArea.city}/{suggestedArea.uf}</strong>. Estimativa por IP, não localização exata.</span>
             <Link to="/tecnicos" search={{especialidade:search.especialidade,cidade:suggestedArea.city,uf:suggestedArea.uf,bairro:suggestedArea.neighborhood,regiao:"",servico:search.servico,prioridade:"regiao"}}
-              className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-xs font-bold text-primary-foreground">Buscar na região</Link>
+              className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 text-xs font-bold text-primary-foreground">Buscar na região <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
           </div>
         )}
-        {CATEGORY_SEARCH_CONTEXT[search.especialidade] && (
-          <aside aria-label="Orientações da especialidade selecionada"
-            className="mt-5 flex flex-col gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-            <div>
-              <h2 className="font-bold text-foreground">{CATEGORY_SEARCH_CONTEXT[search.especialidade]?.title}</h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-                {CATEGORY_SEARCH_CONTEXT[search.especialidade]?.advice}
-              </p>
-            </div>
-            <Link to="/servicos/$categoria" params={{ categoria: search.especialidade }}
-              className="inline-flex min-h-11 shrink-0 items-center rounded-xl border border-primary/30 px-4 text-sm font-semibold text-primary hover:bg-primary/10">
-              Ver informações e profissionais desta categoria →
-            </Link>
-          </aside>
-        )}
         <SponsoredPublicSlot slotKey="search.top" routePath="/tecnicos" />
-        <section aria-label="Transparência e confiança na busca" className="mt-6 grid gap-3 rounded-2xl border border-primary/15 bg-accent/50 p-4 sm:grid-cols-3">
-          <div className="flex items-start gap-3"><UserRoundCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" /><p className="text-sm text-foreground"><strong className="block">{technicians.length} perfil{technicians.length === 1 ? "" : "s"} nesta busca</strong><span className="text-xs text-muted-foreground">Somente perfis publicados; resultados conforme os filtros aplicados.</span></p></div>
-          <div className="flex items-start gap-3"><MapPin className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" /><p className="text-sm text-foreground"><strong className="block">Localidade informada</strong><span className="text-xs text-muted-foreground">Regiões declaradas pelos profissionais, sem localização inventada.</span></p></div>
-          <div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" /><p className="text-sm text-foreground"><strong className="block">Contato protegido</strong><span className="text-xs text-muted-foreground">Telefones particulares não aparecem na busca pública.</span></p></div>
-        </section>
-        <div className="mt-6">
+        <div aria-live="polite" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/20 bg-gradient-to-r from-brand-navy via-[#173d61] to-brand-navy px-5 py-4 text-brand-navy-foreground shadow-sm">
+          <div className="flex items-center gap-3">
+            <span aria-hidden="true" className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 text-brand-glow">
+              <UserRoundCheck className="h-6 w-6" />
+            </span>
+            <div>
+              <h2 className="text-lg font-extrabold text-white">{technicians.length} {technicians.length === 1 ? "profissional" : "profissionais"} nesta busca</h2>
+              <p className="text-xs text-white/80">{searchArea || "Em todo o Brasil"} · Perfis públicos declarados</p>
+            </div>
+          </div>
+          <span className="inline-flex items-center gap-2 text-xs font-semibold text-white/85"><ShieldCheck className="h-4 w-4" aria-hidden="true" /> Contatos protegidos</span>
+        </div>
+        <div className="mt-4">
           {technicians.length === 0 ? (
             <div className="space-y-4">
               <EmptyState
@@ -355,7 +390,7 @@ function TechniciansPage() {
               </div>
             </div>
           ) : (
-            <ul className="grid gap-5 md:grid-cols-2">
+            <ul className="grid gap-4 md:grid-cols-2 lg:gap-5">
               {technicians.map((t) => (
                 <li key={t.id} className="min-w-0">
                   <TechnicianSearchCard
@@ -371,6 +406,26 @@ function TechniciansPage() {
             </ul>
           )}
         </div>
+        {CATEGORY_SEARCH_CONTEXT[search.especialidade] && (
+          <aside aria-label="Orientações da especialidade selecionada"
+            className="mt-5 flex flex-col gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div>
+              <h2 className="font-bold text-foreground">{CATEGORY_SEARCH_CONTEXT[search.especialidade]?.title}</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+                {CATEGORY_SEARCH_CONTEXT[search.especialidade]?.advice}
+              </p>
+            </div>
+            <Link to="/servicos/$categoria" params={{ categoria: search.especialidade }}
+              className="inline-flex min-h-11 shrink-0 items-center rounded-xl border border-primary/30 px-4 text-sm font-semibold text-primary hover:bg-primary/10">
+              Ver informações e profissionais desta categoria →
+            </Link>
+          </aside>
+        )}
+        <section aria-label="Transparência e confiança na busca" className="mt-6 grid gap-3 rounded-2xl border border-primary/15 bg-accent/50 p-4 sm:grid-cols-3">
+          <div className="flex items-start gap-3"><UserRoundCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" /><p className="text-sm text-foreground"><strong className="block">{technicians.length} perfil{technicians.length === 1 ? "" : "s"} nesta busca</strong><span className="text-xs text-muted-foreground">Somente perfis publicados; resultados conforme os filtros aplicados.</span></p></div>
+          <div className="flex items-start gap-3"><MapPin className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" /><p className="text-sm text-foreground"><strong className="block">Localidade informada</strong><span className="text-xs text-muted-foreground">Regiões declaradas pelos profissionais, sem localização inventada.</span></p></div>
+          <div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" /><p className="text-sm text-foreground"><strong className="block">Contato protegido</strong><span className="text-xs text-muted-foreground">Telefones particulares não aparecem na busca pública.</span></p></div>
+        </section>
         <LegacyPublicArchive show={canShowLegacyArchive(search)} />
       </section>
     </PageShell>

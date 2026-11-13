@@ -30,12 +30,13 @@ export function TechnicianSearchCard({ technician: t, categories, services, loca
   return (
     <Link to="/tecnicos/$tecnicoId" params={{ tecnicoId: t.public_slug }}
       aria-label={"Ver perfil e serviços de " + t.display_name}
-      className="eut-card-lift group relative flex h-full min-w-0 flex-col overflow-hidden rounded-[24px] border border-border bg-card shadow-sm transition-colors hover:border-primary/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-      <div className="relative isolate bg-brand-navy px-5 pb-9 pt-5 text-brand-navy-foreground sm:px-6 sm:pt-6">
-        <div aria-hidden="true" className="pointer-events-none absolute -right-10 -top-20 h-52 w-52 rounded-full bg-brand-glow/25 blur-3xl" />
+      className="eut-card-lift group relative flex h-full min-w-0 flex-col overflow-hidden rounded-[26px] border border-primary/20 bg-card shadow-sm transition-[border-color,box-shadow] duration-200 hover:border-primary/60 hover:shadow-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none">
+      <div className="relative isolate bg-gradient-to-br from-brand-navy via-[#194467] to-[#0c2d4e] px-5 pb-10 pt-6 text-brand-navy-foreground sm:px-6 sm:pt-7">
+        <div aria-hidden="true" className="pointer-events-none absolute -right-10 -top-20 h-52 w-52 rounded-full bg-brand-glow/20 blur-3xl" />
+        <Wrench aria-hidden="true" className="pointer-events-none absolute -right-3 top-6 h-24 w-24 rotate-[-20deg] text-white/10" strokeWidth={1} />
         <div className="relative flex min-w-0 items-start gap-4">
           <TechnicianAvatar name={t.display_name} avatarPath={t.avatar_path}
-            className="h-[76px] w-[76px] shrink-0 rounded-2xl border-2 border-white/30 ring-4 ring-white/10 sm:h-[84px] sm:w-[84px]" />
+            className="h-[76px] w-[76px] shrink-0 rounded-2xl border-2 border-white/35 ring-4 ring-white/10 shadow-lg sm:h-[84px] sm:w-[84px]" />
           <div className="min-w-0 flex-1">
             <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[.13em] text-white/80">
               <BriefcaseBusiness className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> Perfil profissional
@@ -48,7 +49,7 @@ export function TechnicianSearchCard({ technician: t, categories, services, loca
           </div>
         </div>
       </div>
-      <div className="relative -mt-3 flex flex-1 flex-col rounded-t-[20px] bg-card px-5 pb-5 pt-4 sm:px-6">
+      <div className="relative -mt-4 flex flex-1 flex-col rounded-t-[22px] bg-card px-5 pb-5 pt-5 sm:px-6">
         <div className="flex flex-wrap gap-1.5">
           {t.online_now && (
             <span title="Atividade recente, sem garantia de disponibilidade" className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[11px] font-bold text-primary">
@@ -111,10 +112,10 @@ export function TechnicianSearchCard({ technician: t, categories, services, loca
           </p>
         )}
 
-        <div className="mt-auto flex items-center justify-between gap-4 border-t border-border pt-4 text-sm font-bold text-primary">
-          <span className="inline-flex items-center gap-2"><ShieldCheck className="h-4 w-4" aria-hidden="true" /> Contato privado protegido</span>
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary px-3 py-2 text-xs font-bold text-primary-foreground transition-transform group-hover:translate-x-0.5 motion-reduce:transform-none">
-            Ver perfil <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4 text-sm font-bold text-primary">
+          <span className="inline-flex items-center gap-2 text-xs sm:text-sm"><ShieldCheck className="h-4 w-4 shrink-0" aria-hidden="true" /> Contato privado protegido</span>
+          <span className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-sm transition-transform group-hover:translate-x-0.5 motion-reduce:transform-none">
+            Ver perfil completo <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
           </span>
         </div>
       </div>
