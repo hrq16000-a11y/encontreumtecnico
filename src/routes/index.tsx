@@ -261,13 +261,14 @@ function HomePage() {
         </div>
       </section>
 
-      <section aria-labelledby="home-visual-servicos" className="border-b border-border bg-gradient-to-r from-accent/80 via-background to-accent/80 px-4 py-12 sm:py-16"><div className="mx-auto max-w-6xl">
+      <section aria-labelledby="home-visual-servicos" className="border-b border-border bg-gradient-to-r from-accent/80 via-background to-accent/80 px-4 py-12 sm:py-16">
+        <div className="mx-auto max-w-6xl">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-primary">Explore visualmente</p>
             <h2 id="home-visual-servicos" className="mt-2 text-2xl font-bold text-foreground sm:text-3xl">Seu problema, nossa próxima conexão</h2>
             <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-              Conheça três especialidades e descubra como encontrar um profissional da área.
+              Explore quatro especialidades e encontre profissionais por serviço e localidade.
             </p>
           </div>
           <Link to="/servicos" className="inline-flex min-h-11 items-center gap-2 rounded-full border border-primary/30 px-4 text-sm font-semibold text-primary hover:bg-accent">
