@@ -10,6 +10,7 @@ import { useActiveServices, serviceLabel } from "@/hooks/use-active-services";
 import { DebouncedTextFilter } from "@/components/debounced-text-filter";
 import { CustomerLocationButton } from "@/components/customer-location-button";
 import { BRAZIL_STATES } from "@/lib/service-taxonomy";
+import { technicianSearchAfterUfChange } from "@/lib/technician-search-uf-transition";
 import { neighborhoodCatalogFor, neighborhoodOptions } from "@/lib/neighborhood-sources";
 import { localMatchLabel } from "@/lib/technician-local-ranking";
 import { LegacyPublicArchive } from "../components/legacy-public-archive";
@@ -197,13 +198,14 @@ function TechniciansPage() {
           </div>
           <div>
             <label htmlFor="filtro-uf" className="text-xs font-medium text-muted-foreground">Estado (UF)</label>
-            <select id="filtro-uf" value={search.uf} onChange={(e) => { update({ uf: e.target.value }); trackFilter("uf", e.target.value); }}
+            <select id="filtro-uf" value={search.uf} onChange={(e) => { update(technicianSearchAfterUfChange(e.target.value, search.prioridade)); trackFilter("uf", e.target.value); }}
               className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
               <option value="">Todos os estados</option>
               {BRAZIL_STATES.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
             </select>
           </div>
           <DebouncedTextFilter
+            key={`filtro-cidade-${search.uf}`}
             id="filtro-cidade"
             label="Cidade"
             value={search.cidade}
@@ -212,6 +214,7 @@ function TechniciansPage() {
             onBlurTrack={(value) => trackFilter("cidade", value)}
           />
           <DebouncedTextFilter
+            key={`filtro-bairro-${search.uf}`}
             id="filtro-bairro"
             label="Bairro"
             list={bairroCatalog ? "eut-bairro-diretorio" : undefined}
@@ -228,6 +231,7 @@ function TechniciansPage() {
               target="_blank" rel="noopener noreferrer">prefeitura</a>; você pode digitar outra denominação.
           </div>}
           <DebouncedTextFilter
+            key={`filtro-regiao-${search.uf}`}
             id="filtro-regiao"
             label="Região"
             value={search.regiao}
