@@ -6,6 +6,13 @@ const db = supabase as unknown as SupabaseClient;
 const STORAGE_KEY = "eut-pending-technician-invite";
 const CODE_PATTERN = /^[0-9a-f]{32}$/;
 
+/** Never turn a missing or malformed backend counter into a fictional zero. */
+function verifiedCount(value: unknown): number | null {
+  const count = typeof value === "number" ? value
+    : typeof value === "string" && /^[0-9]+$/.test(value) ? Number(value) : NaN;
+  return Number.isSafeInteger(count) && count >= 0 ? count : null;
+}
+
 type MissionDashboard = {
   code: string;
   profile_published: boolean;
@@ -38,15 +45,18 @@ export function TechnicianMissions({ userId, compact = false, onOpenDetails }: {
 
   async function refresh() {
     const { data, error } = await db.rpc("eut_my_referral_dashboard");
-    if (error || !data || typeof data.code !== "string" || !CODE_PATTERN.test(data.code)) {
+    const invitedAccounts = verifiedCount(data?.invited_accounts);
+    const invitedPublicProfiles = verifiedCount(data?.invited_public_profiles);
+    if (error || !data || typeof data.code !== "string" || !CODE_PATTERN.test(data.code)
+      || invitedAccounts === null || invitedPublicProfiles === null) {
       throw new Error("Unable to load missions");
     }
     const summary: MissionDashboard = {
       code: data.code,
       profile_published: data.profile_published === true,
       online_recent: data.online_recent === true,
-      invited_accounts: Math.max(0, Number(data.invited_accounts) || 0),
-      invited_public_profiles: Math.max(0, Number(data.invited_public_profiles) || 0),
+      invited_accounts: invitedAccounts,
+      invited_public_profiles: invitedPublicProfiles,
     };
     setDashboard(summary);
     setLink(`${window.location.origin}/convite/${summary.code}`);
@@ -61,15 +71,18 @@ export function TechnicianMissions({ userId, compact = false, onOpenDetails }: {
     setPendingCode(stored && CODE_PATTERN.test(stored) ? stored : null);
     void Promise.resolve(db.rpc("eut_my_referral_dashboard")).then(({ data, error }) => {
       if (!active) return;
-      if (error || !data || typeof data.code !== "string" || !CODE_PATTERN.test(data.code)) {
+      const invitedAccounts = verifiedCount(data?.invited_accounts);
+      const invitedPublicProfiles = verifiedCount(data?.invited_public_profiles);
+      if (error || !data || typeof data.code !== "string" || !CODE_PATTERN.test(data.code)
+        || invitedAccounts === null || invitedPublicProfiles === null) {
         setMessage("Não foi possível carregar as missões. Tente atualizar o painel.");
       } else {
         setDashboard({
           code: data.code,
           profile_published: data.profile_published === true,
           online_recent: data.online_recent === true,
-          invited_accounts: Math.max(0, Number(data.invited_accounts) || 0),
-          invited_public_profiles: Math.max(0, Number(data.invited_public_profiles) || 0),
+          invited_accounts: invitedAccounts,
+          invited_public_profiles: invitedPublicProfiles,
         });
         setLink(`${window.location.origin}/convite/${data.code}`);
       }
