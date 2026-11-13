@@ -125,11 +125,11 @@ REVOKE ALL ON public.eut_technician_private_contacts
 
 -- This is the deployed predicate for existing Auth-owned approved profiles.
 -- Imported Auth-less pending technicians must remain out of the public API.
-CREATE FUNCTION eut_visibility.eut_public_technician_eligible(_id uuid)
+CREATE FUNCTION eut_visibility.eut_public_technician_eligible(_technician_id uuid)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
-SET search_path = 'pg_catalog' AS $$
+SET search_path = 'pg_catalog' AS $
   SELECT EXISTS(SELECT 1 FROM public.technicians t
-    WHERE t.id=_id AND t.status='aprovado'::public.approval_status
+    WHERE t.id=_technician_id AND t.status='aprovado'::public.approval_status
       AND t.user_id IS NOT NULL
       AND NOT EXISTS(SELECT 1 FROM eut_moderation.blocked_accounts b
         WHERE b.user_id=t.user_id)

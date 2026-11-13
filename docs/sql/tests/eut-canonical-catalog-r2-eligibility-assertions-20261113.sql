@@ -33,9 +33,11 @@ BEGIN
  IF eut_visibility.eut_public_technician_eligible(
     current_setting('qa.r2.disabled')::uuid) THEN
    RAISE EXCEPTION 'Disabled canonical import was made eligible'; END IF;
- IF NOT eut_visibility.eut_public_technician_eligible(
+ -- R1 edited this imported profile to remove its phone, preserving city.
+ -- A city alone must never make a contact-less profile available.
+ IF eut_visibility.eut_public_technician_eligible(
     current_setting('qa.r2.withcity')::uuid) THEN
-   RAISE EXCEPTION 'Audited imported record with a declared city was rejected'; END IF;
+   RAISE EXCEPTION 'Phone-less imported profile was offered based on city'; END IF;
  IF EXISTS(SELECT 1 FROM public.technicians t
    WHERE t.id=current_setting('qa.r2.withcity')::uuid
      AND cardinality(t.coverage_city_ids)>0) THEN
