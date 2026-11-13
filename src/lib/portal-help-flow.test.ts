@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { portalHelpContext } from "./free-search-help";
 
 const home = readFileSync("src/components/home-rich.tsx", "utf8");
+const homeRoute = readFileSync("src/routes/index.tsx", "utf8");
 const contact = readFileSync("src/routes/contato.tsx", "utf8");
 const funnel = readFileSync("src/components/assistance-funnel.tsx", "utf8");
 const palette = readFileSync("src/styles.css", "utf8");
@@ -18,6 +19,13 @@ describe("Contato do portal apenas pelo funil guiado", () => {
     expect(home).toContain("Pedir ajuda ao portal");
     expect(home).not.toMatch(/href=["'](?:tel:|mailto:|https?:\/\/wa\.me)/i);
     expect(home).not.toContain("9 9745-2053");
+  });
+
+  it("não publica telefone ou e-mail de atendimento no JSON-LD da Home", () => {
+    expect(homeRoute).toContain('"@type": "Organization"');
+    expect(homeRoute).not.toContain('telephone: "+55-41-99745-2053"');
+    expect(homeRoute).not.toContain('email: "dpo@encontreumtecnico.com"');
+    expect(homeRoute).toContain("logo: new URL(logo.url, SITE).href");
   });
 
   it("abre a central de contato com contexto e preserva caminhos de suporte", () => {
