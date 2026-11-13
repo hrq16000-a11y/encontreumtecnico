@@ -51,7 +51,8 @@ describe("P0 técnico: rascunho restaurado não perde cidade oficial na etapa 3"
     const route = readFileSync("src/routes/area-tecnico.tsx", "utf8");
     expect(route).toContain("hydrateTechnicianOfficialCity");
     expect(route).toContain("draftRestoredOwnerId !== user.id");
-    expect(route).toContain("setForm(current => hydrateTechnicianOfficialCity");
+    expect(route).toContain("setForm(current => currentUserRef.current === owner");
+    expect(route).toContain("? hydrateTechnicianOfficialCity(current, officialBaseCities, form.state_uf)");
     expect(route).toContain('activationDb.rpc("eut_publish_my_technician"');
   });
 });
