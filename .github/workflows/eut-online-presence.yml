@@ -63,7 +63,8 @@ jobs:
           for(const term of ['eut_online_published_ids','_technician_ids: rows.map','online_now','Number(b.online_now)']) {
             if(!server.includes(term))throw Error('Online-only search relevance missing: '+term);
           }
-          if(!server.includes('.eq("status", "aprovado")') ||
+          if(!server.includes('.in("status", ["aprovado", "pendente"])') ||
+             !server.includes('readPublicEligibleRows(') ||
              !list.includes('TechnicianSearchCard') || !card.includes('t.online_now') ||
              !detail.includes('t.online_now')) {
             throw Error('Public presence must not expose unapproved profiles');

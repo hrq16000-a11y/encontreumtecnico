@@ -4,6 +4,8 @@ on:
     paths:
       - '.github/workflows/eut-browser-smoke.yml'
       - 'scripts/eut-browser-smoke.cjs'
+      - 'scripts/eut-ibge-qa-fixture.cjs'
+      - 'scripts/eut-ibge-qa-browser.cjs'
       - 'src/routes/tecnicos.index.tsx'
   workflow_dispatch:
 permissions:
@@ -40,3 +42,70 @@ jobs:
         env:
           EUT_BASE_URL: https://www.encontreumtecnico.com.br
         run: NODE_PATH="$RUNNER_TEMP/eut-browser/node_modules" node scripts/eut-browser-smoke.cjs
+
+  branch-ibge-synthetic-qa:
+    if: ${{ github.event_name == 'pull_request' && github.head_ref == 'feature/tecnicos-ibge-cobertura-20261112' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked app dependencies
+        run: bun install --frozen-lockfile
+      - name: Install isolated Chromium runner
+        run: |
+          mkdir -p "$RUNNER_TEMP/eut-browser"
+          cd "$RUNNER_TEMP/eut-browser"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund playwright@1.56.1
+          npx playwright install chromium
+      - name: Start loopback-only synthetic API and branch app
+        env:
+          SUPABASE_URL: http://127.0.0.1:43831
+          SUPABASE_PUBLISHABLE_KEY: sb_publishable_fixture_only_no_real_token
+          VITE_SUPABASE_URL: http://127.0.0.1:43831
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_fixture_only_no_real_token
+          EUT_QA_ISOLATED: "1"
+        run: |
+          set -euo pipefail
+          node scripts/eut-ibge-qa-fixture.cjs > "$RUNNER_TEMP/eut-ibge-fixture.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/eut-ibge-fixture.pid"
+          bun run dev --host 127.0.0.1 --port 4173 > "$RUNNER_TEMP/eut-ibge-app.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/eut-ibge-app.pid"
+          for i in $(seq 1 90); do
+            if curl --silent --fail http://127.0.0.1:43831/__health >/dev/null &&
+               curl --silent --fail 'http://127.0.0.1:4173/tecnicos' >/dev/null; then
+              echo "QA_READY: local branch + loopback fixtures"; exit 0
+            fi
+            sleep 1
+          done
+          echo "LOCAL_QA_BOOT_FAILED"
+          tail -80 "$RUNNER_TEMP/eut-ibge-fixture.log" || true
+          tail -100 "$RUNNER_TEMP/eut-ibge-app.log" || true
+          exit 1
+      - name: Real Chromium IBGE QA at 390px and 1440px — no hosted database
+        env:
+          EUT_BASE_URL: http://127.0.0.1:4173
+          EUT_FIXTURE_URL: http://127.0.0.1:43831
+          EUT_IBGE_QA_MODE: "1"
+          EUT_QA_ARTIFACT_DIR: ${{ runner.temp }}/eut-ibge-qa
+        run: NODE_PATH="$RUNNER_TEMP/eut-browser/node_modules" node scripts/eut-browser-smoke.cjs
+      - name: Show local QA logs only if test fails
+        if: failure()
+        run: |
+          tail -120 "$RUNNER_TEMP/eut-ibge-app.log" || true
+          tail -80 "$RUNNER_TEMP/eut-ibge-fixture.log" || true
+      - name: Attach only synthetic screenshots and diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eut-ibge-branch-qa-synthetic
+          path: |
+            ${{ runner.temp }}/eut-ibge-qa/*.png
+            ${{ runner.temp }}/eut-ibge-fixture.log
+            ${{ runner.temp }}/eut-ibge-app.log
+          if-no-files-found: ignore
+          retention-days: 3

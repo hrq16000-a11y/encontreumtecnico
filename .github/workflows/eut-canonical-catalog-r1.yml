@@ -1,0 +1,263 @@
+name: EUT canonical catalog R1 isolated PostgreSQL
+
+on:
+  pull_request:
+    paths:
+      - 'docs/sql/eut-canonical-catalog-r1-proposal-20261112.sql'
+      - 'docs/sql/eut-canonical-catalog-r1-rollback-proposal-20261112.sql'
+      - 'docs/sql/eut-canonical-catalog-r2-eligibility-proposal-20261113.sql'
+      - 'docs/sql/tests/eut-canonical-catalog-r2-eligibility-assertions-20261113.sql'
+      - 'scripts/qa/eut-local-wordpress-eligibility-api.mjs'
+      - 'src/components/admin-canonical-catalog.tsx'
+      - 'src/lib/admin-canonical-contract*.ts'
+      - 'src/routes/admin.tsx'
+      - 'docs/sql/tests/eut-canonical-catalog-r1-*.sql'
+      - '.github/workflows/eut-canonical-catalog-r1.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  canonical-postgresql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: eut_fixture
+          POSTGRES_PASSWORD: local_only_not_a_secret
+          POSTGRES_DB: eut_fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U eut_fixture -d eut_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: eut_fixture
+      PGPASSWORD: local_only_not_a_secret
+      PGDATABASE: eut_fixture
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install local PostgreSQL client
+        run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+      - name: Offline Supabase local schema reconstruction preflight (no remote access)
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          # Snapshot is metadata only; this cannot verify live hosted SQL bodies.
+          audit = Path("docs/audits/EUT_SUPABASE_MIGRATIONS_METADATA_2026-11-12.md")
+          text = audit.read_text(encoding="utf-8").split("## Inventário dos scripts")[0]
+          hosted = re.findall(r"^\| `(\d{14})` \|", text, re.MULTILINE)
+          local_files = sorted(Path("supabase/migrations").glob("*.sql"))
+          local = [p.name[:14] for p in local_files
+                   if re.fullmatch(r"\d{14}_.+\.sql", p.name)]
+          if len(hosted) != 66 or len(set(hosted)) != len(hosted):
+              raise SystemExit("Migration snapshot drift: review hosted metadata before proceeding")
+          if len(local_files) != len(local) or len(set(local)) != len(local):
+              raise SystemExit("Malformed or duplicated local migration names")
+          untracked = sorted(set(local) - set(hosted))
+          if untracked:
+              raise SystemExit(f"Local migrations not in hosted snapshot: {len(untracked)}")
+          missing = sorted(set(hosted) - set(local))
+          summary = [
+              "### EUT local Supabase readiness (offline snapshot)",
+              f"- Hosted versions in metadata snapshot: {len(hosted)}",
+              f"- Git SQL migration files: {len(local)}",
+              f"- SQL bodies missing from repository: {len(missing)}",
+              "- Hosted database PostgreSQL major: 17 (verified separately by read-only project metadata)",
+              "- No Supabase CLI, Auth stack, remote schema pull, database reset, or remote credentials used",
+          ]
+          if missing:
+              summary.append("- **FULL LOCAL SUPABASE STACK: BLOCKED** (missing historical migrations; no attempt made)")
+              summary.append("- PostgreSQL 17 synthetic fixtures below are **NOT** local Auth/GoTrue staging")
+          else:
+              summary.append("- Migration version names match; body hashes and full schema still require validation")
+          print("\n".join(summary))
+          import os
+          step_summary = os.environ.get("GITHUB_STEP_SUMMARY")
+          if step_summary:
+              with open(step_summary, "a", encoding="utf-8") as fh:
+                  fh.write("\n".join(summary) + "\n")
+          PY
+      - name: Seed synthetic EUT schema without any user data
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-admin-crud-ephemeral-schema-20261111.sql
+      - name: Add operational authorization fixture
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-fixture-20261112.sql
+      - name: Recreate live required-slug and profiles-FK guards (synthetic only)
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-hosted-compatibility-20261112.sql
+      - name: Apply real installed trigger and RLS fixture to disposable PostgreSQL
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-live-guards-20261112.sql
+      - name: Install proposal ONLY on disposable postgres
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/eut-canonical-catalog-r1-proposal-20261112.sql
+      - name: Validate canonical Auth-less identity and audited operations
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-assertions-20261112.sql
+      - name: Verify privacy quality location and RLS negative scenarios
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-live-guards-assertions-20261112.sql
+      - name: Check legacy Auth contacts and eligibility using real RPC bodies on synthetic data
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-legacy-contract-20261113.sql
+      - name: Ensure guarded rollback refuses populated canonical records
+        run: |
+          if output="$(printf "SET request.jwt.claim.sub='00000000-0000-4000-8000-000000000001';\n\\i docs/sql/eut-canonical-catalog-r1-rollback-proposal-20261112.sql\n" | psql -X -v ON_ERROR_STOP=1 2>&1)"; then
+            echo 'ERROR: guarded rollback unexpectedly permitted deletion'; exit 1
+          fi
+          echo "$output" | grep -F "ROLLBACK BLOCKED" >/dev/null || { echo 'Rollback failed for wrong reason'; exit 1; }
+          psql -X -v ON_ERROR_STOP=1 -c "SELECT count(*) AS catalog_records_preserved FROM eut_moderation.catalog_provenance;"
+      - name: Prove audited rollback in second clean disposable PostgreSQL database
+        run: |
+          createdb eut_rollback_fixture
+          export PGDATABASE=eut_rollback_fixture
+          # Database roles are cluster-wide and already exist from the first fixture.
+          # Avoid changing the source fixture; skip only these two CREATE ROLE lines
+          # when seeding the second database in the same ephemeral PostgreSQL cluster.
+          sed -e '/^CREATE ROLE anon NOLOGIN;$/d' -e '/^CREATE ROLE authenticated NOLOGIN;$/d' \
+            docs/sql/tests/eut-admin-crud-ephemeral-schema-20261111.sql | psql -X -v ON_ERROR_STOP=1
+          psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-fixture-20261112.sql
+          psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-hosted-compatibility-20261112.sql
+          psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-live-guards-20261112.sql
+          psql -X -v ON_ERROR_STOP=1 -f docs/sql/eut-canonical-catalog-r1-proposal-20261112.sql
+          printf "SET request.jwt.claim.sub='00000000-0000-4000-8000-000000000001';\n\\i docs/sql/eut-canonical-catalog-r1-rollback-proposal-20261112.sql\n" | psql -X -v ON_ERROR_STOP=1
+          psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-rollback-assertions-20261112.sql
+
+      - name: Install R2 eligibility proposal ONLY on disposable PostgreSQL
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/eut-canonical-catalog-r2-eligibility-proposal-20261113.sql
+      - name: Check Auth-less R2 eligibility, RLS privacy, bans and ID-only RPC
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r2-eligibility-assertions-20261113.sql
+
+  admin-ui-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.3"
+      - run: bun install --frozen-lockfile
+      - name: Catalog contract and privacy regression tests
+        run: bunx vitest run src/lib/admin-canonical-contract.test.ts src/lib/admin-technician-pagination.test.ts
+      - name: TanStack build
+        run: bun run build
+      - name: TypeScript check
+        run: bunx tsc --noEmit --pretty false
+
+
+  local-auth-foundation:
+    name: Supabase local GoTrue and R1 authenticated REST API
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      SUPABASE_ACCESS_TOKEN: ""
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: supabase/setup-cli@v3
+        with:
+          version: "2.84.2"
+      - name: Initialize local-only project with six tracked migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          EUT_LOCAL="$(mktemp -d "$RUNNER_TEMP/eut-auth-foundation-XXXXXX")"
+          echo "EUT_LOCAL=$EUT_LOCAL" >> "$GITHUB_ENV"
+          cd "$EUT_LOCAL"
+          supabase init >/dev/null
+          ! grep -Fq 'pqtzhctvjbfcunmrvxne' supabase/config.toml
+          mkdir -p supabase/migrations
+          cp "$GITHUB_WORKSPACE"/supabase/migrations/*.sql supabase/migrations/
+          test "$(find supabase/migrations -maxdepth 1 -name '*.sql' | wc -l)" -eq 6
+          test ! -f supabase/.temp/project-ref
+      - name: Start local Postgres plus GoTrue and PostgREST (no hosted connection)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$EUT_LOCAL"
+          if ! supabase start -x realtime,storage-api,imgproxy,postgres-meta,studio,edge-runtime,logflare,vector,supavisor > "$RUNNER_TEMP/eut-start.log" 2>&1; then
+            echo "LOCAL_SUPABASE_BOOTSTRAP_FAILED"
+            grep -Ei 'error|failed|migration' "$RUNNER_TEMP/eut-start.log" | sed -E 's/eyJ[A-Za-z0-9._-]{20,}/[REDACTED]/g' | tail -n 12 || true
+            exit 1
+          fi
+          umask 077
+          supabase status -o env > "$RUNNER_TEMP/eut-local.env"
+          echo "LOCAL_SUPABASE_STARTED: six migrations and real Auth"
+      - name: Exercise local synthetic Auth JWT and RLS (not R1)
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          . "$RUNNER_TEMP/eut-local.env"
+          set +a
+          node "$GITHUB_WORKSPACE/scripts/qa/eut-local-auth-baseline.mjs"
+      - name: Install R1 dependencies and proposed SQL on LOCAL ephemeral database only
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v psql >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+          set -a
+          . "$RUNNER_TEMP/eut-local.env"
+          set +a
+          # Never accept a remote or hosted DB URL in this step.
+          [[ "${DB_URL:-}" == postgresql://*'@127.0.0.1:'* || "${DB_URL:-}" == postgres://*'@127.0.0.1:'* ]] || { echo 'LOCAL_DB_URL_REQUIRED'; exit 1; }
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/docs/sql/tests/eut-canonical-r1-local-only-dependencies-20261113.sql" >/dev/null
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/docs/sql/eut-canonical-catalog-r1-proposal-20261112.sql" >/dev/null
+          node "$GITHUB_WORKSPACE/scripts/qa/eut-local-legacy-guards-sql.mjs" | psql "$DB_URL" -X -v ON_ERROR_STOP=1 >/dev/null
+          echo 'LOCAL_R1_LEGACY_GUARDS_READY: 10 technician triggers, 1 legacy private trigger and 12 RLS policies'
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -c "NOTIFY pgrst, 'reload schema';" >/dev/null
+          echo 'LOCAL_R1_SCHEMA_READY: six migrations + metadata-backed minimal shim + existing R1 proposal'
+      - name: Verify R1 catalog through real GoTrue admin JWT and PostgREST
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          . "$RUNNER_TEMP/eut-local.env"
+          set +a
+          node "$GITHUB_WORKSPACE/scripts/qa/eut-local-r1-api.mjs"
+      - name: Verify inherited triggers, blocked account and versioned audit through local Auth
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          . "$RUNNER_TEMP/eut-local.env"
+          set +a
+          node "$GITHUB_WORKSPACE/scripts/qa/eut-local-legacy-guards-api.mjs"
+      - name: Check private paid-contact flag in ephemeral SQL only
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          . "$RUNNER_TEMP/eut-local.env"
+          set +a
+          count="$(psql "$DB_URL" -X -Atqc "SELECT count(*) FROM eut_moderation.catalog_private_contacts WHERE allow_paid_contact=true")"
+          # Two contacts from base API QA plus one from the integrated legacy-guard fixture.
+          test "$count" -eq 3 || { echo "LOCAL_R1_PRIVATE_FLAG_COUNT_MISMATCH: expected=3 actual=$count"; exit 1; }
+          echo 'LOCAL_R1_PRIVATE_ELIGIBILITY_OK: local-only flags, no contact disclosure'
+      - name: Verify WordPress telephone eligibility through LOCAL R2 and PostgREST
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          . "$RUNNER_TEMP/eut-local.env"
+          set +a
+          # Existing local stack only: refuse hosted database destinations.
+          [[ "${DB_URL:-}" == postgresql://*'@127.0.0.1:'* || "${DB_URL:-}" == postgres://*'@127.0.0.1:'* ]] || { echo 'LOCAL_DB_URL_REQUIRED'; exit 1; }
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/docs/sql/eut-canonical-catalog-r2-eligibility-proposal-20261113.sql" >/dev/null
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -c "NOTIFY pgrst, 'reload schema';" >/dev/null
+          node "$GITHUB_WORKSPACE/scripts/qa/eut-local-wordpress-eligibility-api.mjs"
+      - name: Destroy local stack and ephemeral credentials
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "$EUT_LOCAL" ] && [ -d "$EUT_LOCAL" ]; then
+            cd "$EUT_LOCAL"
+            supabase stop --no-backup >/dev/null 2>&1 || true
+          fi
+          rm -f "$RUNNER_TEMP/eut-local.env" "$RUNNER_TEMP/eut-start.log"

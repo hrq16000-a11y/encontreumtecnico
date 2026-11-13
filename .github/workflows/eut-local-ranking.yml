@@ -5,6 +5,11 @@ on:
     paths:
       - 'src/lib/technician-local-ranking.ts'
       - 'src/lib/technicians.functions.ts'
+      - 'src/lib/technician-public-view.ts'
+      - 'src/lib/technician-public-view.test.ts'
+      - 'src/components/technician-search-card.tsx'
+      - 'src/components/public-technician-profile.tsx'
+      - 'src/routes/tecnicos.$tecnicoId.tsx'
       - 'src/routes/tecnicos.index.tsx'
       - 'src/lib/technician-search-uf-transition.ts'
       - 'src/lib/technician-search-uf-transition.test.ts'
@@ -30,7 +35,7 @@ jobs:
       - name: Unit tests — declared locality first
         run: bun test tests/technician-local-ranking.test.ts
       - name: Unit tests — UF change clears incompatible locality and pending drafts
-        run: bunx vitest run src/lib/technician-search-uf-transition.test.ts
+        run: bunx vitest run src/lib/technician-search-uf-transition.test.ts src/lib/technician-city-scope.test.ts src/lib/technician-public-view.test.ts
       - name: Build TanStack Start
         run: bun run build
       - name: TypeScript
@@ -46,7 +51,9 @@ jobs:
           for (const term of [
             'data.prioridade === "regiao"',
             'rankTechniciansByDeclaredArea',
-            '.eq("status", "aprovado")',
+            '.in("status", ["aprovado", "pendente"])',
+            'readPublicEligibleRows(',
+            'page.rows.map(toSafePublicTechnician)',
             '.contains("service_slugs"',
             'eut_online_published_ids',
             'if (city && !regionalPriority)',
@@ -69,5 +76,5 @@ jobs:
           if (ranking.includes('geolocation')||ranking.includes('GPS coordinates')) {
             throw Error('No location telemetry permitted');
           }
-          console.log('Approved-only matching + declared location > online, no GPS claims');
+          console.log('RLS/RPC-gated matching + declared location > online, no GPS claims');
           NODE

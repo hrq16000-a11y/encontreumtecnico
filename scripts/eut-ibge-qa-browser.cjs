@@ -1,0 +1,253 @@
+/* Real Chromium rendering of the PR branch against a loopback PostgREST
+ * fixture. No production API, no real identities and no writes.
+ */
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const { chromium } = require("playwright");
+const BASE = process.env.EUT_BASE_URL;
+const FIXTURE = process.env.EUT_FIXTURE_URL;
+assert(BASE && FIXTURE, "Both local QA URLs are required");
+for (const value of [BASE, FIXTURE]) {
+  const parsed = new URL(value);
+  assert.equal(parsed.protocol, "http:", "QA must be local HTTP");
+  assert.equal(parsed.hostname, "127.0.0.1", "QA must be loopback only");
+}
+const BASE_ORIGIN = new URL(BASE).origin;
+const FIXTURE_ORIGIN = new URL(FIXTURE).origin;
+const SUPABASE_ORIGIN = "https://pqtzhctvjbfcunmrvxne.supabase.co";
+const ARTIFACTS = process.env.EUT_QA_ARTIFACT_DIR || "/tmp/eut-ibge-qa";
+const secret = "qa-secret-never-publish@example.test";
+fs.mkdirSync(ARTIFACTS, { recursive: true });
+async function installOfflineOnly(context, tracker) {
+  await context.route("**/*", async route => {
+    const request = route.request();
+    const target = new URL(request.url());
+    if (target.origin === BASE_ORIGIN) return route.continue();
+    if (target.origin === SUPABASE_ORIGIN) {
+      tracker.fixtureRequests++;
+      const uri = FIXTURE + target.pathname + target.search;
+      const response = await fetch(uri, {
+        method: request.method(), headers: { accept: request.headers().accept || "application/json" },
+        body: request.method() === "POST" ? request.postData() : undefined,
+      });
+      return route.fulfill({ status: response.status,
+        contentType: response.headers.get("content-type") || "application/json",
+        headers: { "access-control-allow-origin": "*", "cache-control": "no-store" },
+        body: await response.text() });
+    }
+    tracker.externalBlocked.push(target.origin);
+    return route.abort("blockedbyclient");
+  });
+}
+async function eventually(page, predicate, label) {
+  await page.waitForFunction(predicate, undefined, { timeout: 25000 })
+    .catch(() => { throw new Error("Timeout: " + label); });
+}
+async function checkViewport(browser, width) {
+  const context = await browser.newContext({ locale: "pt-BR", viewport: { width, height: 900 },
+    reducedMotion: "reduce" });
+  const tracker = { fixtureRequests: 0, externalBlocked: [] };
+  await installOfflineOnly(context, tracker);
+  const page = await context.newPage();
+  page.setDefaultTimeout(25000);
+  const errors = [];
+  const consoleErrors = [];
+  page.on("pageerror", e => errors.push(e.message));
+  // Offline fixtures intentionally block Google Fonts, geolocation and all
+  // other external hosts. These expected network errors aren't app JS crashes.
+  page.on("console", message => {
+    if (message.type() === "error") consoleErrors.push(message.text().slice(0, 250));
+  });
+  try {
+    const response = await page.goto(BASE + "/tecnicos", { waitUntil: "networkidle", timeout: 60000 });
+    assert(response && response.ok(), "Branch /tecnicos must respond successfully");
+    // Vite dev can replace prebundled modules on its first request. Test only
+    // AFTER hydration settles, never select a server-rendered but inert input.
+    await page.waitForTimeout(1400);
+    await page.reload({ waitUntil: "networkidle", timeout: 60000 });
+    await page.locator("#filtro-uf").waitFor({ state: "visible" });
+    await page.waitForTimeout(750);
+    await page.locator("#filtro-uf").selectOption("PR");
+    await eventually(page, () => new URLSearchParams(location.search).get("uf") === "PR",
+      "UF change did not update route after hydration");
+    await page.waitForTimeout(1500);
+    console.log("QA_DIAG_UF", JSON.stringify(await page.evaluate(() => ({
+      currentUrl: location.href,
+      selectedUF: document.querySelector("#filtro-uf")?.value,
+      municipalitySelect: Boolean(document.querySelector("#filtro-municipio-ibge")),
+      scripts: document.scripts.length,
+    }))));
+    const advancedFilters = page.getByRole("button", { name: /Mais filtros/ });
+    await advancedFilters.click();
+    assert.equal(await advancedFilters.getAttribute("aria-expanded"), "true",
+      "Advanced filters must open before selecting an official municipality");
+    const selector = page.locator("#filtro-municipio-ibge");
+    await selector.waitFor({ state: "visible" });
+    await selector.locator('option[value="4125506"]').waitFor({ state: "attached" });
+    await selector.selectOption("4125506");
+    await eventually(page, () => {
+      const raw = new URLSearchParams(location.search).get("municipio_ibge");
+      if (raw === "4125506") return true;
+      try { return JSON.parse(raw || "null") === "4125506"; }
+      catch { return false; }
+    }, "official municipality not selected");
+    const cards = page.locator('a[aria-label^="Ver perfil e serviços de"]');
+    await eventually(page, () => document.querySelectorAll('a[aria-label^="Ver perfil e serviços de"]').length === 50,
+      "page 1 did not render 50 eligible profiles");
+    assert.equal(await cards.count(), 50, "first page should show 50 eligible, not candidates");
+    const nav = page.getByRole("navigation", { name: "Paginação dos técnicos por município" });
+    assert(await nav.getByRole("button", { name: "Anterior" }).isDisabled(),
+      "Previous must be disabled on page 1");
+    assert(await nav.getByRole("button", { name: /Consultar próxima página/ }).isEnabled(),
+      "Next should be enabled when a 51st eligible was verified");
+    const snapshot = await page.content();
+    assert(!snapshot.includes(secret), "Private fixture data leaked in SSR/DOM");
+    assert(!/href=["'](?:tel:|mailto:|https?:\/\/wa\.me)/i.test(await cards.first().innerHTML()),
+      "Contact link exposed on public technician card");
+    assert(!snapshot.includes("99 nomes"), "Quarantined names must not appear");
+    const size = await page.evaluate(() => ({
+      viewport: document.documentElement.clientWidth,
+      content: document.documentElement.scrollWidth,
+    }));
+    assert(size.content <= size.viewport + 4,
+      "Horizontal overflow at " + width + "px: " + JSON.stringify(size));
+    for (const id of ["filtro-uf", "filtro-municipio-ibge"]) {
+      const box = await page.locator("#" + id).boundingBox();
+      assert(box && box.height >= 44 && box.width >= 44,
+        "Touch target smaller than 44px or hidden: " + id);
+    }
+    await page.screenshot({ path: path.join(ARTIFACTS, "ibge-" + width + "-page1.png"),
+      fullPage: true });
+    await nav.getByRole("button", { name: /Consultar próxima página/ }).click();
+    await eventually(page, () => document.querySelectorAll('a[aria-label^="Ver perfil e serviços de"]').length === 5 &&
+      document.querySelector('nav[aria-label="Paginação dos técnicos por município"]')?.textContent?.includes("Página 2"),
+      "page 2 must display remaining five eligible profiles");
+    assert.equal(await cards.count(), 5);
+    assert(await nav.getByRole("button", { name: /Consultar próxima página/ }).isDisabled(),
+      "Next button must be disabled on final eligible page");
+    await page.screenshot({ path: path.join(ARTIFACTS, "ibge-" + width + "-page2.png"),
+      fullPage: true });
+    await nav.getByRole("button", { name: "Anterior" }).click();
+    await eventually(page, () => document.querySelectorAll('a[aria-label^="Ver perfil e serviços de"]').length === 50,
+      "Previous should restore first 50 eligible profiles");
+    await page.locator("#filtro-especialidade").selectOption("computadores");
+    await eventually(page, () => document.querySelectorAll('a[aria-label^="Ver perfil e serviços de"]').length === 30,
+      "category filter must produce 30 eligible profiles after reset");
+    assert(await nav.getByRole("button", { name: "Anterior" }).isDisabled(),
+      "Changing category should reset to page 1");
+    assert(await nav.getByRole("button", { name: /Consultar próxima página/ }).isDisabled(),
+      "Next must be disabled when fewer than 50 eligible profiles remain");
+    await page.locator("#filtro-municipio-ibge").selectOption("4106902");
+    await eventually(page, () => document.body.textContent?.includes("Nenhum técnico elegível nesta página"),
+      "empty official city must show truthful empty state");
+    assert.equal(await cards.count(), 0);
+    assert(await nav.getByRole("button", { name: /Consultar próxima página/ }).isDisabled(),
+      "Empty official city must not offer a fictitious next page");
+    assert(!((await page.content()).includes(secret)), "Private fixture leaked in empty state");
+    await page.screenshot({ path: path.join(ARTIFACTS, "ibge-" + width + "-empty.png"),
+      fullPage: true });
+    assert(tracker.fixtureRequests > 0, "Browser did not request synthetic municipality catalog");
+    assert(!errors.length, "Page JavaScript errors: " + errors.join(" | "));
+    console.log("PASS branch IBGE Chromium", JSON.stringify({ width, fixtureRequests: tracker.fixtureRequests,
+      externalRequestsBlocked: tracker.externalBlocked.length, pages: [50, 5],
+      categoryEligible: 30, emptyState: true, privacy: true }));
+  } catch (error) {
+    let diagnostics = {};
+    try {
+      diagnostics = {
+        url: page.url(), body: (await page.locator("body").innerText()).slice(0, 1200),
+        activeUF: await page.locator("#filtro-uf").inputValue().catch(() => null),
+        scriptCount: await page.evaluate(() => document.scripts.length),
+        externalBlocked: tracker.externalBlocked, fixtureRequests: tracker.fixtureRequests,
+        pageErrors: errors.slice(0, 10),
+        consoleErrors: consoleErrors.slice(0, 10),
+      };
+      await page.screenshot({ path: path.join(ARTIFACTS, "ibge-" + width + "-failed.png"),
+        fullPage: true }).catch(() => {});
+    } catch (secondary) {
+      diagnostics.inspectError = String(secondary);
+    }
+    console.error("QA_DIAGNOSTICS", JSON.stringify(diagnostics));
+    throw error;
+  } finally { await context.close(); }
+}
+async function checkAuthlessProfile(browser, width) {
+  const context = await browser.newContext({ locale: "pt-BR",
+    viewport: { width, height: 900 }, reducedMotion: "reduce" });
+  const tracker = { fixtureRequests: 0, externalBlocked: [] };
+  await installOfflineOnly(context, tracker);
+  const page = await context.newPage();
+  page.setDefaultTimeout(25000);
+  const hidden = ["qa-sem-telefone", "qa-desabilitado",
+    "qa-bloqueado", "qa-sem-procedencia"];
+  try {
+    const response = await page.goto(BASE + "/tecnicos",
+      { waitUntil: "networkidle", timeout: 60000 });
+    assert(response?.ok(), "Local public search did not render");
+    await page.waitForTimeout(1400);
+    await page.reload({ waitUntil: "networkidle", timeout: 60000 });
+    const card = page.getByRole("link", {
+      name: "Ver perfil e serviços de apelidolegacy", exact: true,
+    });
+    await card.waitFor({ state: "visible", timeout: 25000 });
+    assert.equal(await card.count(), 1,
+      "Phone-backed Auth-less import must appear exactly once");
+    const searchHtml = await page.content();
+    for (const label of hidden) assert(!searchHtml.includes(label),
+      "Ineligible canonical record appeared: " + label);
+    assert(!searchHtml.includes("+5541999998181") && !searchHtml.includes(secret),
+      "Private data appeared in search HTML");
+    await page.screenshot({ path: path.join(ARTIFACTS,
+      "authless-" + width + "-search.png"), fullPage: true });
+    await card.click();
+    await page.waitForURL("**/tecnicos/qa-importado-ativo", { timeout: 25000 });
+    await page.getByRole("heading", { name: "apelidolegacy", level: 1 })
+      .waitFor({ state: "visible" });
+    assert((await page.getByText("Localidade não informada").count()) > 0,
+      "Missing city wrongly inferred or fallback absent");
+    assert(await page.getByRole("link", { name: "Descrever meu problema" }).count() > 0,
+      "Profile has no safe assistance entry");
+    const profileHtml = await page.content();
+    assert(!profileHtml.includes("+5541999998181") && !profileHtml.includes(secret),
+      "Private data appeared in profile HTML");
+    assert.equal(await page.locator('a[href^="tel:"],a[href^="mailto:"],a[href*="wa.me"]').count(),
+      0, "Profile exposes a direct private contact link");
+    assert(await page.evaluate(() =>
+      document.documentElement.scrollWidth <= document.documentElement.clientWidth + 4),
+      "Profile overflow at " + width + "px");
+    await page.screenshot({ path: path.join(ARTIFACTS,
+      "authless-" + width + "-profile.png"), fullPage: true });
+    for (const slug of hidden) {
+      const denied = await page.goto(BASE + "/tecnicos/" + slug,
+        { waitUntil: "domcontentloaded", timeout: 60000 });
+      assert.equal(denied?.status(), 404,
+        "Ineligible canonical profile did not return 404: " + slug);
+    }
+    assert(tracker.fixtureRequests > 0, "Browser bypassed loopback fixture");
+    console.log("PASS branch R1/R2 Auth-less Chromium", JSON.stringify({
+      width, visible: 1, hidden: hidden.length, locationInvented: false,
+      privateContacts: true, fixtureRequests: tracker.fixtureRequests,
+    }));
+  } catch (error) {
+    console.error("AUTHLESS_QA_DIAGNOSTICS", JSON.stringify({
+      width, url: page.url(), body: (await page.locator("body").innerText()
+        .catch(() => "")).slice(0, 1000), fixtureRequests: tracker.fixtureRequests,
+      blockedOrigins: tracker.externalBlocked,
+    }));
+    await page.screenshot({ path: path.join(ARTIFACTS,
+      "authless-" + width + "-failed.png"), fullPage: true }).catch(() => {});
+    throw error;
+  } finally { await context.close(); }
+}
+
+(async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    for (const width of [390, 1440]) {
+      await checkViewport(browser, width);
+      await checkAuthlessProfile(browser, width);
+    }
+    console.log("PASS PR #255: IBGE + Auth-less search/profile/privacy at 390/1440");
+  } finally { await browser.close(); }
+})().catch(e => { console.error("FAIL PR #255 branch QA", e.stack); process.exitCode = 1; });

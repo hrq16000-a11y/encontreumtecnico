@@ -66,8 +66,20 @@ async function preserveGallery(page) {
   await eventuallyValue(city, "Pinhais", "LP2 loses city after reload");
 }
 
+async function expandPublicSearchFilters(page) {
+  const toggle = page.getByRole("button", { name: "Mais filtros" });
+  await toggle.waitFor({ state: "visible", timeout: 20000 });
+  assert.equal(await toggle.getAttribute("aria-controls"), "filtros-avancados",
+    "Search filters toggle lost its accessible panel target");
+  if (await toggle.getAttribute("aria-expanded") !== "true") await toggle.click();
+  assert.equal(await toggle.getAttribute("aria-expanded"), "true",
+    "Advanced search filters did not expand");
+  await page.locator("#filtro-bairro").waitFor({ state: "visible", timeout: 12000 });
+}
+
 async function preserveSearch(page) {
   await visit(page, "/tecnicos");
+  await expandPublicSearchFilters(page);
   const field = page.locator("#filtro-bairro");
   await field.waitFor({ state: "visible", timeout: 30000 });
   await field.fill("Boqueirão");
@@ -75,6 +87,7 @@ async function preserveSearch(page) {
     sessionStorage.getItem("eut-filter-pending-v1:filtro-bairro")));
   await visit(page, "/como-funciona");
   await page.goBack({ waitUntil: "domcontentloaded" });
+  await expandPublicSearchFilters(page);
   await field.waitFor({ state: "visible", timeout: 20000 });
   await eventuallyValue(field, "Boqueirão", "Search loses pending neighborhood on history");
 }
@@ -134,6 +147,7 @@ async function publicMobileNeighborhoods(page) {
   }
   await page.setViewportSize({ width: 375, height: 812 });
   await visit(page, "/tecnicos");
+  await expandPublicSearchFilters(page);
   const state = page.locator("#filtro-uf");
   const city = page.locator("#filtro-cidade");
   const neighborhood = page.locator("#filtro-bairro");
@@ -197,4 +211,9 @@ async function main() {
     process.exitCode = 1;
   }
 }
-main().catch(error => { console.error(error); process.exitCode = 1; });
+if (process.env.EUT_IBGE_QA_MODE === "1") {
+  // Reuse the existing CI Chromium entry point; enforce loopback in the QA runner.
+  require("./eut-ibge-qa-browser.cjs");
+} else {
+  main().catch(error => { console.error(error); process.exitCode = 1; });
+}

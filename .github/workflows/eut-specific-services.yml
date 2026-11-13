@@ -50,7 +50,7 @@ jobs:
           for (const item of ['servico: fallback','uf: fallback','bairro: fallback','filtro-servico','filtro-uf','filtro-bairro']) {
             if (!filter.includes(item)) throw Error('Search field absent: '+item);
           }
-          for (const item of ['service_slugs','eq("status", "aprovado")','eq("state_uf", uf)','ilike("neighborhood"','eq("active", true)']) {
+          for (const item of ['service_slugs','in("status", ["aprovado", "pendente"])','readPublicEligibleRows(','eq("state_uf", uf)','ilike("neighborhood"','eq("active", true)']) {
             if (!server.includes(item)) throw Error('Public search protection absent: '+item);
           }
           if (!catalog.includes('eut_service_types') || !catalog.includes('.eq("active", true)')) throw Error('Official service catalog missing');
