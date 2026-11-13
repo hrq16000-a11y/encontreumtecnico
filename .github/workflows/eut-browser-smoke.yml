@@ -245,7 +245,14 @@ jobs:
               await page.locator('#filtro-uf').waitFor({ state: 'visible' });
               await page.waitForTimeout(1400);
               await page.reload({ waitUntil: 'domcontentloaded' });
-              await page.waitForTimeout(750);
+              // SSR markup can be clickable before TanStack/React binds its handlers.
+              // Wait for hydration after the reload; a fixed sleep missed this in CI.
+              await page.waitForFunction(() => {
+                const button = document.querySelector('button[aria-controls="filtros-avancados"]');
+                return Boolean(button && Object.keys(button).some(key =>
+                  key.startsWith('__reactFiber$') || key.startsWith('__reactProps$')));
+              }, null, { timeout: 20000 });
+              await logProbe('hydration-ready');
               const toggle = page.getByRole('button', { name: /Mais filtros/ });
               const panel = page.locator('#filtros-avancados');
               assert.equal(await toggle.getAttribute('aria-controls'), 'filtros-avancados');
