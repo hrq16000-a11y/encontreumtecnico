@@ -175,8 +175,8 @@ jobs:
           assert.equal(rpc.status,200,'Local R2 anonymous RPC failed');
           assert.deepEqual((await rpc.json()).map(v=>v.technician_id),[ids.visible],
             'R2 exposed disabled, blocked, missing-provenance or missing-phone record');
-          const api=async path=>fetch('http://127.0.0.1:4173'+path,{redirect:'manual'});
-          // #255 declares the index route as /tecnicos/; /tecnicos redirects 307.
+          const api=async path=>fetch('http://127.0.0.1:4173'+path,{redirect:'follow'});
+          // Canonical index URLs may redirect with their normalized search params.
           const search=await api('/tecnicos/');
           assert.equal(search.status,200,'#255 SSR index HTTP status location='+search.headers.get('location'));
           const html=await search.text();
