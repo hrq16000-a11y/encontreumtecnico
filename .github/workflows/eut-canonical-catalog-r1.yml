@@ -5,6 +5,8 @@ on:
     paths:
       - 'docs/sql/eut-canonical-catalog-r1-proposal-20261112.sql'
       - 'docs/sql/eut-canonical-catalog-r1-rollback-proposal-20261112.sql'
+      - 'docs/sql/eut-canonical-catalog-r2-eligibility-proposal-20261113.sql'
+      - 'docs/sql/tests/eut-canonical-catalog-r2-eligibility-assertions-20261113.sql'
       - 'src/components/admin-canonical-catalog.tsx'
       - 'src/lib/admin-canonical-contract*.ts'
       - 'src/routes/admin.tsx'
@@ -121,6 +123,11 @@ jobs:
           psql -X -v ON_ERROR_STOP=1 -f docs/sql/eut-canonical-catalog-r1-proposal-20261112.sql
           printf "SET request.jwt.claim.sub='00000000-0000-4000-8000-000000000001';\n\\i docs/sql/eut-canonical-catalog-r1-rollback-proposal-20261112.sql\n" | psql -X -v ON_ERROR_STOP=1
           psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-rollback-assertions-20261112.sql
+
+      - name: Install R2 eligibility proposal ONLY on disposable PostgreSQL
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/eut-canonical-catalog-r2-eligibility-proposal-20261113.sql
+      - name: Check Auth-less R2 eligibility, RLS privacy, bans and ID-only RPC
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r2-eligibility-assertions-20261113.sql
 
   admin-ui-contract:
     runs-on: ubuntu-latest
