@@ -267,7 +267,7 @@ export function LegacyReviewQueue() {
               {isExpanded ? "Ocultar ficha" : "Ver ficha"} · {row.title}
               <ChevronDown className={"h-4 w-4 transition-transform " + (isExpanded ? "rotate-180" : "")} aria-hidden="true" />
             </button>
-            {isExpanded && <div id={`legacy-details-${kind}-${row.wp_post_id}`}
+            <div id={`legacy-details-${kind}-${row.wp_post_id}`} hidden={!isExpanded}
               className="mt-2 rounded-lg border border-border bg-background p-3 text-sm text-foreground">
               <dl className="grid gap-2 sm:grid-cols-2">
                 <div><dt className="text-xs font-semibold text-muted-foreground">Nome original</dt><dd className="break-words">{row.title}</dd></div>
@@ -282,7 +282,7 @@ export function LegacyReviewQueue() {
                     ? "Esta possível demonstração só permite arquivamento auditado."
                     : "A edição altera apenas a revisão administrativa; não modifica o registro WordPress original."}
               </p>
-            </div>}
+            </div>
             <div className="mt-4 flex flex-wrap gap-2">
               <button type="button" disabled={row.demo_candidate} onClick={()=>chooseAction([row.wp_post_id],"corrigir_nome")}
                 className="inline-flex min-h-10 items-center gap-1 rounded-lg border border-input px-3 text-xs font-semibold text-foreground"><Pencil className="h-4 w-4" /> Editar nome</button>

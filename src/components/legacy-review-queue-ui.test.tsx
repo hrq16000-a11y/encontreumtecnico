@@ -15,7 +15,7 @@ const profiles = [
     source_key: "wordpress_20261108", wp_post_id: 207, wp_user_id: 22,
     kind: "candidate", slug: "wanda-historica", title: "Wanda Histórica", specialty_title: "Suporte",
     location1: "Local de teste", location2: null, location3: null,
-    review_status: "excluded", demo_candidate: true,
+    review_status: "excluded", demo_candidate: true, private_phone: "550000000099",
   },
   {
     source_key: "wordpress_20261108", wp_post_id: 301, wp_user_id: 41,
@@ -50,15 +50,25 @@ describe("gestão visual do acervo histórico", () => {
   it("abre detalhes sem contato privado e explica por que uma demonstração arquivada não pode ser editada", async () => {
     render(<LegacyReviewQueue />);
     const open = await screen.findByRole("button", { name: "Ver ficha · Wanda Histórica" });
+    const controls = open.getAttribute("aria-controls");
+    expect(controls).toBe("legacy-details-candidate-207");
+    expect(document.getElementById(controls!)?.hidden).toBe(true);
+    open.focus();
     fireEvent.click(open);
     const details = document.getElementById("legacy-details-candidate-207");
+    expect(open.getAttribute("aria-expanded")).toBe("true");
+    expect(document.activeElement).toBe(open);
+    expect(details?.hidden).toBe(false);
     expect(details?.textContent).toContain("wanda-historica");
     expect(details?.textContent).toContain("Não há edição, restauração ou exclusão permanente disponível");
     expect(details?.querySelector("a[href^='tel:'], a[href^='mailto:'], a[href*='wa.me']")).toBeNull();
+    expect(document.body.textContent).not.toContain("550000000099");
     expect(screen.getByRole("checkbox", { name: "Selecionar cadastro WordPress 207" }).hasAttribute("disabled")).toBe(true);
     expect(screen.getAllByRole("button", { name: "Editar nome" })[0]?.hasAttribute("disabled")).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Ocultar ficha · Wanda Histórica" }));
-    expect(document.getElementById("legacy-details-candidate-207")).toBeNull();
+    expect(open.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(open);
+    expect(document.getElementById("legacy-details-candidate-207")?.hidden).toBe(true);
     expect(rpc).not.toHaveBeenCalled();
   });
 
