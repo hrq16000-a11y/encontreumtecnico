@@ -144,3 +144,64 @@ jobs:
         run: bun run build
       - name: TypeScript check
         run: bunx tsc --noEmit --pretty false
+
+
+  local-auth-foundation:
+    name: Supabase local GoTrue and REST foundation (not R1 QA)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      SUPABASE_ACCESS_TOKEN: ""
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: supabase/setup-cli@v3
+        with:
+          version: "2.84.2"
+      - name: Initialize local-only project with six tracked migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          EUT_LOCAL="$(mktemp -d "$RUNNER_TEMP/eut-auth-foundation-XXXXXX")"
+          echo "EUT_LOCAL=$EUT_LOCAL" >> "$GITHUB_ENV"
+          cd "$EUT_LOCAL"
+          supabase init >/dev/null
+          ! grep -Fq 'pqtzhctvjbfcunmrvxne' supabase/config.toml
+          mkdir -p supabase/migrations
+          cp "$GITHUB_WORKSPACE"/supabase/migrations/*.sql supabase/migrations/
+          test "$(find supabase/migrations -maxdepth 1 -name '*.sql' | wc -l)" -eq 6
+          test ! -f supabase/.temp/project-ref
+      - name: Start local Postgres plus GoTrue and PostgREST (no hosted connection)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$EUT_LOCAL"
+          if ! supabase start -x realtime,storage-api,imgproxy,postgres-meta,studio,edge-runtime,logflare,vector,supavisor > "$RUNNER_TEMP/eut-start.log" 2>&1; then
+            echo "LOCAL_SUPABASE_BOOTSTRAP_FAILED"
+            grep -Ei 'error|failed|migration' "$RUNNER_TEMP/eut-start.log" | sed -E 's/eyJ[A-Za-z0-9._-]{20,}/[REDACTED]/g' | tail -n 12 || true
+            exit 1
+          fi
+          umask 077
+          supabase status -o env > "$RUNNER_TEMP/eut-local.env"
+          echo "LOCAL_SUPABASE_STARTED: six migrations and real Auth"
+      - name: Exercise local synthetic Auth JWT and RLS (not R1)
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          . "$RUNNER_TEMP/eut-local.env"
+          set +a
+          node "$GITHUB_WORKSPACE/scripts/qa/eut-local-auth-baseline.mjs"
+      - name: Destroy local stack and ephemeral credentials
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "$EUT_LOCAL" ] && [ -d "$EUT_LOCAL" ]; then
+            cd "$EUT_LOCAL"
+            supabase stop --no-backup >/dev/null 2>&1 || true
+          fi
+          rm -f "$RUNNER_TEMP/eut-local.env" "$RUNNER_TEMP/eut-start.log"
