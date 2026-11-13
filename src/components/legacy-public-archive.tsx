@@ -97,19 +97,15 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
                     </div>
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Brasil · cidade não informada
+                    Local de atendimento não confirmado
                   </p>
                   <ul className="mt-3 flex flex-wrap gap-1.5">
-                    {(profile.sector_tags.filter((tag) => !/^TI\s*[-–]\s*Informática$/i.test(tag)).length ? profile.sector_tags.filter((tag) => !/^TI\s*[-–]\s*Informática$/i.test(tag)) : ["Especialidades não informadas"]).map((tag) => (
+                    {(profile.sector_tags.filter((tag) => !/^TI\s*[-–]\s*Informática$/i.test(tag)).length ? profile.sector_tags.filter((tag) => !/^TI\s*[-–]\s*Informática$/i.test(tag)) : ["Categoria ainda não declarada"]).map((tag) => (
                       <li key={tag} className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-foreground">
                         {tag}
                       </li>
                     ))}
                   </ul>
-                  <p className="mt-3 text-xs text-muted-foreground">
-                    Contato privado protegido.
-                  </p>
-
                 </li>
               ))}
             </ul>
