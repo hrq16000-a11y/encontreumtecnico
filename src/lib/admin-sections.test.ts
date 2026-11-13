@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import {
   ADMIN_SECTIONS, adminModulePath, adminModuleTitle, validAdminModule,
 } from "./admin-sections";
+import { approvedPublicReferralSpotlights } from "./admin-referral-signals";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
@@ -73,6 +74,38 @@ describe("Central administrativa: URLs próprias e RLS intacta", () => {
     expect(page).toContain('params={{ secao: item.section }}');
     expect(page).toContain('aria-current={section === item.section ? "page" : undefined}');
     expect(page).toContain('noindex, nofollow');
+  });
+
+
+  it("mantém o diagnóstico B1 exclusivamente nos destaques de perfis públicos", () => {
+    const admin = read("src/routes/admin.tsx");
+    const view = read("src/components/admin-referral-overview.tsx");
+    expect(admin).toContain('import { AdminReferralOverview }');
+    expect(admin).toContain("<AdminReferralOverview />");
+    expect(admin.indexOf(") : !isAdmin ? (")).toBeLessThan(admin.indexOf("<AdminReferralOverview />"));
+    expect(view).toContain("listApprovedTechnicians({");
+    expect(view).toContain("approvedPublicReferralSpotlights(rows)");
+    expect(view).toContain("status === \"error\"");
+    expect(view).not.toContain('db.from("eut_technician_referrals")');
+    expect(view).not.toContain("eut_my_referral_dashboard");
+    expect(view).not.toContain("service_role");
+    expect(view).not.toContain("eut_admin_referrals_snapshot");
+  });
+  it("projeta apenas identidade pública de perfis efetivamente destacados", () => {
+    const input = [
+      { id: "1", public_slug: "t-1", display_name: "Técnico A",
+        city: "Curitiba", state_uf: "PR", referral_highlight: true,
+        email: "privado@example.com", phone: "41999999999" },
+      { id: "2", public_slug: "t-2", display_name: "Técnico B",
+        city: "Curitiba", state_uf: "PR", referral_highlight: false,
+        email: "outro@example.com" },
+    ];
+    const rows = approvedPublicReferralSpotlights(input);
+    expect(rows).toEqual([{ id: "1", public_slug: "t-1",
+      display_name: "Técnico A", city: "Curitiba", state_uf: "PR" }]);
+    expect(JSON.stringify(rows)).not.toContain("example.com");
+    expect(JSON.stringify(rows)).not.toContain("41999999999");
+    expect(approvedPublicReferralSpotlights([])).toEqual([]);
   });
 
 });
