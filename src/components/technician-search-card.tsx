@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowUpRight, BriefcaseBusiness, MapPin, Medal, Radio, ShieldCheck, Sparkles, Wrench } from "lucide-react";
+import { ArrowUpRight, BriefcaseBusiness, MapPin, Radio, ShieldCheck, Sparkles, Wrench } from "lucide-react";
 import type { PublicTechnician } from "@/lib/technicians.functions";
 import { TechnicianAvatar } from "@/components/technician-avatar";
 import { formatPublicLocation, placeKey } from "@/lib/location-labels";
@@ -63,11 +63,6 @@ export function TechnicianSearchCard({ technician: t, categories, services, loca
           {t.online_now && (
             <span title="Atividade recente, sem garantia de disponibilidade" className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[11px] font-bold text-primary">
               <Radio className="h-3.5 w-3.5" aria-hidden="true" /> Atividade recente
-            </span>
-          )}
-          {t.pioneer_bronze && (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-700/30 bg-amber-800/10 px-3 py-1 text-[11px] font-bold text-amber-800 dark:text-amber-300">
-              <Medal className="h-3.5 w-3.5" aria-hidden="true" /> Pioneiro Bronze
             </span>
           )}
           {t.referral_highlight && (
