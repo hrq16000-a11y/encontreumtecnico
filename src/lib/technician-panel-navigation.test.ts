@@ -63,6 +63,8 @@ describe("Painel técnico navegável: abas profundas sem acessar dados de outro 
     expect(missions).toContain('value={link}');
     expect(missions).toContain('onClick={() => void copyLink()}');
     expect(missions).toContain('href="#eut-tecnico-indicacoes"');
+    expect(missions).toContain("function verifiedCount(value: unknown): number | null");
+    expect(missions).not.toContain("Math.max(0, Number(data.invited_accounts) || 0)");
     expect(missions).not.toContain("service_role");
   });
 });
