@@ -72,7 +72,7 @@ BEGIN
    RAISE EXCEPTION 'Fake Auth account created'; END IF;
  IF NOT EXISTS(SELECT 1 FROM eut_moderation.catalog_private_contacts c
      WHERE c.technician_id=v_id AND c.phone_e164='+5541999998080'
-       AND c.allow_paid_contact=false)
+       AND c.allow_paid_contact=true)
  THEN RAISE EXCEPTION 'Phone not stored privately'; END IF;
  IF NOT EXISTS(SELECT 1 FROM eut_moderation.catalog_provenance p
      WHERE p.technician_id=v_id AND p.catalog_origin='admin_manual'
@@ -135,6 +135,12 @@ BEGIN
  IF (v_result->'results'->0->>'created')<>'false' OR
     (v_result->'results'->1->>'created')<>'false'
  THEN RAISE EXCEPTION 'Batch replay was not idempotent'; END IF;
+ IF NOT EXISTS (
+   SELECT 1 FROM eut_moderation.catalog_private_contacts c
+   JOIN eut_moderation.catalog_provenance p ON p.technician_id=c.technician_id
+   WHERE p.catalog_origin='external_import' AND p.source_key='capture:two-01'
+     AND c.allow_paid_contact IS TRUE
+ ) THEN RAISE EXCEPTION 'Imported phone incorrectly requires individual opt-in'; END IF;
  SELECT id,updated_at INTO v_id,v_version FROM public.technicians
  WHERE catalog_origin='wordpress' AND id=(
    SELECT technician_id FROM eut_moderation.catalog_provenance

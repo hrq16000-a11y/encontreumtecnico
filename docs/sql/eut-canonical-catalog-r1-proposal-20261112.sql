@@ -209,8 +209,10 @@ BEGIN
   VALUES(v_id,v_origin,v_source);
 
   IF v_phone IS NOT NULL THEN
-    INSERT INTO eut_moderation.catalog_private_contacts(technician_id,phone_e164)
-      VALUES(v_id,v_phone);
+    -- Admin-owned contacts are eligible for a future PAID, server-verified release;
+    -- no technician Auth/claim/approval is needed. This never grants a purchase.
+    INSERT INTO eut_moderation.catalog_private_contacts(technician_id,phone_e164,allow_paid_contact)
+      VALUES(v_id,v_phone,true);
   END IF;
   -- Atomic audit: failure MUST roll back the record and the private contact.
   INSERT INTO public.eut_admin_management_log(
