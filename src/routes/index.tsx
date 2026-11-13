@@ -58,8 +58,6 @@ export const Route = createFileRoute("/")({
               url: SITE,
               logo: new URL(logo.url, SITE).href,
               areaServed: "BR",
-              email: "dpo@encontreumtecnico.com",
-              telephone: "+55-41-99745-2053",
               description: DESC,
               slogan: "Precisou? Encontrou!",
             },
