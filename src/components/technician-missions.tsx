@@ -24,7 +24,11 @@ const claimMessages: Record<string, string> = {
   prazo_encerrado: "O prazo de associação do convite terminou. A participação na rede continua gratuita.",
 };
 
-export function TechnicianMissions({ userId }: { userId: string }) {
+export function TechnicianMissions({ userId, compact = false, onOpenDetails }: {
+  userId: string;
+  compact?: boolean;
+  onOpenDetails?: () => void;
+}) {
   const [dashboard, setDashboard] = useState<MissionDashboard | null>(null);
   const [link, setLink] = useState("");
   const [pendingCode, setPendingCode] = useState<string | null>(null);
@@ -116,6 +120,61 @@ export function TechnicianMissions({ userId }: { userId: string }) {
     sessionStorage.removeItem(STORAGE_KEY);
     setPendingCode(null);
     setMessage("Convite descartado. Seu cadastro permanece gratuito.");
+  }
+
+  if (compact) {
+    return (
+      <section className="mt-5 rounded-xl border border-primary/20 bg-muted/20 p-4 sm:p-5" aria-label="Resumo de indicações do técnico">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold text-foreground">Meu link de indicação</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Convide outros técnicos gratuitamente e acompanhe as indicações confirmadas.
+            </p>
+          </div>
+          <a href="#eut-tecnico-indicacoes" onClick={onOpenDetails}
+            className="inline-flex min-h-11 items-center rounded-lg border border-primary/30 px-3 py-2 text-sm font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            Ver detalhes das indicações <span aria-hidden="true" className="ml-2">→</span>
+          </a>
+        </div>
+        {loading ? (
+          <p className="mt-4 text-sm text-muted-foreground" role="status">Carregando suas indicações…</p>
+        ) : dashboard ? (
+          <>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="rounded-lg border border-border bg-background p-3">
+                <strong className="block text-2xl font-bold tabular-nums text-foreground">{dashboard.invited_accounts}</strong>
+                <span className="text-xs text-muted-foreground">Técnicos que aceitaram seu convite</span>
+              </div>
+              <div className="rounded-lg border border-border bg-background p-3">
+                <strong className="block text-2xl font-bold tabular-nums text-foreground">{dashboard.invited_public_profiles}</strong>
+                <span className="text-xs text-muted-foreground">Indicados com perfil publicado</span>
+              </div>
+            </div>
+            <label htmlFor="eut-link-indicacao-resumo" className="mt-4 block text-sm font-semibold text-foreground">
+              Seu link exclusivo para compartilhar
+            </label>
+            <div className="mt-2 flex min-w-0 flex-col gap-2 sm:flex-row">
+              <input id="eut-link-indicacao-resumo" aria-label="Meu link exclusivo de indicação"
+                readOnly value={link} onFocus={(e) => e.currentTarget.select()}
+                className="min-h-11 min-w-0 flex-1 rounded-lg border border-input bg-background px-3 text-sm text-foreground" />
+              <button type="button" onClick={() => void copyLink()} disabled={!link}
+                className="min-h-11 shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+                Copiar link
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="mt-4 text-sm text-foreground" role="alert">
+            Indicações indisponíveis no momento. Abra os detalhes para tentar novamente.
+          </p>
+        )}
+        {message && <p role="status" className="mt-3 text-sm text-foreground">{message}</p>}
+        <p className="mt-3 text-xs text-muted-foreground">
+          Indicações qualificadas podem gerar destaque regional; não há bônus financeiro ou comissão automática nesta etapa.
+        </p>
+      </section>
+    );
   }
 
   return (
