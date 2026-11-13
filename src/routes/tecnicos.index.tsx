@@ -325,8 +325,8 @@ function TechniciansPage() {
           {technicians.length === 0 ? (
             <div className="space-y-4">
               <EmptyState
-                title="Nenhum técnico encontrado com estes filtros"
-                description="Ainda não encontramos um profissional com perfil ativo para esta pesquisa. Você pode registrar sua necessidade ou, se é profissional, criar seu perfil no portal novo. Cadastros antigos em conferência não são apresentados como técnicos disponíveis."
+                title={search.municipio_ibge ? "Nenhum técnico elegível nesta página" : "Nenhum técnico encontrado com estes filtros"}
+                description={search.municipio_ibge ? "Esta página não confirma a ausência de técnicos em todo o município. Outros registros podem estar nas próximas páginas após a verificação de elegibilidade. Nenhum cadastro antigo em revisão é apresentado como ativo." : "Ainda não encontramos um profissional com perfil ativo para esta pesquisa. Você pode registrar sua necessidade ou, se é profissional, criar seu perfil no portal novo. Cadastros antigos em conferência não são apresentados como técnicos disponíveis."}
               />
               <div className="rounded-2xl border border-primary/25 bg-gradient-to-r from-brand-navy to-primary p-6 text-white shadow-sm">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -400,8 +400,9 @@ function TechniciansPage() {
           <button type="button" disabled={search.pagina <= 1} onClick={() => update({ pagina: search.pagina - 1 })}
             className="min-h-11 rounded-lg border border-input px-4 text-sm disabled:opacity-40">Anterior</button>
           <span className="text-sm text-muted-foreground">Página {search.pagina}</span>
-          <button type="button" disabled={technicians.length < 50} onClick={() => update({ pagina: search.pagina + 1 })}
-            className="min-h-11 rounded-lg border border-input px-4 text-sm disabled:opacity-40">Próxima</button>
+          <button type="button" disabled={search.pagina >= 500} onClick={() => update({ pagina: search.pagina + 1 })}
+            className="min-h-11 rounded-lg border border-input px-4 text-sm disabled:opacity-40">Consultar próxima página</button>
+          <p className="text-xs text-muted-foreground">Uma página vazia não prova fim do catálogo: a elegibilidade é revalidada após cada página de candidatos.</p>
         </nav>}
         <LegacyPublicArchive show={!search.municipio_ibge && canShowLegacyArchive(search)} />
       </section>
