@@ -30,7 +30,7 @@ jobs:
       - name: Unit tests — declared locality first
         run: bun test tests/technician-local-ranking.test.ts
       - name: Unit tests — UF change clears incompatible locality and pending drafts
-        run: bunx vitest run src/lib/technician-search-uf-transition.test.ts
+        run: bunx vitest run src/lib/technician-search-uf-transition.test.ts src/lib/technician-city-scope.test.ts
       - name: Build TanStack Start
         run: bun run build
       - name: TypeScript

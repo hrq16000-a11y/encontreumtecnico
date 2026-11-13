@@ -194,9 +194,13 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
       if (!regionalPriority && selectedCityId === null) q = q.eq("state_uf", uf);
     }
     const bairro = clean(data.bairro);
-    if (bairro && !regionalPriority && selectedCityId === null) q = q.ilike("neighborhood", `%${bairro}%`);
+    if (bairro && !regionalPriority) {
+      if (selectedCityId === null) q = q.ilike("neighborhood", `%${bairro}%`);
+    }
     const city = clean(data.cidade);
-    if (city && !regionalPriority && selectedCityId === null) q = q.ilike("city", `%${city}%`);
+    if (city && !regionalPriority) {
+      if (selectedCityId === null) q = q.ilike("city", `%${city}%`);
+    }
     const region = clean(data.regiao);
     if (region && !regionalPriority && selectedCityId === null) q = q.ilike("region", `%${region}%`);
     const { data: rows, error } = await q;
