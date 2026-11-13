@@ -10,6 +10,8 @@ BEGIN
  THEN RAISE EXCEPTION 'Private R1 tables remain'; END IF;
  IF to_regprocedure('public.eut_admin_catalog_list(integer,integer,text,uuid[])') IS NOT NULL
  THEN RAISE EXCEPTION 'R1 RPC remains'; END IF;
+ IF to_regprocedure('public.eut_admin_catalog_update(uuid,timestamptz,bigint,jsonb,text)') IS NOT NULL
+ THEN RAISE EXCEPTION 'Versioned Update RPC remains after rollback'; END IF;
  IF (SELECT count(*) FROM public.technicians)<>2 OR
     (SELECT count(*) FROM public.eut_technician_private_contacts)<>2
  THEN RAISE EXCEPTION 'Historic technicians/private contacts were lost'; END IF;
@@ -29,7 +31,8 @@ BEGIN
      AND column_name IN ('user_id','display_name','city') AND is_nullable='YES')
  THEN RAISE EXCEPTION 'Legacy NOT NULL constraints not restored'; END IF;
  IF (SELECT count(*) FROM pg_policies
-   WHERE tablename='technicians' AND policyname='eut_catalog_direct_insert_requires_owner')<>0
+   WHERE tablename='technicians' AND policyname IN ('eut_catalog_direct_insert_requires_owner',
+                   'eut_catalog_direct_insert_requires_operational_account'))<>0
  THEN RAISE EXCEPTION 'New R1 RLS policy still installed'; END IF;
  IF (SELECT count(*) FROM pg_policies
    WHERE tablename='technicians' AND policyname IN (

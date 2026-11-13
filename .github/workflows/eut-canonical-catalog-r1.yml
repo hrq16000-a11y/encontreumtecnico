@@ -209,7 +209,7 @@ jobs:
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/docs/sql/tests/eut-canonical-r1-local-only-dependencies-20261113.sql" >/dev/null
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/docs/sql/eut-canonical-catalog-r1-proposal-20261112.sql" >/dev/null
           node "$GITHUB_WORKSPACE/scripts/qa/eut-local-legacy-guards-sql.mjs" | psql "$DB_URL" -X -v ON_ERROR_STOP=1 >/dev/null
-          echo 'LOCAL_R1_LEGACY_GUARDS_READY: 10 technician triggers, 1 legacy private trigger and 11 RLS policies'
+          echo 'LOCAL_R1_LEGACY_GUARDS_READY: 10 technician triggers, 1 legacy private trigger and 12 RLS policies'
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -c "NOTIFY pgrst, 'reload schema';" >/dev/null
           echo 'LOCAL_R1_SCHEMA_READY: six migrations + metadata-backed minimal shim + existing R1 proposal'
       - name: Verify R1 catalog through real GoTrue admin JWT and PostgREST

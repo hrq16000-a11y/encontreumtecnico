@@ -23,6 +23,13 @@ ALTER TABLE public.technicians ALTER COLUMN catalog_enabled SET DEFAULT true;
 CREATE POLICY eut_catalog_direct_insert_requires_owner ON public.technicians
  AS RESTRICTIVE FOR INSERT TO authenticated
  WITH CHECK(user_id IS NOT NULL AND user_id=auth.uid());
+-- The legacy eut_new_technicians_not_restricted policy is PERMISSIVE and
+-- cannot veto a blocked owner if another permissive INSERT policy accepts.
+-- Mandatory operational check combines with every authenticated INSERT path.
+-- Admin Auth-less creation remains available only through the audited RPC.
+CREATE POLICY eut_catalog_direct_insert_requires_operational_account
+ ON public.technicians AS RESTRICTIVE FOR INSERT TO authenticated
+ WITH CHECK(public.eut_account_operational());
 
 -- The legacy permissive policy "Public reads approved" can bypass the
 -- other public visibility guard through OR. Require both catalogue activation

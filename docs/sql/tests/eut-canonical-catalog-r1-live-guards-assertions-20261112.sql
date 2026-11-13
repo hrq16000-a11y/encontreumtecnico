@@ -76,6 +76,12 @@ BEGIN
  THEN RAISE EXCEPTION 'Restrictive INSERT policy absent'; END IF;
  IF NOT EXISTS(SELECT 1 FROM pg_policy
   WHERE polrelid='public.technicians'::regclass
+  AND polname='eut_catalog_direct_insert_requires_operational_account'
+  AND NOT polpermissive
+  AND pg_get_expr(polwithcheck,polrelid) LIKE '%eut_account_operational%')
+ THEN RAISE EXCEPTION 'Mandatory blocked-account INSERT guard absent'; END IF;
+ IF NOT EXISTS(SELECT 1 FROM pg_policy
+  WHERE polrelid='public.technicians'::regclass
   AND polname='Public reads approved'
   AND pg_get_expr(polqual,polrelid) LIKE '%catalog_enabled%')
  THEN RAISE EXCEPTION 'Public approved policy ignores catalog_enabled'; END IF;
@@ -143,7 +149,7 @@ BEGIN
  IF n<>1 THEN RAISE EXCEPTION 'Deployed private phone trigger missing'; END IF;
  SELECT count(*) INTO n FROM pg_policies
  WHERE schemaname='public' AND tablename IN ('technicians','eut_admin_management_log');
- IF n<>11 THEN RAISE EXCEPTION 'Expected 10 deployed + 1 new restrictive policy; got %',n; END IF;
+ IF n<>12 THEN RAISE EXCEPTION 'Expected 10 deployed + 2 new restrictive policies; got %',n; END IF;
  IF EXISTS(SELECT 1 FROM public.technicians t JOIN public.qa_r1_legacy_versions v
      ON t.id=v.id WHERE t.updated_at IS DISTINCT FROM v.updated_at
        OR t.catalog_enabled IS NOT NULL) THEN

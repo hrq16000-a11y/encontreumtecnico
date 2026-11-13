@@ -30,6 +30,7 @@ END;
 $guard$;
 -- Restore exactly the original 3 deployed RLS policy contracts, before
 -- dropping the new operational column used by the proposed filters.
+DROP POLICY eut_catalog_direct_insert_requires_operational_account ON public.technicians;
 DROP POLICY eut_catalog_direct_insert_requires_owner ON public.technicians;
 DROP POLICY "Public reads approved" ON public.technicians;
 DROP POLICY eut_public_visibility_anon_guard ON public.technicians;
@@ -37,6 +38,7 @@ DROP POLICY eut_public_visibility_auth_guard ON public.technicians;
 CREATE POLICY "Public reads approved" ON public.technicians AS PERMISSIVE FOR SELECT TO anon,authenticated USING ((status = 'aprovado'::approval_status));
 CREATE POLICY "eut_public_visibility_anon_guard" ON public.technicians AS RESTRICTIVE FOR SELECT TO anon USING (((status = 'aprovado'::approval_status) AND eut_visibility.eut_public_technician_eligible(id)));
 CREATE POLICY "eut_public_visibility_auth_guard" ON public.technicians AS RESTRICTIVE FOR SELECT TO authenticated USING ((eut_visibility.eut_public_technician_eligible(id) OR (auth.uid() = user_id) OR has_role(auth.uid(), 'admin'::app_role)));
+DROP FUNCTION public.eut_admin_catalog_update(uuid,timestamptz,bigint,jsonb,text);
 DROP FUNCTION public.eut_admin_catalog_list(integer,integer,text,uuid[]);
 DROP FUNCTION public.eut_admin_catalog_set_enabled(uuid,timestamptz,boolean,text);
 DROP FUNCTION public.eut_admin_catalog_import_batch(jsonb,text);

@@ -64,7 +64,7 @@ const sql = [
   "SELECT count(*) INTO tech_triggers FROM pg_trigger WHERE tgrelid='public.technicians'::regclass AND NOT tgisinternal;",
   "SELECT count(*) INTO phone_triggers FROM pg_trigger WHERE tgrelid='public.eut_technician_private_contacts'::regclass AND NOT tgisinternal;",
   "SELECT count(*) INTO policy_count FROM pg_policies WHERE schemaname='public' AND tablename IN ('technicians','eut_admin_management_log');",
-  "IF tech_triggers<>10 OR phone_triggers<>1 OR policy_count<>11 THEN RAISE EXCEPTION 'Local guard inventory mismatch: %, %, %',tech_triggers,phone_triggers,policy_count; END IF;",
+  "IF tech_triggers<>10 OR phone_triggers<>1 OR policy_count<>12 THEN RAISE EXCEPTION 'Local guard inventory mismatch: %, %, %',tech_triggers,phone_triggers,policy_count; END IF;",
   'END $qa$;',
   'COMMIT;',
 ];
