@@ -78,6 +78,10 @@ async function checkViewport(browser, width) {
       municipalitySelect: Boolean(document.querySelector("#filtro-municipio-ibge")),
       scripts: document.scripts.length,
     }))));
+    const advancedFilters = page.getByRole("button", { name: /Mais filtros/ });
+    await advancedFilters.click();
+    assert.equal(await advancedFilters.getAttribute("aria-expanded"), "true",
+      "Advanced filters must open before selecting an official municipality");
     const selector = page.locator("#filtro-municipio-ibge");
     await selector.waitFor({ state: "visible" });
     await selector.locator('option[value="4125506"]').waitFor({ state: "attached" });
