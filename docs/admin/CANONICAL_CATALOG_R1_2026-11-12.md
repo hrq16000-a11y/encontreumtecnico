@@ -39,3 +39,8 @@ O contato privado existente `public.eut_technician_private_contacts` continua vi
 O gatilho legado de auditoria NÃO cobre `catalog_enabled`: o novo gatilho de mudança operacional bloqueia edição direta não auditada e exige administração operacional e motivo. O RPC de habilitação agora utiliza esse gatilho para gerar um único log transacional. `catalog_origin` e DDD não podem ser alterados informalmente. O backfill da proposta mantém cadastros legados pendentes desabilitados; novos cadastros manuais/importados continuam habilitados por padrão.
 
 **Não executar esta proposta no banco real ainda:** o PostgreSQL descartável replica apenas parte dos gatilhos. Verificar em staging o funcionamento de todos os 10 gatilhos, políticas reais, grants, cronologia de migrações, rollback e tipos gerados antes de qualquer SQL de produção.
+
+
+## R2: politicas e gatilhos reais testados em PostgreSQL isolado
+
+Fixture reproduz funcoes instaladas de texto publico, municipio/cobertura, servicos, qualidade, bloqueio e elegibilidade; politicas permissivas SELECT/INSERT sao recriadas a partir de metadados de leitura. A proposta passa a exigir INSERT direto com user_id do proprio usuario (politica RESTRICTIVE) para impedir criacao Auth-less sem RPC administrativa auditada. As politicas publicas propostas deixam de ignorar catalog_enabled e a elegibilidade real quando combinadas por OR. Testes positivos e negativos verificam visibilidade anonima, criacao autorizada, tentativa de cliente de contornar RPC, contato em texto publico, municipio e servico invalidos e bloqueio legado. Nao e prova de staging real e nao modifica SQL hospedado.

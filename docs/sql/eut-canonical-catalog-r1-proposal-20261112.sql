@@ -14,6 +14,33 @@ ALTER TABLE public.technicians
   ADD COLUMN IF NOT EXISTS ddd_hint text;
 -- Source keys are not kept in public: anon has SELECT on this RLS-protected table.
 
+-- Hosted INSERT policies are permissive (OR). When user_id becomes nullable,
+-- direct logged-in INSERTs must still be bound to the caller's Auth user.
+-- An admin may create Auth-less only via the authorized audited SECURITY DEFINER RPC.
+CREATE POLICY eut_catalog_direct_insert_requires_owner ON public.technicians
+ AS RESTRICTIVE FOR INSERT TO authenticated
+ WITH CHECK(user_id IS NOT NULL AND user_id=auth.uid());
+
+-- The legacy permissive policy "Public reads approved" can bypass the
+-- other public visibility guard through OR. Require both catalogue activation
+-- and existing server-verified eligibility. Owners/admins keep private reads.
+DROP POLICY IF EXISTS "Public reads approved" ON public.technicians;
+CREATE POLICY "Public reads approved" ON public.technicians
+ FOR SELECT TO anon,authenticated
+ USING(catalog_enabled AND status='aprovado'::public.approval_status
+   AND eut_visibility.eut_public_technician_eligible(id));
+DROP POLICY IF EXISTS eut_public_visibility_anon_guard ON public.technicians;
+CREATE POLICY eut_public_visibility_anon_guard ON public.technicians
+ FOR SELECT TO anon USING(catalog_enabled
+   AND status='aprovado'::public.approval_status
+   AND eut_visibility.eut_public_technician_eligible(id));
+DROP POLICY IF EXISTS eut_public_visibility_auth_guard ON public.technicians;
+CREATE POLICY eut_public_visibility_auth_guard ON public.technicians
+ FOR SELECT TO authenticated
+ USING((catalog_enabled AND eut_visibility.eut_public_technician_eligible(id))
+   OR auth.uid()=user_id
+   OR public.has_role(auth.uid(),'admin'::public.app_role));
+
 -- Existing suspensions, rejections and bans MUST NOT be reset when catalog
 -- activation is introduced. New Auth-less admin imports still default to true.
 UPDATE public.technicians AS t SET catalog_enabled=false

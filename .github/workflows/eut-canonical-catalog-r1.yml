@@ -47,10 +47,14 @@ jobs:
         run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-fixture-20261112.sql
       - name: Recreate live required-slug and profiles-FK guards (synthetic only)
         run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-hosted-compatibility-20261112.sql
+      - name: Apply real installed trigger and RLS fixture to disposable PostgreSQL
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-live-guards-20261112.sql
       - name: Install proposal ONLY on disposable postgres
         run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/eut-canonical-catalog-r1-proposal-20261112.sql
       - name: Validate canonical Auth-less identity and audited operations
         run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-assertions-20261112.sql
+      - name: Verify privacy quality location and RLS negative scenarios
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-live-guards-assertions-20261112.sql
 
   admin-ui-contract:
     runs-on: ubuntu-latest
