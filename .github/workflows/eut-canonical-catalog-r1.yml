@@ -42,6 +42,8 @@ jobs:
         run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-admin-crud-ephemeral-schema-20261111.sql
       - name: Add operational authorization fixture
         run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-fixture-20261112.sql
+      - name: Recreate live required-slug and profiles-FK guards (synthetic only)
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-hosted-compatibility-20261112.sql
       - name: Install proposal ONLY on disposable postgres
         run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/eut-canonical-catalog-r1-proposal-20261112.sql
       - name: Validate canonical Auth-less identity and audited operations

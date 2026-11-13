@@ -64,6 +64,12 @@ BEGIN
      WHERE c.technician_id=v_id AND c.phone_e164='+5541999998080'
        AND c.allow_paid_contact=false)
  THEN RAISE EXCEPTION 'Phone not stored privately'; END IF;
+ -- Actual hosted technicians.public_slug is NOT NULL and assigned by trigger.
+ IF (SELECT public_slug FROM public.technicians WHERE id=v_id)<>'tecnico' THEN
+   RAISE EXCEPTION 'Required slug trigger failed for null name and city'; END IF;
+ IF EXISTS(SELECT 1 FROM public.technicians
+    WHERE id=v_id AND public_slug ~ '99999|8080') THEN
+   RAISE EXCEPTION 'Phone must not leak into slug'; END IF;
  IF EXISTS(SELECT 1 FROM public.eut_admin_management_log a
    WHERE a.target_key=v_id::text AND (
     a.before_state::text LIKE '%999998080%' OR
@@ -86,6 +92,10 @@ BEGIN
   'Outra origem permanece separada para reconciliação');
  IF v_repeat->>'technician_id'=v_id::text THEN
    RAISE EXCEPTION 'Phone collision wrongly merged identities'; END IF;
+ IF (SELECT public_slug FROM public.technicians
+   WHERE id=(v_repeat->>'technician_id')::uuid)
+   <> 'tecnico-'||left(replace(v_repeat->>'technician_id','-',''),12) THEN
+     RAISE EXCEPTION 'Slug collision trigger must use the ID suffix'; END IF;
  v_repeat:=public.eut_admin_catalog_upsert(
   'admin_manual','manual:lead-001',NULL,NULL,NULL,'(41) 99999-7070',
   'Proibir troca silenciosa do telefone original');
@@ -130,6 +140,43 @@ BEGIN
  THEN RAISE EXCEPTION 'Disable audit missing'; END IF;
 END $qa$;
 
+\echo 'EUT canonical R1: hosted phone format, RLS and NULL batch compatibility'
+DO $qa$
+DECLARE bad boolean; before_count integer;
+BEGIN
+ SELECT count(*) INTO before_count FROM public.technicians;
+ bad:=false;
+ BEGIN PERFORM public.eut_admin_catalog_upsert(
+  'admin_manual','manual:bad-leading','Teste QA',NULL,NULL,
+  '(41) 1333-4444','Recusar assinante com primeiro dígito inválido');
+ EXCEPTION WHEN SQLSTATE '22023' THEN bad:=true; END;
+ IF NOT bad THEN RAISE EXCEPTION 'Invalid subscriber accepted'; END IF;
+ bad:=false;
+ BEGIN PERFORM public.eut_admin_catalog_upsert(
+  'admin_manual','manual:bad-ddd','Teste QA',NULL,NULL,
+  '(10) 99999-8080','Recusar DDD inválido');
+ EXCEPTION WHEN SQLSTATE '22023' THEN bad:=true; END;
+ IF NOT bad THEN RAISE EXCEPTION 'Invalid DDD accepted'; END IF;
+ bad:=false;
+ BEGIN PERFORM public.eut_admin_catalog_upsert(
+  'admin_manual','manual:bad-ramal','Teste QA',NULL,NULL,
+  '(41) 99999-8080 ramal 3','Recusar texto extra em telefone');
+ EXCEPTION WHEN SQLSTATE '22023' THEN bad:=true; END;
+ IF NOT bad THEN RAISE EXCEPTION 'Extension silently normalized'; END IF;
+ bad:=false;
+ BEGIN PERFORM public.eut_admin_catalog_import_batch(NULL,'Recusar lote nulo');
+ EXCEPTION WHEN SQLSTATE '22023' THEN bad:=true; END;
+ IF NOT bad THEN RAISE EXCEPTION 'NULL batch accepted'; END IF;
+ IF (SELECT count(*) FROM public.technicians)<>before_count THEN
+   RAISE EXCEPTION 'Invalid input wrote a catalog record'; END IF;
+ IF has_table_privilege('anon','eut_moderation.catalog_private_contacts','SELECT') OR
+    has_table_privilege('authenticated','eut_moderation.catalog_private_contacts','SELECT') OR
+    NOT (SELECT relrowsecurity FROM pg_class
+      WHERE oid='eut_moderation.catalog_private_contacts'::regclass) THEN
+   RAISE EXCEPTION 'Private contact grants/RLS incorrect'; END IF;
+ IF (SELECT count(*) FROM public.eut_technician_private_contacts)<>2 THEN
+   RAISE EXCEPTION 'Existing Auth contacts changed'; END IF;
+END $qa$;
 \echo 'EUT canonical R1: invalid input and banned phone rollback'
 DO $qa$
 DECLARE denied boolean; v_before bigint;
