@@ -154,6 +154,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             {section === "tecnicos" && <section aria-label="Gestão de técnicos">
               <AdminMemberInvites initialRole="tecnico" />
               <AdminTechnicianManager adminOwnerId={user.id} />
+              <TechnicianAccountControls />
             </section>}
             {section === "mensagens" && <section aria-label="Mensagens administrativas">
               <h2 id="admin-mensagens" className="mt-10 scroll-mt-20 text-lg font-semibold text-foreground">Mensagens de contato</h2>
@@ -213,4 +214,23 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
       </section>
     </PageShell>
   );
+}
+
+/** Identity moderation is loaded on demand, separate from public technician-profile edits. */
+function TechnicianAccountControls() {
+  const [open, setOpen] = useState(false);
+  return <section className="mt-6 rounded-2xl border border-border bg-muted/20 p-4 sm:p-5"
+    aria-label="Identidades e bloqueios dos técnicos">
+    <h2 className="text-lg font-bold text-foreground">Identidades dos técnicos</h2>
+    <p className="mt-2 text-sm leading-6 text-muted-foreground">
+      Além de editar e moderar o perfil profissional acima, é possível consultar a conta do técnico,
+      corrigir seu nome cadastral e banir ou restaurar o acesso com justificativa auditada.
+      Os contatos completos e as credenciais permanecem privados.
+    </p>
+    <button type="button" aria-expanded={open} onClick={() => setOpen((value) => !value)}
+      className="mt-3 min-h-11 rounded-lg border border-input bg-background px-4 text-sm font-semibold text-foreground hover:bg-accent">
+      {open ? "Fechar gestão de contas técnicas" : "Abrir gestão de contas técnicas"}
+    </button>
+    {open && <AdminAccountsManager initialFilter="tecnicos" />}
+  </section>;
 }

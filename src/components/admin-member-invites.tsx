@@ -13,8 +13,11 @@ const LOGIN_URL = "https://www.encontreumtecnico.com.br/entrar";
 const LABELS: Record<InvitedRole, string> = { tecnico: "técnico", cliente: "cliente" };
 
 /** Admin-only screen. Identity, restrictions and audit are enforced by RPC. */
-export function AdminMemberInvites({ initialRole = "tecnico" }: { initialRole?: InvitedRole }) {
-  const [role, setRole] = useState<InvitedRole>(initialRole);
+export function AdminMemberInvites({ initialRole }: { initialRole?: InvitedRole }) {
+  // An explicitly selected role scopes this module; the global accounts area can manage both.
+  const scopedRole = initialRole ?? null;
+  const [role, setRole] = useState<InvitedRole>(initialRole ?? "tecnico");
+  const effectiveRole = scopedRole ?? role;
   const [email, setEmail] = useState("");
   const [reason, setReason] = useState("");
   const [rows, setRows] = useState<InviteRow[]>([]);
@@ -26,6 +29,8 @@ export function AdminMemberInvites({ initialRole = "tecnico" }: { initialRole?: 
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [revokeTarget, setRevokeTarget] = useState<string | null>(null);
+  const [revokeReason, setRevokeReason] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -50,7 +55,7 @@ export function AdminMemberInvites({ initialRole = "tecnico" }: { initialRole?: 
       return;
     }
     if (!window.confirm(
-      "Criar convite para " + LABELS[role] + " destinado a " + normalizedEmail +
+      "Criar convite para " + LABELS[effectiveRole] + " destinado a " + normalizedEmail +
       "? Nenhum usuário será criado e nenhum e-mail será enviado automaticamente."
     )) return;
     setBusy(true);
@@ -59,13 +64,13 @@ export function AdminMemberInvites({ initialRole = "tecnico" }: { initialRole?: 
     setCreatedEmail(null);
     try {
       const { data, error: requestError } = await db.rpc("eut_admin_member_invite_action", {
-        _action: "create", _email: normalizedEmail, _role: role,
+        _action: "create", _email: normalizedEmail, _role: effectiveRole,
         _invite_id: null, _reason: justification,
       });
       if (requestError || data?.ok !== true || data?.action !== "create" ||
-          data?.target_role !== role) throw new Error("Convite não confirmado");
+          data?.target_role !== effectiveRole) throw new Error("Convite não confirmado");
       setCreatedEmail(normalizedEmail);
-      setCreatedRole(role);
+      setCreatedRole(effectiveRole);
       setNotice("Convite registrado e auditado. Copie a mensagem para encaminhar; nenhum e-mail foi enviado pelo portal.");
       setCopied(false);
       setEmail("");
@@ -79,17 +84,25 @@ export function AdminMemberInvites({ initialRole = "tecnico" }: { initialRole?: 
   }
 
   async function revoke(id: string) {
-    if (busy || !window.confirm("Revogar este convite pendente? A operação será auditada.")) return;
+    const justification = revokeReason.trim();
+    if (busy) return;
+    if (justification.length < 8 || justification.length > 400) {
+      setError("Informe um motivo para revogar (8 a 400 caracteres).");
+      return;
+    }
+    if (!window.confirm("Revogar este convite pendente? A justificativa será auditada.")) return;
     setBusy(true);
     setError(null);
     setNotice(null);
     try {
       const { data, error: requestError } = await db.rpc("eut_admin_member_invite_action", {
         _action: "revoke", _email: null, _role: null, _invite_id: id,
-        _reason: "Convite revogado por decisão administrativa",
+        _reason: justification,
       });
       if (requestError || data?.ok !== true || data?.action !== "revoke") throw new Error("Falha ao revogar");
       setNotice("Convite revogado e registrado na auditoria.");
+      setRevokeTarget(null);
+      setRevokeReason("");
       setVersion((v) => v + 1);
     } catch {
       setError("Não foi possível revogar. Atualize a lista e tente novamente.");
@@ -103,6 +116,7 @@ export function AdminMemberInvites({ initialRole = "tecnico" }: { initialRole?: 
       ".\nConfirme seu e-mail, aceite os termos e escolha Aceitar convite na tela de entrada." +
       " O convite vence em 72 horas e não garante atendimento ou certificação."
     : "";
+  const visibleRows = scopedRole ? rows.filter((entry) => entry.target_role === scopedRole) : rows;
 
   async function copyInvitation() {
     if (!createdEmail) return;
@@ -120,7 +134,7 @@ export function AdminMemberInvites({ initialRole = "tecnico" }: { initialRole?: 
       <div>
         <h2 className="flex items-center gap-2 text-lg font-bold text-foreground">
           <ShieldCheck className="h-5 w-5 text-primary" aria-hidden="true" />
-          Convidar novo técnico ou cliente
+          {scopedRole === "tecnico" ? "Convidar técnico" : scopedRole === "cliente" ? "Convidar cliente" : "Convidar novo técnico ou cliente"}
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
           O convite dura 72 horas e só pode ser aceito pelo próprio e-mail confirmado.
@@ -129,20 +143,20 @@ export function AdminMemberInvites({ initialRole = "tecnico" }: { initialRole?: 
         </p>
       </div>
       <form className="grid gap-3 sm:grid-cols-2" onSubmit={(event) => void create(event)}>
-        <label className="grid gap-1 text-sm font-semibold text-foreground">
+        <label className={"grid gap-1 text-sm font-semibold text-foreground " + (scopedRole ? "sm:col-span-2" : "")}>
           E-mail do destinatário
           <input required type="email" autoComplete="off" value={email} maxLength={254}
             onChange={(event) => setEmail(event.target.value)}
             className="min-h-11 rounded-lg border border-input bg-background px-3 text-base" />
         </label>
-        <label className="grid gap-1 text-sm font-semibold text-foreground">
+        {!scopedRole && <label className="grid gap-1 text-sm font-semibold text-foreground">
           Tipo de conta
           <select value={role} onChange={(event) => setRole(event.target.value as InvitedRole)}
             className="min-h-11 rounded-lg border border-input bg-background px-3 text-base">
             <option value="tecnico">Técnico / prestador</option>
             <option value="cliente">Cliente</option>
           </select>
-        </label>
+        </label>}
         <label className="grid gap-1 text-sm font-semibold text-foreground sm:col-span-2">
           Motivo administrativo (auditado)
           <textarea required value={reason} minLength={8} maxLength={400} rows={2}
@@ -170,26 +184,42 @@ export function AdminMemberInvites({ initialRole = "tecnico" }: { initialRole?: 
       </div>}
 
       <div className="flex items-center justify-between gap-2">
-        <h3 className="font-bold text-foreground">Últimos convites</h3>
+        <h3 className="font-bold text-foreground">{scopedRole ? `Últimos convites de ${LABELS[scopedRole]}` : "Últimos convites"}</h3>
         <button type="button" onClick={() => setVersion((v) => v + 1)}
           className="min-h-10 rounded-lg border border-input px-3 text-sm">Atualizar</button>
       </div>
       {loading ? <p role="status" className="text-sm text-muted-foreground">Consultando convites…</p> :
-        rows.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum convite nesta consulta.</p> :
+        visibleRows.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum convite neste filtro.</p> :
           <ul className="grid gap-2">
-            {rows.map((entry) => <li key={entry.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border p-3">
-              <div className="text-sm">
-                <p className="font-semibold text-foreground">{entry.masked_email}</p>
-                <p className="text-muted-foreground">{LABELS[entry.target_role]} · {entry.status === "pending"
-                  ? "Pendente" : entry.status === "accepted" ? "Aceito" :
-                    entry.status === "expired" ? "Expirado" : "Revogado"}</p>
+            {visibleRows.map((entry) => <li key={entry.id}
+              className="rounded-xl border border-border p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-sm">
+                  <p className="font-semibold text-foreground">{entry.masked_email}</p>
+                  <p className="text-muted-foreground">{LABELS[entry.target_role]} · {entry.status === "pending"
+                    ? "Pendente" : entry.status === "accepted" ? "Aceito" :
+                      entry.status === "expired" ? "Expirado" : "Revogado"}</p>
+                </div>
+                {entry.status === "pending" && <button type="button" disabled={busy}
+                  aria-expanded={revokeTarget === entry.id}
+                  onClick={() => { setRevokeTarget((current) => current === entry.id ? null : entry.id); setRevokeReason(""); setError(null); }}
+                  className="inline-flex min-h-10 items-center rounded-lg border border-input px-3 text-sm">
+                  {revokeTarget === entry.id ? "Cancelar revogação" : "Revogar"}
+                </button>}
               </div>
-              {entry.status === "pending" && <button type="button" disabled={busy}
-                onClick={() => void revoke(entry.id)}
-                className="inline-flex min-h-10 items-center rounded-lg border border-input px-3 text-sm">
-                Revogar
-              </button>}
+              {revokeTarget === entry.id && entry.status === "pending" && <form
+                className="mt-3 grid gap-2 border-t border-border pt-3"
+                onSubmit={(event) => { event.preventDefault(); void revoke(entry.id); }}>
+                <label className="grid gap-1 text-sm font-semibold text-foreground">Motivo da revogação (auditado)
+                  <textarea required minLength={8} maxLength={400} rows={2} value={revokeReason}
+                    onChange={(event) => setRevokeReason(event.target.value)}
+                    className="rounded-lg border border-input bg-background p-3 text-base" />
+                </label>
+                <button type="submit" disabled={busy}
+                  className="min-h-11 rounded-lg bg-destructive px-4 text-sm font-semibold text-destructive-foreground disabled:opacity-50">
+                  {busy ? "Revogando…" : "Confirmar revogação"}
+                </button>
+              </form>}
             </li>)}
           </ul>}
       <p className="text-xs leading-relaxed text-muted-foreground">

@@ -33,6 +33,9 @@ const ACTION_NAMES: Record<Action, string> = {
 
 /** Read and write only through explicitly admin-guarded RPCs. Never use auth.admin in the browser. */
 export function AdminAccountsManager({ initialFilter = "todos" }: { initialFilter?: Filter }) {
+  // The dedicated role screens never silently switch to another population.
+  // The global accounts screen retains the full filter and blocked-accounts overview.
+  const scopedFilter = initialFilter === "tecnicos" || initialFilter === "clientes" ? initialFilter : null;
   const [filter, setFilter] = useState<Filter>(initialFilter);
   const [draftSearch, setDraftSearch] = useState("");
   const [search, setSearch] = useState("");
@@ -48,6 +51,12 @@ export function AdminAccountsManager({ initialFilter = "todos" }: { initialFilte
   const [error, setError] = useState<string | null>(null);
   const [showAudit, setShowAudit] = useState(false);
   const [showPhones, setShowPhones] = useState(false);
+
+  useEffect(() => {
+    setFilter(initialFilter);
+    setPage(0);
+    setSelection(null);
+  }, [initialFilter]);
 
   useEffect(() => {
     let active = true;
@@ -149,7 +158,7 @@ export function AdminAccountsManager({ initialFilter = "todos" }: { initialFilte
       <div className="flex items-center gap-3">
         <ShieldCheck className="h-7 w-7 shrink-0 text-primary" aria-hidden="true" />
         <div>
-          <h2 className="text-xl font-extrabold text-foreground">Contas, bloqueios e auditoria</h2>
+          <h2 className="text-xl font-extrabold text-foreground">{scopedFilter === "tecnicos" ? "Contas dos técnicos" : scopedFilter === "clientes" ? "Contas dos clientes" : "Contas, bloqueios e auditoria"}</h2>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
             Controle real de usuários Google/e-mail. O banimento é persistente para esta conta e restringe
             novas operações; não exclui a conta do Google ou os dados do cliente.
@@ -166,13 +175,13 @@ export function AdminAccountsManager({ initialFilter = "todos" }: { initialFilte
         <Search className="h-4 w-4" aria-hidden="true" /> Buscar
       </button>
     </form>
-    <div className="flex gap-2 overflow-x-auto pb-2" aria-label="Filtro de contas">
+    {!scopedFilter && <div className="flex gap-2 overflow-x-auto pb-2" aria-label="Filtro de contas">
       {FILTERS.map((item) => <button key={item.value} type="button"
         aria-pressed={filter === item.value} onClick={() => { setFilter(item.value); setPage(0); setSelection(null); }}
         className={"min-h-11 shrink-0 rounded-full border px-4 text-sm font-semibold " +
           (filter === item.value ? "border-primary bg-primary text-primary-foreground" : "border-input bg-card text-foreground hover:bg-accent")}>
         {item.label}</button>)}
-    </div>
+    </div>}
     {error && <p role="alert" className="rounded-xl border border-destructive/30 bg-card p-4 text-sm text-destructive">{error}</p>}
     {notice && <p role="status" className="rounded-xl border border-primary/25 bg-primary/5 p-4 text-sm text-foreground">{notice}</p>}
     {selection && <form onSubmit={(e) => void apply(e)}
@@ -255,7 +264,7 @@ export function AdminAccountsManager({ initialFilter = "todos" }: { initialFilte
         onClick={() => setPage((x) => x + 1)}
         className="min-h-11 rounded-lg border border-input px-4 text-sm text-foreground disabled:opacity-40">Próximo</button>
     </div>
-    <section className="rounded-2xl border border-border bg-card p-5" aria-label="Telefones restritos">
+    {!scopedFilter && <section className="rounded-2xl border border-border bg-card p-5" aria-label="Telefones restritos">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="flex items-center gap-2 font-bold text-foreground"><Smartphone className="h-5 w-5" aria-hidden="true" /> Telefones restritos</h3>
         <div className="flex gap-2">
@@ -275,8 +284,8 @@ export function AdminAccountsManager({ initialFilter = "todos" }: { initialFilte
             className="min-h-10 rounded-lg border border-input px-3 text-sm text-foreground hover:bg-accent">Desbloquear telefone</button>
         </li>)}
       </ul>}
-    </section>
-    <section className="rounded-2xl border border-border bg-card p-5" aria-label="Auditoria de bloqueios">
+    </section>}
+    {!scopedFilter && <section className="rounded-2xl border border-border bg-card p-5" aria-label="Auditoria de bloqueios">
       <button type="button" onClick={() => setShowAudit((x) => !x)} aria-expanded={showAudit}
         className="flex min-h-11 w-full items-center justify-between text-left text-sm font-bold text-foreground">
         <span className="flex items-center gap-2"><UsersRound className="h-5 w-5" aria-hidden="true" /> Últimas ações de moderação</span>
@@ -289,12 +298,13 @@ export function AdminAccountsManager({ initialFilter = "todos" }: { initialFilte
           <p className="mt-1 text-muted-foreground">{event.reason}</p>
         </li>)}
       </ul>}
-    </section>
+    </section>}
     <p className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-foreground">
       <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" aria-hidden="true" />
       Banimento aqui bloqueia operações na plataforma, mas não elimina o login no provedor Google.
       Novos e-mails sem telefone reconhecido ainda exigem controle no Auth Hook do Supabase.
       Criação por convite e exclusão definitiva não estão habilitadas neste módulo.
+      Use a seção de convites acima para novos cadastros; exclusões de contas dependem de procedimento próprio de privacidade.
     </p>
   </section>;
 }
