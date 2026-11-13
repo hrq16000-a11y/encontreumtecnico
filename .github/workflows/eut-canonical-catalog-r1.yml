@@ -67,7 +67,11 @@ jobs:
         run: |
           createdb eut_rollback_fixture
           export PGDATABASE=eut_rollback_fixture
-          psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-admin-crud-ephemeral-schema-20261111.sql
+          # Database roles are cluster-wide and already exist from the first fixture.
+          # Avoid changing the source fixture; skip only these two CREATE ROLE lines
+          # when seeding the second database in the same ephemeral PostgreSQL cluster.
+          sed -e '/^CREATE ROLE anon NOLOGIN;$/d' -e '/^CREATE ROLE authenticated NOLOGIN;$/d' \
+            docs/sql/tests/eut-admin-crud-ephemeral-schema-20261111.sql | psql -X -v ON_ERROR_STOP=1
           psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-fixture-20261112.sql
           psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-hosted-compatibility-20261112.sql
           psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-live-guards-20261112.sql
