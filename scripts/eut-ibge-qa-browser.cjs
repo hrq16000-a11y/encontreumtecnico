@@ -52,15 +52,25 @@ async function checkViewport(browser, width) {
   const page = await context.newPage();
   page.setDefaultTimeout(25000);
   const errors = [];
+  const consoleErrors = [];
   page.on("pageerror", e => errors.push(e.message));
+  // Offline fixtures intentionally block Google Fonts, geolocation and all
+  // other external hosts. These expected network errors aren't app JS crashes.
   page.on("console", message => {
-    if (message.type() === "error") errors.push("console: " + message.text().slice(0, 250));
+    if (message.type() === "error") consoleErrors.push(message.text().slice(0, 250));
   });
   try {
-    const response = await page.goto(BASE + "/tecnicos", { waitUntil: "domcontentloaded", timeout: 60000 });
+    const response = await page.goto(BASE + "/tecnicos", { waitUntil: "networkidle", timeout: 60000 });
     assert(response && response.ok(), "Branch /tecnicos must respond successfully");
+    // Vite dev can replace prebundled modules on its first request. Test only
+    // AFTER hydration settles, never select a server-rendered but inert input.
+    await page.waitForTimeout(1400);
+    await page.reload({ waitUntil: "networkidle", timeout: 60000 });
     await page.locator("#filtro-uf").waitFor({ state: "visible" });
+    await page.waitForTimeout(750);
     await page.locator("#filtro-uf").selectOption("PR");
+    await eventually(page, () => new URLSearchParams(location.search).get("uf") === "PR",
+      "UF change did not update route after hydration");
     await page.waitForTimeout(1500);
     console.log("QA_DIAG_UF", JSON.stringify(await page.evaluate(() => ({
       currentUrl: location.href,
@@ -143,6 +153,7 @@ async function checkViewport(browser, width) {
         scriptCount: await page.evaluate(() => document.scripts.length),
         externalBlocked: tracker.externalBlocked, fixtureRequests: tracker.fixtureRequests,
         pageErrors: errors.slice(0, 10),
+        consoleErrors: consoleErrors.slice(0, 10),
       };
       await page.screenshot({ path: path.join(ARTIFACTS, "ibge-" + width + "-failed.png"),
         fullPage: true }).catch(() => {});
