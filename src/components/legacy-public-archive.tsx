@@ -51,36 +51,34 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
   }, [page, show]);
 
   return (
-    <section className="mt-12 border-t border-border pt-8" aria-label="Acervo de cadastros históricos">
-      <div className="flex flex-wrap items-center gap-3"><h2 className="text-xl font-semibold tracking-tight text-foreground">Técnicos de informática — histórico WordPress</h2><span className="rounded-full border border-amber-700/35 bg-amber-800/10 px-3 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300">Origem WordPress · acervo</span></div>
+    <section className="mt-12 border-t border-border pt-8" aria-label="Mais técnicos">
+      <h2 className="text-xl font-semibold tracking-tight text-foreground">Mais técnicos</h2>
       <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-        Estes perfis foram publicados no portal antigo e estão em reconciliação com o catálogo atual.
-        Cadastro antigo não exige reivindicação para participar da busca após validar telefone privado, procedência auditável
-        e ausência de bloqueios. A identidade, o município e a disponibilidade em tempo real não
-        são verificados aqui; o número particular nunca é exibido.
+        Todos os profissionais apresentados são técnicos. Alguns ainda não informaram cidade
+        ou especialidades detalhadas. A exibição não representa certificação nem presença online;
+        os telefones particulares permanecem protegidos.
       </p>
       {!show ? (
         <p className="mt-4 text-sm text-muted-foreground">
-          Este acervo preserva o histórico sem inventar cidade ou especialidades.
-          Registros elegíveis serão exibidos na busca operacional após a integração do catálogo.
-          Limpe os filtros para consultar o acervo separado.
+          Para consultar também técnicos sem cidade ou especialidade detalhada,
+          limpe os filtros. Não presumimos cidade pelo DDD.
         </p>
       ) : (
         <>
           <p className="mt-4 text-sm text-muted-foreground" role="status">
-            {loading ? "Carregando cadastros antigos…" : error
+            {loading ? "Carregando técnicos…" : error
               ? "Não foi possível carregar o acervo agora."
-              : `${count} cadastro(s) históricos no acervo exibido.`}
+              : `${count} técnico(s) nesta lista.`}
           </p>
           {!loading && !error && profiles.length > 0 && (
             <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {profiles.map((profile) => (
                 <li key={profile.wp_post_id}
-                  className="eut-card-lift rounded-lg border border-amber-700/25 bg-card p-5">
+                  className="eut-card-lift rounded-lg border border-primary/20 bg-card p-5">
                   <div className="flex items-start gap-3">
                     {legacyAvatarUrl(profile.wp_post_id) ? (
                       <img src={legacyAvatarUrl(profile.wp_post_id)!}
-                        alt={`Foto publicada anteriormente no perfil ${profile.display_name}`}
+                        alt={`Foto do perfil de ${profile.display_name}`}
                         loading="lazy" width={64} height={64}
                         className="h-16 w-16 shrink-0 rounded-lg border border-border object-cover" />
                     ) : (
@@ -92,26 +90,24 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
                       <h3 className="break-words font-semibold text-card-foreground">{suggestLegacyDisplayName(profile.display_name).display}</h3>
                       {suggestLegacyDisplayName(profile.display_name).suggested && (
                         <p className="mt-1 break-all text-xs text-muted-foreground">
-                          Nome sugerido · apelido original: {profile.display_name}
+                          Nome sugerido (não verificado) · nome no cadastro: {profile.display_name}
                         </p>
                       )}
-                      <span className="mt-1 inline-flex rounded border border-amber-700/30 bg-amber-800/10 px-2 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300">
-                        Cadastro histórico · WordPress
-                      </span>
+                      <span className="mt-1 inline-flex rounded border border-primary/20 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">Técnico</span>
                     </div>
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Brasil · localidade não informada
+                    Brasil · cidade não informada
                   </p>
                   <ul className="mt-3 flex flex-wrap gap-1.5">
-                    {(profile.sector_tags.filter((tag) => !/^TI\s*[-–]\s*Informática$/i.test(tag)).length ? profile.sector_tags.filter((tag) => !/^TI\s*[-–]\s*Informática$/i.test(tag)) : ["Informática · cadastro histórico"]).map((tag) => (
+                    {(profile.sector_tags.filter((tag) => !/^TI\s*[-–]\s*Informática$/i.test(tag)).length ? profile.sector_tags.filter((tag) => !/^TI\s*[-–]\s*Informática$/i.test(tag)) : ["Informática"]).map((tag) => (
                       <li key={tag} className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-foreground">
                         {tag}
                       </li>
                     ))}
                   </ul>
                   <p className="mt-3 text-xs text-muted-foreground">
-                    Cadastro histórico #{profile.wp_post_id}. O contato permanece privado; a elegibilidade é verificada no catálogo operacional.
+                    Contato privado protegido.
                   </p>
 
                 </li>
