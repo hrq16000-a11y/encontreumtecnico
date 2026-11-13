@@ -11,6 +11,8 @@ import { previewCityRouteIntegration } from "./external-directory-city-surface.m
 const SAFE_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const PRIVATE_IN_NAME = /@|https?:|www\.|wa\.me|[<>]|\+?\d[\d\s().-]{7,}\d/i;
 const VALID_SOURCES = new Set(["organic", "admin_manual", "wordpress", "external"]);
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const ORGANIC_ID_KEY = /^organic:technicians:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
 function safeName(value) {
   if (typeof value !== "string") return "Profissional com dados mínimos";
@@ -87,6 +89,7 @@ export function previewSanitizedCityBackendResponse({
   if (allowComplete) {
     const publicPaths = new Set();
     const sourceAliases = new Set();
+    const existingTechnicianIds = new Set();
     for (const [index, record] of records.entries()) {
       // Validate all source keys, even those excluded by a route facet.
       if (sourceAliases.has(record.stableKey)) {
@@ -94,6 +97,27 @@ export function previewSanitizedCityBackendResponse({
       }
       sourceAliases.add(record.stableKey);
       if (vetted[index].enabled !== true) continue;
+      // Reuse the explicitly reviewed existing technician reference from the
+      // offline identity reconciliation contract, never a name/DDD guess.
+      // Also recognize the existing organic UUID already in its source key.
+      const suppliedId = record.existing_technician_id ?? null;
+      if (suppliedId !== null &&
+          (typeof suppliedId !== "string" || !UUID.test(suppliedId))) {
+        throw Error("Referência de identidade existente inválida");
+      }
+      const organicId = record.sourceKind === "organic"
+        ? record.stableKey.match(ORGANIC_ID_KEY)?.[1] ?? null : null;
+      if (organicId && suppliedId &&
+          organicId.toLowerCase() !== suppliedId.toLowerCase()) {
+        throw Error("Referências de identidade conflitantes exigem revisão");
+      }
+      const existingId = (suppliedId ?? organicId)?.toLowerCase() ?? null;
+      if (existingId !== null) {
+        if (existingTechnicianIds.has(existingId)) {
+          throw Error("Identidade canônica duplicada exige reconciliação");
+        }
+        existingTechnicianIds.add(existingId);
+      }
       const path = verifiedPublicPath(record);
       if (path === null) continue;
       if (publicPaths.has(path)) {

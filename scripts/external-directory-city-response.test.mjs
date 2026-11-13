@@ -245,3 +245,56 @@ test("two eligible source aliases with one canonical profile path fail closed",(
   ]});
   assert.equal(checked.totals.eligible_matches,1);
 });
+
+
+test("two distinct source aliases for one explicitly reviewed existing technician cannot double count",()=>{
+  const existingId="12345678-1234-4234-8234-123456789abc"; // synthetic, never persisted
+  const organic=row(1,{
+    stableKey:"organic:technicians:"+existingId,publicSlug:"principal",
+  });
+  const historical=row(2,{
+    stableKey:"wordpress:archive:candidate:2",sourceKind:"wordpress",
+    sourceReviewed:true,publicSlug:"historico",
+    existing_technician_id:existingId,
+  });
+  // Distinct aliases and distinct public URLs still refer to the same known
+  // canonical identity. Fail rather than inflate city counts.
+  assert.notEqual(organic.stableKey,historical.stableKey);
+  assert.notEqual(organic.publicSlug,historical.publicSlug);
+  assert.throws(()=>previewSanitizedCityBackendResponse({
+    ...context,records:[organic,historical],
+  }),/Identidade canônica duplicada exige reconciliação/);
+  // A quarantined legacy alias never blocks an otherwise eligible organic row.
+  const safe=previewSanitizedCityBackendResponse({
+    ...context,records:[organic,{...historical,quarantined:true}],
+  });
+  assert.equal(safe.totals.eligible_matches,1);
+  assert.equal(safe.sections[0].cards[0].profile_path,"/tecnicos/principal");
+  assert.equal(safe.public_integration_authorized,false);
+  assert(!JSON.stringify(safe).includes(existingId));
+  assert(!JSON.stringify(safe).includes("existing_technician_id"));
+});
+
+test("invalid or contradictory canonical identity evidence fails closed, not by same-name guessing",()=>{
+  const existingId="12345678-1234-4234-8234-123456789abc";
+  assert.throws(()=>previewSanitizedCityBackendResponse({
+    ...context,records:[row(1,{existing_technician_id:"not-a-uuid"})],
+  }),/Referência de identidade existente inválida/);
+  assert.throws(()=>previewSanitizedCityBackendResponse({
+    ...context,records:[row(1,{
+      stableKey:"organic:technicians:"+existingId,
+      existing_technician_id:"22345678-1234-4234-8234-123456789abc",
+    })],
+  }),/Referências de identidade conflitantes/);
+  // Equal display names do not prove common ownership. In a fully attested
+  // synthetic fixture, different existing IDs remain separate.
+  const distinct=previewSanitizedCityBackendResponse({
+    ...context,records:[
+      row(1,{stableKey:"organic:technicians:"+existingId,displayName:"Nome Igual"}),
+      row(2,{stableKey:"organic:technicians:22345678-1234-4234-8234-123456789abc",
+        displayName:"Nome Igual"}),
+    ],
+  });
+  assert.equal(distinct.totals.eligible_matches,2);
+  assert.equal(distinct.is_real_backend_response,false);
+});
