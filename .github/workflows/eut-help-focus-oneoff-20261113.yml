@@ -1,0 +1,108 @@
+name: EUT one-off focus QA - isolated branch
+on:
+  push:
+    branches: [fix/free-help-focus-return-20261113]
+    paths: [.github/workflows/eut-help-focus-oneoff-20261113.yml]
+permissions:
+  contents: read
+concurrency:
+  group: eut-help-focus-isolated-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  focused:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+      - name: Run exactly six focused React Vitest cases
+        run: bunx vitest run src/components/free-search-help.test.tsx
+      - name: Verify actual modal focus in headless Chromium (390px and 1440px)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .eut-focus-qa
+          cat > .eut-focus-qa/index.html <<'HTML'
+          <!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Foco QA</title></head><body><div id="root"></div><script type="module" src="/entry.tsx"></script></body></html>
+          HTML
+          cat > .eut-focus-qa/entry.tsx <<'TSX'
+          import React from 'react';
+          import { createRoot } from 'react-dom/client';
+          import { FreeSearchHelp } from '../src/components/free-search-help';
+          import { openFreeHelp } from '../src/lib/free-search-help';
+          createRoot(document.getElementById('root')!).render(<><button type="button" id="context-opener" onClick={() => openFreeHelp({ mode: 'managed', initialProblem: 'Ajuda contextual QA' })}>Ajuda contextual</button><FreeSearchHelp /></>);
+          TSX
+          cat > .eut-focus-qa/funnel-stub.tsx <<'TSX'
+          import React from 'react';
+          export function AssistanceFunnel({ onClose }: { onClose: () => void }) { return <div role="group" aria-label="Funil sintético QA"><button type="button" onClick={onClose}>Fechar funil QA</button></div>; }
+          TSX
+          cat > .eut-focus-qa/vite.config.mjs <<'JS'
+          import { defineConfig } from 'vite';
+          import react from '@vitejs/plugin-react';
+          import path from 'node:path';
+          const workspace = process.cwd();
+          export default defineConfig({
+            root: path.resolve(workspace, '.eut-focus-qa'),
+            plugins: [react(), {
+              name: 'stub-backend-funnel-for-qa', enforce: 'pre',
+              resolveId(id, importer) {
+                if (id === './assistance-funnel' && importer?.endsWith('/src/components/free-search-help.tsx')) {
+                  return path.resolve(workspace, '.eut-focus-qa/funnel-stub.tsx');
+                }
+              },
+            }],
+            resolve: { alias: { '@': path.resolve(workspace, 'src') } },
+            server: { host: '127.0.0.1', port: 5189, strictPort: true, fs: { allow: [workspace] } },
+          });
+          JS
+          cat > .eut-focus-qa/browser-check.cjs <<'JS'
+          const { chromium } = require('playwright-core');
+          async function run() {
+            const browser = await chromium.launch({ executablePath: process.env.CHROME_BIN, headless: true, args: ['--no-sandbox'] });
+            try {
+              for (const width of [390, 1440]) {
+                const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce' });
+                const errors = [];
+                page.on('pageerror', e => errors.push(e.message));
+                await page.goto('http://127.0.0.1:5189', { waitUntil: 'networkidle' });
+                const opener = page.getByRole('button', { name: 'Ajuda contextual' });
+                await opener.waitFor({ state: 'visible' });
+                await opener.focus();
+                await opener.click();
+                await page.getByRole('dialog').waitFor({ state: 'visible' });
+                await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'Fechar atendimento');
+                await page.keyboard.press('Escape');
+                await page.getByRole('dialog').waitFor({ state: 'detached' });
+                await page.waitForFunction(() => document.activeElement?.id === 'context-opener');
+                await opener.click();
+                await page.getByRole('button', { name: 'Fechar atendimento' }).click();
+                await page.getByRole('dialog').waitFor({ state: 'detached' });
+                await page.waitForFunction(() => document.activeElement?.id === 'context-opener');
+                await opener.click();
+                await page.getByRole('dialog').waitFor({ state: 'visible' });
+                await page.evaluate(() => document.getElementById('context-opener').remove());
+                await page.keyboard.press('Escape');
+                await page.getByRole('dialog').waitFor({ state: 'detached' });
+                await page.waitForFunction(() => document.activeElement?.textContent?.trim().includes('Preciso de ajuda'));
+                if (errors.length) throw new Error('Browser page errors: ' + errors.join(' | '));
+                console.log('CHROMIUM_REAL_COMPONENT_PASS width=' + width + ' Escape, X close, detached opener fallback');
+                await page.close();
+              }
+            } finally { await browser.close(); }
+          }
+          run().catch(e => { console.error(e); process.exitCode = 1; });
+          JS
+          CHROME_BIN="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME_BIN"
+          export CHROME_BIN
+          mkdir -p "$RUNNER_TEMP/eut-focus-playwright"
+          npm install --prefix "$RUNNER_TEMP/eut-focus-playwright" --no-save --no-package-lock --no-audit --no-fund playwright-core@1.56.1
+          bunx vite --config .eut-focus-qa/vite.config.mjs --host 127.0.0.1 --port 5189 >"$RUNNER_TEMP/eut-focus-vite.log" 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 35); do if curl -fsS http://127.0.0.1:5189 >/dev/null; then ready=1; break; fi; sleep 1; done
+          if [ "$ready" != "1" ]; then cat "$RUNNER_TEMP/eut-focus-vite.log"; exit 1; fi
+          NODE_PATH="$RUNNER_TEMP/eut-focus-playwright/node_modules" node .eut-focus-qa/browser-check.cjs
