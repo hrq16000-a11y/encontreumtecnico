@@ -36,7 +36,36 @@ const technicians = Array.from({ length: 180 }, (_, index) => {
     private_phone: "41999990000", private_note: secret,
   };
 });
-const eligibleIds = new Set(technicians.slice(120, 175).map(row => row.id));
+// Synthetic R1/R2 Auth-less records. Real SQL/GoTrue/RLS is proved in #256.
+const canonicalRows = [
+  ["1", "qa-importado-ativo", "apelidolegacy", "+5541999998181", true, false, true],
+  ["2", "qa-sem-telefone", "qa-sem-telefone", null, true, false, true],
+  ["3", "qa-desabilitado", "qa-desabilitado", "+5541999998182", false, false, true],
+  ["4", "qa-bloqueado", "qa-bloqueado", "+5541999998183", true, true, true],
+  ["5", "qa-sem-procedencia", "qa-sem-procedencia", "+5541999998184", true, false, false],
+].map(([suffix, public_slug, display_name, private_phone, catalog_enabled, blocked, provenance]) => ({
+  id: "30000000-0000-4000-8000-" + suffix.padStart(12, "0"),
+  public_slug, display_name, private_phone, catalog_enabled, blocked, provenance,
+  user_id: null, catalog_origin: "wordpress", audited: true, allow_paid_contact: true,
+  status: "pendente", private_note: secret,
+  city: null, state_uf: null, neighborhood: null, region: null,
+  specialties: [], service_slugs: [], bio: null, avatar_path: null,
+  coverage_city_ids: [], service_radius_km: null, created_at: "2026-11-13T00:00:00Z",
+}));
+function r2CanonicalEligible(row) {
+  return row.user_id === null && row.status === "pendente"
+    && row.catalog_enabled === true && row.catalog_origin === "wordpress"
+    && row.provenance && row.audited && row.allow_paid_contact && !row.blocked
+    && typeof row.private_phone === "string"
+    && /^[+]55[1-9]{2}[2-9][0-9]{7,8}$/.test(row.private_phone);
+}
+const canonicalVisible = canonicalRows.filter(r2CanonicalEligible);
+assert.equal(canonicalVisible.length, 1, "Synthetic R2 eligibility changed");
+const publicRows = technicians.concat(canonicalVisible);
+const eligibleIds = new Set([
+  ...technicians.slice(120, 175).map(row => row.id),
+  ...canonicalVisible.map(row => row.id),
+]);
 const onlyRead = new Set(["GET", "HEAD", "OPTIONS", "POST"]);
 function respond(res, body, status = 200, moreHeaders = {}) {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8",
@@ -47,8 +76,13 @@ function respond(res, body, status = 200, moreHeaders = {}) {
 }
 function selected(rows, url) {
   const projection = url.searchParams.get("select");
-  if (!projection || projection === "*") return rows;
-  const keys = projection.split(",").filter(key => /^[a-z_]+$/.test(key));
+  // Even SELECT * in this fixture cannot disclose private provenance/contact.
+  const safe = new Set(["id", "public_slug", "display_name", "specialties",
+    "service_slugs", "city", "state_uf", "neighborhood", "region", "bio",
+    "avatar_path", "service_radius_km", "coverage_city_ids", "status", "created_at"]);
+  if (!projection || projection === "*") return rows.map(row =>
+    Object.fromEntries(Object.entries(row).filter(([key]) => safe.has(key))));
+  const keys = projection.split(",").filter(key => /^[a-z_]+$/.test(key) && safe.has(key));
   return rows.map(row => Object.fromEntries(keys.map(key => [key, row[key] ?? null])));
 }
 function matchEq(url, name, value) {
@@ -82,7 +116,7 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url || "/", "http://127.0.0.1:" + PORT);
     if (url.pathname === "/__health" && req.method === "GET")
-      return respond(res, { synthetic: true, backend: "loopback", candidates: 180, eligible: 55 });
+      return respond(res, { synthetic: true, backend: "loopback", candidates: technicians.length + canonicalRows.length, eligible: eligibleIds.size });
     if (!onlyRead.has(req.method)) return respond(res, { error: "write prohibited" }, 405);
     if (req.method === "OPTIONS") return respond(res, {});
     if (req.method === "POST") {
@@ -110,8 +144,10 @@ const server = http.createServer(async (req, res) => {
         matchEq(url, "slug", row.slug) && matchEq(url, "active", row.active)));
     if (url.pathname === "/rest/v1/eut_pioneer_badges") return respond(res, []);
     if (url.pathname === "/rest/v1/technicians") {
-      const rows = technicians.filter(row =>
+      const rows = publicRows.filter(row =>
         matchEq(url, "status", row.status) &&
+        matchEq(url, "public_slug", row.public_slug) &&
+        matchEq(url, "id", row.id) &&
         matchEq(url, "state_uf", row.state_uf) &&
         contains(url, "coverage_city_ids", row.coverage_city_ids) &&
         contains(url, "specialties", row.specialties) &&

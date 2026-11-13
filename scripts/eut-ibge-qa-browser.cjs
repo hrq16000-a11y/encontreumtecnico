@@ -172,10 +172,82 @@ async function checkViewport(browser, width) {
     throw error;
   } finally { await context.close(); }
 }
+async function checkAuthlessProfile(browser, width) {
+  const context = await browser.newContext({ locale: "pt-BR",
+    viewport: { width, height: 900 }, reducedMotion: "reduce" });
+  const tracker = { fixtureRequests: 0, externalBlocked: [] };
+  await installOfflineOnly(context, tracker);
+  const page = await context.newPage();
+  page.setDefaultTimeout(25000);
+  const hidden = ["qa-sem-telefone", "qa-desabilitado",
+    "qa-bloqueado", "qa-sem-procedencia"];
+  try {
+    const response = await page.goto(BASE + "/tecnicos",
+      { waitUntil: "networkidle", timeout: 60000 });
+    assert(response?.ok(), "Local public search did not render");
+    await page.waitForTimeout(1400);
+    await page.reload({ waitUntil: "networkidle", timeout: 60000 });
+    const card = page.getByRole("link", {
+      name: "Ver perfil e serviços de apelidolegacy", exact: true,
+    });
+    await card.waitFor({ state: "visible", timeout: 25000 });
+    assert.equal(await card.count(), 1,
+      "Phone-backed Auth-less import must appear exactly once");
+    const searchHtml = await page.content();
+    for (const label of hidden) assert(!searchHtml.includes(label),
+      "Ineligible canonical record appeared: " + label);
+    assert(!searchHtml.includes("+5541999998181") && !searchHtml.includes(secret),
+      "Private data appeared in search HTML");
+    await page.screenshot({ path: path.join(ARTIFACTS,
+      "authless-" + width + "-search.png"), fullPage: true });
+    await card.click();
+    await page.waitForURL("**/tecnicos/qa-importado-ativo", { timeout: 25000 });
+    await page.getByRole("heading", { name: "apelidolegacy", level: 1 })
+      .waitFor({ state: "visible" });
+    assert((await page.getByText("Localidade não informada").count()) > 0,
+      "Missing city wrongly inferred or fallback absent");
+    assert(await page.getByRole("link", { name: "Descrever meu problema" }).count() > 0,
+      "Profile has no safe assistance entry");
+    const profileHtml = await page.content();
+    assert(!profileHtml.includes("+5541999998181") && !profileHtml.includes(secret),
+      "Private data appeared in profile HTML");
+    assert.equal(await page.locator('a[href^="tel:"],a[href^="mailto:"],a[href*="wa.me"]').count(),
+      0, "Profile exposes a direct private contact link");
+    assert(await page.evaluate(() =>
+      document.documentElement.scrollWidth <= document.documentElement.clientWidth + 4),
+      "Profile overflow at " + width + "px");
+    await page.screenshot({ path: path.join(ARTIFACTS,
+      "authless-" + width + "-profile.png"), fullPage: true });
+    for (const slug of hidden) {
+      const denied = await page.goto(BASE + "/tecnicos/" + slug,
+        { waitUntil: "domcontentloaded", timeout: 60000 });
+      assert.equal(denied?.status(), 404,
+        "Ineligible canonical profile did not return 404: " + slug);
+    }
+    assert(tracker.fixtureRequests > 0, "Browser bypassed loopback fixture");
+    console.log("PASS branch R1/R2 Auth-less Chromium", JSON.stringify({
+      width, visible: 1, hidden: hidden.length, locationInvented: false,
+      privateContacts: true, fixtureRequests: tracker.fixtureRequests,
+    }));
+  } catch (error) {
+    console.error("AUTHLESS_QA_DIAGNOSTICS", JSON.stringify({
+      width, url: page.url(), body: (await page.locator("body").innerText()
+        .catch(() => "")).slice(0, 1000), fixtureRequests: tracker.fixtureRequests,
+      blockedOrigins: tracker.externalBlocked,
+    }));
+    await page.screenshot({ path: path.join(ARTIFACTS,
+      "authless-" + width + "-failed.png"), fullPage: true }).catch(() => {});
+    throw error;
+  } finally { await context.close(); }
+}
+
 (async () => {
   const browser = await chromium.launch({ headless: true });
   try {
-    for (const width of [390, 1440]) await checkViewport(browser, width);
-    console.log("PASS PR #255: actual branch UI with synthetic city, pagination, privacy at 390/1440");
+    for (const width of [390, 1440]) {
+      await checkViewport(browser, width);
+      await checkAuthlessProfile(browser, width);
+    }
+    console.log("PASS PR #255: IBGE + Auth-less search/profile/privacy at 390/1440");
   } finally { await browser.close(); }
 })().catch(e => { console.error("FAIL PR #255 branch QA", e.stack); process.exitCode = 1; });
