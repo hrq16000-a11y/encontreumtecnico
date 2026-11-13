@@ -65,7 +65,10 @@ describe("Busca compacta: filtros e perfis com privacidade", () => {
     expect(card).toContain('params={{ tecnicoId: t.public_slug }}');
     expect(card).toContain('aria-label={"Ver perfil e serviços de " + t.display_name}');
     expect(card).toContain('t.online_now');
-    expect(card).toContain('t.pioneer_bronze');
+    // Historical origin is not a public distinction; keep the removed badge out of cards.
+    expect(card).not.toContain('t.pioneer_bronze');
+    expect(card).not.toContain('Pioneiro Bronze');
+    expect(card).not.toMatch(/(?:Origem:\s*(?:WordPress|legado)|Perfil\s+(?:importado|legado)|Migrado\s+do\s+WordPress)/i);
     expect(card).toContain('t.referral_highlight');
     expect(card).toContain('t.service_slugs.slice(0, 3)');
     expect(card).toContain("Contato privado protegido");
