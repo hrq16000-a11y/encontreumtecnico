@@ -256,7 +256,7 @@ function TechniciansPage() {
           </div>
           <div id="filtros-avancados" role="region" aria-label="Filtros avançados"
             aria-hidden={!showAdvanced} inert={!showAdvanced}
-            className={"grid overflow-hidden transition-[grid-template-rows,opacity,margin-top] duration-200 ease-out motion-reduce:transition-none " +
+            className={"grid overflow-hidden transition-[grid-template-rows,opacity,margin-top] duration-200 ease-out motion-reduce:transition-none motion-reduce:duration-0 " +
               (showAdvanced ? "mt-3 grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0")}>
             <div className="min-h-0 overflow-hidden">
               <div className="grid gap-3 border-t border-border pt-4 sm:grid-cols-3">

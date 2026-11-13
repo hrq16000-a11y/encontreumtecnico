@@ -29,6 +29,7 @@ describe("Busca compacta: filtros e perfis com privacidade", () => {
     expect(page).toContain('grid-rows-[0fr] opacity-0');
     expect(page).toContain('min-h-0 overflow-hidden');
     expect(page).toContain('motion-reduce:transition-none');
+    expect(page).toContain('motion-reduce:duration-0');
   });
 
   it("mantém os debounced filters montados, e não perde as regras de URL e região", () => {
