@@ -39,6 +39,8 @@ export type ProposedAssistantLegalServerDependencies = Readonly<{
   appendOnce: LocalLegalAppendOnce;
 }>;
 
+const UUID = /^[a-f\d]{8}-(?:[a-f\d]{4}-){3}[a-f\d]{12}$/i;
+
 /**
  * The request-facing function accepts ONLY intent, key and server clock.
  * It cannot accept a claimed userId, account flag or roles from the browser.
@@ -58,7 +60,7 @@ export function createProposedSessionBoundAssistantLegalWriter(
 
     try {
       const identity = await dependencies.verifySession();
-      if (!identity || typeof identity.userId !== "string" ||
+      if (!identity || typeof identity.userId !== "string" || !UUID.test(identity.userId) ||
           !Number.isFinite(identity.expiresAtMs) || identity.expiresAtMs <= nowMs) {
         return { status: "denied" };
       }
