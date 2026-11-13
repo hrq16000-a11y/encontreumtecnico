@@ -83,7 +83,7 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Testes isolados IBGE e elegibilidade pública
         run: bunx vitest run src/lib/technician-city-scope.test.ts src/lib/technicians.functions.test.ts
-      - name: TypeScript
-        run: bunx tsc --noEmit --pretty false
       - name: Build TanStack
         run: bun run build
+      - name: TypeScript
+        run: bunx tsc --noEmit --pretty false
