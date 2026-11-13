@@ -48,14 +48,12 @@ BEGIN
   EXCEPTION WHEN SQLSTATE '42501' THEN rejected:=true; END;
   IF NOT rejected THEN RAISE EXCEPTION 'Unqualified target was accepted %',target; END IF;
  END LOOP;
- FOR city IN SELECT id FROM public.eut_ibge_municipalities WHERE id=1200203 LOOP
-  rejected:=false;
-  BEGIN PERFORM public.eut_admin_technician_create(
-    '00000000-0000-4000-8000-000000000006','Técnico de QA',9999999,
-    'computadores','Município inventado deve falhar');
-  EXCEPTION WHEN SQLSTATE '22023' THEN rejected:=true; END;
-  IF NOT rejected THEN RAISE EXCEPTION 'Invalid city passed'; END IF;
- END LOOP;
+ rejected:=false;
+ BEGIN PERFORM public.eut_admin_technician_create(
+   '00000000-0000-4000-8000-000000000006','Técnico de QA',9999999,
+   'computadores','Município inventado deve falhar');
+ EXCEPTION WHEN SQLSTATE '22023' THEN rejected:=true; END;
+ IF NOT rejected THEN RAISE EXCEPTION 'Invalid city passed'; END IF;
  rejected:=false;
  BEGIN PERFORM public.eut_admin_technician_create(
   '00000000-0000-4000-8000-000000000006','Técnico de QA',4125506,

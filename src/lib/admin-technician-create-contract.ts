@@ -59,7 +59,7 @@ export function confirmCreatedTechnician(
   response: CreateConfirmation, row: PersistedTechnician | null,
   audit: CreationAudit | null, request: CreatePayload, city: OfficialCity, actorId: string,
 ): boolean {
-  return response.ok === true && UUID.test(response.technician_id ?? "") &&
+  return audit !== null && response.ok === true && UUID.test(response.technician_id ?? "") &&
     Number.isInteger(response.audit_id) && response.status === "pendente" &&
     response.city_ibge_id === city.id && response.category_slug === request._category_slug &&
     row?.id === response.technician_id && row?.user_id === request._target_user_id &&
