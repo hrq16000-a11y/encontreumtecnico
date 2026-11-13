@@ -13,6 +13,7 @@ import { LegacyAccountActivation } from "@/components/legacy-account-activation"
 import { CustomerLocationButton } from "@/components/customer-location-button";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { ClientTechnicianPicker } from "@/components/client-technician-picker";
+import { SelectedTechnicianLoginHint } from "@/components/selected-technician-login-hint";
 import { consumeTriageDraft } from "@/lib/triage-draft";
 import { clearProtectedDraft, readProtectedDraft, saveProtectedDraft } from "@/lib/protected-session-draft";
 import { clearTechnicianTarget, recallTechnicianTarget, rememberTechnicianTarget } from "@/lib/selected-technician-target";
@@ -447,12 +448,15 @@ export function ClientAreaPage({ tecnico, modo, categoria }: ClientAreaPageProps
         {loading ? (
           <p className="mt-4 text-sm text-muted-foreground">Carregando…</p>
         ) : !user || !roles.includes("cliente") ? (
-          <p className="mt-4 text-sm text-muted-foreground">
-            <Link to={lp2 ? "/lp2/entrar" : "/entrar"} onClick={() => {
-              if (!regionalRequest) return;
-              try { sessionStorage.setItem("eut-after-login", regionalClientReturnPath(categoria)); } catch { /* Storage unavailable. */ }
-            }} className="font-medium text-primary underline">Entre com uma conta de cliente</Link> para abrir e acompanhar suas solicitações.
-          </p>
+          <>
+            <SelectedTechnicianLoginHint visible={!regionalRequest && Boolean(effectiveTechnicianTarget)} />
+            <p className="mt-4 text-sm text-muted-foreground">
+              <Link to={lp2 ? "/lp2/entrar" : "/entrar"} onClick={() => {
+                if (!regionalRequest) return;
+                try { sessionStorage.setItem("eut-after-login", regionalClientReturnPath(categoria)); } catch { /* Storage unavailable. */ }
+              }} className="font-medium text-primary underline">Entre com uma conta de cliente</Link> para abrir e acompanhar suas solicitações.
+            </p>
+          </>
         ) : draftRestoredOwnerId !== user.id ? (
           <p className="mt-4 text-sm text-muted-foreground" role="status" aria-live="polite" aria-busy="true">
             Recuperando seu rascunho privado…
