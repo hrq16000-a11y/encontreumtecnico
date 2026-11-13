@@ -1,0 +1,38 @@
+{
+  "type": "EUT_PRIVATE_ORIGINAL_ALIAS_LOCAL_SYNTHETIC_V1",
+  "note": "Fictitious records only. Hash of backup is a dummy and must never be trusted for import.",
+  "cases": [
+    {
+      "case": "exact_audited_source_after_r2",
+      "r2Eligible": true,
+      "provenance": { "technician_id": "00000000-0000-4000-8000-000000000123", "catalog_origin": "wordpress", "source_key": "wordpress_20261108:123" },
+      "immutableAlias": { "technician_id": "00000000-0000-4000-8000-000000000123", "source_key": "wordpress_20261108:123", "original_alias": "almeidathiagosantos5", "original_alias_sha256": "7d6f12094a53b66b426e1d18a06cedc400795bd83b21a381b4c3dcd1894f3d5d", "backup_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+      "currentPublicName": "almeidathiagosantos5",
+      "expectedAlias": "almeidathiagosantos5"
+    },
+    {
+      "case": "admin_edited_display_name",
+      "r2Eligible": true,
+      "provenance": { "technician_id": "00000000-0000-4000-8000-000000000124", "catalog_origin": "wordpress", "source_key": "wordpress_20261108:124" },
+      "immutableAlias": { "technician_id": "00000000-0000-4000-8000-000000000124", "source_key": "wordpress_20261108:124", "original_alias": "alexpaixao13", "original_alias_sha256": "379da01f6061b0528e343d3f7c2c92d72a565ad9dac8f9f4d904add0c28c136c", "backup_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+      "currentPublicName": "Alex Paixao",
+      "expectedAlias": null
+    },
+    {
+      "case": "mismatched_provenance_key",
+      "r2Eligible": true,
+      "provenance": { "technician_id": "00000000-0000-4000-8000-000000000125", "catalog_origin": "wordpress", "source_key": "wordpress_20261108:999" },
+      "immutableAlias": { "technician_id": "00000000-0000-4000-8000-000000000125", "source_key": "wordpress_20261108:125", "original_alias": "tecnicosintetico25", "original_alias_sha256": "5e154758d2ee8f5acb996c405fbd22548568541c91877ca68491c2d47dc7d85c", "backup_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+      "currentPublicName": "tecnicosintetico25",
+      "expectedAlias": null
+    },
+    {
+      "case": "not_r2_eligible",
+      "r2Eligible": false,
+      "provenance": { "technician_id": "00000000-0000-4000-8000-000000000126", "catalog_origin": "wordpress", "source_key": "wordpress_20261108:126" },
+      "immutableAlias": { "technician_id": "00000000-0000-4000-8000-000000000126", "source_key": "wordpress_20261108:126", "original_alias": "tecnicobloqueado26", "original_alias_sha256": "2244bb33a57b6db3992c15695b3548caed4b0efb5973c3bc03ac2a497f02189e", "backup_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+      "currentPublicName": "tecnicobloqueado26",
+      "expectedAlias": null
+    }
+  ]
+}
