@@ -127,7 +127,7 @@ REVOKE ALL ON public.eut_technician_private_contacts
 -- Imported Auth-less pending technicians must remain out of the public API.
 CREATE FUNCTION eut_visibility.eut_public_technician_eligible(_technician_id uuid)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
-SET search_path = 'pg_catalog' AS $
+SET search_path = 'pg_catalog' AS $$
   SELECT EXISTS(SELECT 1 FROM public.technicians t
     WHERE t.id=_technician_id AND t.status='aprovado'::public.approval_status
       AND t.user_id IS NOT NULL
