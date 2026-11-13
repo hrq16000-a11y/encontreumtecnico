@@ -110,6 +110,11 @@ function TechniciansPage() {
     () => Boolean(search.servico || search.bairro || search.regiao || search.prioridade === "regiao"),
   );
   useEffect(() => {
+    if (search.servico || search.bairro || search.regiao || search.prioridade === "regiao") {
+      setShowAdvanced(true);
+    }
+  }, [search.servico, search.bairro, search.regiao, search.prioridade]);
+  useEffect(() => {
     const changed = () => setConsentRevision(value => value + 1);
     window.addEventListener("eut-consent-changed", changed);
     return () => window.removeEventListener("eut-consent-changed", changed);
@@ -175,7 +180,7 @@ function TechniciansPage() {
               regiao: "", prioridade: "regiao" });
           }} />
         </div>
-        <div aria-label="Filtros da busca" className="mt-5 overflow-hidden rounded-2xl border border-primary/20 bg-card p-4 shadow-sm sm:p-5">
+        <section aria-label="Filtros da busca" className="mt-5 overflow-hidden rounded-2xl border border-primary/20 bg-card p-4 shadow-sm sm:p-5">
           <div className="flex items-center gap-2 text-sm font-extrabold text-card-foreground">
             <Search className="h-5 w-5 text-primary" aria-hidden="true" /> Encontre um profissional
           </div>
@@ -237,7 +242,7 @@ function TechniciansPage() {
               </button>
             )}
           </div>
-          <div id="filtros-avancados" className={showAdvanced ? "mt-3 grid gap-3 border-t border-border pt-4 sm:grid-cols-3" : "hidden"}>
+          <div id="filtros-avancados" role="region" aria-label="Filtros avançados" className={showAdvanced ? "mt-3 grid gap-3 border-t border-border pt-4 sm:grid-cols-3" : "hidden"}>
           <div>
             <label htmlFor="filtro-servico" className="text-xs font-medium text-muted-foreground">Serviço específico</label>
             <select id="filtro-servico" value={services.some((service) => service.slug === search.servico) ? search.servico : ""}
@@ -304,7 +309,7 @@ function TechniciansPage() {
         </div>
             </div>
           </div>
-        </div>
+        </section>
         {suggestedArea && (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/20 bg-accent/50 px-4 py-3 text-sm">
             <span><MapPin className="mr-1 inline h-4 w-4 text-primary" aria-hidden="true" />
