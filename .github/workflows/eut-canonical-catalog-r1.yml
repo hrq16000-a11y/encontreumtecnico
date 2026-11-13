@@ -1,0 +1,48 @@
+name: EUT canonical catalog R1 isolated PostgreSQL
+
+on:
+  pull_request:
+    paths:
+      - 'docs/sql/eut-canonical-catalog-r1-proposal-20261112.sql'
+      - 'docs/sql/tests/eut-canonical-catalog-r1-*.sql'
+      - '.github/workflows/eut-canonical-catalog-r1.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  canonical-postgresql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: eut_fixture
+          POSTGRES_PASSWORD: local_only_not_a_secret
+          POSTGRES_DB: eut_fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U eut_fixture -d eut_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: eut_fixture
+      PGPASSWORD: local_only_not_a_secret
+      PGDATABASE: eut_fixture
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install local PostgreSQL client
+        run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+      - name: Seed synthetic EUT schema without any user data
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-admin-crud-ephemeral-schema-20261111.sql
+      - name: Add operational authorization fixture
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-fixture-20261112.sql
+      - name: Install proposal ONLY on disposable postgres
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/eut-canonical-catalog-r1-proposal-20261112.sql
+      - name: Validate canonical Auth-less identity and audited operations
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-assertions-20261112.sql
