@@ -227,20 +227,38 @@ export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string 
         </select>
       </label>
     </div>
-    <div className="mt-3 flex flex-wrap items-center gap-2">
-      <button type="button" onClick={() => {
-        setDraftSearch(""); setSearch(""); setUf(""); setCity("");
-        setNeighborhood(""); setCategory(""); setSort("newest"); setPage(0);
-        setStatus("aprovado"); setTarget(null); setReload((value) => value + 1);
-      }} className="min-h-11 rounded-lg border border-input px-4 text-sm font-semibold text-foreground hover:bg-accent">
-        Limpar filtros
-      </button>
-      <button type="button" onClick={() => setReload((value) => value + 1)} disabled={loadingRows}
-        className="min-h-11 rounded-lg border border-input px-4 text-sm font-semibold text-foreground hover:bg-accent disabled:opacity-50">
-        Atualizar resultados
-      </button>
-      <span className="text-xs text-muted-foreground">Contadores por status abrangem todos os filtros.</span>
-    </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setDraftSearch("");
+            setSearch("");
+            setUf("");
+            setCity("");
+            setNeighborhood("");
+            setCategory("");
+            setSort("newest");
+            setPage(0);
+            setStatus("aprovado");
+            setTarget(null);
+            setReload((value) => value + 1);
+          }}
+          className="min-h-11 rounded-lg border border-input px-4 text-sm font-semibold text-foreground hover:bg-accent"
+        >
+          Limpar filtros
+        </button>
+        <button
+          type="button"
+          onClick={() => setReload((value) => value + 1)}
+          disabled={loadingRows}
+          className="min-h-11 rounded-lg border border-input px-4 text-sm font-semibold text-foreground hover:bg-accent disabled:opacity-50"
+        >
+          Atualizar resultados
+        </button>
+        <span className="text-xs text-muted-foreground">
+          Contadores por status abrangem todos os filtros.
+        </span>
+      </div>
     <div role="tablist" aria-label="Status dos técnicos" className="mt-4 flex gap-2 overflow-x-auto pb-2">
       {TABS.map((tab) => <button key={tab.key} type="button" role="tab"
         aria-selected={status === tab.key} onClick={() => { setStatus(tab.key); setPage(0); setTarget(null); }}
@@ -293,13 +311,21 @@ export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string 
         <Check className="h-4 w-4" /> {busy ? "Gravando no banco…" : "Confirmar e registrar"}
       </button>
     </form>}
-    {readError && <div role="alert" className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 p-3 text-sm text-destructive">
-      <p>{readError}</p>
-      <button type="button" onClick={() => setReload((value) => value + 1)}
-        className="min-h-11 rounded-lg border border-destructive/30 px-4 font-semibold hover:bg-accent">
-        Tentar novamente
-      </button>
-    </div>}
+      {readError && (
+        <div
+          role="alert"
+          className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 p-3 text-sm text-destructive"
+        >
+          <p>{readError}</p>
+          <button
+            type="button"
+            onClick={() => setReload((value) => value + 1)}
+            className="min-h-11 rounded-lg border border-destructive/30 px-4 font-semibold hover:bg-accent"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      )}
     {loadingRows || rows === null ? <p role="status" className="mt-5 text-sm text-muted-foreground">Carregando página de técnicos…</p>
       : filtered.length === 0 ? <p className="mt-5 rounded-xl border border-border p-6 text-sm text-muted-foreground">Nenhum técnico encontrado neste filtro.</p>
       : <ul className="mt-5 grid gap-3">{filtered.map((technician) => (
