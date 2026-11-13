@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { showMobileQuickTabs } from "@/lib/navigation-safety";
-import { ArrowRight, CircleHelp, House, LogIn, Menu, Search, Wrench, X, UserRound } from "lucide-react";
+import { ArrowRight, CircleHelp, House, LogIn, Menu, Search, Wrench, X, UserRound, UsersRound } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import logo from "@/assets/logo-marinho.png";
 
@@ -73,13 +73,16 @@ export function SiteHeader() {
         </Link>
 
         <nav className="hidden items-center gap-1 lg:flex" aria-label="Navegação principal">
-          {NAV_ITEMS.filter((item) => item.to !== "/tecnicos").map((item) => (
+          {NAV_ITEMS.filter((item) => item.to !== "/tecnicos").map((item) => {
+            const Icon = item.icon;
+            return (
             <Link key={item.to} to={item.to}
-              className={"rounded-full px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground " + FOCUS}
-              activeProps={{ className: "rounded-full bg-primary/10 px-3 py-2 text-sm font-semibold text-primary" }}>
-              {item.label}
+              className={"inline-flex min-h-11 items-center gap-2 rounded-full px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground " + FOCUS}
+              activeProps={{ className: "inline-flex min-h-11 items-center gap-2 rounded-full bg-primary/10 px-3 py-2 text-sm font-semibold text-primary" }}>
+              <Icon className="h-4 w-4 shrink-0" aria-hidden="true" /> {item.label}
             </Link>
-          ))}
+            );
+          })}
         </nav>
 
         <div className="hidden items-center gap-2 lg:flex">
@@ -96,8 +99,8 @@ export function SiteHeader() {
                 <LogIn className="h-4 w-4" aria-hidden="true" /> Entrar
               </Link>
               <Link to="/area-tecnico"
-                className={"inline-flex min-h-11 items-center gap-1.5 rounded-full border border-primary/25 bg-card px-4 text-sm font-semibold text-primary shadow-sm transition-colors hover:border-primary hover:bg-accent " + FOCUS}>
-                Sou técnico
+                className={"inline-flex min-h-11 items-center gap-2 rounded-full border border-primary/25 bg-card px-4 text-sm font-semibold text-primary shadow-sm transition-colors hover:border-primary hover:bg-accent " + FOCUS}>
+                <Wrench className="h-4 w-4" aria-hidden="true" /> Sou técnico
               </Link>
             </>
           )}
@@ -129,7 +132,7 @@ export function SiteHeader() {
                     <Link to={item.to} onClick={() => setOpen(false)}
                       className={"flex min-h-12 items-center gap-3 rounded-xl px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-accent " + FOCUS}
                       activeProps={{ className: "flex min-h-12 items-center gap-3 rounded-xl bg-primary/10 px-4 py-2 text-sm font-semibold text-primary" }}>
-                      <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary" aria-hidden="true"><Icon className="h-5 w-5" /></span>
                       {item.label}
                       <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground" aria-hidden="true" />
                     </Link>
@@ -139,12 +142,12 @@ export function SiteHeader() {
             </ul>
             {!signedIn && <div className="mt-4 grid grid-cols-2 gap-2 border-t border-border pt-4">
               <Link to="/area-cliente" onClick={() => setOpen(false)}
-                className={"inline-flex min-h-12 items-center justify-center rounded-xl border border-input bg-card px-3 text-center text-sm font-semibold text-foreground " + FOCUS}>
-                Sou cliente
+                className={"inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-input bg-card px-3 text-center text-sm font-semibold text-foreground " + FOCUS}>
+                <UsersRound className="h-4 w-4 text-primary" aria-hidden="true" /> Sou cliente
               </Link>
               <Link to="/area-tecnico" onClick={() => setOpen(false)}
-                className={"inline-flex min-h-12 items-center justify-center rounded-xl border border-primary/30 bg-accent px-3 text-center text-sm font-semibold text-primary " + FOCUS}>
-                Sou técnico
+                className={"inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-primary/30 bg-accent px-3 text-center text-sm font-semibold text-primary " + FOCUS}>
+                <Wrench className="h-4 w-4" aria-hidden="true" /> Sou técnico
               </Link>
             </div>}
             <Link to={signedIn ? accountPath : "/entrar"} onClick={() => setOpen(false)}

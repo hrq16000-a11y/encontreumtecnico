@@ -54,3 +54,14 @@ A proposta de migração foi alterada para `ADD catalog_enabled boolean` seguido
 O rollback proposto é transacional e **recusa execução se existir qualquer cadastro Auth-less ou evento de auditoria R1**: nunca remove dados de técnicos existentes. Em uma segunda base PostgreSQL sem novos cadastros, restaura as 3 políticas modificadas, remove apenas objetos R1, recupera os `NOT NULL` originais e grava auditoria da reversão; valida linhas/telefones/timestamps antigos intactos. Não usar no Supabase hospedado sem backup/PITR, janela autorizada e revisão independente.
 
 A main avançou além da base original da #256; a composição final da UI `admin.tsx` ainda precisa de QA isolado, sem alterar a main nesta rodada.
+
+
+## Compatibilidade RPC legado: contatos, reivindicação, elegibilidade (QA sintético)
+
+A leitura de contratos hospedados, sem consultar clientes, mostra que `eut_reveal_paid_technician_contact` depende de `eut_technician_private_contacts.user_id`. O registro Auth-less permanece indisponível mesmo com entitlement sintético; isso evita vazamento mas **não implementa venda de contatos importados**. `eut_visibility.eut_public_technician_eligible` e `eut_public_eligible_technician_ids` também requerem Auth e status legado aprovado. Teste PostgreSQL isolado usa os dois RPCs reais com Auth de fixture, confirma negativas Auth-less e positivos com técnico Auth de fixture.
+
+A trigger legada `eut_migration.complete_legacy_claim` vincula perfis WP via conta/Auth e faz INSERT ON CONFLICT(user_id) DO NOTHING; **não associa automaticamente ao technicians.id canônico**. A reivindicação deve aguardar adapter auditado que preserve ID, não duplique cadastro e verifique identidade legitimamente. O fixture testa que o WordPress importado permanece sem Auth. Não foi testado o fluxo completo real de reivindicação/PSP.
+
+O contrato comercial futuro de dois contatos por pagamento não foi aplicado: `eut_contact_access_quote` ainda anuncia um por compra, `payment_available=false`. Preserve o gateway e entitlement real; nenhum telefone poderá ser liberado apenas por `catalog_enabled`.
+
+Reconciliação da main: alteração visual de menu, atendimento e conforto de contraste foram preservadas. O único arquivo com edição concorrente é `src/routes/admin.tsx`, que mantém os novos ícones/atalhos e adiciona a seção de catálogo canônico, sem perder funcionalidades.

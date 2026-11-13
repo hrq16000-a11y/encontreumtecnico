@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import logo from "@/assets/logo-marinho.png";
+import { BookOpen, CircleHelp, FileText, LogIn, MapPin, MessageCircle, Network, Search, UsersRound, Wrench } from "lucide-react";
 
 const legalLinks = [
   { href: "/politicas", label: "Central de políticas" },
@@ -35,22 +36,22 @@ export function SiteFooter() {
         <nav aria-label="Navegação do portal">
           <p className="text-sm font-semibold text-foreground">Portal</p>
           <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-            <li><Link to="/tecnicos" className="hover:text-foreground">Encontrar técnico</Link></li>
-            <li><Link to="/servicos" className="hover:text-foreground">Serviços</Link></li>
-            <li><Link to="/cobertura" className="hover:text-foreground">Cobertura por localidade</Link></li>
-            <li><Link to="/guias" className="hover:text-foreground">Guias técnicos</Link></li>
-            <li><Link to="/ecossistema" className="hover:text-foreground">Ecossistema de serviços</Link></li>
-            <li><Link to="/como-funciona" className="hover:text-foreground">Como funciona</Link></li>
-            <li><Link to="/entrar" className="hover:text-foreground">Cadastrar / entrar</Link></li>
+            <li><Link to="/tecnicos" className="inline-flex items-center gap-2 hover:text-foreground"><Search className="h-4 w-4 text-primary" aria-hidden="true" /> Encontrar técnico</Link></li>
+            <li><Link to="/servicos" className="inline-flex items-center gap-2 hover:text-foreground"><Wrench className="h-4 w-4 text-primary" aria-hidden="true" /> Serviços</Link></li>
+            <li><Link to="/cobertura" className="inline-flex items-center gap-2 hover:text-foreground"><MapPin className="h-4 w-4 text-primary" aria-hidden="true" /> Cobertura por localidade</Link></li>
+            <li><Link to="/guias" className="inline-flex items-center gap-2 hover:text-foreground"><BookOpen className="h-4 w-4 text-primary" aria-hidden="true" /> Guias técnicos</Link></li>
+            <li><Link to="/ecossistema" className="inline-flex items-center gap-2 hover:text-foreground"><Network className="h-4 w-4 text-primary" aria-hidden="true" /> Ecossistema de serviços</Link></li>
+            <li><Link to="/como-funciona" className="inline-flex items-center gap-2 hover:text-foreground"><CircleHelp className="h-4 w-4 text-primary" aria-hidden="true" /> Como funciona</Link></li>
+            <li><Link to="/entrar" className="inline-flex items-center gap-2 hover:text-foreground"><LogIn className="h-4 w-4 text-primary" aria-hidden="true" /> Cadastrar / entrar</Link></li>
           </ul>
         </nav>
         <nav aria-label="Links de ajuda">
           <p className="text-sm font-semibold text-foreground">Ajuda</p>
           <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-            <li><Link to="/faq" className="hover:text-foreground">Perguntas frequentes</Link></li>
-            <li><Link to="/contato" className="hover:text-foreground">Contato e privacidade</Link></li>
-            <li><Link to="/area-tecnico" className="hover:text-foreground">Área do técnico</Link></li>
-            <li><Link to="/area-cliente" className="hover:text-foreground">Área do cliente</Link></li>
+            <li><Link to="/faq" className="inline-flex items-center gap-2 hover:text-foreground"><CircleHelp className="h-4 w-4 text-primary" aria-hidden="true" /> Perguntas frequentes</Link></li>
+            <li><Link to="/contato" className="inline-flex items-center gap-2 hover:text-foreground"><MessageCircle className="h-4 w-4 text-primary" aria-hidden="true" /> Contato e privacidade</Link></li>
+            <li><Link to="/area-tecnico" className="inline-flex items-center gap-2 hover:text-foreground"><Wrench className="h-4 w-4 text-primary" aria-hidden="true" /> Área do técnico</Link></li>
+            <li><Link to="/area-cliente" className="inline-flex items-center gap-2 hover:text-foreground"><UsersRound className="h-4 w-4 text-primary" aria-hidden="true" /> Área do cliente</Link></li>
           </ul>
         </nav>
         <nav aria-label="Documentos legais">
@@ -58,7 +59,7 @@ export function SiteFooter() {
           <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
             {legalLinks.map((item) => (
               <li key={item.href}>
-                <a href={item.href} className="hover:text-foreground">{item.label}</a>
+                <a href={item.href} className="inline-flex items-center gap-2 hover:text-foreground"><FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" /> {item.label}</a>
               </li>
             ))}
             <li>

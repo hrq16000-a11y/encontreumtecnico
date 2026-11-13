@@ -21,7 +21,7 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
   const [email, setEmail] = useState(restored?.email ?? "");
   const [service, setService] = useState(context.service || restored?.service || "");
   const [when, setWhen] = useState(restored?.when ?? "Nos próximos dias");
-  const [problem, setProblem] = useState(restored?.problem ?? "");
+  const [problem, setProblem] = useState(restored?.problem || context.initialProblem || "");
   const [city, setCity] = useState(context.city || restored?.city || "");
   const [uf, setUf] = useState(context.uf || restored?.uf || "");
   const [neighborhood, setNeighborhood] = useState(context.neighborhood || restored?.neighborhood || "");

@@ -56,6 +56,8 @@ jobs:
         run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-assertions-20261112.sql
       - name: Verify privacy quality location and RLS negative scenarios
         run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-live-guards-assertions-20261112.sql
+      - name: Check legacy Auth contacts and eligibility using real RPC bodies on synthetic data
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-legacy-contract-20261113.sql
       - name: Ensure guarded rollback refuses populated canonical records
         run: |
           if output="$(printf "SET request.jwt.claim.sub='00000000-0000-4000-8000-000000000001';\n\\i docs/sql/eut-canonical-catalog-r1-rollback-proposal-20261112.sql\n" | psql -X -v ON_ERROR_STOP=1 2>&1)"; then
