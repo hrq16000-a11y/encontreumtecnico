@@ -1,0 +1,11 @@
+# Primeiro fluxo de criação administrativa real — Issue #210
+
+Este PR Draft prepara uma operação **real de gravação auditada** para uma conta de técnico que já exista em Auth, tenha e-mail confirmado, papel \`tecnico\`, perfil \`profiles\` e não esteja bloqueada. **Não cria usuário Auth**: para uma pessoa nova, o convite e sua aceitação continuam sendo necessários. O esquema atual exige \`technicians.user_id NOT NULL\`, ligado a \`profiles\`; não inserir identidades falsas nem contornar essa relação.
+
+**Criação:** a tela \`/admin/tecnicos\` procura conta autorizada, município oficial IBGE e categoria ativa; chama RPC \`eut_admin_technician_create\` e só mostra sucesso após confirmar linha persistida E evento de auditoria. A ficha nasce \`pendente\`, sem serviço/cobertura inventados e sem publicar número ou conceder contato. A edição básica de nome, apresentação e região continua no \`AdminTechnicianManager\` via RPC \`eut_admin_technician_action\` já instalada.
+
+**SQL novo:** proposta em \`docs/sql/eut-admin-technician-create-existing-member-proposal-20261112.sql\`, nunca aplicado ao projeto conectado neste turno. \`SECURITY DEFINER\` requer administração verificada, role persistente no servidor, sessão operacional, alvo sem bloqueios, cidade/categoria ativa e motivo validado. \`REVOKE\` de \`PUBLIC/anon\` e \`GRANT\` somente a \`authenticated\`, sempre com verificação admin interna. INSERT e auditoria transacionais. Nenhum Auth Admin/service-role no browser.
+
+**Prova permitida:** PostgreSQL descartável do CI instala as propostas, cria identidades **sintéticas**, prova autorização negativa (anon, cliente, admin não confirmado, alvo bloqueado), escrita e leitura após commit, auditoria imutável, não duplicação e rollback em falha de audit. Testa também \`eut_admin_technician_change\` **na mesma base descartável** para edição de categoria/cidade/serviço após a criação. A edição completa permanece PROPOSTA, não instalada no Supabase conectado.
+
+**Gate de produção bloqueado:** não está instalada a nova RPC no banco EUT e não foi realizado E2E autenticado visual. Sem merge, deploy, publicação ou escrita no banco real. Instalação só após revisão de migrações/backup, autorização e homologação real. Não anunciar operação pública pronta antes disso.

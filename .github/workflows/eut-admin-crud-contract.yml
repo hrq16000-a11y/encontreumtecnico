@@ -6,6 +6,10 @@ on:
       - 'src/lib/admin-technician-crud-intent.ts'
       - 'src/lib/admin-technician-crud-intent.test.ts'
       - 'docs/admin/CRUD_TRANSACIONAL_AUDITADO_2026-11-11.md'
+      - 'src/components/admin-technician-create.tsx'
+      - 'src/components/admin-technician-manager.tsx'
+      - 'src/lib/admin-technician-create-contract*.ts'
+      - 'src/routes/admin.tsx'
       - '.github/workflows/eut-admin-crud-contract.yml'
 
 permissions:
@@ -22,7 +26,7 @@ jobs:
           bun-version: "1.3.3"
       - run: bun install --frozen-lockfile
       - name: Test admin change preview without database
-        run: bunx vitest run src/lib/admin-technician-crud-intent.test.ts
+        run: bunx vitest run src/lib/admin-technician-crud-intent.test.ts src/lib/admin-technician-create-contract.test.ts
       - name: Generate TanStack routes and build
         run: bun run build
       - name: TypeScript check after route generation

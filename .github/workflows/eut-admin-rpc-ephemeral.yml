@@ -5,6 +5,8 @@ on:
     paths:
       - 'docs/sql/eut-admin-technician-crud-staging-proposal-20261111.sql'
       - 'docs/sql/tests/eut-admin-crud-ephemeral-*.sql'
+      - 'docs/sql/eut-admin-technician-create-existing-member-proposal-20261112.sql'
+      - 'docs/sql/tests/eut-admin-technician-create-*.sql'
       - '.github/workflows/eut-admin-rpc-ephemeral.yml'
 
 permissions:
@@ -43,7 +45,13 @@ jobs:
           psql --version
       - name: Fixture schema with synthetic identities
         run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-admin-crud-ephemeral-schema-20261111.sql
+      - name: Additional synthetic confirmed technical accounts
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-admin-technician-create-fixture-20261112.sql
       - name: Install proposed RPCs in disposable database only
         run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/eut-admin-technician-crud-staging-proposal-20261111.sql
+      - name: Install owner-gated technician creation in disposable PostgreSQL only
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/eut-admin-technician-create-existing-member-proposal-20261112.sql
       - name: Validate transaction, rollback, RLS guard and archive restoration
         run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-admin-crud-ephemeral-assertions-20261111.sql
+      - name: Validate create → durable audit → read-back → comprehensive edit
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-admin-technician-create-assertions-20261112.sql

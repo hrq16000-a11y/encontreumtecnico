@@ -15,6 +15,7 @@ import { AdminCommandOverview } from "@/components/admin-command-overview";
 import { AdminAdvertisingManager } from "@/components/admin-advertising-manager";
 import { AdminNavigation } from "@/components/admin-navigation";
 import { AdminTechnicianManager } from "@/components/admin-technician-manager";
+import { AdminTechnicianCreate } from "@/components/admin-technician-create";
 import { AdminOwnTechnicianRole } from "@/components/admin-own-technician-role";
 import { AdminMemberInvites } from "@/components/admin-member-invites";
 import { AdminAccountsManager } from "@/components/admin-accounts-manager";
@@ -56,6 +57,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
   const [reqs, setReqs] = useState<Req[]>([]);
   const [msgs, setMsgs] = useState<Tables<"contact_messages">[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [technicianCreateVersion, setTechnicianCreateVersion] = useState(0);
 
   async function load() {
     // A page only queries the records it needs. RLS remains authoritative.
@@ -153,7 +155,8 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             {section === "contatos" && <section aria-label="Contatos administrativos"><AdminContactsDashboard adminId={user.id} /></section>}
             {section === "tecnicos" && <section aria-label="Gestão de técnicos">
               <AdminMemberInvites initialRole="tecnico" />
-              <AdminTechnicianManager adminOwnerId={user.id} />
+              <AdminTechnicianCreate adminId={user.id} onCreated={() => setTechnicianCreateVersion(v => v + 1)} />
+              <AdminTechnicianManager key={technicianCreateVersion} initialStatus={technicianCreateVersion > 0 ? "pendente" : "aprovado"} adminOwnerId={user.id} />
             </section>}
             {section === "mensagens" && <section aria-label="Mensagens administrativas">
               <h2 id="admin-mensagens" className="mt-10 scroll-mt-20 text-lg font-semibold text-foreground">Mensagens de contato</h2>
