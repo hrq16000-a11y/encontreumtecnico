@@ -51,12 +51,12 @@ describe("Cartão do técnico publicado", () => {
     expect(container.textContent).not.toMatch(/\+55\d{10,11}/);
   });
 
-  it("apresenta Bronze e indicação somente quando autorizados pelo servidor", () => {
+  it("não distingue técnicos por origem e preserva indicação e atividade informadas", () => {
     const { rerender } = render(<TechnicianSearchCard technician={person} categories={categories} services={services} />);
     expect(screen.queryByText("Pioneiro Bronze")).toBeNull();
     expect(screen.queryByText("Destaque por indicações")).toBeNull();
     rerender(<TechnicianSearchCard technician={{ ...person, pioneer_bronze: true, referral_highlight: true, online_now: true }} categories={categories} services={services} />);
-    expect(screen.getByText("Pioneiro Bronze")).toBeTruthy();
+    expect(screen.queryByText("Pioneiro Bronze")).toBeNull();
     expect(screen.getByText("Destaque por indicações")).toBeTruthy();
     expect(screen.getByText("Atividade recente")).toBeTruthy();
   });
