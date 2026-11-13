@@ -274,4 +274,69 @@ BEGIN
  IF NOT denied THEN RAISE EXCEPTION 'Anonymous provenance access succeeded'; END IF;
 END $qa$;
 RESET ROLE;
-\echo 'QA passed: canonical IDs, idempotent batches, Auth-less enabled, private phone, auditable toggle, restrictions'
+
+\echo 'EUT canonical R1: admin-only paged readback, no phone or source key'
+SET request.jwt.claim.sub='00000000-0000-4000-8000-000000000001';
+DO $qa$
+DECLARE v_id uuid; v_result jsonb; v_rows jsonb; v_row jsonb;
+        v_bad jsonb; v_existing uuid;
+BEGIN
+ SELECT technician_id INTO v_id FROM eut_moderation.catalog_provenance
+   WHERE catalog_origin='admin_manual' AND source_key='manual:lead-001';
+ IF v_id IS NULL THEN RAISE EXCEPTION 'Missing prepared canonical fixture'; END IF;
+
+ v_result:=public.eut_admin_catalog_list(0,20,'',ARRAY[v_id]);
+ v_rows:=v_result->'rows';
+ IF v_result->>'ok'<>'true' OR (v_result->>'total')::int<>1 OR
+    jsonb_array_length(v_rows)<>1
+ THEN RAISE EXCEPTION 'Read by ID did not persist or paginate'; END IF;
+ v_row:=v_rows->0;
+ IF v_row->>'id'<>v_id::text OR v_row->>'catalog_enabled'<>'true'
+    OR v_row->>'has_private_contact'<>'true'
+    OR (v_row->>'last_audit_id')::bigint<=0
+ THEN RAISE EXCEPTION 'Creation readback has no state/audit'; END IF;
+ IF v_row ? 'phone_e164' OR v_row ? 'source_key' OR
+    v_row ? 'catalog_source_key' OR v_row ? 'user_id' OR
+    v_result::text LIKE '%5541999998080%' OR
+    v_result::text LIKE '%manual:lead-001%'
+ THEN RAISE EXCEPTION 'Private data leaked in admin list'; END IF;
+ v_result:=public.eut_admin_catalog_list(0,1,'',NULL);
+ IF (v_result->>'limit')::integer<>1 OR jsonb_array_length(v_result->'rows')>1
+ THEN RAISE EXCEPTION 'Pagination limit ignored'; END IF;
+ v_result:=public.eut_admin_catalog_list(0,20,'Padrão inexistente',NULL);
+ IF (v_result->>'total')::integer<>0 OR jsonb_array_length(v_result->'rows')<>0
+ THEN RAISE EXCEPTION 'Empty search state wrong'; END IF;
+
+ SELECT technician_id INTO v_existing FROM eut_moderation.catalog_provenance
+  WHERE catalog_origin='wordpress' AND source_key='wp:old-42';
+ v_result:=public.eut_admin_catalog_list(0,20,'',ARRAY[v_existing]);
+ IF v_result->'rows'->0->>'catalog_enabled'<>'false' OR
+     (v_result->'rows'->0->>'last_audit_id')::bigint<=0
+ THEN RAISE EXCEPTION 'Disabled record/audit did not survive readback'; END IF;
+
+ BEGIN PERFORM public.eut_admin_catalog_list(0,51,'',NULL);
+   RAISE EXCEPTION 'Oversized admin result accepted';
+ EXCEPTION WHEN SQLSTATE '22023' THEN NULL; END;
+END $qa$;
+
+\echo 'EUT canonical R1: anonymous and client cannot list private catalog'
+SET ROLE authenticated;
+SET request.jwt.claim.sub='00000000-0000-4000-8000-000000000002';
+DO $qa$
+DECLARE denied boolean:=false;
+BEGIN
+  BEGIN PERFORM public.eut_admin_catalog_list(0,20,'',NULL);
+  EXCEPTION WHEN SQLSTATE '42501' THEN denied:=true; END;
+  IF NOT denied THEN RAISE EXCEPTION 'Client read private catalog'; END IF;
+END $qa$;
+RESET ROLE;
+SET ROLE anon;
+DO $qa$
+DECLARE denied boolean:=false;
+BEGIN
+  BEGIN PERFORM public.eut_admin_catalog_list(0,20,'',NULL);
+  EXCEPTION WHEN SQLSTATE '42501' THEN denied:=true; END;
+  IF NOT denied THEN RAISE EXCEPTION 'Anonymous read private catalog'; END IF;
+END $qa$;
+RESET ROLE;
+\echo 'QA passed: canonical IDs, imported batches, privacy, audit, admin readback and toggle'

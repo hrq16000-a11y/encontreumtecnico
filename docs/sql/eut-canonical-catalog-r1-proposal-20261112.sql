@@ -280,4 +280,67 @@ GRANT EXECUTE ON FUNCTION public.eut_admin_catalog_import_batch(jsonb,text)
   TO authenticated;
 GRANT EXECUTE ON FUNCTION public.eut_admin_catalog_set_enabled(uuid,timestamptz,boolean,text)
   TO authenticated;
+
+-- Admin-only read path; never expose raw phone, source_key, user credentials,
+-- or paid-contact status to the browser. Not a public catalog/read endpoint.
+CREATE OR REPLACE FUNCTION public.eut_admin_catalog_list(
+  _page integer DEFAULT 0,
+  _limit integer DEFAULT 20,
+  _search text DEFAULT '',
+  _ids uuid[] DEFAULT NULL
+) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path='pg_catalog' AS $rpc$
+DECLARE
+  v_actor uuid:=auth.uid();
+  v_search text:=btrim(coalesce(_search,''));
+  v_total integer:=0;
+  v_rows jsonb:='[]'::jsonb;
+BEGIN
+  IF v_actor IS NULL OR NOT public.has_role(v_actor,'admin'::public.app_role)
+    OR NOT public.eut_account_operational()
+    OR NOT EXISTS(SELECT 1 FROM auth.users u WHERE u.id=v_actor AND u.email_confirmed_at IS NOT NULL)
+  THEN RAISE EXCEPTION 'Administrador verificado obrigatório'
+    USING ERRCODE='42501'; END IF;
+  IF _page IS NULL OR _page NOT BETWEEN 0 AND 10000 OR
+     _limit IS NULL OR _limit NOT BETWEEN 1 AND 50 OR
+     length(v_search)>80 OR
+     (_ids IS NOT NULL AND (cardinality(_ids)<1 OR cardinality(_ids)>50 OR
+        array_position(_ids,NULL) IS NOT NULL))
+  THEN RAISE EXCEPTION 'Parâmetros de consulta inválidos'
+    USING ERRCODE='22023'; END IF;
+
+  SELECT count(*)::integer INTO v_total FROM public.technicians t
+   WHERE t.user_id IS NULL
+     AND t.catalog_origin IN ('admin_manual','external_import','wordpress')
+     AND (_ids IS NULL OR t.id=ANY(_ids))
+     AND (v_search='' OR strpos(lower(coalesce(t.display_name,'')),lower(v_search))>0);
+
+  SELECT coalesce(jsonb_agg(to_jsonb(s) ORDER BY s.created_at DESC,s.id),'[]'::jsonb)
+    INTO v_rows
+  FROM (
+    SELECT t.id,t.display_name,t.city,t.state_uf,
+      t.catalog_origin,t.catalog_enabled,t.status::text AS legacy_status,
+      t.created_at,t.updated_at,
+      EXISTS(SELECT 1 FROM eut_moderation.catalog_private_contacts pc
+          WHERE pc.technician_id=t.id) AS has_private_contact,
+      (SELECT max(l.id) FROM public.eut_admin_management_log l
+        WHERE l.target_type='technician' AND l.target_key=t.id::text
+          AND l.action IN ('catalog_created','catalog_enabled_changed')) AS last_audit_id
+    FROM public.technicians t
+    WHERE t.user_id IS NULL
+      AND t.catalog_origin IN ('admin_manual','external_import','wordpress')
+      AND (_ids IS NULL OR t.id=ANY(_ids))
+      AND (v_search='' OR strpos(lower(coalesce(t.display_name,'')),lower(v_search))>0)
+    ORDER BY t.created_at DESC,t.id
+    LIMIT _limit OFFSET _page * _limit
+  ) s;
+  RETURN jsonb_build_object('ok',true,'page',_page,'limit',_limit,
+    'total',v_total,'rows',v_rows);
+END;
+$rpc$;
+REVOKE ALL ON FUNCTION public.eut_admin_catalog_list(integer,integer,text,uuid[])
+ FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.eut_admin_catalog_list(integer,integer,text,uuid[])
+ TO authenticated;
+
 COMMIT;
