@@ -282,7 +282,7 @@ AS $function$
       '[^a-z0-9]+', '-', 'g'
     ), 80
   )), ''), 'tecnico');
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION eut_moderation.eut_audit_admin_technician()
@@ -303,7 +303,7 @@ BEGIN
         jsonb_build_object('status',NEW.status::text,'name_changed',OLD.display_name IS DISTINCT FROM NEW.display_name,
                            'bio_changed',OLD.bio IS DISTINCT FROM NEW.bio,'region_changed',OLD.region IS DISTINCT FROM NEW.region));
  RETURN NEW;
-END; $function$
+END; $function$;
 
 
 CREATE OR REPLACE FUNCTION eut_moderation.reject_restricted_phone()
@@ -327,7 +327,7 @@ begin
   end if;
   return new;
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION eut_pioneers.award_bronze_after_publish()
@@ -345,7 +345,7 @@ BEGIN
  END IF;
  RETURN NEW;
 END
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
@@ -353,7 +353,7 @@ CREATE OR REPLACE FUNCTION public.update_updated_at_column()
  LANGUAGE plpgsql
  SET search_path TO 'public'
 AS $function$
-begin new.updated_at = now(); return new; end; $function$
+begin new.updated_at = now(); return new; end; $function$;
 
 
 CREATE OR REPLACE FUNCTION eut_migration.assign_technician_public_slug()
@@ -380,7 +380,7 @@ BEGIN
   NEW.public_slug := base;
   RETURN NEW;
 END;
-$function$
+$function$;
 
 CREATE TRIGGER eut_admin_audit_technician AFTER UPDATE OF status, display_name, bio, region ON public.technicians FOR EACH ROW EXECUTE FUNCTION eut_moderation.eut_audit_admin_technician();
 CREATE TRIGGER eut_assign_technician_public_slug BEFORE INSERT OR UPDATE OF public_slug, display_name, city, state_uf ON public.technicians FOR EACH ROW EXECUTE FUNCTION eut_migration.assign_technician_public_slug();
