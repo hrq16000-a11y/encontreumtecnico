@@ -22,6 +22,10 @@ on:
       - '.github/workflows/eut-navigation-stability.yml'
 permissions:
   contents: read
+
+concurrency:
+  group: eut-navigation-stability-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   navigation:
     runs-on: ubuntu-latest
