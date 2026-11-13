@@ -105,6 +105,8 @@ const HOME_VISUALS = [
     src: "/guias/computador-diagnostico-ilustrado.svg", alt: "Ilustração de uma bancada de diagnóstico com notebook e ferramentas." },
   { slug: "redes", title: "Wi-Fi e redes", subtitle: "Confira soluções para conexão e cobertura de sinal.",
     src: "/guias/wifi-instabilidade-cobertura-ilustrado.svg", alt: "Ilustração de uma casa com roteador e cobertura Wi-Fi nos ambientes." },
+  { slug: "impressoras", title: "Impressoras", subtitle: "Resolva problemas de conexão, fila e impressão.",
+    src: "/guias/impressora-offline-fila-ilustrado.svg", alt: "Ilustração de uma impressora com fila de impressão e conectividade." },
 ] as const;
 
 function HomePage() {
@@ -144,7 +146,7 @@ function HomePage() {
 
   return (
     <PageShell>
-      <section className="relative overflow-hidden bg-gradient-to-b from-accent to-background px-4 pb-16 pt-12 md:pb-24 md:pt-16">
+      <section className="relative overflow-hidden bg-gradient-to-br from-brand-navy via-[#124b76] to-brand-navy px-4 pb-16 pt-10 md:pb-20 md:pt-16">
         <div aria-hidden className="pointer-events-none absolute inset-0">
           <div className="bg-glow absolute -top-24 -left-24 h-96 w-96 opacity-25 blur-2xl" />
           <div className="bg-glow absolute -right-32 top-10 h-[28rem] w-[28rem] opacity-20 blur-2xl" />
@@ -152,7 +154,7 @@ function HomePage() {
         </div>
 
         <div className="relative mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[1.1fr_1fr]">
-          <div className="animate-rise">
+          <div className="animate-rise rounded-3xl border border-white/15 bg-card p-5 shadow-[0_24px_70px_-24px_rgba(0,0,0,.45)] sm:p-8">
             <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-card px-3 py-1 text-xs font-semibold text-primary">
               <BadgeCheck className="h-4 w-4" aria-hidden /> Portal nacional · sem custo para o profissional
             </span>
@@ -169,7 +171,7 @@ function HomePage() {
               </div>
             ) : (
             <form
-              className="mt-8 flex flex-col gap-3 rounded-xl bg-card p-3 shadow-soft sm:flex-row"
+              className="mt-7 flex flex-col gap-3 rounded-2xl border border-primary/15 bg-accent/40 p-3 shadow-sm sm:flex-row"
               onSubmit={(e) => {
                 e.preventDefault();
                 window.__lovableEvents?.track?.("project.technician_search", {
@@ -249,13 +251,49 @@ function HomePage() {
               ))}
             </ul>
           </div>
-          <div className="relative animate-rise [animation-delay:150ms]">
-            <img src={heroImg} alt="Técnico instalando câmera de segurança na fachada de uma casa" width={1280} height={1024} className="aspect-[5/4] w-full rounded-3xl object-cover shadow-soft" />
+          <div className="relative animate-rise [animation-delay:150ms] rounded-[30px] border-4 border-white/15 bg-white/10 p-2 shadow-[0_25px_80px_-20px_rgba(0,0,0,.5)]">
+            <img src={heroImg} alt="Técnico instalando câmera de segurança na fachada de uma casa" width={1280} height={1024} className="aspect-[5/4] w-full rounded-[22px] object-cover shadow-soft" />
             <div className="absolute -bottom-5 left-4 flex animate-float items-center gap-3 rounded-2xl bg-card px-4 py-3 shadow-soft">
               <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground"><MapPin className="h-5 w-5" aria-hidden /></span>
               <div className="text-sm"><div className="font-semibold text-foreground">Técnicos perto de você</div><div className="text-muted-foreground">Busque por cidade ou região</div></div>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="home-visual-servicos" className="border-b border-border bg-gradient-to-r from-accent/80 via-background to-accent/80 px-4 py-12 sm:py-16"><div className="mx-auto max-w-6xl">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-primary">Explore visualmente</p>
+            <h2 id="home-visual-servicos" className="mt-2 text-2xl font-bold text-foreground sm:text-3xl">Seu problema, nossa próxima conexão</h2>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+              Conheça três especialidades e descubra como encontrar um profissional da área.
+            </p>
+          </div>
+          <Link to="/servicos" className="inline-flex min-h-11 items-center gap-2 rounded-full border border-primary/30 px-4 text-sm font-semibold text-primary hover:bg-accent">
+            Ver todos os serviços <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </div>
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {HOME_VISUALS.map((item) => (
+            <li key={item.slug}>
+              <Link to="/servicos/$categoria" params={{ categoria: item.slug }}
+                className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-colors hover:border-primary/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                <div className="overflow-hidden bg-brand-navy/10">
+                  <img src={item.src} alt={item.alt} width={1200} height={630} loading="lazy" decoding="async"
+                    className="aspect-[40/21] w-full object-cover transition-transform duration-300 group-hover:scale-[1.035] motion-reduce:transform-none" />
+                </div>
+                <div className="flex flex-1 items-center justify-between gap-3 p-5">
+                  <div>
+                    <h3 className="font-bold text-foreground">{item.title}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">{item.subtitle}</p>
+                  </div>
+                  <ArrowRight className="h-5 w-5 shrink-0 text-primary transition-transform group-hover:translate-x-1 motion-reduce:transform-none" aria-hidden="true" />
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
         </div>
       </section>
 
@@ -278,40 +316,7 @@ function HomePage() {
 
       <HomePublicProof />
 
-      <section aria-labelledby="home-visual-servicos" className="mx-auto max-w-6xl px-4 pb-16">
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-primary">Explore visualmente</p>
-            <h2 id="home-visual-servicos" className="mt-2 text-2xl font-bold text-foreground sm:text-3xl">Seu problema, nossa próxima conexão</h2>
-            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-              Conheça três especialidades e descubra como encontrar um profissional da área.
-            </p>
-          </div>
-          <Link to="/servicos" className="inline-flex min-h-11 items-center gap-2 rounded-full border border-primary/30 px-4 text-sm font-semibold text-primary hover:bg-accent">
-            Ver todos os serviços <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </Link>
-        </div>
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {HOME_VISUALS.map((item) => (
-            <li key={item.slug}>
-              <Link to="/servicos/$categoria" params={{ categoria: item.slug }}
-                className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-colors hover:border-primary/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-                <div className="overflow-hidden bg-brand-navy/10">
-                  <img src={item.src} alt={item.alt} width={1200} height={630} loading="lazy" decoding="async"
-                    className="aspect-[40/21] w-full object-cover transition-transform duration-300 group-hover:scale-[1.035] motion-reduce:transform-none" />
-                </div>
-                <div className="flex flex-1 items-center justify-between gap-3 p-5">
-                  <div>
-                    <h3 className="font-bold text-foreground">{item.title}</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">{item.subtitle}</p>
-                  </div>
-                  <ArrowRight className="h-5 w-5 shrink-0 text-primary transition-transform group-hover:translate-x-1 motion-reduce:transform-none" aria-hidden="true" />
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
+
 
 
       <section className="mx-auto max-w-3xl px-4 pb-16">
@@ -350,7 +355,7 @@ function HomePage() {
       <Reveal><FaqPreview /></Reveal>
       <Reveal><ContactBand /></Reveal>
 
-      <section className="mx-auto max-w-6xl px-4 pb-16">
+      <section className="mx-auto max-w-6xl px-4 py-12 sm:py-16">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="rounded-lg border border-border bg-card p-8 text-center">
             <h2 className="text-lg font-semibold text-card-foreground">Sou Cliente</h2>
