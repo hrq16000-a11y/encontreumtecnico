@@ -34,6 +34,34 @@ describe("Funil flutuante de atendimento", () => {
     expect(screen.getByRole("dialog")).toBeTruthy();
     expect((await screen.findByTestId("guided-funnel"))).toBeTruthy();
   });
+  it("devolve foco ao botão contextual que abriu o atendimento", async () => {
+    render(<>
+      <button type="button" onClick={() => openFreeHelp({ city: "Curitiba" })}>Ajuda contextual</button>
+      <FreeSearchHelp />
+    </>);
+    const opener = screen.getByRole("button", { name: "Ajuda contextual" });
+    opener.focus();
+    fireEvent.click(opener);
+    expect(await screen.findByRole("dialog")).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Fechar atendimento" }));
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(opener);
+  });
+  it("usa o botão flutuante caso o acionador original seja removido", () => {
+    const opener = document.createElement("button");
+    opener.type = "button";
+    opener.textContent = "Ajuda temporária";
+    document.body.appendChild(opener);
+    render(<FreeSearchHelp />);
+    opener.focus();
+    act(() => openFreeHelp({ city: "Curitiba" }));
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    opener.remove();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: /preciso de ajuda/i }));
+  });
   it("não descarrega o wizard nem apaga texto digitado ao mudar o foco da aba", async () => {
     render(<FreeSearchHelp />);
     fireEvent.click(screen.getByRole("button", { name: /preciso de ajuda/i }));
