@@ -46,6 +46,7 @@ jobs:
           if [ "$ready" -ne 1 ]; then echo "VITE_NOT_READY"; exit 1; fi
           echo "ROUTE_TREE_GENERATION_DIFF"
           git diff --numstat -- src/routeTree.gen.ts
+          set +e
           NODE_PATH="$RUNNER_TEMP/eut-browser-diagnostic/node_modules" node <<'NODE'
           const {chromium}=require('playwright');
           const assert=require('node:assert/strict');
@@ -98,21 +99,30 @@ jobs:
             page.on('domcontentloaded',()=>console.log('PLAYWRIGHT_DOMCONTENTLOADED '+ms()));
             page.on('load',()=>console.log('PLAYWRIGHT_LOAD '+ms()));
             async function snap(label){
-              const state=await page.evaluate(()=>{
-                const a=document.activeElement;
-                const cookie=document.querySelector('[role="dialog"][aria-label="Aviso de cookies"]');
-                const help=document.querySelector('#eut-free-help-dialog');
-                return {
-                  ready:document.readyState,activeTag:a?.tagName||null,activeAria:a?.getAttribute('aria-label')||null,
-                  activeText:(a?.textContent||'').trim().slice(0,42),
-                  cookieVisible:!!cookie?.getClientRects().length,
-                  helpVisible:!!help?.getClientRects().length,
-                  closeFocused:a?.getAttribute('aria-label')==='Fechar atendimento',
-                  dialogCount:document.querySelectorAll('[role="dialog"]').length
-                };
-              });
-              console.log('HYDRATION_SNAPSHOT '+JSON.stringify({t:ms(),label,...state}));
-              return state;
+              for(let attempt=0;attempt<4;attempt++){
+                try{
+                  const state=await page.evaluate(()=>{
+                    const a=document.activeElement;
+                    const cookie=document.querySelector('[role="dialog"][aria-label="Aviso de cookies"]');
+                    const help=document.querySelector('#eut-free-help-dialog');
+                    return {
+                      ready:document.readyState,activeTag:a?.tagName||null,activeAria:a?.getAttribute('aria-label')||null,
+                      activeText:(a?.textContent||'').trim().slice(0,42),
+                      cookieVisible:!!cookie?.getClientRects().length,
+                      helpVisible:!!help?.getClientRects().length,
+                      closeFocused:a?.getAttribute('aria-label')==='Fechar atendimento',
+                      dialogCount:document.querySelectorAll('[role="dialog"]').length
+                    };
+                  });
+                  console.log('HYDRATION_SNAPSHOT '+JSON.stringify({t:ms(),label,...state}));
+                  return state;
+                }catch(err){
+                  if(!/Execution context was destroyed|navigation|Cannot find context/i.test(String(err)))throw err;
+                  console.log('SNAPSHOT_INTERRUPTED_BY_RELOAD '+JSON.stringify({t:ms(),label,attempt}));
+                  await page.waitForLoadState('domcontentloaded',{timeout:15000});
+                }
+              }
+              throw Error('SNAPSHOT_UNAVAILABLE_AFTER_NAVIGATION');
             }
             try{
               await page.goto(BASE+'/',{waitUntil:'domcontentloaded',timeout:25000});
