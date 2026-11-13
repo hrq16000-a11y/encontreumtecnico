@@ -21,6 +21,10 @@ on:
       - '.github/workflows/eut-no-debounce-draft.yml'
 permissions:
   contents: read
+
+concurrency:
+  group: eut-no-debounce-draft-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   immediate-draft:
     runs-on: ubuntu-latest
