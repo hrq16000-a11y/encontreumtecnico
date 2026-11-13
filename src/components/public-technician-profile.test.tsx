@@ -88,4 +88,26 @@ describe("Perfil técnico premium sem prova social fabricada", () => {
     expect(screen.getByText("Pioneiro Bronze")).toBeTruthy();
     expect(screen.getByText("Destaque por indicações")).toBeTruthy();
   });
+
+  it("não infere nome a partir do apelido, Bronze ou outros dados públicos", () => {
+    render(<PublicTechnicianProfile technician={{ ...profile, display_name: "alexpaixao13", pioneer_bronze: true }} />);
+    expect(screen.getByRole("heading", { name: "alexpaixao13" })).toBeTruthy();
+    expect(screen.queryByText(/Nome sugerido \(não verificado\)/)).toBeNull();
+  });
+
+  it("prepara o nome não verificado apenas quando recebe vínculo WordPress pós-R2", () => {
+    const original = { ...profile, display_name: "almeidathiagosantos5", public_slug: "almeidathiagosantos5" };
+    const { container, rerender } = render(<PublicTechnicianProfile
+      technician={original} provenanceLinkedWordPressAlias="almeidathiagosantos5" />);
+    expect(screen.getByRole("heading", { name: "Almeida Thiago Santos" })).toBeTruthy();
+    expect(screen.getByText(/apelido original: almeidathiagosantos5/)).toBeTruthy();
+    expect(container.querySelector('a[href^="tel:"]')).toBeNull();
+    expect(container.querySelector('a[href*="wa.me"]')).toBeNull();
+
+    // The old alias is not evidence of ownership once the published name is edited.
+    rerender(<PublicTechnicianProfile technician={{ ...original, display_name: "Nome Declarado" }}
+      provenanceLinkedWordPressAlias="almeidathiagosantos5" />);
+    expect(screen.getByRole("heading", { name: "Nome Declarado" })).toBeTruthy();
+    expect(screen.queryByText(/Nome sugerido \(não verificado\)/)).toBeNull();
+  });
 });

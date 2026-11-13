@@ -9,15 +9,22 @@ import type { PublicTechnician } from "@/lib/technicians.functions";
 import { TechnicianAvatar } from "@/components/technician-avatar";
 import { PublicProfileConnections, type PublicSeoLinks } from "@/components/public-seo-discovery";
 import { formatPublicLocation, placeKey } from "@/lib/location-labels";
+import { pioneerSearchName } from "@/lib/pioneer-search-name";
 import { categoryLabel, useActiveCategories } from "@/hooks/use-active-categories";
 import { serviceLabel, useActiveServices } from "@/hooks/use-active-services";
 
 /** Presentation only: uses fields from the published and sanitized technician
  * profile. Never loads or guesses private contacts, ratings or endorsements.
  */
-export function PublicTechnicianProfile({ technician: t, links }: { technician: PublicTechnician; links?: PublicSeoLinks }) {
+export function PublicTechnicianProfile({ technician: t, links, provenanceLinkedWordPressAlias }: {
+  technician: PublicTechnician;
+  links?: PublicSeoLinks;
+  /** Server-only proof: supply only after R2 eligibility and audited WordPress provenance. */
+  provenanceLinkedWordPressAlias?: string | null;
+}) {
   const { categories } = useActiveCategories();
   const { services } = useActiveServices();
+  const presentedName = pioneerSearchName(t.display_name, provenanceLinkedWordPressAlias);
   const location = formatPublicLocation(t);
   const additionalCities = (t.coverage_cities ?? []).filter((c, i, all) =>
     (placeKey(c.name) !== placeKey(t.city) || c.uf !== t.state_uf) &&
@@ -34,7 +41,7 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
           <ChevronRight className="h-4 w-4" aria-hidden="true" />
           <Link to="/tecnicos" className="transition-colors hover:text-primary">Técnicos</Link>
           <ChevronRight className="h-4 w-4" aria-hidden="true" />
-          <span className="max-w-[220px] truncate font-medium text-foreground" aria-current="page">{t.display_name}</span>
+          <span className="max-w-[220px] truncate font-medium text-foreground" aria-current="page">{presentedName.display}</span>
         </nav>
 
         <section aria-labelledby="tecnico-nome" className="relative isolate overflow-hidden rounded-[28px] bg-brand-navy p-6 text-brand-navy-foreground shadow-[0_24px_70px_-24px_rgba(7,28,57,.5)] sm:p-9 lg:p-10">
@@ -43,7 +50,7 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
           <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-center">
             <div className="flex min-w-0 flex-col items-start gap-5 sm:flex-row sm:gap-7">
               <div className="relative shrink-0 rounded-[26px] border border-white/20 bg-white/10 p-2 shadow-[0_18px_40px_-18px_rgba(0,0,0,.55)]">
-                <TechnicianAvatar name={t.display_name} avatarPath={t.avatar_path}
+                <TechnicianAvatar name={presentedName.display} avatarPath={t.avatar_path}
                   className="h-32 w-32 border-white/30 ring-4 ring-white/10 sm:h-36 sm:w-36" loading="eager" />
                 <span aria-hidden="true" className="absolute -bottom-2 -right-2 inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/20 bg-brand-glow text-brand-navy shadow-lg">
                   <BriefcaseBusiness className="h-5 w-5" />
@@ -65,7 +72,12 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
                     </span>
                   )}
                 </div>
-                <h1 id="tecnico-nome" className="mt-4 break-words text-3xl font-extrabold leading-tight tracking-tight text-white sm:text-4xl lg:text-5xl">{t.display_name}</h1>
+                <h1 id="tecnico-nome" className="mt-4 break-words text-3xl font-extrabold leading-tight tracking-tight text-white sm:text-4xl lg:text-5xl">{presentedName.display}</h1>
+                {presentedName.suggested && (
+                  <p className="mt-2 break-all text-xs leading-5 text-white/85">
+                    Nome sugerido (não verificado) · apelido original: {presentedName.originalAlias}
+                  </p>
+                )}
                 <p className="mt-3 flex items-start gap-2 text-sm leading-6 text-white/85 sm:text-base">
                   <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-brand-glow" aria-hidden="true" />
                   <span>{location}</span>
