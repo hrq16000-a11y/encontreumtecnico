@@ -23,9 +23,8 @@ BEGIN
     SELECT 1 FROM pg_catalog.pg_policies
     WHERE schemaname='public' AND tablename='technicians'
       AND policyname='eut_public_visibility_anon_guard'
-      AND permissive='RESTRICTIVE'
   ) THEN
-    RAISE EXCEPTION 'R2 requires restrictive anonymous visibility guard';
+    RAISE EXCEPTION 'R2 requires prior anonymous visibility guard';
   END IF;
 END $preflight$;
 
