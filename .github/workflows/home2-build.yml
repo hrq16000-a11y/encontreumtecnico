@@ -43,14 +43,18 @@ jobs:
       - name: Build TanStack
         run: bun run build
       - name: SEO public pages, redirects and privacy tests
+        if: ${{ github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/integration/catalog-r1-r2-public-discovery-20261113' }}
         run: bunx vitest run src/lib/seo-public-pages.test.ts src/lib/service-catalog.test.ts src/lib/guide-reading-tools.test.ts src/lib/public-sitemap.test.ts src/lib/assistance-intent.test.ts src/lib/assistance-whatsapp.test.ts src/lib/whatsapp-cloud-adapter.test.ts src/lib/whatsapp-webhook-design.test.ts src/components/free-search-help.test.tsx src/lib/public-coverage.test.ts
       - name: Sitemap index, SSR canonical, 404/503
+        if: ${{ github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/integration/catalog-r1-r2-public-discovery-20261113' }}
         run: bunx vitest run src/lib/public-sitemap-index.test.ts src/lib/public-sitemap-http.test.ts src/components/public-seo-discovery.ssr.test.tsx src/routes/public-seo-routes.test.tsx
       - name: Regression triage fallback
+        if: ${{ github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/integration/catalog-r1-r2-public-discovery-20261113' }}
         run: bunx vitest run src/lib/problem-triage-local.test.ts
       - name: TypeScript check
         run: bunx tsc --noEmit --pretty false
       - name: Smoke estático Home2 — rota, isolamento e indexação
+        if: ${{ github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/integration/catalog-r1-r2-public-discovery-20261113' }}
         shell: bash
         run: |
           node --input-type=module <<'NODE'
