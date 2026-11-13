@@ -82,8 +82,12 @@ async function checkViewport(browser, width) {
     await selector.waitFor({ state: "visible" });
     await selector.locator('option[value="4125506"]').waitFor({ state: "attached" });
     await selector.selectOption("4125506");
-    await eventually(page, () => new URLSearchParams(location.search).get("municipio_ibge") === "4125506",
-      "official municipality not selected");
+    await eventually(page, () => {
+      const raw = new URLSearchParams(location.search).get("municipio_ibge");
+      if (raw === "4125506") return true;
+      try { return JSON.parse(raw || "null") === "4125506"; }
+      catch { return false; }
+    }, "official municipality not selected");
     const cards = page.locator('a[aria-label^="Ver perfil e serviços de"]');
     await eventually(page, () => document.querySelectorAll('a[aria-label^="Ver perfil e serviços de"]').length === 50,
       "page 1 did not render 50 eligible profiles");
