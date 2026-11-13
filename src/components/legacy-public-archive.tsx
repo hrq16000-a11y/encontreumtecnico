@@ -67,7 +67,7 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
         <>
           <p className="mt-4 text-sm text-muted-foreground" role="status">
             {loading ? "Carregando técnicos…" : error
-              ? "Não foi possível carregar o acervo agora."
+              ? "Não foi possível carregar os técnicos agora."
               : `${count} técnico(s) nesta lista.`}
           </p>
           {!loading && !error && profiles.length > 0 && (
