@@ -9,6 +9,7 @@ import type { PublicTechnician } from "@/lib/technicians.functions";
 import { TechnicianAvatar } from "@/components/technician-avatar";
 import { PublicProfileConnections, type PublicSeoLinks } from "@/components/public-seo-discovery";
 import { formatPublicLocation, placeKey } from "@/lib/location-labels";
+import { publicLocationOrFallback } from "@/lib/technician-public-view";
 import { categoryLabel, useActiveCategories } from "@/hooks/use-active-categories";
 import { serviceLabel, useActiveServices } from "@/hooks/use-active-services";
 
@@ -18,7 +19,7 @@ import { serviceLabel, useActiveServices } from "@/hooks/use-active-services";
 export function PublicTechnicianProfile({ technician: t, links }: { technician: PublicTechnician; links?: PublicSeoLinks }) {
   const { categories } = useActiveCategories();
   const { services } = useActiveServices();
-  const location = formatPublicLocation(t);
+  const location = publicLocationOrFallback(formatPublicLocation(t));
   const additionalCities = (t.coverage_cities ?? []).filter((c, i, all) =>
     (placeKey(c.name) !== placeKey(t.city) || c.uf !== t.state_uf) &&
     all.findIndex(x => placeKey(x.name) === placeKey(c.name) && x.uf === c.uf) === i);

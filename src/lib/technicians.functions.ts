@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
 import { rankTechniciansByDeclaredArea } from "@/lib/technician-local-ranking";
 import { isValidTechnicianId, isValidTechnicianSlug } from "@/lib/technician-id";
-import { sanitizePublicTechnician } from "@/lib/public-profile-text";
+import { toSafePublicTechnician } from "@/lib/technician-public-view";
 import { matchingOfficialMunicipalityId, collectEligibleMunicipalPage, MUNICIPAL_MAX_PAGE } from "@/lib/technician-city-scope";
 import { readPublicEligibleRows, type PublicEligibilityRpc } from "@/lib/public-eligibility";
 
@@ -165,8 +165,10 @@ async function getApprovedSearchPage(data: ApprovedSearchInput):
     }
     const regionalPriority = selectedCityId === null &&
       data.prioridade === "regiao" && Boolean(data.uf || data.cidade.trim());
+    // The installed RLS + eligibility RPC, not status alone, decides visibility.
+    // R2 may allow audited administrative 'pendente'; no JavaScript bypass.
     let q = publicClient().from("technicians").select(COLUMNS)
-      .eq("status", "aprovado").order("created_at", { ascending: false })
+      .in("status", ["aprovado", "pendente"]).order("created_at", { ascending: false })
       .order("id", { ascending: true });
     if (selectedCityId !== null)
       q = q.contains("coverage_city_ids", [selectedCityId]);
@@ -229,7 +231,7 @@ async function getApprovedSearchPage(data: ApprovedSearchInput):
         })();
     const published = await withCoverageCities(
       await withReferralHighlights(await withPioneerBadges(
-        await withOnlineStatus(page.rows.map(sanitizePublicTechnician)))));
+        await withOnlineStatus(page.rows.map(toSafePublicTechnician)))));
     const technicians = !regionalPriority
       ? published.sort((a,b) => Number(b.online_now)-Number(a.online_now) ||
           Number(Boolean(b.referral_highlight))-Number(Boolean(a.referral_highlight)) ||
@@ -261,7 +263,7 @@ export const getApprovedTechnician = createServerFn({ method: "GET" })
     const { data: row, error } = await publicClient()
       .from("technicians")
       .select(COLUMNS)
-      .eq("status", "aprovado")
+      .in("status", ["aprovado", "pendente"])
       .eq(lookupColumn, data.id.toLowerCase())
       .maybeSingle();
     // A failed database lookup must never be mistaken for an unpublished profile.
@@ -273,5 +275,5 @@ export const getApprovedTechnician = createServerFn({ method: "GET" })
     if (!row) return null;
     const eligible = await readPublicEligibleRows(publicClient() as unknown as PublicEligibilityRpc, [row]);
     if (!eligible.length) return null; // Suspended/banned/not eligible => real 404 in route loader.
-    return (await withCoverageCities(await withReferralHighlights(await withPioneerBadges(await withOnlineStatus([sanitizePublicTechnician(eligible[0]!)])))))[0] ?? null;
+    return (await withCoverageCities(await withReferralHighlights(await withPioneerBadges(await withOnlineStatus([toSafePublicTechnician(eligible[0]!)])))))[0] ?? null;
   });

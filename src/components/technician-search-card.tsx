@@ -3,6 +3,7 @@ import { ArrowUpRight, BriefcaseBusiness, MapPin, Medal, Radio, ShieldCheck, Spa
 import type { PublicTechnician } from "@/lib/technicians.functions";
 import { TechnicianAvatar } from "@/components/technician-avatar";
 import { formatPublicLocation, placeKey } from "@/lib/location-labels";
+import { publicLocationOrFallback } from "@/lib/technician-public-view";
 import { useActiveCategories, categoryLabel } from "@/hooks/use-active-categories";
 import { useActiveServices, serviceLabel } from "@/hooks/use-active-services";
 
@@ -25,7 +26,7 @@ export function TechnicianSearchCard({ technician: t, categories, services, loca
     all.findIndex(x => placeKey(x.name) === placeKey(c.name) && x.uf === c.uf) === i);
   const declaredCities = additionalCities.slice(0, 2);
   const moreCities = Math.max(0, additionalCities.length - declaredCities.length);
-  const location = formatPublicLocation(t);
+  const location = publicLocationOrFallback(formatPublicLocation(t));
 
   return (
     <Link to="/tecnicos/$tecnicoId" params={{ tecnicoId: t.public_slug }}
