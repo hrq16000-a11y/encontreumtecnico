@@ -5,6 +5,27 @@ import { SERVICE_CATEGORIES, getEnrichedServiceCategory } from "@/lib/service-ca
 
 const SERVICES = SERVICE_CATEGORIES;
 
+import { AirVent, ArrowUpRight, BookOpen, Cctv, CircuitBoard, Laptop, MonitorCog, Palette, Printer, RadioTower, Search, Wifi, Zap, type LucideIcon } from "lucide-react";
+
+const SERVICE_ICONS = {
+  climatizacao: AirVent,
+  automacao: CircuitBoard,
+  cftv: Cctv,
+  computadores: Laptop,
+  comunicacoes: RadioTower,
+  eletrica: Zap,
+  "design-grafico": Palette,
+  impressoras: Printer,
+  redes: Wifi,
+  software: MonitorCog,
+} satisfies Record<(typeof SERVICES)[number]["slug"], LucideIcon>;
+
+function ServiceIcon({ slug }: { slug: (typeof SERVICES)[number]["slug"] }) {
+  const Icon = SERVICE_ICONS[slug];
+  return <Icon className="h-6 w-6" aria-hidden="true" />;
+}
+
+
 export const Route = createFileRoute("/servicos")({
   // Child category routes own their metadata: do not emit a second /servicos canonical.
   head: ({ matches }) => matches.some(match => match.pathname.startsWith("/servicos/")) ? {} : ({
@@ -38,23 +59,24 @@ function ServicesPage() {
         <SponsoredPublicSlot slotKey="services.content_1" routePath="/servicos" />
         <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {SERVICES.map((service) => (
-            <li key={service.slug} className="flex flex-col rounded-xl border border-border bg-card p-5">
+            <li key={service.slug} className="group flex flex-col rounded-2xl border border-border bg-card p-5 shadow-sm transition-colors hover:border-primary/40 hover:shadow-md">
+              <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground"><ServiceIcon slug={service.slug} /></span>
               <h2 className="font-semibold text-card-foreground">{service.name}</h2>
               <p className="mt-2 flex-1 text-sm leading-6 text-muted-foreground">{service.description}</p>
               {getEnrichedServiceCategory(service.slug) ? (
                 <Link
                   to="/servicos/$categoria" params={{ categoria: service.slug }}
-                  className="mt-4 inline-flex min-h-11 items-center text-sm font-bold text-primary hover:underline"
+                  className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm font-bold text-primary hover:underline"
                 >
-                  Ver especialidade, profissionais e orientações →
+                  <BookOpen className="h-4 w-4" aria-hidden="true" /> Ver especialidade, profissionais e orientações <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
               ) : (
                 <Link
                   to="/tecnicos"
                   search={{ especialidade: service.slug, cidade: "", regiao: "" }}
-                  className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-primary hover:underline"
+                  className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-primary hover:underline"
                 >
-                  Encontrar técnicos desta especialidade →
+                  <Search className="h-4 w-4" aria-hidden="true" /> Encontrar técnicos desta especialidade <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
               )}
             </li>
