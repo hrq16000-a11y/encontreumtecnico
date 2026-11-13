@@ -34,10 +34,6 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - name: Install pinned dependencies
         run: bun install --frozen-lockfile
-      - name: Verify no automatic Vercel deployments and parity contracts
-        run: node scripts/eut-parity-preflight.mjs
-      - name: WordPress archive filters and account isolation
-        run: bunx vitest run src/lib/legacy-archive-filters.test.ts src/hooks/use-auth.test.tsx src/lib/account-scoped-queries.test.ts
       - name: Issue #262 A1+B1 targeted offline suites
         run: |
           bunx vitest run \
@@ -50,6 +46,10 @@ jobs:
         run: bun run build
       - name: TypeScript strict
         run: bunx tsc --noEmit --pretty false
+      - name: Verify no automatic Vercel deployments and parity contracts
+        run: node scripts/eut-parity-preflight.mjs
+      - name: WordPress archive filters and account isolation
+        run: bunx vitest run src/lib/legacy-archive-filters.test.ts src/hooks/use-auth.test.tsx src/lib/account-scoped-queries.test.ts
       - name: Explicitly not deploying
         run: |
           echo "GitHub checks complete. No Vercel or DNS action in this workflow."
