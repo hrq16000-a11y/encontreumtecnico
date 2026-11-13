@@ -11,6 +11,10 @@ on:
       - '.github/workflows/eut-header-mobile-polish.yml'
 permissions:
   contents: read
+
+concurrency:
+  group: eut-header-mobile-polish-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   header:
     runs-on: ubuntu-latest
