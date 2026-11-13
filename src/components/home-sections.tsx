@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Diamond, MapPin, Network, PenTool, Search, Target, UserPlus, ClipboardList } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Diamond, MapPin, Network, PenTool, Search, Target, UserPlus, ClipboardList } from "lucide-react";
 
 const ALL = { especialidade: "Todas", cidade: "", regiao: "" };
 
@@ -10,7 +10,7 @@ const ALL = { especialidade: "Todas", cidade: "", regiao: "" };
  */
 export function CanaisDeAtendimento() {
   return (
-    <section aria-labelledby="canais-atendimento-titulo" className="border-b border-border bg-background px-4 py-10 sm:py-12">
+    <section aria-labelledby="canais-atendimento-titulo" className="border-b border-border bg-gradient-to-b from-muted/55 via-background to-background px-4 py-12 sm:py-16">
       <div className="mx-auto max-w-6xl">
         <p className="text-xs font-bold uppercase tracking-widest text-primary">Escolha como deseja ser atendido</p>
         <h2 id="canais-atendimento-titulo" className="mt-2 text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
@@ -21,10 +21,12 @@ export function CanaisDeAtendimento() {
           Metropolitana, utilize o Preciso de um Técnico. Nas demais cidades, encontre profissionais
           independentes da rede nacional e combine o serviço diretamente com eles.
         </p>
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
-          <article className="flex min-w-0 flex-col rounded-2xl border border-primary/30 bg-primary/5 p-5 sm:p-6">
-            <p className="text-xs font-bold uppercase tracking-wide text-primary">Curitiba e Região Metropolitana</p>
-            <h3 className="mt-2 text-xl font-extrabold text-foreground">Preciso de um Técnico</h3>
+        <div className="mt-8 grid gap-5 md:grid-cols-2">
+          <article className="eut-card-lift group relative isolate flex min-w-0 flex-col overflow-hidden rounded-[26px] border border-primary/35 bg-gradient-to-br from-accent via-card to-card p-6 shadow-soft sm:p-8">
+            <div aria-hidden="true" className="pointer-events-none absolute -right-8 -top-10 text-primary/10"><MapPin className="h-40 w-40" strokeWidth={0.9} /></div>
+            <span className="relative mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary"><MapPin className="h-7 w-7" aria-hidden="true" /></span>
+            <p className="relative text-xs font-bold uppercase tracking-wide text-primary">Curitiba e Região Metropolitana</p>
+            <h3 className="relative mt-2 text-xl font-extrabold text-foreground">Preciso de um Técnico</h3>
             <p className="mt-3 flex-1 text-sm leading-relaxed text-muted-foreground">
               Precisa resolver algo com urgência na região? Inicie a triagem no portal de atendimento
               local. A agenda e o deslocamento dependem de disponibilidade e confirmação prévia.
@@ -36,16 +38,18 @@ export function CanaisDeAtendimento() {
               className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-center text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               Solicitar atendimento local
-              <span className="ml-2" aria-hidden="true">↗</span>
+              <ArrowUpRight className="ml-2 h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 motion-reduce:transform-none" aria-hidden="true" />
             </a>
             <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
               Abre o site Preciso de um Técnico em outra aba. Valores e condições são próprios do atendimento local.
             </p>
           </article>
-          <article className="flex min-w-0 flex-col rounded-2xl border border-border bg-card p-5 sm:p-6">
-            <p className="text-xs font-bold uppercase tracking-wide text-primary">Profissionais parceiros de todo o Brasil</p>
-            <h3 className="mt-2 text-xl font-extrabold text-foreground">Encontre um Técnico</h3>
-            <p className="mt-3 flex-1 text-sm leading-relaxed text-muted-foreground">
+          <article className="eut-card-lift group relative isolate flex min-w-0 flex-col overflow-hidden rounded-[26px] border border-brand-glow/30 bg-gradient-to-br from-brand-navy via-[#173d61] to-brand-navy p-6 text-brand-navy-foreground shadow-soft sm:p-8">
+            <div aria-hidden="true" className="pointer-events-none absolute -right-8 -top-10 text-white/10"><Network className="h-40 w-40" strokeWidth={0.9} /></div>
+            <span className="relative mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-brand-glow/30 bg-white/10 text-brand-glow"><Network className="h-7 w-7" aria-hidden="true" /></span>
+            <p className="relative text-xs font-bold uppercase tracking-wide text-brand-glow">Profissionais parceiros de todo o Brasil</p>
+            <h3 className="relative mt-2 text-xl font-extrabold text-white">Encontre um Técnico</h3>
+            <p className="relative mt-3 flex-1 text-sm leading-relaxed text-white/85">
               Busque técnicos cadastrados por especialidade e cidade, inclusive fora de Curitiba.
               Sem leilão de menor preço: o orçamento, a agenda e a contratação são combinados
               diretamente com cada profissional.
@@ -53,11 +57,11 @@ export function CanaisDeAtendimento() {
             <Link
               to="/tecnicos"
               search={ALL}
-              className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-primary/30 bg-background px-4 py-3 text-center text-sm font-bold text-primary transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              className="relative mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-white/25 bg-white px-4 py-3 text-center text-sm font-bold text-brand-navy transition-colors hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
-              Buscar técnicos parceiros pelo Brasil
+              <Search className="mr-2 h-4 w-4" aria-hidden="true" /> Buscar técnicos parceiros pelo Brasil <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1 motion-reduce:transform-none" aria-hidden="true" />
             </Link>
-            <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+            <p className="relative mt-3 text-xs leading-relaxed text-white/75">
               Cadastro e especialidades são declarados pelos profissionais; disponibilidade não é garantida.
             </p>
           </article>
