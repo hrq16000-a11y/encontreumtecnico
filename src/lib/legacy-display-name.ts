@@ -72,9 +72,17 @@ export function suggestLegacyDisplayName(value: string): LegacyNameSuggestion {
   }
 
   const alias = original.toLocaleLowerCase("pt-BR").replace(/\d{1,4}$/u, "");
-  if (!/^[a-z]{6,60}$/u.test(alias)) return fallback;
-  const tokens = splitRecognizedAlias(alias);
-  if (!tokens || tokens.length < 2 ||
+  // Historical usernames may separate recognized names with _, - or .; do
+  // not treat arbitrary punctuation, emails or unrecognized parts as identity.
+  if (alias.length < 6 || alias.length > 60 ||
+      !/^[a-z]+(?:[_.-][a-z]+)*$/u.test(alias)) return fallback;
+  const tokens: string[] = [];
+  for (const part of alias.split(/[_.-]/u)) {
+    const recognized = splitRecognizedAlias(part);
+    if (!recognized) return fallback;
+    tokens.push(...recognized);
+  }
+  if (tokens.length < 2 ||
       !tokens.some((token) => givenNames.has(token)) ||
       !tokens.some((token) => familyNames.has(token))) return fallback;
   return {

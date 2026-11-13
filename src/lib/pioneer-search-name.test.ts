@@ -5,6 +5,7 @@ describe("pioneerSearchName: opt-in presentation after R2 eligibility", () => {
   it.each([
     ["almeidathiagosantos5", "Almeida Thiago Santos"],
     ["alexpaixao13", "Alex Paixao"],
+    ["alex_paixao13", "Alex Paixao"],
   ])("suggests %s while preserving the full source alias", (alias, expected) => {
     expect(pioneerSearchName(alias, alias)).toEqual({
       display: expected, originalAlias: alias, suggested: true,
@@ -14,6 +15,12 @@ describe("pioneerSearchName: opt-in presentation after R2 eligibility", () => {
   it("does not infer a name without proven WordPress provenance", () => {
     expect(pioneerSearchName("alexpaixao13")).toEqual({
       display: "alexpaixao13", originalAlias: null, suggested: false,
+    });
+  });
+
+  it("keeps a separated alias unchanged without provenance", () => {
+    expect(pioneerSearchName("alex_paixao13")).toEqual({
+      display: "alex_paixao13", originalAlias: null, suggested: false,
     });
   });
 

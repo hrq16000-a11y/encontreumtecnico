@@ -45,8 +45,10 @@ ativação de pagamento ou exposição de contato. Branch de apresentação de n
 5. Na busca sem município, a #255 usa `.limit(200)` e `hasMore=false`; isso
    impede alegar catálogo exaustivo para centenas de importados. Homologar
    paginação/varredura de **elegíveis** antes de divulgação de contagens.
-6. Manter `catalog_enabled=false` após reimportação; preservar CRUD, auditoria,
-   versionamento, bloqueios por conta/telefone e o cadastro Auth legítimo.
+6. Manter `catalog_enabled=false` se houver **desabilitação explícita**, inclusive
+   após reimportação; não rebaixar cadastro/importação válido e habilitado por
+   padrão. Preservar CRUD, auditoria, versionamento, bloqueios por conta/telefone
+   e o cadastro Auth legítimo.
    Reivindicação é voluntária, apresentada somente na jornada de cadastro ou
    recuperação quando houver número correspondente; não é CTA padrão da oferta.
 
