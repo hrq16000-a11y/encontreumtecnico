@@ -1,3 +1,8 @@
+// @vitest-environment jsdom
+import { createElement } from "react";
+import { render, waitFor } from "@testing-library/react";
+import { createMemoryHistory, createRootRoute, createRoute, createRouter, Outlet, RouterProvider } from "@tanstack/react-router";
+import { AdminNavigation } from "../components/admin-navigation";
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import {
@@ -75,4 +80,47 @@ describe("Central administrativa: URLs próprias e RLS intacta", () => {
     expect(page).toContain('noindex, nofollow');
   });
 
+});
+
+
+describe("Menu administrativo: aria-current em rota exata", () => {
+  for (const viewportWidth of [390, 1440]) {
+    for (const [pathname, expectedHref] of [
+      ["/admin", "/admin"],
+      ["/admin/tecnicos", "/admin/tecnicos"],
+    ] as const) {
+      it("mantém somente a seção atual no menu em " + viewportWidth + "px, rota " + pathname, async () => {
+        const originalWidth = window.innerWidth;
+        Object.defineProperty(window, "innerWidth", { configurable: true, value: viewportWidth });
+        const root = createRootRoute({ component: Outlet });
+        const home = createRoute({
+          getParentRoute: () => root,
+          path: "/admin",
+          component: () => createElement(AdminNavigation, { active: "inicio" }),
+        });
+        const technicians = createRoute({
+          getParentRoute: () => root,
+          path: "/admin/$secao",
+          component: () => createElement(AdminNavigation, { active: "tecnicos" }),
+        });
+        const router = createRouter({
+          routeTree: root.addChildren([home, technicians]),
+          history: createMemoryHistory({ initialEntries: [pathname] }),
+        });
+        const view = render(createElement(RouterProvider, { router }));
+        try {
+          await waitFor(() => {
+            const menu = view.container.querySelector('nav[aria-label="Menu administrativo"]');
+            expect(menu).not.toBeNull();
+            const current = Array.from(menu!.querySelectorAll('a[aria-current="page"]'));
+            expect(current).toHaveLength(1);
+            expect(current[0].getAttribute("href")).toBe(expectedHref);
+          });
+        } finally {
+          view.unmount();
+          Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
+        }
+      });
+    }
+  }
 });

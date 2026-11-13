@@ -64,7 +64,7 @@ export function AdminNavigation({ active }: { active: AdminSection }) {
               (chosen ? "border-primary/20 bg-primary text-primary-foreground shadow-sm" : "border-transparent text-foreground hover:border-border hover:bg-accent");
             const content = <><Icon className="h-5 w-5 shrink-0" aria-hidden="true" /><span className="whitespace-nowrap">{item.label}</span></>;
             return item.key === "inicio" ? (
-              <Link key={item.key} to="/admin" onClick={() => setMobileOpen(false)} aria-current={chosen ? "page" : undefined} className={className}>{content}</Link>
+              <Link key={item.key} to="/admin" activeOptions={{ exact: true }} onClick={() => setMobileOpen(false)} aria-current={chosen ? "page" : undefined} className={className}>{content}</Link>
             ) : (
               <Link key={item.key} to="/admin/$secao" params={{ secao: item.key }} onClick={() => setMobileOpen(false)}
                 aria-current={chosen ? "page" : undefined} className={className}>{content}</Link>
