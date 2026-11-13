@@ -1,6 +1,11 @@
 name: EUT Git-first parity and release preflight
 
 on:
+  push:
+    branches:
+      - integration/referrals-a1-b1-20261113
+    paths:
+      - '.github/workflows/eut-git-first-parity.yml'
   pull_request:
     paths:
       - "vercel.json"
@@ -33,6 +38,14 @@ jobs:
         run: node scripts/eut-parity-preflight.mjs
       - name: WordPress archive filters and account isolation
         run: bunx vitest run src/lib/legacy-archive-filters.test.ts src/hooks/use-auth.test.tsx src/lib/account-scoped-queries.test.ts
+      - name: Issue #262 A1+B1 targeted offline suites
+        run: |
+          bunx vitest run \
+            src/lib/technician-panel-navigation.test.ts \
+            src/lib/admin-sections.test.ts \
+            src/lib/referral-highlights.test.ts \
+            src/lib/technicians.functions.test.ts \
+            src/lib/public-profile-text.test.ts
       - name: Build TanStack and route tree
         run: bun run build
       - name: TypeScript strict
