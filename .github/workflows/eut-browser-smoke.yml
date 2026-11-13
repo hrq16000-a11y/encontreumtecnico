@@ -190,9 +190,53 @@ jobs:
               }
               return route.abort('blockedbyclient');
             });
+            await context.addInitScript(() => {
+              window.__eutMotionProbe = { clicks: [] };
+              document.addEventListener('click', event => {
+                const button = event.target instanceof Element
+                  ? event.target.closest('button[aria-controls="filtros-avancados"]') : null;
+                if (button) window.__eutMotionProbe.clicks.push({
+                  trusted: event.isTrusted,
+                  expandedAtCapture: button.getAttribute('aria-expanded'),
+                  readyState: document.readyState,
+                });
+              }, true);
+            });
             const page = await context.newPage();
             const errors = [];
+            const navigations = [];
+            const viteEvents = [];
+            let domReadyEvents = 0;
+            let loadEvents = 0;
             page.on('pageerror', error => errors.push(error.message));
+            page.on('domcontentloaded', () => domReadyEvents++);
+            page.on('load', () => loadEvents++);
+            page.on('framenavigated', frame => {
+              if (frame === page.mainFrame() && frame.url().startsWith(base))
+                navigations.push(new URL(frame.url()).pathname);
+            });
+            page.on('console', message => {
+              if (/\[vite\]/i.test(message.text()))
+                viteEvents.push(/reload|hmr/i.test(message.text()) ? 'reload-or-hmr' : 'vite-message');
+            });
+            const logProbe = async phase => {
+              const state = await page.evaluate(() => {
+                const button = document.querySelector('button[aria-controls="filtros-avancados"]');
+                const panel = document.getElementById('filtros-avancados');
+                return {
+                  readyState: document.readyState,
+                  expanded: button?.getAttribute('aria-expanded') ?? null,
+                  panelHidden: panel?.getAttribute('aria-hidden') ?? null,
+                  reactNodeAttached: Boolean(button && Object.keys(button).some(
+                    key => key.startsWith('__reactFiber$') || key.startsWith('__reactProps$'))),
+                  clicks: window.__eutMotionProbe?.clicks ?? [],
+                };
+              });
+              console.log('FILTER_MOTION_DIAG', JSON.stringify({ width, motion, phase, ...state,
+                navigationCount: navigations.length, lastPath: navigations.at(-1) ?? null,
+                domReadyEvents, loadEvents, viteEvents: viteEvents.slice(-4),
+                pageErrorCount: errors.length }));
+            };
             try {
               const response = await page.goto(base + '/tecnicos', {
                 waitUntil: 'domcontentloaded', timeout: 60000,
@@ -211,9 +255,20 @@ jobs:
               const initiallyClosed = await panel.boundingBox();
               assert(initiallyClosed && initiallyClosed.height <= 2, 'closed panel occupies space');
 
+              await logProbe('before-first-click');
               await toggle.click();
               await page.waitForTimeout(motion === 'reduce' ? 30 : 260);
-              assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
+              await logProbe('after-first-click');
+              try {
+                assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
+              } catch (error) {
+                await page.waitForTimeout(1200);
+                await logProbe('late-after-failed-assertion');
+                await toggle.click();
+                await page.waitForTimeout(motion === 'reduce' ? 30 : 260);
+                await logProbe('second-diagnostic-click');
+                throw error;
+              }
               assert.equal(await panel.getAttribute('aria-hidden'), 'false');
               assert.equal(await panel.getAttribute('inert'), null);
               const opened = await panel.boundingBox();
