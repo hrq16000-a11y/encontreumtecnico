@@ -47,11 +47,12 @@ const graphFromApproved = (rows: SyntheticTechnician[]) =>
 const urls = (xml: string | null) => [...(xml ?? "").matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => m[1] ?? "");
 
 describe("SEO público: simulação não destrutiva de suspensão e atualização", () => {
-  it("exige filtro real de status aprovado nas fontes de perfil e sitemap", () => {
+  it("exige status aprovado no grafo SEO e dupla verificação RLS/RPC no SSR R2", () => {
     const graphSource = readFileSync("src/lib/public-seo-graph.functions.ts", "utf8");
     const profileSource = readFileSync("src/lib/technicians.functions.ts", "utf8");
     expect(graphSource).toContain('.eq("status", "aprovado")');
-    expect(profileSource).toContain('.eq("status", "aprovado")');
+    expect(profileSource).toContain('.in("status", ["aprovado", "pendente"])');
+    expect(profileSource).toContain("readPublicEligibleRows(");
     expect(graphSource).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
     expect(profileSource).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
   });
@@ -172,7 +173,7 @@ describe("Elegibilidade pública moderada: simulação RPC sem SQL real", () => 
     expect(migration).not.toContain("CREATE OR REPLACE FUNCTION public.eut_public_technician_eligible");
     expect(migration).not.toContain('DROP POLICY IF EXISTS "Public reads approved"');
     expect(adapter).toContain("eut_public_eligible_technician_ids");
-    expect(list.match(/readPublicEligibleRows\(/g)).toHaveLength(2);
+    expect(list.match(/readPublicEligibleRows\(/g)).toHaveLength(3);
     expect(graph).toContain("readPublicEligibleRows(");
     expect(adapter).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
   });

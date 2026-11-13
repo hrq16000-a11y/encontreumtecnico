@@ -40,7 +40,9 @@ describe("proteção contra vazamento de contato em perfis públicos", () => {
     const srv = readFileSync("src/lib/technicians.functions.ts", "utf8");
     const form = readFileSync("src/routes/area-tecnico.tsx", "utf8");
     const admin = readFileSync("src/components/admin-technician-manager.tsx", "utf8");
-    expect(srv).toContain("sanitizePublicTechnician");
+    const safeView = readFileSync("src/lib/technician-public-view.ts", "utf8");
+    expect(srv).toContain("toSafePublicTechnician");
+    expect(safeView).toContain("sanitizePublicTechnician");
     expect(form).toContain('publicTextProblem(form.bio, "bio")');
     expect(admin).toContain('publicTextProblem(draft.bio, "bio")');
   });

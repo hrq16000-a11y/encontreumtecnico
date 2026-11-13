@@ -19,7 +19,8 @@ const mocks = vi.hoisted(() => {
   };
   query.select.mockImplementation(() => query);
   query.eq.mockImplementation(() => query);
-  query.in.mockResolvedValue({ data: [], error: null });
+  query.in.mockImplementation((column: string) =>
+    column === "status" ? query : Promise.resolve({ data: [], error: null }));
   const client = {
     from: vi.fn(() => query),
     rpc: vi.fn(),
@@ -57,7 +58,8 @@ beforeEach(() => {
   mocks.query.select.mockClear();
   mocks.query.eq.mockClear();
   mocks.query.maybeSingle.mockReset();
-  mocks.query.in.mockResolvedValue({ data: [], error: null });
+  mocks.query.in.mockImplementation((column: string) =>
+    column === "status" ? mocks.query : Promise.resolve({ data: [], error: null }));
   mocks.client.from.mockClear();
   mocks.client.rpc.mockClear();
   mocks.client.rpc.mockImplementation((name: string, args?: { _ids?: string[] }) => Promise.resolve({
@@ -72,7 +74,7 @@ describe("public technician profile lookup", () => {
   it("returns null only for a confirmed no-match", async () => {
     mocks.query.maybeSingle.mockResolvedValue({ data: null, error: null });
     expect(await getApprovedTechnician({ data: { id } })).toBeNull();
-    expect(mocks.query.eq).toHaveBeenCalledWith("status", "aprovado");
+    expect(mocks.query.in).toHaveBeenCalledWith("status", ["aprovado", "pendente"]);
     expect(mocks.query.eq).toHaveBeenCalledWith("id", id);
   });
 

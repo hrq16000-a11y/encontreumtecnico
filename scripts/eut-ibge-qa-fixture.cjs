@@ -54,8 +54,10 @@ function selected(rows, url) {
 function matchEq(url, name, value) {
   const filter = url.searchParams.get(name);
   if (!filter) return true;
-  if (!filter.startsWith("eq.")) return false;
-  return String(value) === filter.slice(3);
+  if (filter.startsWith("eq.")) return String(value) === filter.slice(3);
+  if (filter.startsWith("in.(") && filter.endsWith(")"))
+    return filter.slice(4, -1).split(",").includes(String(value));
+  return false;
 }
 function contains(url, name, values) {
   const filter = url.searchParams.get(name);
