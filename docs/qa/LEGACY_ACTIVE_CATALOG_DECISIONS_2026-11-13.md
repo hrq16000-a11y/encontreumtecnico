@@ -1,6 +1,13 @@
 # Regra de negócio — técnicos históricos ativos sem reivindicação obrigatória
 **Decisão do proprietário em 13/11/2026.** Escopo: portal Encontre um Técnico. Proposta de integração, não autorização implícita para SQL hospedado, upload de telefones, publicação ou cobrança.
 
+## Apresentação pública única — esclarecimento do proprietário em 13/11/2026
+**Todos são simplesmente técnicos.** A origem WordPress, pioneiro, legado ou cadastro novo é metadado **interno**, útil somente para reconciliação, auditoria e gestão; não é categoria, selo de valor, status de atendimento, ordem de prioridade ou texto exibido ao cliente. O administrador pode ver a procedência para corrigir dados, mas não deve tratar o profissional como menos válido por sua origem.
+
+Publicamente, usar somente **Técnico**, nome legível sugerido quando seguro (sem alegar identidade verificada), área/serviços realmente conhecidos, estado de elegibilidade autorizado e contato privado. Não exibir selo Bronze automático, “histórico WordPress”, “pré-cadastro”, número de post antigo ou CTA de reivindicação em cartão/listagem/perfil. Quem tem telefone privado válido, origem auditável e nenhum bloqueio explícito participa do **mesmo** catálogo operacional, independentemente de login/reivindicação. O campo técnico `catalog_origin` nunca é parte do DTO público. Não inventar município via DDD.
+
+O componente auxiliar da lista separada ainda existe no código por dependência de migração; remover seus rótulos diferenciais é uma correção visual **intermediária**, não substitui o cutover para uma única fonte de busca, nem declara dados hospedados ativados.
+
 ## Por que a experiência atual está errada
 A rota pública ainda exibe um snapshot `legacy_public_archive` como “Pioneiro Bronze · pré-cadastro”, com recuperação como CTA. Essa coleção, com 310 registros no print do proprietário, **não é** a fonte operacional `public.technicians`. O proprietário informa que existem mais de 900 técnicos antigos no backup WordPress; o total e os telefones válidos precisam ser conciliados, sem supor que os 310 representam o universo.
 A falta de vínculo Auth ou de reivindicação não transforma técnico antigo em inativo. As propostas #255 (busca) e #256 (R1/R2) já provaram o caminho local, mas ainda não foram liberadas no backend e frontend hospedados.
@@ -37,3 +44,6 @@ A falta de vínculo Auth ou de reivindicação não transforma técnico antigo e
 - A branch `fix/pioneer-readable-aliases-20261113` já contém a apresentação de nomes sugeridos, preservando apelido original.
 - O commit `4da78674` remove do acervo o rótulo de “pré-cadastro pioneiro” e o CTA massificado de reivindicação, mantém contato privado e esclarece que o acervo não determina elegibilidade. **Não torna os cadastros elegíveis por si só**; a ativação depende do catálogo/R2 e importação real com gates.
 - Base observada no início desta rodada: `main dc75adf5`, #255 `9aa43cc7`, #256 `df6ac1df`. Teste SSR/PostgREST local da #255/#256 passou em run `43387387531`; workflow temporário removido.
+
+### Complemento de implementação
+Em `d3460cab` (branch isolada), os cartões do acervo deixaram de exibir a origem ou qualquer distinção pública, usando apenas “Técnico”, sem reivindicação nem exposição de telefone. Os exemplos `almeidathiagosantos5 → Almeida Thiago Santos` e `alexpaixao13 → Alex Paixao` já constam nos testes sintéticos do helper de nomes. A apresentação ainda não foi publicada.
