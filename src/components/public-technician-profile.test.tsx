@@ -44,7 +44,7 @@ describe("Perfil técnico premium sem prova social fabricada", () => {
   it("mostra nome, localização, quantidades reais e solicitação protegida", () => {
     const { container } = render(<PublicTechnicianProfile technician={profile} />);
     expect(screen.getByRole("heading", { name: "Jefferson Santana" })).toBeTruthy();
-    expect(screen.getByText(/Tubarão\/SC/)).toBeTruthy();
+    expect(screen.getAllByText(/Tubarão\/SC/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("2")).toBeTruthy();
     expect(screen.getByText("3")).toBeTruthy();
     expect(screen.getAllByText("Descrever meu problema").length).toBeGreaterThan(0);
