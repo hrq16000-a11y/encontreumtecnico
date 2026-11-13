@@ -12,6 +12,10 @@ on:
       - '.github/workflows/eut-technician-search-cards.yml'
 permissions:
   contents: read
+
+concurrency:
+  group: eut-technician-search-cards-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   cards:
     runs-on: ubuntu-latest
