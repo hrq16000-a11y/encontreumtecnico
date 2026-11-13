@@ -80,3 +80,43 @@ autorizado**. Não repetir gates verdes da #255/#256 sem alteração relevante.
   da homologação da branch.
 
 Status: **preparado para checkout integrado e prova ponta a ponta; não ativado**.
+
+## Reconciliação posterior — HEADs concorrentes e provas oficiais
+
+Esta seção **não substitui** as limitações históricas da rodada anterior.
+
+- #255 avançou de `61345ef1` para `b303bd3a` (fixture Auth-less) e
+  `9aa43cc7` (correção da projeção do catálogo sintético). O run
+  `43383243571` falhou porque uma whitelist de colunas de **technicians**
+  também descartava `name` e `uf` de `eut_ibge_municipalities`, além dos
+  campos de serviço/categoria. A falha foi reproduzida localmente por HTTP
+  loopback (`REPRO_PR255_PROJECTION_BLOCKER_OK`). Após restringir a whitelist
+  aos técnicos em cópia local, o teste de projeção voltou a exibir IBGE,
+  categorias e 1/5 importados elegíveis sem contato privado
+  (`LOCAL_PR255_FIXTURE_PATCH_OK`).
+- A mesma causa já foi corrigida **na própria #255** pelo commit
+  `9aa43cc7`, sem necessidade de novo patch ou interferência nesta branch.
+  No run `43383721185` o Chromium de fato executou o app local #255
+  contra API **sintética**: `PASS branch IBGE Chromium` em 390/1440, páginas
+  50/5, filtro e privacidade; `PASS branch R1/R2 Auth-less Chromium` em
+  390/1440, `visible=1`, `hidden=4`, `locationInvented=false`,
+  `privateContacts=true`. O HEAD #255 passou 22/22 workflows.
+- Na #256 HEAD `9a3b6368`, o run `43382226289` já aprovado provou,
+  **separadamente e de verdade**, R1/R2 num Postgres + GoTrue + PostgREST
+  local descartável: `LOCAL_WP_SEARCH_PROFILE_OK`,
+  `LOCAL_WP_AUTHLESS_VISIBLE_OK`, `LOCAL_WP_NO_PHONE_HIDDEN_OK`,
+  `LOCAL_WP_DISABLE_RELOAD_OK`, `LOCAL_R1_BLOCKED_OWNER_OK`.
+- **Limite exato:** o navegador #255 usou uma API fake com a semântica R2;
+  a API real R2 foi validada no stack local da #256, mas não há evidência de
+  **um único processo SSR TanStack apontando para o PostgREST real da #256**.
+  Não confundir duas provas complementares com homologação conjunta, nem
+  confundir teste sintético com produção.
+- Não houve novo workflow nesta branch de nomes; nenhuma mudança de SQL,
+  titular, telefone, pagamentos, DNS, main, banco hospedado ou deploy.
+
+**Próximo gate restrito:** executar checkout temporário da #255 sobre #256
+com SSR TanStack conectado ao PostgREST local real já existente, ou aproveitar
+um workflow autorizado equivalente. Preservar o alias original ao aplicar
+`suggestLegacyDisplayName` apenas em fichas WordPress; nunca forçar município
+a partir de DDD nem ampliar RLS. Após isso, homologar release/rollback antes
+de ativar registros reais.
