@@ -1,11 +1,6 @@
 name: EUT Git-first parity and release preflight
 
 on:
-  push:
-    branches:
-      - integration/referrals-a1-b1-20261113
-    paths:
-      - '.github/workflows/eut-git-first-parity.yml'
   pull_request:
     paths:
       - "vercel.json"
@@ -27,8 +22,6 @@ concurrency:
 
 jobs:
   parity:
-    # Manual/PR continue to run all original gates; temporary push checks only the repaired preflight.
-    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 16
     steps:
@@ -56,12 +49,3 @@ jobs:
         run: |
           echo "GitHub checks complete. No Vercel or DNS action in this workflow."
           echo "A human-reviewed, manual release is required after platform quota recovers."
-
-  canonical-preflight:
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    timeout-minutes: 3
-    steps:
-      - uses: actions/checkout@v4
-      - name: Verify canonical sitemap chain and offline parity contract
-        run: node scripts/eut-parity-preflight.mjs
