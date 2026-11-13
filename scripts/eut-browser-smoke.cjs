@@ -81,14 +81,14 @@ async function preserveSearch(page) {
 
 async function preserveAssistance(page) {
   await visit(page, "/contato");
-  await page.getByRole("button", { name: /Iniciar atendimento guiado/i }).click();
-  await page.getByRole("button", { name: /Quero ajuda da equipe/i }).click();
+  await page.getByRole("button", { name: /Pedir ajuda ao portal/i }).click();
+  // The approved contact CTA already opens managed assistance at step 1.
   const problem = page.getByLabel("Qual problema está acontecendo?");
   await problem.waitFor({ state: "visible", timeout: 12000 });
   await page.getByLabel("Tipo de serviço").selectOption({ label: "Redes e Wi-Fi" });
   await problem.fill("O notebook não conecta à rede Wi-Fi há dois dias");
   await page.reload({ waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: /Iniciar atendimento guiado/i }).click();
+  await page.getByRole("button", { name: /Pedir ajuda ao portal/i }).click();
   const recovered = page.getByLabel("Qual problema está acontecendo?");
   await recovered.waitFor({ state: "visible", timeout: 12000 });
   assert.equal(await recovered.inputValue(), "O notebook não conecta à rede Wi-Fi há dois dias",
