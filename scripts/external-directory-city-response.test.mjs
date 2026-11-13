@@ -9,6 +9,7 @@ const context = {
   evidence: {
     sourceExhaustive:true,
     eligibilityChecked:true,
+    identityReconciliationChecked:true,
     authorizedScopeChecked:true,
     municipalEvidenceChecked:true,
     cityDddMappingChecked:true,
@@ -92,7 +93,7 @@ test("external/WordPress sources can only enter fixture when separately reviewed
 });
 
 test("truncated, unavailable or unchecked fixtures never publish counts/cards",()=>{
-  const gateNames=["sourceExhaustive","eligibilityChecked","authorizedScopeChecked","municipalEvidenceChecked"];
+  const gateNames=["sourceExhaustive","eligibilityChecked","identityReconciliationChecked","authorizedScopeChecked","municipalEvidenceChecked"];
   for(const gate of gateNames){
     const r=previewSanitizedCityBackendResponse({
       ...context,records:[row(1)],evidence:{...context.evidence,[gate]:false},
@@ -200,4 +201,47 @@ test("duplicate identities and invalid sources fail closed",()=>{
   assert.throws(()=>previewSanitizedCityBackendResponse({
     ...context,records:"invalid",
   }));
+});
+
+test("unreconciled aliases from multiple sources cannot claim exhaustive municipal totals",()=>{
+  // Source-specific aliases may refer to one person; names alone prove nothing.
+  const records=[
+    row(1),
+    row(2,{sourceKind:"wordpress",sourceReviewed:true,
+      stableKey:"wordpress:archive:candidate:2"}),
+  ];
+  for(const evidence of [
+    {...context.evidence,identityReconciliationChecked:false},
+    {...context.evidence,identityReconciliationChecked:undefined},
+  ]){
+    const r=previewSanitizedCityBackendResponse({...context,records,evidence});
+    assert.equal(r.state,"insufficient_evidence");
+    assert.equal(r.city,null);
+    assert.equal(r.totals,null);
+    assert.equal(r.pagination,null);
+    assert.deepEqual(r.sections,[]);
+    assert.equal(r.public_integration_authorized,false);
+  }
+  // These are distinct synthetic identities ONLY because the fixture explicitly
+  // attests completed reconciliation. No real registry is inferred.
+  const checked=previewSanitizedCityBackendResponse({...context,records});
+  assert.equal(checked.totals.eligible_matches,2);
+  assert.equal(checked.is_real_backend_response,false);
+});
+
+test("two eligible source aliases with one canonical profile path fail closed",()=>{
+  const records=[
+    row(1),
+    row(2,{stableKey:"wordpress:archive:candidate:2",
+      sourceKind:"wordpress",sourceReviewed:true,publicSlug:"tecnico-1"}),
+  ];
+  assert.throws(
+    ()=>previewSanitizedCityBackendResponse({...context,records}),
+    /Slug público duplicado exige reconciliação/,
+  );
+  // An ineligible alias does not block a legitimate public profile.
+  const checked=previewSanitizedCityBackendResponse({...context,records:[
+    records[0],{...records[1],quarantined:true},
+  ]});
+  assert.equal(checked.totals.eligible_matches,1);
 });

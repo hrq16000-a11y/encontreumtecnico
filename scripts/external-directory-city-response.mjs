@@ -46,6 +46,8 @@ export function previewSanitizedCityBackendResponse({
   const allowComplete = state === "fixture_complete" &&
     evidence.sourceExhaustive === true &&
     evidence.eligibilityChecked === true &&
+    // A complete list of source aliases is not yet a catalogue of unique people.
+    evidence.identityReconciliationChecked === true &&
     evidence.authorizedScopeChecked === true &&
     evidence.municipalEvidenceChecked === true;
   // Each eligible record is independently attested in the fixture. An
@@ -79,6 +81,21 @@ export function previewSanitizedCityBackendResponse({
       declaredServiceSlugs: eligible ? (record.declaredServiceSlugs ?? []) : [],
     };
   });
+  // Even a fixture attesting reconciliation must not return two eligible
+  // aliases with the same verified canonical public profile URL.
+  // A name collision alone is NOT proof of shared identity.
+  if (allowComplete) {
+    const publicPaths = new Set();
+    for (const [index, record] of records.entries()) {
+      if (vetted[index].enabled !== true) continue;
+      const path = verifiedPublicPath(record);
+      if (path === null) continue;
+      if (publicPaths.has(path)) {
+        throw Error("Slug público duplicado exige reconciliação de identidade");
+      }
+      publicPaths.add(path);
+    }
+  }
   const projectedByKey = new Map(records.map(record => [record.stableKey, record]));
   const view = previewCityRouteIntegration({
     routeKey, routeCategorySlug,
