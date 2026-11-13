@@ -11,6 +11,7 @@ const images = [
   "cftv-planejamento-ilustrado.svg",
   "computador-diagnostico-ilustrado.svg",
   "wifi-instabilidade-cobertura-ilustrado.svg",
+  "impressora-offline-fila-ilustrado.svg",
 ] as const;
 
 describe("Identidade visual: adição sem remoção das imagens existentes", () => {
@@ -21,7 +22,7 @@ describe("Identidade visual: adição sem remoção das imagens existentes", () 
     expect(home).toContain('tecnica-informatica.jpg');
   });
 
-  it("adiciona três ilustrações locais leves, com alt, dimensões e carregamento diferido", () => {
+  it("mantém ilustrações locais leves e acrescenta a quarta arte editorial", () => {
     expect(home).toContain("HOME_VISUALS.map");
     expect(home).toContain('loading="lazy" decoding="async"');
     expect(home).toContain('width={1200} height={630}');
@@ -32,6 +33,21 @@ describe("Identidade visual: adição sem remoção das imagens existentes", () 
       expect(source.length).toBeLessThan(10000);
       expect(home).toContain("/guias/" + image);
     }
+  });
+
+  it("destaca visualmente a primeira tela e aproxima as artes dos serviços do topo", () => {
+    expect(home).toContain('bg-gradient-to-br from-brand-navy');
+    expect(home).toContain('rounded-3xl border border-white/15 bg-card');
+    expect(home).toContain('sm:grid-cols-2 lg:grid-cols-4');
+    const hero = home.indexOf('bg-gradient-to-br from-brand-navy');
+    const illustrations = home.indexOf('aria-labelledby="home-visual-servicos"');
+    const channels = home.indexOf('<CanaisDeAtendimento />');
+    const proof = home.indexOf('<HomePublicProof />');
+    expect(hero).toBeGreaterThan(0);
+    expect(illustrations).toBeGreaterThan(hero);
+    expect(illustrations).toBeLessThan(channels);
+    expect(channels).toBeLessThan(proof);
+    expect(home.match(/aria-labelledby="home-visual-servicos"/g)).toHaveLength(1);
   });
 
   it("aplica ícones aos menus e botões mantendo rotas e guardas existentes", () => {
