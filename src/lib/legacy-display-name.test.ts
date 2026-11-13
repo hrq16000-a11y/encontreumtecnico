@@ -10,13 +10,16 @@ describe("suggestLegacyDisplayName (read-only historical alias)", () => {
     ["almeida_thiago_santos5", "Almeida Thiago Santos"],
     ["alex-paixao13", "Alex Paixao"],
     ["alvaro.aquino.oliveira", "Alvaro Aquino Oliveira"],
+    ["abmsinformatica", "ABMS Informática"],
+    ["alexandremastercore", "Alexandre Mastercore"],
+    ["allanoliveiratj", "Allan Oliveira TJ"],
   ])("suggests a readable full-token name for %s", (raw, expected) => {
     expect(suggestLegacyDisplayName(raw)).toEqual({
       display: expected, original: raw, suggested: true,
     });
   });
 
-  it.each(["abmsinformatica", "alexandremastercore", "alvrobrasil68", "abc42",
+  it.each(["alvrobrasil68", "abc42",
     "alex_suporte13", "alex@paixao.com", "alex__paixao13"])(
     "preserves ambiguous or company-like alias %s verbatim", (raw) => {
       expect(suggestLegacyDisplayName(raw)).toEqual({

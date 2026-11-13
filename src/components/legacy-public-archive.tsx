@@ -7,8 +7,6 @@ import { suggestLegacyDisplayName } from "@/lib/legacy-display-name";
 type HistoricalProfile = {
   wp_post_id: number;
   display_name: string;
-  sector_tags: string[];
-  country_label: string;
   validation_status: "em_validacao";
 };
 
@@ -31,8 +29,9 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
     setError(false);
     async function load() {
       const response = await archiveDb.from("legacy_public_archive")
-        .select("wp_post_id,display_name,sector_tags,country_label,validation_status", { count: "exact" })
+        .select("wp_post_id,display_name,validation_status", { count: "exact" })
         .eq("validation_status", "em_validacao")
+        .order("display_name", { ascending: true })
         .order("wp_post_id", { ascending: true })
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
       if (!mounted) return;
@@ -52,16 +51,14 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
 
   return (
     <section className="mt-12 border-t border-border pt-8" aria-label="Mais técnicos">
-      <h2 className="text-xl font-semibold tracking-tight text-foreground">Mais técnicos</h2>
+      <h2 className="text-xl font-semibold tracking-tight text-foreground">Técnicos do portal anterior</h2>
       <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-        Todos os profissionais apresentados são técnicos. Alguns ainda não informaram cidade
-        ou especialidades detalhadas. A exibição não representa certificação nem presença online;
-        os telefones particulares permanecem protegidos.
+        Nomes organizados em ordem alfabética. Os dados de atendimento e localização
+        serão completados pelos próprios profissionais, sem atribuir especialidades automaticamente.
       </p>
       {!show ? (
         <p className="mt-4 text-sm text-muted-foreground">
-          Para consultar também técnicos sem cidade ou especialidade detalhada,
-          limpe os filtros. Não presumimos cidade pelo DDD.
+          Limpe os filtros para ver também os cadastros históricos sem região confirmada.
         </p>
       ) : (
         <>
@@ -87,29 +84,19 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <h3 className="break-words font-semibold text-card-foreground">{suggestLegacyDisplayName(profile.display_name).display}</h3>
+                      <h3 className="break-words font-semibold text-card-foreground"
+                        title={suggestLegacyDisplayName(profile.display_name).suggested ? `Nome original: ${profile.display_name}` : undefined}>
+                        {suggestLegacyDisplayName(profile.display_name).display}
+                      </h3>
                       {suggestLegacyDisplayName(profile.display_name).suggested && (
-                        <p className="mt-1 break-all text-xs text-muted-foreground">
-                          Nome sugerido (não verificado) · nome no cadastro: {profile.display_name}
-                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">Nome de exibição sugerido</p>
                       )}
                       <span className="mt-1 inline-flex rounded border border-primary/20 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">Técnico</span>
                     </div>
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Brasil · cidade não informada
+                    Região de atendimento a confirmar
                   </p>
-                  <ul className="mt-3 flex flex-wrap gap-1.5">
-                    {(profile.sector_tags.filter((tag) => !/^TI\s*[-–]\s*Informática$/i.test(tag)).length ? profile.sector_tags.filter((tag) => !/^TI\s*[-–]\s*Informática$/i.test(tag)) : ["Especialidades não informadas"]).map((tag) => (
-                      <li key={tag} className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-foreground">
-                        {tag}
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="mt-3 text-xs text-muted-foreground">
-                    Contato privado protegido.
-                  </p>
-
                 </li>
               ))}
             </ul>

@@ -2,12 +2,12 @@
  * Public presentation hint for WordPress-era aliases.
  *
  * It NEVER changes the stored identity or claims to verify a person's name.
- * Only fully recognized Portuguese name tokens are split; uncertain aliases
- * stay exactly as imported. Historical digits are removed only on a complete,
- * high-confidence segmentation.
+ * Only fully recognized name tokens, familiar trade names and short suffixes
+ * are split. Uncertain aliases stay exactly as imported. The source identity
+ * is never changed or treated as verified.
  */
 const givenNames = new Set([
-  "adailton", "alex", "alexandre", "alvaro", "andre", "anderson",
+  "adailton", "alex", "alexandre", "allan", "alvaro", "andre", "anderson",
   "antonio", "bruno", "carlos", "daniel", "davi", "diego", "edson",
   "eduardo", "elias", "fabio", "felipe", "fernando", "flavio",
   "francisco", "gabriel", "gustavo", "joao", "jose", "julio",
@@ -27,6 +27,11 @@ const familyNames = new Set([
 const joiners = new Set(["de", "da", "do", "das", "dos"]);
 const vocabulary = [...new Set([...givenNames, ...familyNames, ...joiners])]
   .sort((a, b) => b.length - a.length);
+const tradeSuffixes = new Map([
+  ["informatica", "Informática"],
+  ["mastercore", "Mastercore"],
+  ["tecnologia", "Tecnologia"],
+]);
 
 export type LegacyNameSuggestion = {
   display: string;
@@ -76,6 +81,35 @@ export function suggestLegacyDisplayName(value: string): LegacyNameSuggestion {
   // not treat arbitrary punctuation, emails or unrecognized parts as identity.
   if (alias.length < 6 || alias.length > 60 ||
       !/^[a-z]+(?:[_.-][a-z]+)*$/u.test(alias)) return fallback;
+
+  // A trade name after a recognizable given name or a short brand acronym
+  // is a presentation hint, never a claim about the person's legal name.
+  if (/^[a-z]+$/u.test(alias)) {
+    for (const [suffix, label] of tradeSuffixes) {
+      if (!alias.endsWith(suffix)) continue;
+      const prefix = alias.slice(0, -suffix.length);
+      if (givenNames.has(prefix)) {
+        return { display: `${capitalize(prefix, 0)} ${label}`, original, suggested: true };
+      }
+      if (/^[a-z]{2,5}$/u.test(prefix)) {
+        return { display: `${prefix.toUpperCase()} ${label}`, original, suggested: true };
+      }
+    }
+
+    // Historical usernames occasionally append two-letter brand initials
+    // after a fully recognized given name and surname (e.g. allan+oliveira+tj).
+    const initials = alias.slice(-2);
+    const recognized = splitRecognizedAlias(alias.slice(0, -2));
+    if (recognized && recognized.length >= 2 &&
+        recognized.some((token) => givenNames.has(token)) &&
+        recognized.some((token) => familyNames.has(token))) {
+      return {
+        display: `${recognized.map(capitalize).join(" ")} ${initials.toUpperCase()}`,
+        original,
+        suggested: true,
+      };
+    }
+  }
   const tokens: string[] = [];
   for (const part of alias.split(/[_.-]/u)) {
     const recognized = splitRecognizedAlias(part);
