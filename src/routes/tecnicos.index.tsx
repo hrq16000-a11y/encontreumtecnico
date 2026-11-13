@@ -248,7 +248,12 @@ function TechniciansPage() {
               </button>
             )}
           </div>
-          <div id="filtros-avancados" role="region" aria-label="Filtros avançados" className={showAdvanced ? "mt-3 grid gap-3 border-t border-border pt-4 sm:grid-cols-3" : "hidden"}>
+          <div id="filtros-avancados" role="region" aria-label="Filtros avançados"
+            aria-hidden={!showAdvanced} inert={!showAdvanced}
+            className={"grid overflow-hidden transition-[grid-template-rows,opacity,margin-top] duration-200 ease-out motion-reduce:transition-none " +
+              (showAdvanced ? "mt-3 grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0")}>
+            <div className="min-h-0 overflow-hidden">
+              <div className="grid gap-3 border-t border-border pt-4 sm:grid-cols-3">
           <div>
             <label htmlFor="filtro-servico" className="text-xs font-medium text-muted-foreground">Serviço específico</label>
             <select id="filtro-servico" value={services.some((service) => service.slug === search.servico) ? search.servico : ""}
@@ -335,6 +340,8 @@ function TechniciansPage() {
           )}
         </div>
             </div>
+          </div>
+          </div>
           </div>
         </section>
         {suggestedArea && (

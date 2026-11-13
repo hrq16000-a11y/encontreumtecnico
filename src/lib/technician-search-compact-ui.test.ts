@@ -22,7 +22,10 @@ describe("Busca compacta: filtros e perfis com privacidade", () => {
     expect(page).toContain('aria-expanded={showAdvanced}');
     expect(page).toContain('aria-controls="filtros-avancados"');
     expect(page).toContain('onClick={() => setShowAdvanced(value => !value)}');
-    expect(page).toContain('className={showAdvanced ? "mt-3 grid');
+    expect(page).toContain('aria-hidden={!showAdvanced} inert={!showAdvanced}');
+    expect(page).toContain('grid-rows-[1fr] opacity-100');
+    expect(page).toContain('grid-rows-[0fr] opacity-0');
+    expect(page).toContain('min-h-0 overflow-hidden');
     expect(page).toContain('motion-reduce:transition-none');
   });
 
