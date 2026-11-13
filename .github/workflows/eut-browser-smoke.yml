@@ -288,7 +288,13 @@ jobs:
 
               const neighborhood = page.locator('#filtro-bairro');
               await neighborhood.fill('Boqueirão');
+              // Focusing the toggle blurs the field and commits its pending URL update.
+              // Let that navigation and the active-filter auto-open effect settle first.
               await toggle.focus();
+              await page.waitForFunction(() =>
+                new URL(location.href).searchParams.get('bairro') === 'Boqueirão',
+              null, { timeout: 15000 });
+              await logProbe('neighborhood-commit-settled');
               await page.keyboard.press('Enter');
               await page.waitForTimeout(motion === 'reduce' ? 30 : 260);
               assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
