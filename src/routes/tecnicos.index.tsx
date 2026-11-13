@@ -109,8 +109,10 @@ function TechniciansPage() {
   const [showAdvanced, setShowAdvanced] = useState(
     () => Boolean(search.servico || search.bairro || search.regiao || search.prioridade === "regiao"),
   );
+  const advancedClosedByUser = useRef(false);
   useEffect(() => {
-    if (search.servico || search.bairro || search.regiao || search.prioridade === "regiao") {
+    if (!advancedClosedByUser.current &&
+      (search.servico || search.bairro || search.regiao || search.prioridade === "regiao")) {
       setShowAdvanced(true);
     }
   }, [search.servico, search.bairro, search.regiao, search.prioridade]);
@@ -225,7 +227,11 @@ function TechniciansPage() {
           </div>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
             <button type="button" aria-expanded={showAdvanced} aria-controls="filtros-avancados"
-              onClick={() => setShowAdvanced(value => !value)}
+              onClick={() => {
+                // A delayed URL commit cannot override an intentional manual collapse.
+                advancedClosedByUser.current = showAdvanced;
+                setShowAdvanced(value => !value);
+              }}
               className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-primary/30 bg-accent/60 px-4 text-sm font-bold text-primary transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
               <SlidersHorizontal className="h-4 w-4" aria-hidden="true" /> Mais filtros
               {[search.servico, search.bairro, search.regiao, prioritizeRegion ? "regiao" : ""].filter(Boolean).length > 0 &&
@@ -242,7 +248,12 @@ function TechniciansPage() {
               </button>
             )}
           </div>
-          <div id="filtros-avancados" role="region" aria-label="Filtros avançados" className={showAdvanced ? "mt-3 grid gap-3 border-t border-border pt-4 sm:grid-cols-3" : "hidden"}>
+          <div id="filtros-avancados" role="region" aria-label="Filtros avançados"
+            aria-hidden={!showAdvanced} inert={!showAdvanced}
+            className={"grid overflow-hidden transition-[grid-template-rows,opacity,margin-top] duration-200 ease-out motion-reduce:transition-none motion-reduce:duration-0 " +
+              (showAdvanced ? "mt-3 grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0")}>
+            <div className="min-h-0 overflow-hidden">
+              <div className="grid gap-3 border-t border-border pt-4 sm:grid-cols-3">
           <div>
             <label htmlFor="filtro-servico" className="text-xs font-medium text-muted-foreground">Serviço específico</label>
             <select id="filtro-servico" value={services.some((service) => service.slug === search.servico) ? search.servico : ""}
@@ -307,6 +318,8 @@ function TechniciansPage() {
             </p>
           )}
         </div>
+            </div>
+              </div>
             </div>
           </div>
         </section>
