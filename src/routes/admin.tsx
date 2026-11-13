@@ -50,23 +50,44 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
   const [reqs, setReqs] = useState<Req[]>([]);
   const [msgs, setMsgs] = useState<Tables<"contact_messages">[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [requestLoadState, setRequestLoadState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [requestWindowComplete, setRequestWindowComplete] = useState(false);
 
   async function load() {
     // A page only queries the records it needs. RLS remains authoritative.
     // No global prefetch of private contacts when browsing sponsors or metrics.
     const needsRequests = section === "solicitacoes";
     const needsMessages = section === "mensagens";
-    const [r, m] = await Promise.all([
-      needsRequests
-        ? supabase.from("service_requests").select("*").order("created_at", { ascending: false }).limit(500)
-        : Promise.resolve({ data: [] as Req[], error: null }),
-      needsMessages
-        ? supabase.from("contact_messages").select("*").neq("status", "arquivada").order("created_at", { ascending: false }).limit(100)
-        : Promise.resolve({ data: [] as Tables<"contact_messages">[], error: null }),
-    ]);
-    setError(r.error || m.error ? "Não foi possível carregar os dados deste módulo." : null);
-    setReqs(r.data ?? []);
-    setMsgs(m.data ?? []);
+    setRequestLoadState(needsRequests ? "loading" : "idle");
+    setRequestWindowComplete(false);
+    try {
+      const [r, m] = await Promise.all([
+        needsRequests
+          ? supabase.from("service_requests").select("*", { count: "exact" })
+            .order("created_at", { ascending: false }).limit(500)
+          : Promise.resolve({ data: [] as Req[], error: null, count: 0 }),
+        needsMessages
+          ? supabase.from("contact_messages").select("*").neq("status", "arquivada")
+            .order("created_at", { ascending: false }).limit(100)
+          : Promise.resolve({ data: [] as Tables<"contact_messages">[], error: null }),
+      ]);
+      setError(r.error || m.error ? "Não foi possível carregar os dados deste módulo." : null);
+      setReqs(r.error ? [] : r.data ?? []);
+      setMsgs(m.data ?? []);
+      if (needsRequests) {
+        setRequestLoadState(r.error ? "error" : "ready");
+        setRequestWindowComplete(!r.error && typeof r.count === "number" &&
+          (r.data?.length ?? 0) >= r.count);
+      }
+    } catch {
+      setError("Falha de conexão ao consultar os dados deste módulo.");
+      if (needsRequests) {
+        setReqs([]);
+        setRequestLoadState("error");
+        setRequestWindowComplete(false);
+      }
+      if (needsMessages) setMsgs([]);
+    }
   }
 
   async function setMsgStatus(id: string, status: "respondida" | "arquivada") {
@@ -155,11 +176,16 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
               </ul>
             )}
             </section>}
-            {section === "solicitacoes" && <AdminAllocationPlanner requests={reqs} />}
+            {section === "solicitacoes" && <AdminAllocationPlanner requests={reqs}
+              requestLoadState={requestLoadState} requestWindowComplete={requestWindowComplete} />}
             {section === "solicitacoes" && <section aria-label="Solicitações registradas">
               <h2 id="admin-solicitacoes" className="mt-10 scroll-mt-20 text-lg font-semibold text-foreground">Solicitações recentes</h2>
-            {reqs.length === 0 ? (
-              <p className="mt-3 text-sm text-muted-foreground">Nenhuma solicitação aberta ainda.</p>
+            {requestLoadState === "error" ? (
+              <p role="alert" className="mt-3 text-sm text-destructive">Consulta de solicitações indisponível. Não é possível concluir que a fila esteja vazia.</p>
+            ) : requestLoadState !== "ready" ? (
+              <p role="status" className="mt-3 text-sm text-muted-foreground">Consultando solicitações…</p>
+            ) : reqs.length === 0 ? (
+              <p className="mt-3 text-sm text-muted-foreground">Nenhuma solicitação registrada neste conjunto.</p>
             ) : (
               <ul className="mt-3 grid gap-3">{reqs.slice(0, 50).map((r) => <RequestCard key={r.id} r={r} />)}</ul>
             )}

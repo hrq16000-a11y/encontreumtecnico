@@ -12,7 +12,11 @@ const db = supabase as unknown as SupabaseClient;
 const labels: Record<AllocationPriority, string> = { critica: "Crítica (manual)", alta: "Alta (manual)", normal: "Normal" };
 
 /** Admin-only read-only operations preview. Parent /admin checks authenticated admin role. */
-export function AdminAllocationPlanner({ requests }: { requests: readonly Req[] }) {
+export function AdminAllocationPlanner({ requests, requestLoadState, requestWindowComplete }: {
+  requests: readonly Req[];
+  requestLoadState: "idle" | "loading" | "ready" | "error";
+  requestWindowComplete: boolean;
+}) {
   const [technicians, setTechnicians] = useState<AllocationTechnician[]>([]);
   const [count, setCount] = useState<number | null>(null);
   const [confirmed, setConfirmed] = useState<Record<string, boolean>>({});
@@ -21,8 +25,13 @@ export function AdminAllocationPlanner({ requests }: { requests: readonly Req[] 
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
+  const [chosenRequestId, setChosenRequestId] = useState("");
 
   useEffect(() => {
+    if (requestLoadState !== "ready") {
+      setLoading(false);
+      return;
+    }
     let active = true;
     setLoading(true);
     setError(null);
@@ -44,9 +53,10 @@ export function AdminAllocationPlanner({ requests }: { requests: readonly Req[] 
       } finally { if (active) setLoading(false); }
     })();
     return () => { active = false; };
-  }, [reload]);
+  }, [reload, requestLoadState]);
 
-  const open = useMemo(() => requests.filter((r) => r.status === "aberta").slice(0, 30), [requests]);
+  const open = useMemo(() => requests.filter((r) => r.status === "aberta"), [requests]);
+  const chosenRequest = open.find((r) => r.id === chosenRequestId) ?? open[0] ?? null;
   const result = useMemo(() => buildAllocationPreview(
     open, technicians, new Set(Object.keys(confirmed).filter((id) => confirmed[id])),
     preferences, Date.now(), 30,
@@ -67,6 +77,15 @@ export function AdminAllocationPlanner({ requests }: { requests: readonly Req[] 
     } catch { setMessage("Não foi possível copiar. Permita acesso à área de transferência no navegador."); }
   }
 
+  if (requestLoadState !== "ready") {
+    return <section aria-label="Planejamento assistido de alocação" className="mt-6 rounded-2xl border border-border bg-background p-4">
+      <h3 className="font-semibold">Planejamento assistido · prévia interna</h3>
+      {requestLoadState === "error"
+        ? <p role="alert" className="mt-2 text-sm text-destructive">Consulta de chamados falhou. Não há como calcular alocação ou afirmar que a fila esteja vazia.</p>
+        : <p role="status" className="mt-2 text-sm text-muted-foreground">Aguardando carregamento dos chamados…</p>}
+    </section>;
+  }
+
   return <section aria-label="Planejamento assistido de alocação" className="mt-6 space-y-4 rounded-2xl border border-border bg-background p-4 sm:p-5">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
@@ -83,6 +102,38 @@ export function AdminAllocationPlanner({ requests }: { requests: readonly Req[] 
     {count !== null && count > technicians.length && <p role="status" className="text-sm text-amber-700 dark:text-amber-300">
       Consulta limitada a 200 técnicos de {count}. Esta prévia não cobre toda a rede.
     </p>}
+    {!requestWindowComplete && <p role="status" className="rounded-xl border border-amber-500/40 p-3 text-sm text-amber-700 dark:text-amber-300">
+      Lista de chamados parcial ou contagem indisponível (limite de 500 registros). A simulação não cobre necessariamente toda a fila.
+    </p>}
+    {open.length > 0 && chosenRequest && <div className="rounded-xl border border-border p-3">
+      <h4 className="font-semibold text-foreground">Priorizar qualquer chamado do lote carregado</h4>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Escolha um chamado da fila carregada, mesmo que não esteja na prévia. A prioridade e o prazo
+        informados reordenam toda a fila antes de selecionar os 30 exibidos. Esta edição é temporária.
+      </p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        <label className="grid min-w-0 gap-1 text-xs font-semibold">Chamado a priorizar
+          <select className="min-h-11 min-w-0 rounded-lg border border-input bg-background px-2 text-sm"
+            value={chosenRequest.id} onChange={(event) => setChosenRequestId(event.target.value)}>
+            {open.map((request) => <option key={request.id} value={request.id}>
+              {request.id.slice(0, 8)} · {request.category} · {request.city}
+            </option>)}
+          </select>
+        </label>
+        <label className="grid gap-1 text-xs font-semibold">Prioridade informada
+          <select className="min-h-11 rounded-lg border border-input bg-background px-2 text-sm"
+            value={preferences[chosenRequest.id]?.priority ?? "normal"}
+            onChange={(event) => edit(chosenRequest.id, { priority: event.target.value as AllocationPriority })}>
+            {Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </label>
+        <label className="grid gap-1 text-xs font-semibold">Prazo informado
+          <input type="datetime-local" className="min-h-11 w-full rounded-lg border border-input bg-background px-2 text-sm"
+            value={preferences[chosenRequest.id]?.deadline ?? ""}
+            onChange={(event) => edit(chosenRequest.id, { deadline: event.target.value })}/>
+        </label>
+      </div>
+    </div>}
     <div className="rounded-xl border border-border p-3">
       <h4 className="font-semibold text-foreground">Disponibilidade declarada para esta simulação</h4>
       <p className="mt-1 text-xs text-muted-foreground">
@@ -105,7 +156,7 @@ export function AdminAllocationPlanner({ requests }: { requests: readonly Req[] 
       <p className="text-sm text-muted-foreground">
         {result.included} chamado(s) considerados · {assigned} sugestão(ões) condicionais.
         UF, prioridade, prazo e horário são preenchidos manualmente e não são gravados.
-        {requests.filter((r) => r.status === "aberta").length > 30 ? " Esta prévia considera somente os 30 primeiros chamados abertos carregados." : ""}
+        {open.length > 30 ? " A prévia exibe os 30 primeiros chamados após ordenar a fila carregada por prioridade e prazo informados." : ""}
       </p>
       <div className="grid gap-3">
         {result.rows.map((row) => {

@@ -74,8 +74,9 @@ export function buildAllocationPreview(
   limit = 30,
 ): AllocationResult {
   const open = requests.filter((request) => request.status === "aberta");
-  const selected = open.slice(0, Math.max(0, Math.min(limit, 100)));
-  const ordered = selected.map((request, index) => ({ request, index }))
+  // Prioritize the entire loaded queue before selecting the 30 visible calls.
+  // An older critical call must not be excluded by the initial window.
+  const ordered = open.map((request, index) => ({ request, index }))
     .sort((a, b) => {
       const aPref = preferences[a.request.id], bPref = preferences[b.request.id];
       const level = priorityWeight[priorityFor(bPref)] - priorityWeight[priorityFor(aPref)];
@@ -85,7 +86,7 @@ export function buildAllocationPreview(
       if (deadlineA !== null && deadlineB === null) return -1;
       if (deadlineA === null && deadlineB !== null) return 1;
       return a.index - b.index;
-    });
+    }).slice(0, Math.max(0, Math.min(limit, 100)));
   const occupied = new Set<string>();
   const rows: AllocationRow[] = ordered.map(({ request }) => {
     const preference = preferences[request.id];
@@ -141,7 +142,7 @@ export function buildAllocationPreview(
       risks,
     };
   });
-  return { rows, included: selected.length, excluded: Math.max(0, open.length - selected.length) };
+  return { rows, included: ordered.length, excluded: Math.max(0, open.length - ordered.length) };
 }
 /** Group-ready message intentionally excludes titles, descriptions, identities and contact details. */
 export function safeAllocationMessage(result: AllocationResult): string {

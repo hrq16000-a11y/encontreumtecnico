@@ -79,6 +79,22 @@ describe("Plano de alocação — somente prévia administrativa", () => {
     expect(text).not.toContain("1234");
     expect(text).not.toContain("descrição");
   });
+  it("permite priorizar um chamado crítico antigo fora dos 30 mais recentes", () => {
+    const queue = Array.from({ length: 36 }, (_, i) => request("r" + i));
+    const p = buildAllocationPreview(queue, [tech("t1")], new Set(["t1"]),
+      { r35: { priority: "critica", requestUf: "PR" } }, now, 30);
+    expect(p.included).toBe(30);
+    expect(p.excluded).toBe(6);
+    expect(p.rows[0]!.requestId).toBe("r35");
+    expect(p.rows[0]!.technicianId).toBe("t1");
+    expect(p.rows.some((row) => row.requestId === "r35")).toBe(true);
+  });
+  it("prioriza prazo informado antes de cortar o lote em 30", () => {
+    const queue = Array.from({ length: 35 }, (_, i) => request("r" + i));
+    const p = buildAllocationPreview(queue, [], new Set(),
+      { r34: { priority: "normal", deadline: "2026-11-12T13:00" } }, now, 30);
+    expect(p.rows[0]!.requestId).toBe("r34");
+  });
   it("limita a simulação e não afirma cobrir todo o banco", () => {
     const input = Array.from({ length: 32 }, (_, i) => request("r" + i));
     const p = buildAllocationPreview(input, [], new Set(), {}, now, 30);
@@ -89,7 +105,13 @@ describe("Plano de alocação — somente prévia administrativa", () => {
     const view = readFileSync("src/components/admin-allocation-planner.tsx", "utf8");
     const route = readFileSync("src/routes/admin.tsx", "utf8");
     expect(route).toContain('roles.includes("admin")');
-    expect(route).toContain('section === "solicitacoes" && <AdminAllocationPlanner requests={reqs} />');
+    expect(route).toContain('section === "solicitacoes" && <AdminAllocationPlanner requests={reqs}');
+    expect(route).toContain('requestLoadState={requestLoadState} requestWindowComplete={requestWindowComplete}');
+    expect(route).toContain('.select("*", { count: "exact" })');
+    expect(route).toContain('setRequestLoadState(r.error ? "error" : "ready")');
+    expect(view).toContain('requestLoadState === "error"');
+    expect(view).toContain('Priorizar qualquer chamado do lote carregado');
+    expect(view).toContain('!requestWindowComplete');
     expect(view).toContain('.eq("status", "aprovado")');
     expect(view).toContain("UF do chamado (confirmar)");
     expect(view).toContain("city,state_uf,region");
