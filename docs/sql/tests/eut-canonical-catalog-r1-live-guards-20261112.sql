@@ -242,7 +242,7 @@ CREATE POLICY "Owner reads own" ON public.technicians FOR SELECT TO authenticate
  USING(auth.uid()=user_id);
 CREATE POLICY "Public reads approved" ON public.technicians FOR SELECT TO anon,authenticated
  USING(status='aprovado'::public.approval_status);
-CREATE POLICY eut_new_technicians_not_restricted ON public.technicians FOR INSERT TO authenticated
+CREATE POLICY eut_new_technicians_not_restricted ON public.technicians AS RESTRICTIVE FOR INSERT TO authenticated
  WITH CHECK((SELECT public.eut_account_operational()));
 CREATE POLICY eut_public_visibility_anon_guard ON public.technicians FOR SELECT TO anon
  USING(status='aprovado'::public.approval_status AND eut_visibility.eut_public_technician_eligible(id));
