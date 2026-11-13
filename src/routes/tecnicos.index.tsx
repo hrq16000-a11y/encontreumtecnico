@@ -19,6 +19,7 @@ import { useEffect, useRef, useState } from "react";
 import { analyticsAllowed, recordSearch } from "@/lib/search-analytics";
 import { openFreeHelp } from "@/lib/free-search-help";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
+import { useMunicipalities } from "@/hooks/use-municipalities";
 import { MapPin, ShieldCheck, UserRoundCheck, LifeBuoy } from "lucide-react";
 
 /** Small contextual help inside *filtered directory results*, not a second blog.
@@ -67,6 +68,8 @@ const searchSchema = z.object({
   uf: fallback(z.string(), "").default(""),
   bairro: fallback(z.string(), "").default(""),
   prioridade: fallback(z.string(), "").default(""),
+  municipio_ibge: fallback(z.string(), "").default(""),
+  pagina: fallback(z.coerce.number().int().min(1).max(500), 1).default(1),
 });
 
 export const Route = createFileRoute("/tecnicos/")({
@@ -101,6 +104,7 @@ function TechniciansPage() {
   const search = Route.useSearch();
   const { categories, loading: catalogLoading } = useActiveCategories();
   const { services, loading: servicesLoading } = useActiveServices();
+  const { cities: officialCities, loading: officialLoading, error: officialError } = useMunicipalities(search.uf);
   const technicians = Route.useLoaderData();
   const navigate = useNavigate({ from: "/tecnicos/" });
   const lastRecorded = useRef("");
@@ -119,7 +123,7 @@ function TechniciansPage() {
     }, 800);
     return () => clearTimeout(timer);
   }, [search.especialidade, search.cidade, search.regiao, search.servico, search.uf, search.bairro, search.prioridade, technicians.length, consentRevision]);
-  const prioritizeRegion = search.prioridade === "regiao" && Boolean(search.uf || search.cidade.trim());
+  const prioritizeRegion = !search.municipio_ibge && search.prioridade === "regiao" && Boolean(search.uf || search.cidade.trim());
   const hasDeclaredLocation = Boolean(search.uf || search.cidade.trim());
 
   const searchArea = [search.bairro, search.cidade, search.uf].filter(Boolean).join(" · ");
@@ -161,7 +165,7 @@ function TechniciansPage() {
           <CustomerLocationButton onLocated={(area, source) => {
             if (source === "automatic" && (search.cidade.trim() || search.uf || search.bairro.trim())) return;
             void update({ uf: area.uf, cidade: area.city, bairro: area.neighborhood,
-              regiao: "", prioridade: "regiao" });
+              regiao: "", prioridade: "regiao", municipio_ibge: "", pagina: 1 });
           }} />
         </div>
         <div className="mt-6 grid gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-3">
@@ -173,7 +177,7 @@ function TechniciansPage() {
               id="filtro-especialidade"
               value={specialty}
               onChange={(e) => {
-                update({ especialidade: e.target.value, servico: "" });
+                update({ especialidade: e.target.value, servico: "", pagina: 1 });
                 trackFilter("especialidade", e.target.value);
               }}
               className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
@@ -188,7 +192,7 @@ function TechniciansPage() {
           <div>
             <label htmlFor="filtro-servico" className="text-xs font-medium text-muted-foreground">Serviço específico</label>
             <select id="filtro-servico" value={services.some((service) => service.slug === search.servico) ? search.servico : ""}
-              onChange={(e) => { update({ servico: e.target.value }); trackFilter("servico", e.target.value); }}
+              onChange={(e) => { update({ servico: e.target.value, pagina: 1 }); trackFilter("servico", e.target.value); }}
               disabled={servicesLoading} className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
               <option value="">Todos os serviços</option>
               {services.filter((service) => specialty === "Todas" || service.category_slug === specialty).map((service) => (
@@ -198,7 +202,7 @@ function TechniciansPage() {
           </div>
           <div>
             <label htmlFor="filtro-uf" className="text-xs font-medium text-muted-foreground">Estado (UF)</label>
-            <select id="filtro-uf" value={search.uf} onChange={(e) => { update(technicianSearchAfterUfChange(e.target.value, search.prioridade)); trackFilter("uf", e.target.value); }}
+            <select id="filtro-uf" value={search.uf} onChange={(e) => { update({ ...technicianSearchAfterUfChange(e.target.value, search.prioridade), municipio_ibge: "", pagina: 1 }); trackFilter("uf", e.target.value); }}
               className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
               <option value="">Todos os estados</option>
               {BRAZIL_STATES.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
@@ -210,43 +214,64 @@ function TechniciansPage() {
             label="Cidade"
             value={search.cidade}
             placeholder="Ex.: São Paulo"
-            onCommit={(value) => update({ cidade: value })}
+            onCommit={(value) => update({ cidade: value, municipio_ibge: "", pagina: 1 })}
             onBlurTrack={(value) => trackFilter("cidade", value)}
           />
-          <DebouncedTextFilter
+          {search.uf && <div className="sm:col-span-3">
+            <label htmlFor="filtro-municipio-ibge" className="text-xs font-medium text-muted-foreground">
+              Filtrar por cobertura declarada em município oficial (IBGE)
+            </label>
+            <select id="filtro-municipio-ibge" value={search.municipio_ibge}
+              disabled={officialLoading || officialError}
+              onChange={event => {
+                const selected = officialCities.find(city => city.id === Number(event.target.value));
+                if (selected) update({ municipio_ibge: String(selected.id), uf: selected.uf,
+                  cidade: selected.name, bairro: "", regiao: "", prioridade: "", pagina: 1 });
+                else update({ municipio_ibge: "", cidade: "", pagina: 1 });
+              }} className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
+              <option value="">Manter busca atual por texto</option>
+              {officialCities.map(city => <option key={city.id} value={city.id}>{city.name}/{city.uf}</option>)}
+            </select>
+            {officialError && <p role="alert" className="mt-1 text-xs text-destructive">Municípios oficiais indisponíveis. Use a busca por texto.</p>}
+            {search.municipio_ibge && <p className="mt-1 text-xs text-muted-foreground">
+              Apenas municípios declarados pelos profissionais, sem inferir distância ou disponibilidade.
+              Resultados paginados, sem contagem exaustiva anunciada.
+            </p>}
+          </div>}
+          {!search.municipio_ibge && <DebouncedTextFilter
             key={`filtro-bairro-${search.uf}`}
             id="filtro-bairro"
             label="Bairro"
             list={bairroCatalog ? "eut-bairro-diretorio" : undefined}
             value={search.bairro}
             placeholder="Ex.: Centro"
-            onCommit={(value) => update({ bairro: value })}
+            onCommit={(value) => update({ bairro: value, pagina: 1 })}
             onBlurTrack={(value) => trackFilter("bairro", value)}
-          />
-          {bairroCatalog && <div className="text-xs text-muted-foreground sm:col-span-3">
+          />}
+          {!search.municipio_ibge && bairroCatalog && <div className="text-xs text-muted-foreground sm:col-span-3">
             <datalist id="eut-bairro-diretorio">
               {neighborhoodOptions(bairroCatalog).map(bairro => <option key={bairro} value={bairro} />)}
             </datalist>
             Bairros sugeridos pela <a className="text-primary underline" href={bairroCatalog.sourceUrl}
               target="_blank" rel="noopener noreferrer">prefeitura</a>; você pode digitar outra denominação.
           </div>}
-          <DebouncedTextFilter
+          {!search.municipio_ibge && <DebouncedTextFilter
             key={`filtro-regiao-${search.uf}`}
             id="filtro-regiao"
             label="Região"
             value={search.regiao}
             placeholder="Ex.: Zona Sul"
-            onCommit={(value) => update({ regiao: value })}
+            onCommit={(value) => update({ regiao: value, pagina: 1 })}
             onBlurTrack={(value) => trackFilter("regiao", value)}
-          />
+          />}
         </div>
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 p-4">
           <label className="flex cursor-pointer items-start gap-3 text-sm text-foreground">
             <input
               type="checkbox" checked={prioritizeRegion}
-              disabled={!hasDeclaredLocation}
-              onChange={(event) => update({ prioridade: event.target.checked ? "regiao" : "" })}
+              disabled={!hasDeclaredLocation || Boolean(search.municipio_ibge)}
+              onChange={(event) => update({ prioridade: event.target.checked ? "regiao" : "", pagina: 1 })}
               className="mt-0.5 h-4 w-4 shrink-0"
             />
             <span>
@@ -271,7 +296,7 @@ function TechniciansPage() {
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/20 bg-accent/50 px-4 py-3 text-sm">
             <span><MapPin className="mr-1 inline h-4 w-4 text-primary" aria-hidden="true" />
               Você pode estar perto de <strong>{suggestedArea.city}/{suggestedArea.uf}</strong>. Estimativa por IP, não localização exata.</span>
-            <Link to="/tecnicos" search={{especialidade:search.especialidade,cidade:suggestedArea.city,uf:suggestedArea.uf,bairro:suggestedArea.neighborhood,regiao:"",servico:search.servico,prioridade:"regiao"}}
+            <Link to="/tecnicos" search={{especialidade:search.especialidade,cidade:suggestedArea.city,uf:suggestedArea.uf,bairro:suggestedArea.neighborhood,regiao:"",servico:search.servico,prioridade:"regiao",municipio_ibge:"",pagina:1}}
               className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-xs font-bold text-primary-foreground">Buscar na região</Link>
           </div>
         )}
@@ -292,7 +317,7 @@ function TechniciansPage() {
         )}
         <SponsoredPublicSlot slotKey="search.top" routePath="/tecnicos" />
         <section aria-label="Transparência e confiança na busca" className="mt-6 grid gap-3 rounded-2xl border border-primary/15 bg-accent/50 p-4 sm:grid-cols-3">
-          <div className="flex items-start gap-3"><UserRoundCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" /><p className="text-sm text-foreground"><strong className="block">{technicians.length} perfil{technicians.length === 1 ? "" : "s"} nesta busca</strong><span className="text-xs text-muted-foreground">Somente perfis publicados; resultados conforme os filtros aplicados.</span></p></div>
+          <div className="flex items-start gap-3"><UserRoundCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" /><p className="text-sm text-foreground"><strong className="block">{technicians.length} perfil{technicians.length === 1 ? "" : "s"} {search.municipio_ibge ? "nesta página" : "nesta busca"}</strong><span className="text-xs text-muted-foreground">Somente perfis publicados; resultados conforme os filtros aplicados.</span></p></div>
           <div className="flex items-start gap-3"><MapPin className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" /><p className="text-sm text-foreground"><strong className="block">Localidade informada</strong><span className="text-xs text-muted-foreground">Regiões declaradas pelos profissionais, sem localização inventada.</span></p></div>
           <div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" /><p className="text-sm text-foreground"><strong className="block">Contato protegido</strong><span className="text-xs text-muted-foreground">Telefones particulares não aparecem na busca pública.</span></p></div>
         </section>
@@ -371,7 +396,14 @@ function TechniciansPage() {
             </ul>
           )}
         </div>
-        <LegacyPublicArchive show={canShowLegacyArchive(search)} />
+        {search.municipio_ibge && <nav aria-label="Paginação dos técnicos por município" className="mt-6 flex items-center justify-between gap-3">
+          <button type="button" disabled={search.pagina <= 1} onClick={() => update({ pagina: search.pagina - 1 })}
+            className="min-h-11 rounded-lg border border-input px-4 text-sm disabled:opacity-40">Anterior</button>
+          <span className="text-sm text-muted-foreground">Página {search.pagina}</span>
+          <button type="button" disabled={technicians.length < 50} onClick={() => update({ pagina: search.pagina + 1 })}
+            className="min-h-11 rounded-lg border border-input px-4 text-sm disabled:opacity-40">Próxima</button>
+        </nav>}
+        <LegacyPublicArchive show={!search.municipio_ibge && canShowLegacyArchive(search)} />
       </section>
     </PageShell>
   );

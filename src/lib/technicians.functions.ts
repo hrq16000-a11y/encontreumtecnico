@@ -6,6 +6,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { rankTechniciansByDeclaredArea } from "@/lib/technician-local-ranking";
 import { isValidTechnicianId, isValidTechnicianSlug } from "@/lib/technician-id";
 import { sanitizePublicTechnician } from "@/lib/public-profile-text";
+import { matchingOfficialMunicipalityId } from "@/lib/technician-city-scope";
 import { readPublicEligibleRows, type PublicEligibilityRpc } from "@/lib/public-eligibility";
 
 export type PublicTechnician = {
@@ -142,19 +143,35 @@ const clean = (s: string) => s.replace(/[%,()*\\]/g, " ").trim().slice(0, 80);
 
 export const listApprovedTechnicians = createServerFn({ method: "GET" })
   .inputValidator((d) =>
-    z.object({ especialidade: z.string().max(80), cidade: z.string().max(80), regiao: z.string().max(80), servico: z.string().max(80).default(""), uf: z.string().max(2).default(""), bairro: z.string().max(80).default(""), prioridade: z.string().max(12).default("") }).parse(d),
+    z.object({ especialidade: z.string().max(80), cidade: z.string().max(80), regiao: z.string().max(80), servico: z.string().max(80).default(""), uf: z.string().max(2).default(""), bairro: z.string().max(80).default(""), prioridade: z.string().max(12).default(""), municipio_ibge: z.string().max(7).default(""), pagina: z.number().int().min(1).max(500).default(1) }).parse(d),
   )
   .handler(async ({ data }): Promise<PublicTechnician[]> => {
     setResponseHeader("Cache-Control", "no-store");
     // "Priorizar minha região" is not a strict geography filter. It ranks
     // among approved matching professionals so other regions remain options.
-    const regionalPriority = data.prioridade === "regiao" && Boolean(data.uf || data.cidade.trim());
-    let q = publicClient()
-      .from("technicians")
-      .select(COLUMNS)
-      .eq("status", "aprovado")
-      .order("created_at", { ascending: false })
-      .limit(200);
+    // Official municipality lookup; no raw locality or DDD can expand scope.
+    let selectedCityId: number | null = null;
+    if (data.municipio_ibge) {
+      if (!/^[1-9][0-9]{6}$/.test(data.municipio_ibge)) return [];
+      const { data: official, error: cityError } = await publicClient()
+        .from("eut_ibge_municipalities").select("id,name,uf")
+        .eq("id", Number(data.municipio_ibge)).maybeSingle();
+      if (cityError) throw new Error("Não foi possível validar município no catálogo oficial.");
+      selectedCityId = matchingOfficialMunicipalityId(data.municipio_ibge, official, data.uf, data.cidade);
+      if (selectedCityId === null) return [];
+    }
+    const regionalPriority = selectedCityId === null &&
+      data.prioridade === "regiao" && Boolean(data.uf || data.cidade.trim());
+    let q = publicClient().from("technicians").select(COLUMNS)
+      .eq("status", "aprovado").order("created_at", { ascending: false });
+    if (selectedCityId !== null) {
+      // The established approved-technicians source, filtered by declared coverage.
+      q = q.contains("coverage_city_ids", [selectedCityId])
+        .order("id", { ascending: true })
+        .range((data.pagina - 1) * 50, data.pagina * 50 - 1);
+    } else {
+      q = q.limit(200);
+    }
     if (data.especialidade && data.especialidade !== "Todas") {
       const slug = LEGACY_CATEGORY_ALIASES[data.especialidade] ?? data.especialidade;
       const { data: active, error: catalogError } = await (publicClient() as unknown as SupabaseClient)
@@ -174,14 +191,14 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
     const uf = data.uf.toUpperCase();
     if (uf) {
       if (!/^(AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)$/.test(uf)) return [];
-      if (!regionalPriority) q = q.eq("state_uf", uf);
+      if (!regionalPriority && selectedCityId === null) q = q.eq("state_uf", uf);
     }
     const bairro = clean(data.bairro);
-    if (bairro && !regionalPriority) q = q.ilike("neighborhood", `%${bairro}%`);
+    if (bairro && !regionalPriority && selectedCityId === null) q = q.ilike("neighborhood", `%${bairro}%`);
     const city = clean(data.cidade);
-    if (city && !regionalPriority) q = q.ilike("city", `%${city}%`);
+    if (city && !regionalPriority && selectedCityId === null) q = q.ilike("city", `%${city}%`);
     const region = clean(data.regiao);
-    if (region && !regionalPriority) q = q.ilike("region", `%${region}%`);
+    if (region && !regionalPriority && selectedCityId === null) q = q.ilike("region", `%${region}%`);
     const { data: rows, error } = await q;
     if (error) {
       console.error("listApprovedTechnicians", error);
