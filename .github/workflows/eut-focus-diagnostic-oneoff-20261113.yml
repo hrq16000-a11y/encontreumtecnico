@@ -1,0 +1,131 @@
+name: EUT temporary Home focus diagnostics (remove after evidence)
+on:
+  push:
+    branches:
+      - integration/free-help-focus-clean-after-268-20261113
+    paths:
+      - .github/workflows/eut-focus-diagnostic-oneoff-20261113.yml
+permissions:
+  contents: read
+jobs:
+  home-focus-diagnostic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.4'
+      - name: Install locked application dependencies
+        run: bun install --frozen-lockfile
+      - name: Install disposable local Chromium
+        run: |
+          mkdir -p "$RUNNER_TEMP/eut-diagnostic"
+          cd "$RUNNER_TEMP/eut-diagnostic"
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund playwright@1.56.1
+          npx playwright install chromium
+      - name: Record the real modal and activeElement sequence at 390px
+        env:
+          VITE_SUPABASE_PROJECT_ID: synthetic-local
+          VITE_SUPABASE_URL: http://127.0.0.1:9
+          VITE_SUPABASE_PUBLISHABLE_KEY: synthetic-local-public
+        run: |
+          set -euo pipefail
+          bun run dev --host 127.0.0.1 --port 5173 > "$RUNNER_TEMP/eut-diagnostic-vite.log" 2>&1 &
+          diagnostic_server_pid=$!
+          trap 'kill "$diagnostic_server_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 40); do
+            if curl --fail --silent --output /dev/null http://127.0.0.1:5173/; then ready=1; break; fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            tail -n 40 "$RUNNER_TEMP/eut-diagnostic-vite.log"
+            exit 1
+          fi
+          NODE_PATH="$RUNNER_TEMP/eut-diagnostic/node_modules" node <<'NODE'
+          const {chromium} = require('playwright');
+          const assert = require('node:assert/strict');
+          const BASE = 'http://127.0.0.1:5173';
+          (async () => {
+            const browser = await chromium.launch({headless:true});
+            let blockedExternal = 0;
+            const context = await browser.newContext({viewport:{width:390,height:844},reducedMotion:'reduce',serviceWorkers:'block'});
+            await context.route('**/*',route=>{
+              const url=route.request().url();
+              if(url.startsWith(BASE+'/') || url.startsWith('data:') || url.startsWith('blob:')) return route.continue();
+              blockedExternal++;
+              return route.abort('blockedbyclient');
+            });
+            await context.addInitScript(()=>{
+              sessionStorage.setItem('eut-regional-hint-v1',JSON.stringify({city:'Curitiba',uf:'PR',neighborhood:'',source:'ip',savedAt:Date.now()}));
+            });
+            const page=await context.newPage();
+            const errors=[];
+            page.on('pageerror',err=>errors.push(String(err).slice(0,160)));
+            async function snap(label) {
+              const state=await page.evaluate(()=>{
+                const focused=document.activeElement;
+                const help=document.querySelector('#eut-free-help-dialog');
+                return {
+                  ready:document.readyState,
+                  activeTag:focused?.tagName||null,
+                  activeAria:focused?.getAttribute('aria-label')||null,
+                  activeText:(focused?.textContent||'').trim().slice(0,55),
+                  helpVisible:!!help?.getClientRects().length,
+                  closePresent:!!help?.querySelector('[aria-label="Fechar atendimento"]'),
+                  dialogs:[...document.querySelectorAll('[role="dialog"]')].map(el=>({
+                    id:el.id||null,label:el.getAttribute('aria-label'),modal:el.getAttribute('aria-modal'),
+                    visible:!!el.getClientRects().length,
+                    hasFocus:el.contains(focused)
+                  }))
+                };
+              });
+              console.log('FOCUS_DIAG_'+label+' '+JSON.stringify(state));
+              return state;
+            }
+            try {
+              await page.goto(BASE+'/',{waitUntil:'domcontentloaded',timeout:25000});
+              await snap('DOM_READY');
+              const opener=page.getByRole('button',{name:'Pedir ajuda ao portal',exact:true});
+              await opener.waitFor({state:'visible',timeout:12000});
+              await opener.scrollIntoViewIfNeeded();
+              await opener.focus();
+              assert(await opener.evaluate(el=>document.activeElement===el),'Opener cannot receive focus');
+              await snap('BEFORE_CLICK');
+              await opener.click({timeout:12000});
+              await snap('IMMEDIATE_AFTER_CLICK');
+              await page.waitForTimeout(250);
+              const first=await snap('250MS_AFTER_CLICK');
+              await page.waitForTimeout(1000);
+              const later=await snap('1250MS_AFTER_CLICK');
+              if(!later.helpVisible) {
+                console.log('FIRST_CLICK_DID_NOT_OPEN_ASSISTANCE_DIALOG');
+                await opener.click({timeout:12000});
+                await page.waitForTimeout(250);
+                await snap('SECOND_CLICK_250MS');
+              }
+              const closeFocused=await page.evaluate(()=>document.activeElement?.getAttribute('aria-label')==='Fechar atendimento');
+              if(later.helpVisible) {
+                await page.keyboard.press('Escape');
+                await page.waitForTimeout(250);
+                const afterEscape=await snap('AFTER_ESCAPE');
+                console.log('ESCAPE_RETURN_FOCUS '+JSON.stringify({
+                  assistanceClosed:!afterEscape.helpVisible,
+                  openerFocused:await opener.evaluate(el=>document.activeElement===el)
+                }));
+              }
+              console.log('FOCUS_DIAG_ERRORS '+JSON.stringify(errors));
+              console.log('FOCUS_DIAG_BLOCKED_EXTERNAL '+blockedExternal);
+              assert(first.helpVisible || later.helpVisible,'First click failed to open #eut-free-help-dialog; generic [role=dialog] can match cookie notice');
+              assert(closeFocused,'Assistance dialog opened but close button did not receive initial focus');
+              console.log('FOCUS_DIAG_PASS initial modal and close focus');
+            } finally {
+              await context.close();await browser.close();
+            }
+          })().catch(e=>{console.error('FOCUS_DIAG_FAIL',e.stack||e);process.exitCode=1});
+          NODE
