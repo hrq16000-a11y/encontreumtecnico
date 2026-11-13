@@ -52,25 +52,25 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
 
   return (
     <section className="mt-12 border-t border-border pt-8" aria-label="Acervo de cadastros históricos">
-      <div className="flex flex-wrap items-center gap-3"><h2 className="text-xl font-semibold tracking-tight text-foreground">Pioneiros da comunidade — pré-cadastros</h2><span className="rounded-full border border-amber-700/35 bg-amber-800/10 px-3 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300">Bronze · origem histórica</span></div>
+      <div className="flex flex-wrap items-center gap-3"><h2 className="text-xl font-semibold tracking-tight text-foreground">Técnicos de informática — histórico WordPress</h2><span className="rounded-full border border-amber-700/35 bg-amber-800/10 px-3 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300">Origem WordPress · acervo</span></div>
       <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-        Perfis históricos preservados como pré-cadastros pioneiros, aguardando confirmação do titular.
-        A identidade do titular, o município e a disponibilidade ainda precisam ser atualizados.
-        Cadastro histórico não significa avaliação técnica ou indicação pelo portal. Não há contato nem
-        solicitação de serviço habilitados para esses registros.
+        Estes perfis foram publicados no portal antigo e estão em reconciliação com o catálogo atual.
+        Cadastro antigo não exige reivindicação para participar da busca após validar telefone privado, procedência auditável
+        e ausência de bloqueios. A identidade, o município e a disponibilidade em tempo real não
+        são verificados aqui; o número particular nunca é exibido.
       </p>
       {!show ? (
         <p className="mt-4 text-sm text-muted-foreground">
-          Os cadastros históricos ainda não têm cidade ou especialidade detalhada
-          suficientes para participar dos filtros. Limpe os filtros para consultar
-          o acervo provisório, sem misturá-lo aos técnicos aprovados.
+          Este acervo preserva o histórico sem inventar cidade ou especialidades.
+          Registros elegíveis serão exibidos na busca operacional após a integração do catálogo.
+          Limpe os filtros para consultar o acervo separado.
         </p>
       ) : (
         <>
           <p className="mt-4 text-sm text-muted-foreground" role="status">
             {loading ? "Carregando cadastros antigos…" : error
               ? "Não foi possível carregar o acervo agora."
-              : `${count} cadastro(s) recuperado(s) para conferência.`}
+              : `${count} cadastro(s) históricos no acervo exibido.`}
           </p>
           {!loading && !error && profiles.length > 0 && (
             <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -96,29 +96,24 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
                         </p>
                       )}
                       <span className="mt-1 inline-flex rounded border border-amber-700/30 bg-amber-800/10 px-2 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300">
-                        Pioneiro Bronze · pré-cadastro
+                        Cadastro histórico · WordPress
                       </span>
                     </div>
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Brasil · município a confirmar
+                    Brasil · localidade não informada
                   </p>
                   <ul className="mt-3 flex flex-wrap gap-1.5">
-                    {(profile.sector_tags.filter((tag) => !/^TI\s*[-–]\s*Informática$/i.test(tag)).length ? profile.sector_tags.filter((tag) => !/^TI\s*[-–]\s*Informática$/i.test(tag)) : ["Especialidades a confirmar"]).map((tag) => (
+                    {(profile.sector_tags.filter((tag) => !/^TI\s*[-–]\s*Informática$/i.test(tag)).length ? profile.sector_tags.filter((tag) => !/^TI\s*[-–]\s*Informática$/i.test(tag)) : ["Informática · cadastro histórico"]).map((tag) => (
                       <li key={tag} className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-foreground">
                         {tag}
                       </li>
                     ))}
                   </ul>
                   <p className="mt-3 text-xs text-muted-foreground">
-                    Cadastro histórico #{profile.wp_post_id}. Contato indisponível até a associação e ativação do titular.
+                    Cadastro histórico #{profile.wp_post_id}. O contato permanece privado; a elegibilidade é verificada no catálogo operacional.
                   </p>
-                  <a
-                    href={`/reivindicar-cadastro?wp=${profile.wp_post_id}`}
-                    className="mt-3 inline-flex min-h-11 items-center rounded-md border border-input px-3 py-2 text-sm font-medium text-foreground hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    Solicitar recuperação deste cadastro
-                  </a>
+
                 </li>
               ))}
             </ul>
