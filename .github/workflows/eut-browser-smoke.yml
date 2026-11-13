@@ -12,6 +12,8 @@ permissions:
   contents: read
 jobs:
   public-browser-smoke:
+    # Targeted manual motion QA must not repeat the published-site smoke.
+    if: ${{ github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/feat/filter-panel-motion-20261113' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -109,3 +111,174 @@ jobs:
             ${{ runner.temp }}/eut-ibge-app.log
           if-no-files-found: ignore
           retention-days: 3
+
+  # TEMPORARY: branch-only manual QA; remove after capturing its run evidence.
+  branch-filter-motion-synthetic-qa:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/filter-panel-motion-20261113' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install existing locked dependencies
+        run: bun install --frozen-lockfile
+      - name: Install isolated Chromium
+        run: |
+          mkdir -p "$RUNNER_TEMP/eut-browser"
+          cd "$RUNNER_TEMP/eut-browser"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund playwright@1.56.1
+          npx playwright install chromium
+      - name: Start local branch and synthetic backend
+        env:
+          SUPABASE_URL: http://127.0.0.1:43831
+          SUPABASE_PUBLISHABLE_KEY: sb_publishable_fixture_only_no_real_token
+          VITE_SUPABASE_URL: http://127.0.0.1:43831
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_fixture_only_no_real_token
+          EUT_QA_ISOLATED: "1"
+        run: |
+          set -euo pipefail
+          node scripts/eut-ibge-qa-fixture.cjs > "$RUNNER_TEMP/eut-filter-fixture.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/eut-filter-fixture.pid"
+          bun run dev --host 127.0.0.1 --port 4173 > "$RUNNER_TEMP/eut-filter-app.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/eut-filter-app.pid"
+          for i in $(seq 1 90); do
+            if curl --silent --fail http://127.0.0.1:43831/__health >/dev/null &&
+               curl --silent --fail 'http://127.0.0.1:4173/tecnicos' >/dev/null; then
+              echo "MOTION_QA_READY: loopback only"; exit 0
+            fi
+            sleep 1
+          done
+          echo "MOTION_QA_BOOT_FAILED"
+          tail -50 "$RUNNER_TEMP/eut-filter-app.log" || true
+          exit 1
+      - name: Test focus, drafts and motion at 390px and 1440px
+        env:
+          EUT_BASE_URL: http://127.0.0.1:4173
+          EUT_FIXTURE_URL: http://127.0.0.1:43831
+        run: |
+          NODE_PATH="$RUNNER_TEMP/eut-browser/node_modules" node <<'NODE'
+          const assert = require('node:assert/strict');
+          const { chromium } = require('playwright');
+          const base = process.env.EUT_BASE_URL;
+          const fixture = process.env.EUT_FIXTURE_URL;
+          assert.equal(new URL(base).hostname, '127.0.0.1');
+          assert.equal(new URL(fixture).hostname, '127.0.0.1');
+
+          async function check(browser, width, motion) {
+            const context = await browser.newContext({
+              viewport: { width, height: 900 }, reducedMotion: motion,
+              serviceWorkers: 'block',
+            });
+            await context.route('**/*', async route => {
+              const request = route.request();
+              const target = new URL(request.url());
+              if (target.origin === new URL(base).origin) return route.continue();
+              if (target.hostname.endsWith('.supabase.co')) {
+                const response = await fetch(fixture + target.pathname + target.search, {
+                  method: request.method(),
+                  headers: { accept: request.headers().accept || 'application/json' },
+                  body: request.method() === 'POST' ? request.postData() : undefined,
+                });
+                return route.fulfill({ status: response.status,
+                  contentType: response.headers.get('content-type') || 'application/json',
+                  headers: { 'access-control-allow-origin': '*' },
+                  body: await response.text() });
+              }
+              return route.abort('blockedbyclient');
+            });
+            const page = await context.newPage();
+            const errors = [];
+            page.on('pageerror', error => errors.push(error.message));
+            try {
+              const response = await page.goto(base + '/tecnicos', {
+                waitUntil: 'domcontentloaded', timeout: 60000,
+              });
+              assert(response && response.ok(), 'local SSR /tecnicos must respond');
+              await page.locator('#filtro-uf').waitFor({ state: 'visible' });
+              await page.waitForTimeout(1400);
+              await page.reload({ waitUntil: 'domcontentloaded' });
+              await page.waitForTimeout(750);
+              const toggle = page.getByRole('button', { name: /Mais filtros/ });
+              const panel = page.locator('#filtros-avancados');
+              assert.equal(await toggle.getAttribute('aria-controls'), 'filtros-avancados');
+              assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
+              assert.equal(await panel.getAttribute('aria-hidden'), 'true');
+              assert.notEqual(await panel.getAttribute('inert'), null);
+              const initiallyClosed = await panel.boundingBox();
+              assert(initiallyClosed && initiallyClosed.height <= 2, 'closed panel occupies space');
+
+              await toggle.click();
+              await page.waitForTimeout(motion === 'reduce' ? 30 : 260);
+              assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
+              assert.equal(await panel.getAttribute('aria-hidden'), 'false');
+              assert.equal(await panel.getAttribute('inert'), null);
+              const opened = await panel.boundingBox();
+              assert(opened && opened.height >= 100, 'open panel not visible');
+              const duration = await panel.evaluate(el => getComputedStyle(el).transitionDuration);
+              if (motion === 'reduce')
+                assert(duration.split(',').every(v => parseFloat(v) === 0), 'reduced motion animates: ' + duration);
+              else
+                assert(duration.split(',').some(v => parseFloat(v) > 0), 'normal motion disabled: ' + duration);
+
+              const neighborhood = page.locator('#filtro-bairro');
+              await neighborhood.fill('Boqueirão');
+              await toggle.focus();
+              await page.keyboard.press('Enter');
+              await page.waitForTimeout(motion === 'reduce' ? 30 : 260);
+              assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
+              assert.equal(await panel.getAttribute('aria-hidden'), 'true');
+              assert.notEqual(await panel.getAttribute('inert'), null);
+              const closed = await panel.boundingBox();
+              assert(closed && closed.height <= 2, 'closing did not free space');
+              const canFocusHidden = await panel.evaluate(el => {
+                const field = el.querySelector('#filtro-servico');
+                field.focus();
+                return document.activeElement === field;
+              });
+              assert.equal(canFocusHidden, false, 'inert field took keyboard focus');
+              await toggle.focus();
+              await page.keyboard.press('Tab');
+              assert.equal(await panel.evaluate(el => el.contains(document.activeElement)), false,
+                'Tab reached a collapsed filter');
+              await toggle.focus();
+              await page.keyboard.press('Enter');
+              await neighborhood.waitFor({ state: 'visible' });
+              assert.equal(await neighborhood.inputValue(), 'Boqueirão', 'draft was lost');
+              const bounds = await page.evaluate(() => ({
+                viewport: document.documentElement.clientWidth,
+                content: document.documentElement.scrollWidth,
+              }));
+              assert(bounds.content <= bounds.viewport + 4, 'horizontal overflow: ' + JSON.stringify(bounds));
+              assert.equal(errors.length, 0, 'browser errors: ' + errors.join('; '));
+              console.log('FILTER_MOTION_OK', JSON.stringify({ width, motion,
+                openHeight: opened.height, closedHeight: closed.height, duration }));
+            } finally {
+              await context.close();
+            }
+          }
+
+          (async () => {
+            const browser = await chromium.launch({ headless: true });
+            try {
+              for (const width of [390, 1440])
+                for (const motion of ['no-preference', 'reduce'])
+                  await check(browser, width, motion);
+            } finally {
+              await browser.close();
+            }
+          })().catch(error => { console.error(error); process.exitCode = 1; });
+          NODE
+      - name: Stop synthetic services and show failure diagnostics
+        if: always()
+        run: |
+          if [ "${{ job.status }}" != success ]; then
+            tail -80 "$RUNNER_TEMP/eut-filter-app.log" || true
+            tail -40 "$RUNNER_TEMP/eut-filter-fixture.log" || true
+          fi
+          for file in "$RUNNER_TEMP/eut-filter-app.pid" "$RUNNER_TEMP/eut-filter-fixture.pid"; do
+            if [ -f "$file" ]; then kill "$(tr -d '\n' < "$file")" 2>/dev/null || true; fi
+          done
