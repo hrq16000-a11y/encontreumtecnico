@@ -197,4 +197,9 @@ async function main() {
     process.exitCode = 1;
   }
 }
-main().catch(error => { console.error(error); process.exitCode = 1; });
+if (process.env.EUT_IBGE_QA_MODE === "1") {
+  // Reuse the existing CI Chromium entry point; enforce loopback in the QA runner.
+  require("./eut-ibge-qa-browser.cjs");
+} else {
+  main().catch(error => { console.error(error); process.exitCode = 1; });
+}
