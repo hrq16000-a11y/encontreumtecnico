@@ -58,4 +58,21 @@ describe("Central administrativa: URLs próprias e RLS intacta", () => {
     expect(page).toContain('<AdminAccountsManager initialFilter="clientes" />');
     expect(page).toContain('section === "contas"');
   });
+  it("oferece atalhos operacionais autenticados sem alterar os guardas de acesso", () => {
+    const page = read("src/routes/admin.tsx");
+    const roleGate = page.indexOf('roles.includes("admin")');
+    const authenticatedContent = page.indexOf('<ConnectedGoogleIdentity user={user} />');
+    const shortcuts = page.indexOf('aria-label="Atalhos rápidos da administração"');
+    expect(roleGate).toBeGreaterThanOrEqual(0);
+    expect(authenticatedContent).toBeGreaterThan(roleGate);
+    expect(shortcuts).toBeGreaterThan(authenticatedContent);
+    for (const module of ["tecnicos", "solicitacoes", "contas", "contatos"]) {
+      expect(page).toContain('{ section: "' + module + '"');
+      expect(validAdminModule(module)).toBe(true);
+    }
+    expect(page).toContain('params={{ secao: item.section }}');
+    expect(page).toContain('aria-current={section === item.section ? "page" : undefined}');
+    expect(page).toContain('noindex, nofollow');
+  });
+
 });
