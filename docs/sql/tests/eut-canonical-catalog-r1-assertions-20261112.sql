@@ -155,7 +155,7 @@ BEGIN
  v_denied:=false;
  BEGIN PERFORM public.eut_admin_catalog_set_enabled(v_id,v_version,true,
   'Atualização concorrente deve ser recusada');
- EXCEPTION WHEN SQLSTATE '40001' THEN v_denied:=true; END;
+ EXCEPTION WHEN SQLSTATE 'PT409' THEN v_denied:=true; END;
  IF NOT v_denied THEN RAISE EXCEPTION 'Stale version accepted'; END IF;
  IF NOT EXISTS(SELECT 1 FROM public.eut_admin_management_log
  WHERE target_key=v_id::text AND action='catalog_enabled_changed')
@@ -226,7 +226,7 @@ BEGIN
  v_denied:=false;
  BEGIN PERFORM public.eut_admin_catalog_update(v_id,v_version,v_audit,
    '{"label":"Edição concorrente"}'::jsonb,'Bloquear versão anterior do catálogo');
- EXCEPTION WHEN SQLSTATE '40001' THEN v_denied:=true; END;
+ EXCEPTION WHEN SQLSTATE 'PT409' THEN v_denied:=true; END;
  IF NOT v_denied THEN RAISE EXCEPTION 'Stale admin edit accepted'; END IF;
 
  -- No-op is idempotent: no new audit, no mutation and no leaked phone.

@@ -13,6 +13,7 @@ const db = supabase as unknown as SupabaseClient;
 const PAGE_SIZE = 20;
 
 function genericServerError(code?: string) {
+  if (code === "PT409") return "Esta ficha mudou em outra sessão. Recarregue do banco antes de tentar novamente.";
   return code === "PGRST202" || code === "42883"
     ? "O backend do cadastro canônico ainda não foi homologado/instalado. Nenhum registro foi gravado."
     : "A operação não foi confirmada. Verifique permissões, bloqueios e o histórico antes de repetir.";

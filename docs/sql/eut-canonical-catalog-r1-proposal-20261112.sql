@@ -275,7 +275,7 @@ BEGIN
     AND user_id IS NULL FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'Cadastro não encontrado' USING ERRCODE='P0002'; END IF;
   IF v_row.updated_at IS DISTINCT FROM _expected_updated_at
-  THEN RAISE EXCEPTION 'Registro alterado em outra sessão' USING ERRCODE='40001'; END IF;
+  THEN RAISE EXCEPTION 'Registro alterado em outra sessão' USING ERRCODE='PT409'; END IF;
   IF _enabled AND EXISTS (
     SELECT 1 FROM eut_moderation.catalog_private_contacts c
     JOIN eut_moderation.blocked_phones b
@@ -347,10 +347,11 @@ BEGIN
     WHERE l.target_type='technician' AND l.target_key=_id::text
       AND l.action IN ('catalog_created','catalog_enabled_changed',
                        'catalog_edited','technician_update');
+  -- PT409 is a non-retryable HTTP conflict. SQLSTATE 40001 can loop in PostgREST.
   IF v_row.updated_at IS DISTINCT FROM _expected_updated_at OR
      v_current_audit IS DISTINCT FROM _expected_audit_id
   THEN RAISE EXCEPTION 'Registro alterado em outra sessão'
-    USING ERRCODE='40001'; END IF;
+    USING ERRCODE='PT409'; END IF;
 
   SELECT c.phone_e164 INTO v_old_phone
     FROM eut_moderation.catalog_private_contacts c

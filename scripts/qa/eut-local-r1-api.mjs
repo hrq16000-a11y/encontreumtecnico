@@ -133,12 +133,8 @@ const staleUpdate = await rpc('eut_admin_catalog_update', admin, {
   _expected_audit_id: phoneOnly.last_audit_id,
   _changes: { label: 'Stale attempt' }, _reason: reason,
 });
-console.log('LOCAL_R1_STALE_DIAGNOSTIC: status='+staleUpdate.status+
-  ' code='+String(staleUpdate.data?.code??'none')+
-  ' payload_type='+typeof staleUpdate.data+
-  ' fields='+Object.keys(staleUpdate.data??{}).sort().join(',')); 
-assert.notEqual(staleUpdate.status, 200, 'Stale edit unexpectedly succeeded');
-assert.equal(staleUpdate.data?.code, '40001', 'Stale edit must fail with version conflict');
+assert.equal(staleUpdate.status, 409, 'Stale edit must return HTTP 409 without retries');
+assert.equal(staleUpdate.data?.code, 'PT409', 'Stale edit must fail with version conflict');
 
 
 // A client cannot bypass the RPC to directly insert an Auth-less record.
