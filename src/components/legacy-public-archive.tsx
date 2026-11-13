@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { legacyAvatarUrl } from "@/lib/legacy-avatar-urls";
+import { suggestLegacyDisplayName } from "@/lib/legacy-display-name";
 
 type HistoricalProfile = {
   wp_post_id: number;
@@ -88,7 +89,12 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-card-foreground">{profile.display_name}</h3>
+                      <h3 className="break-words font-semibold text-card-foreground">{suggestLegacyDisplayName(profile.display_name).display}</h3>
+                      {suggestLegacyDisplayName(profile.display_name).suggested && (
+                        <p className="mt-1 break-all text-xs text-muted-foreground">
+                          Nome sugerido · apelido original: {profile.display_name}
+                        </p>
+                      )}
                       <span className="mt-1 inline-flex rounded border border-amber-700/30 bg-amber-800/10 px-2 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300">
                         Pioneiro Bronze · pré-cadastro
                       </span>
