@@ -33,7 +33,6 @@ concurrency:
 
 jobs:
   build:
-    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -71,19 +70,3 @@ jobs:
           check(existsSync('src/routes/cadastro.tsx'), 'Destino /cadastro ausente');
           console.log('Home2 smoke estático: OK');
           NODE
-
-  ibge-approved-only-qa:
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feature/ibge-approved-only-20261113'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 12
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-      - name: Install (locked)
-        run: bun install --frozen-lockfile
-      - name: Testes isolados IBGE e elegibilidade pública
-        run: bunx vitest run src/lib/technician-city-scope.test.ts src/lib/technicians.functions.test.ts
-      - name: Build TanStack
-        run: bun run build
-      - name: TypeScript
-        run: bunx tsc --noEmit --pretty false
