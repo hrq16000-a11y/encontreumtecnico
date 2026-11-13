@@ -30,7 +30,18 @@ const paths = [
     "transferredAvatars", "wp-candidate-530.webp",
   ]],
   ["src/routes/sitemap[.]xml.ts", [
-    "https://www.encontreumtecnico.com", "/tecnicos",
+    'createFileRoute("/sitemap.xml")', "getPublicGraphSnapshot()",
+    "buildPublicSitemapIndexXml(graph)",
+  ]],
+  ["src/lib/public-sitemap-index.ts", [
+    "SITE,", '} from "@/lib/public-sitemap";',
+    '"  <sitemap><loc>" + SITE + part.path',
+    '"/sitemaps/tecnicos/" + page + ".xml"',
+  ]],
+  ["src/lib/public-sitemap.ts", [
+    'export const SITE = "https://www.encontreumtecnico.com.br";',
+    '"/tecnicos"',
+    'lines.push(`  <url><loc>${SITE}/tecnicos/${slug}</loc>${modified}</url>`);',
   ]],
 ];
 for (const [path, evidence] of paths) {
