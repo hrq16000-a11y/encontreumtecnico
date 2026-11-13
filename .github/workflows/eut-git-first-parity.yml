@@ -29,6 +29,14 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - name: Install pinned dependencies
         run: bun install --frozen-lockfile
+      - name: Issue #262 A1+B1 targeted offline suites
+        run: |
+          bunx vitest run \
+            src/lib/technician-panel-navigation.test.ts \
+            src/lib/admin-sections.test.ts \
+            src/lib/referral-highlights.test.ts \
+            src/lib/technicians.functions.test.ts \
+            src/lib/public-profile-text.test.ts
       - name: Verify no automatic Vercel deployments and parity contracts
         run: node scripts/eut-parity-preflight.mjs
       - name: WordPress archive filters and account isolation
