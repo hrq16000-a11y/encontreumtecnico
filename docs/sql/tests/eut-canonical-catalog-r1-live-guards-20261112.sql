@@ -37,7 +37,7 @@ begin
     end if;
   end loop;
   return false;
-end $function$
+end $function$;
 
 CREATE OR REPLACE FUNCTION eut_profile_security.block_unsafe_public_profile()
  RETURNS trigger
@@ -56,7 +56,7 @@ begin
       using errcode='23514';
   end if;
   return new;
-end $function$
+end $function$;
 
 CREATE OR REPLACE FUNCTION eut_migration.guard_technician_approval()
  RETURNS trigger
@@ -79,7 +79,7 @@ begin
   end if;
   return new;
 end
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION public.eut_validate_technician_city_and_coverage()
  RETURNS trigger
@@ -121,7 +121,7 @@ BEGIN
   END IF;
  END IF;
  RETURN NEW;
-END; $function$
+END; $function$;
 
 CREATE OR REPLACE FUNCTION public.eut_validate_technician_services()
  RETURNS trigger
@@ -156,7 +156,7 @@ begin
   end loop;
   return new;
 end;
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION eut_moderation.reject_restricted_publication()
  RETURNS trigger
@@ -178,7 +178,7 @@ begin
   end if;
   return new;
 end;
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION eut_visibility.eut_public_technician_eligible(_technician_id uuid)
  RETURNS boolean
@@ -202,7 +202,7 @@ AS $function$
       AND pg_catalog.regexp_replace(c.phone_e164,'[^0-9]','','g')<>''
   )
  );
-$function$
+$function$;
 
 
 CREATE TRIGGER eut_block_public_contact_disclosure
