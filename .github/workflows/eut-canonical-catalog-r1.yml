@@ -208,6 +208,8 @@ jobs:
           [[ "${DB_URL:-}" == postgresql://*'@127.0.0.1:'* || "${DB_URL:-}" == postgres://*'@127.0.0.1:'* ]] || { echo 'LOCAL_DB_URL_REQUIRED'; exit 1; }
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/docs/sql/tests/eut-canonical-r1-local-only-dependencies-20261113.sql" >/dev/null
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/docs/sql/eut-canonical-catalog-r1-proposal-20261112.sql" >/dev/null
+          node "$GITHUB_WORKSPACE/scripts/qa/eut-local-legacy-guards-sql.mjs" | psql "$DB_URL" -X -v ON_ERROR_STOP=1 >/dev/null
+          echo 'LOCAL_R1_LEGACY_GUARDS_READY: 10 technician triggers, 1 legacy private trigger and 11 RLS policies'
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -c "NOTIFY pgrst, 'reload schema';" >/dev/null
           echo 'LOCAL_R1_SCHEMA_READY: six migrations + metadata-backed minimal shim + existing R1 proposal'
       - name: Verify R1 catalog through real GoTrue admin JWT and PostgREST
@@ -218,6 +220,14 @@ jobs:
           . "$RUNNER_TEMP/eut-local.env"
           set +a
           node "$GITHUB_WORKSPACE/scripts/qa/eut-local-r1-api.mjs"
+      - name: Verify inherited triggers, blocked account and versioned audit through local Auth
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          . "$RUNNER_TEMP/eut-local.env"
+          set +a
+          node "$GITHUB_WORKSPACE/scripts/qa/eut-local-legacy-guards-api.mjs"
       - name: Check private paid-contact flag in ephemeral SQL only
         shell: bash
         run: |
