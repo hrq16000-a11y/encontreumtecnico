@@ -176,8 +176,9 @@ jobs:
           assert.deepEqual((await rpc.json()).map(v=>v.technician_id),[ids.visible],
             'R2 exposed disabled, blocked, missing-provenance or missing-phone record');
           const api=async path=>fetch('http://127.0.0.1:4173'+path,{redirect:'manual'});
-          const search=await api('/tecnicos');
-          assert.equal(search.status,200,'#255 SSR search HTTP status');
+          // #255 declares the index route as /tecnicos/; /tecnicos redirects 307.
+          const search=await api('/tecnicos/');
+          assert.equal(search.status,200,'#255 SSR index HTTP status location='+search.headers.get('location'));
           const html=await search.text();
           assert.ok(html.includes('QA SSR Visivel'),'Enabled Auth-less missing from TanStack SSR search');
           for(const text of ['QA SSR Sem Fone','QA SSR Desabilitado','QA SSR Bloqueado','QA SSR Sem Origem',
