@@ -38,12 +38,14 @@ export function FreeSearchHelp() {
       triggerRef.current?.focus();
     };
   }, [open]);
+  // On mobile, sit just above the bottom navigation so the button does not
+  // cover the city search input while the initial filter card is in view.
   return (
     <>
       <button type="button" ref={triggerRef} aria-haspopup="dialog"
         aria-expanded={open} aria-controls="eut-free-help-dialog"
         onClick={() => { setContext({}); setOpen(true); }}
-        className="fixed bottom-[calc(10.5rem+env(safe-area-inset-bottom))] right-4 z-40 inline-flex min-h-12 items-center gap-2 rounded-full border border-white/30 bg-brand-navy px-4 py-3 text-sm font-bold text-white shadow-[0_14px_42px_-14px_rgba(7,28,57,.7)] transition-transform hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transform-none md:bottom-24 md:right-6">
+        className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 z-40 inline-flex min-h-12 items-center gap-2 rounded-full border border-white/30 bg-brand-navy px-4 py-3 text-sm font-bold text-white shadow-[0_14px_42px_-14px_rgba(7,28,57,.7)] transition-transform hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transform-none md:bottom-24 md:right-6">
         <LifeBuoy className="h-5 w-5" aria-hidden="true" /> Preciso de ajuda
       </button>
       {open && (

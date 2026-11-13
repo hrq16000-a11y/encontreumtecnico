@@ -21,7 +21,7 @@ import { AdminAccountsManager } from "@/components/admin-accounts-manager";
 import { AdminContactsDashboard } from "@/components/admin-contacts-dashboard";
 import { AdminClientInsights } from "@/components/admin-client-insights";
 import { adminModuleTitle, type AdminSection } from "@/lib/admin-sections";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ClipboardList, PhoneCall, ShieldBan, Wrench } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -39,11 +39,11 @@ export const Route = createFileRoute("/admin")({
 });
 
 const ADMIN_QUICK_LINKS = [
-  { section: "tecnicos", label: "Técnicos" },
-  { section: "solicitacoes", label: "Solicitações" },
-  { section: "contas", label: "Contas e bloqueios" },
-  { section: "contatos", label: "Contatos privados" },
-] as const satisfies ReadonlyArray<{ section: AdminSection; label: string }>;
+  { section: "tecnicos", label: "Técnicos", icon: Wrench },
+  { section: "solicitacoes", label: "Solicitações", icon: ClipboardList },
+  { section: "contas", label: "Contas e bloqueios", icon: ShieldBan },
+  { section: "contatos", label: "Contatos privados", icon: PhoneCall },
+] as const satisfies ReadonlyArray<{ section: AdminSection; label: string; icon: typeof Wrench }>;
 
 export function AdminPage() {
   return <AdminWorkspace section="inicio" />;
@@ -132,7 +132,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
                       (section === item.section
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border bg-background text-foreground hover:border-primary hover:text-primary")}>
-                    {item.label}
+                    <item.icon className="mr-2 inline h-4 w-4 shrink-0 align-text-bottom" aria-hidden="true" /> {item.label}
                   </Link>
                 ))}
               </div>

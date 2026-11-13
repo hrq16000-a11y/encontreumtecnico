@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { BadgeCheck, HandCoins, Eye, Scale, Camera, Laptop, Wifi, Printer, MapPin, Search } from "lucide-react";
+import { BadgeCheck, HandCoins, Eye, Scale, Camera, Laptop, Wifi, Printer, MapPin, Search, ArrowRight, Wrench, UsersRound } from "lucide-react";
 import logo from "@/assets/logo-encontreumtecnico.png.asset.json";
 import heroImg from "@/assets/tecnico-cftv-instalacao.jpg";
 import techImg from "@/assets/tecnica-informatica.jpg";
@@ -58,8 +58,6 @@ export const Route = createFileRoute("/")({
               url: SITE,
               logo: new URL(logo.url, SITE).href,
               areaServed: "BR",
-              email: "dpo@encontreumtecnico.com",
-              telephone: "+55-41-99745-2053",
               description: DESC,
               slogan: "Precisou? Encontrou!",
             },
@@ -95,6 +93,19 @@ const CHIPS = [
   { i: Wifi, t: "Redes" },
   { i: Printer, t: "Impressoras" },
 ];
+
+
+/** Artworks already versioned in the portal. Keep the two existing Home photos. */
+const HOME_VISUALS = [
+  { slug: "cftv", title: "Câmeras e segurança", subtitle: "Planeje a instalação de câmeras e gravadores.",
+    src: "/guias/cftv-planejamento-ilustrado.svg", alt: "Ilustração de câmeras e gravador de segurança em uma casa." },
+  { slug: "computadores", title: "Computadores e notebooks", subtitle: "Encontre ajuda para diagnóstico e manutenção.",
+    src: "/guias/computador-diagnostico-ilustrado.svg", alt: "Ilustração de uma bancada de diagnóstico com notebook e ferramentas." },
+  { slug: "redes", title: "Wi-Fi e redes", subtitle: "Confira soluções para conexão e cobertura de sinal.",
+    src: "/guias/wifi-instabilidade-cobertura-ilustrado.svg", alt: "Ilustração de uma casa com roteador e cobertura Wi-Fi nos ambientes." },
+  { slug: "impressoras", title: "Impressoras", subtitle: "Resolva problemas de conexão, fila e impressão.",
+    src: "/guias/impressora-offline-fila-ilustrado.svg", alt: "Ilustração de uma impressora com fila de impressão e conectividade." },
+] as const;
 
 function HomePage() {
   const navigate = useNavigate();
@@ -133,7 +144,7 @@ function HomePage() {
 
   return (
     <PageShell>
-      <section className="relative overflow-hidden bg-gradient-to-b from-accent to-background px-4 pb-16 pt-12 md:pb-24 md:pt-16">
+      <section className="relative overflow-hidden bg-gradient-to-br from-brand-navy via-[#124b76] to-brand-navy px-4 pb-16 pt-10 md:pb-20 md:pt-16">
         <div aria-hidden className="pointer-events-none absolute inset-0">
           <div className="bg-glow absolute -top-24 -left-24 h-96 w-96 opacity-25 blur-2xl" />
           <div className="bg-glow absolute -right-32 top-10 h-[28rem] w-[28rem] opacity-20 blur-2xl" />
@@ -141,7 +152,7 @@ function HomePage() {
         </div>
 
         <div className="relative mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[1.1fr_1fr]">
-          <div className="animate-rise">
+          <div className="animate-rise rounded-3xl border border-white/15 bg-card p-5 shadow-[0_24px_70px_-24px_rgba(0,0,0,.45)] sm:p-8">
             <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-card px-3 py-1 text-xs font-semibold text-primary">
               <BadgeCheck className="h-4 w-4" aria-hidden /> Portal nacional · sem custo para o profissional
             </span>
@@ -158,7 +169,7 @@ function HomePage() {
               </div>
             ) : (
             <form
-              className="mt-8 flex flex-col gap-3 rounded-xl bg-card p-3 shadow-soft sm:flex-row"
+              className="mt-7 flex flex-col gap-3 rounded-2xl border border-primary/15 bg-accent/40 p-3 shadow-sm sm:flex-row"
               onSubmit={(e) => {
                 e.preventDefault();
                 window.__lovableEvents?.track?.("project.technician_search", {
@@ -192,9 +203,9 @@ function HomePage() {
               />
               <button
                 type="submit"
-                className="h-11 rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
               >
-                Buscar
+                <Search className="h-4 w-4" aria-hidden="true" /> Buscar
               </button>
             </form>
             )}
@@ -238,13 +249,50 @@ function HomePage() {
               ))}
             </ul>
           </div>
-          <div className="relative animate-rise [animation-delay:150ms]">
-            <img src={heroImg} alt="Técnico instalando câmera de segurança na fachada de uma casa" width={1280} height={1024} className="aspect-[5/4] w-full rounded-3xl object-cover shadow-soft" />
+          <div className="relative animate-rise [animation-delay:150ms] rounded-[30px] border-4 border-white/15 bg-white/10 p-2 shadow-[0_25px_80px_-20px_rgba(0,0,0,.5)]">
+            <img src={heroImg} alt="Técnico instalando câmera de segurança na fachada de uma casa" width={1280} height={1024} className="aspect-[5/4] w-full rounded-[22px] object-cover shadow-soft" />
             <div className="absolute -bottom-5 left-4 flex animate-float items-center gap-3 rounded-2xl bg-card px-4 py-3 shadow-soft">
               <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground"><MapPin className="h-5 w-5" aria-hidden /></span>
               <div className="text-sm"><div className="font-semibold text-foreground">Técnicos perto de você</div><div className="text-muted-foreground">Busque por cidade ou região</div></div>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="home-visual-servicos" className="border-b border-border bg-gradient-to-r from-accent/80 via-background to-accent/80 px-4 py-12 sm:py-16">
+        <div className="mx-auto max-w-6xl">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-primary">Explore visualmente</p>
+            <h2 id="home-visual-servicos" className="mt-2 text-2xl font-bold text-foreground sm:text-3xl">Seu problema, nossa próxima conexão</h2>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+              Explore quatro especialidades e encontre profissionais por serviço e localidade.
+            </p>
+          </div>
+          <Link to="/servicos" className="inline-flex min-h-11 items-center gap-2 rounded-full border border-primary/30 px-4 text-sm font-semibold text-primary hover:bg-accent">
+            Ver todos os serviços <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </div>
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {HOME_VISUALS.map((item) => (
+            <li key={item.slug}>
+              <Link to="/servicos/$categoria" params={{ categoria: item.slug }}
+                className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-colors hover:border-primary/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                <div className="overflow-hidden bg-brand-navy/10">
+                  <img src={item.src} alt={item.alt} width={1200} height={630} loading="lazy" decoding="async"
+                    className="aspect-[40/21] w-full object-cover transition-transform duration-300 group-hover:scale-[1.035] motion-reduce:transform-none" />
+                </div>
+                <div className="flex flex-1 items-center justify-between gap-3 p-5">
+                  <div>
+                    <h3 className="font-bold text-foreground">{item.title}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">{item.subtitle}</p>
+                  </div>
+                  <ArrowRight className="h-5 w-5 shrink-0 text-primary transition-transform group-hover:translate-x-1 motion-reduce:transform-none" aria-hidden="true" />
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
         </div>
       </section>
 
@@ -267,6 +315,9 @@ function HomePage() {
 
       <HomePublicProof />
 
+
+
+
       <section className="mx-auto max-w-3xl px-4 pb-16">
         <Reveal><ProblemAssistant /></Reveal>
       </section>
@@ -283,7 +334,7 @@ function HomePage() {
             Não cobramos do técnico para participar nem por cliente recebido, e não fazemos leilão de preço. O cliente encontra quem tem a especialidade certa, perto dele, e o técnico é reconhecido pelo seu trabalho.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <Link to="/entrar" className="inline-flex items-center rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90">Sou técnico, quero participar</Link>
+            <Link to="/entrar" className="inline-flex min-h-11 items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"><Wrench className="h-4 w-4" aria-hidden="true" /> Sou técnico, quero participar</Link>
             <Link to="/tecnicos" search={{ especialidade: "Todas", cidade: "", regiao: "" }} className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-5 py-2.5 text-sm font-semibold text-foreground hover:border-primary"><Search className="h-4 w-4" aria-hidden /> Ver técnicos</Link>
           </div>
         </div>
@@ -303,31 +354,58 @@ function HomePage() {
       <Reveal><FaqPreview /></Reveal>
       <Reveal><ContactBand /></Reveal>
 
-      <section className="mx-auto max-w-6xl px-4 pb-16">
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-lg border border-border bg-card p-8 text-center">
-            <h2 className="text-lg font-semibold text-card-foreground">Sou Cliente</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Cadastre-se, pesquise profissionais por região e negocie diretamente com o prestador.
+      <section aria-labelledby="home-journeys-title" className="px-4 py-16 sm:py-20">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-7 max-w-2xl">
+            <span className="text-xs font-extrabold uppercase tracking-widest text-primary">A jornada é sua</span>
+            <h2 id="home-journeys-title" className="mt-2 text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
+              Como você quer começar?
+            </h2>
+            <p className="mt-3 text-sm leading-7 text-muted-foreground sm:text-base">
+              Encontre ajuda para um serviço ou apresente seu trabalho à rede. Escolha seu caminho.
             </p>
-            <Link
-              to="/entrar"
-              className="mt-4 inline-block rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              Criar conta de cliente
-            </Link>
           </div>
-          <div className="rounded-lg border border-border bg-card p-8 text-center">
-            <h2 className="text-lg font-semibold text-card-foreground">Sou Técnico</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Faça parte da rede de técnicos de TI do Brasil e seja encontrado por novos clientes.
-            </p>
-            <Link
-              to="/entrar"
-              className="mt-4 inline-block rounded-md border border-primary px-6 py-2.5 text-sm font-medium text-primary hover:bg-primary/5"
-            >
-              Criar conta de técnico
-            </Link>
+          <div className="grid gap-5 md:grid-cols-2">
+            <article className="eut-card-lift group relative isolate flex min-h-80 flex-col overflow-hidden rounded-[28px] border border-primary/30 bg-gradient-to-br from-card via-card to-accent/70 p-6 shadow-soft sm:p-8">
+              <div aria-hidden="true" className="pointer-events-none absolute -right-12 -top-12 text-primary/10">
+                <UsersRound className="h-56 w-56" strokeWidth={0.8} />
+              </div>
+              <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl border border-primary/15 bg-primary/10 text-primary">
+                <UsersRound className="h-8 w-8" aria-hidden="true" />
+              </div>
+              <div className="relative mt-6 flex-1">
+                <p className="text-xs font-extrabold uppercase tracking-widest text-primary">Quero resolver</p>
+                <h3 className="mt-2 text-2xl font-extrabold text-card-foreground">Sou Cliente</h3>
+                <p className="mt-3 max-w-sm text-sm leading-7 text-muted-foreground">
+                  Cadastre-se, encontre profissionais por região e especialidade e combine diretamente o serviço.
+                </p>
+              </div>
+              <Link to="/entrar"
+                className="relative mt-6 inline-flex min-h-12 w-fit items-center justify-center gap-3 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground shadow-sm transition-all hover:shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none">
+                <Search className="h-5 w-5" aria-hidden="true" /> Criar conta de cliente
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1 motion-reduce:transform-none" aria-hidden="true" />
+              </Link>
+            </article>
+            <article className="eut-card-lift group relative isolate flex min-h-80 flex-col overflow-hidden rounded-[28px] border border-brand-glow/30 bg-gradient-to-br from-brand-navy via-[#173e64] to-brand-navy p-6 text-brand-navy-foreground shadow-[0_20px_55px_-25px_rgba(5,20,44,.55)] sm:p-8">
+              <div aria-hidden="true" className="pointer-events-none absolute -right-12 -top-12 text-white/10">
+                <Wrench className="h-56 w-56" strokeWidth={0.8} />
+              </div>
+              <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl border border-brand-glow/30 bg-white/10 text-brand-glow">
+                <Wrench className="h-8 w-8" aria-hidden="true" />
+              </div>
+              <div className="relative mt-6 flex-1">
+                <p className="text-xs font-extrabold uppercase tracking-widest text-brand-glow">Quero participar</p>
+                <h3 className="mt-2 text-2xl font-extrabold text-white">Sou Técnico</h3>
+                <p className="mt-3 max-w-sm text-sm leading-7 text-white/85">
+                  Mostre suas especialidades, informe sua região de atendimento e participe gratuitamente da rede.
+                </p>
+              </div>
+              <Link to="/entrar"
+                className="relative mt-6 inline-flex min-h-12 w-fit items-center justify-center gap-3 rounded-xl border border-white/30 bg-white px-5 py-3 text-sm font-bold text-brand-navy shadow-sm transition-all hover:shadow-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none">
+                <Wrench className="h-5 w-5" aria-hidden="true" /> Criar conta de técnico
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1 motion-reduce:transform-none" aria-hidden="true" />
+              </Link>
+            </article>
           </div>
         </div>
       </section>

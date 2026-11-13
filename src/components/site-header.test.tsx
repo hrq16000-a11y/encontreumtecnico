@@ -32,6 +32,20 @@ describe("Cabeçalho do novo portal", () => {
     expect(menu.querySelector('a[href="/entrar"]')).toBeTruthy();
   });
 
+  it("mostra ícones Lucide nos destinos do topo e nos links do menu mobile", () => {
+    render(<SiteHeader />);
+    const desktop = screen.getByRole("navigation", { name: "Navegação principal" });
+    for (const destination of ["/", "/servicos", "/como-funciona"]) {
+      expect(desktop.querySelector(`a[href="${destination}"] svg`)).toBeTruthy();
+    }
+    fireEvent.click(screen.getByRole("button", { name: "Abrir menu" }));
+    const mobile = screen.getByRole("navigation", { name: "Navegação móvel" });
+    for (const destination of ["/", "/tecnicos", "/servicos", "/como-funciona", "/area-cliente", "/area-tecnico"]) {
+      expect(mobile.querySelector(`a[href="${destination}"] svg`)).toBeTruthy();
+    }
+    expect(mobile.querySelector('a[href="/entrar"] svg')).toBeTruthy();
+  });
+
   it("oferece três atalhos móveis sem substituir o menu completo", () => {
     render(<SiteHeader />);
     const quick = screen.getByRole("navigation", { name: "Acesso rápido no celular" });

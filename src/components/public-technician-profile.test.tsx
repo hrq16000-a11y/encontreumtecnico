@@ -44,7 +44,7 @@ describe("Perfil técnico premium sem prova social fabricada", () => {
   it("mostra nome, localização, quantidades reais e solicitação protegida", () => {
     const { container } = render(<PublicTechnicianProfile technician={profile} />);
     expect(screen.getByRole("heading", { name: "Jefferson Santana" })).toBeTruthy();
-    expect(screen.getByText(/Tubarão\/SC/)).toBeTruthy();
+    expect(screen.getAllByText(/Tubarão\/SC/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("2")).toBeTruthy();
     expect(screen.getByText("3")).toBeTruthy();
     expect(screen.getAllByText("Descrever meu problema").length).toBeGreaterThan(0);
@@ -56,6 +56,21 @@ describe("Perfil técnico premium sem prova social fabricada", () => {
     }));
     expect(container.textContent).not.toMatch(/5 estrelas|avaliado por clientes|técnico verificado/i);
     expect(container.textContent).not.toMatch(/\+55\d{10,11}/);
+  });
+
+  it("oferece navegação acessível pelo perfil e mantém o contato fora do HTML público", () => {
+    const { container } = render(<PublicTechnicianProfile technician={profile} />);
+    const nav = screen.getByRole("navigation", { name: "Seções deste perfil" });
+    const targets = Array.from(nav.querySelectorAll("a")).map(link => link.getAttribute("href"));
+    expect(targets).toEqual(["#especialidades", "#servicos", "#atendimento", "#sobre"]);
+    for (const target of targets) {
+      expect(container.querySelector(target!)).not.toBeNull();
+    }
+    expect(screen.getByRole("link", { name: /Conhecer os serviços/i }).getAttribute("href")).toBe("#servicos");
+    expect(screen.getAllByRole("link", { name: /Descrever meu problema/i }).length).toBeGreaterThanOrEqual(2);
+    expect(container.querySelector('a[href^="tel:"]')).toBeNull();
+    expect(container.querySelector('a[href^="mailto:"]')).toBeNull();
+    expect(container.querySelector('a[href*="wa.me"]')).toBeNull();
   });
 
   it("mantém a seção Sobre visível quando não há apresentação pública", () => {
