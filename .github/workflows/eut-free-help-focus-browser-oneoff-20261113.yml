@@ -1,0 +1,121 @@
+name: EUT one-off local Chromium focus QA (remove after evidence)
+on:
+  push:
+    branches:
+      - integration/free-help-focus-clean-after-268-20261113
+    paths:
+      - .github/workflows/eut-free-help-focus-browser-oneoff-20261113.yml
+permissions:
+  contents: read
+jobs:
+  local-focus-qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.4'
+      - name: Install application locked dependencies
+        run: bun install --frozen-lockfile
+      - name: Install isolated Chromium (no artifact/cache)
+        run: |
+          mkdir -p "$RUNNER_TEMP/eut-focus-qa"
+          cd "$RUNNER_TEMP/eut-focus-qa"
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund playwright@1.56.1
+          npx playwright install chromium
+      - name: Validate Home/contact focus in real local Chromium
+        env:
+          VITE_SUPABASE_PROJECT_ID: synthetic-local
+          VITE_SUPABASE_URL: http://127.0.0.1:9
+          VITE_SUPABASE_PUBLISHABLE_KEY: synthetic-local-public
+        run: |
+          set -euo pipefail
+          bun run dev --host 127.0.0.1 --port 5173 > "$RUNNER_TEMP/eut-focus-vite.log" 2>&1 &
+          qa_server_pid=$!
+          trap 'kill "$qa_server_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 40); do
+            if curl --fail --silent --output /dev/null http://127.0.0.1:5173/; then ready=1; break; fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            tail -n 60 "$RUNNER_TEMP/eut-focus-vite.log"
+            exit 1
+          fi
+          NODE_PATH="$RUNNER_TEMP/eut-focus-qa/node_modules" node <<'NODE'
+          const { chromium } = require('playwright');
+          const assert = require('node:assert/strict');
+          const BASE = 'http://127.0.0.1:5173';
+          (async () => {
+            const browser = await chromium.launch({ headless: true });
+            let checks = 0;
+            let blockedExternal = 0;
+            try {
+              for (const width of [390, 1440]) {
+                const context = await browser.newContext({
+                  viewport: { width, height: 844 },
+                  reducedMotion: 'reduce',
+                });
+                await context.route('**/*', route => {
+                  const url = route.request().url();
+                  if (url.startsWith(BASE + '/') || url.startsWith('data:') || url.startsWith('blob:')) return route.continue();
+                  blockedExternal++;
+                  return route.abort('blockedbyclient');
+                });
+                await context.addInitScript(() => {
+                  sessionStorage.setItem('eut-regional-hint-v1', JSON.stringify({
+                    city: 'Curitiba', uf: 'PR', neighborhood: '', source: 'ip', savedAt: Date.now(),
+                  }));
+                });
+                const page = await context.newPage();
+                const pageErrors = [];
+                page.on('pageerror', error => pageErrors.push(String(error).slice(0, 200)));
+                async function checkFocus(label, opener) {
+                  await opener.waitFor({ state: 'visible', timeout: 12000 });
+                  await opener.scrollIntoViewIfNeeded();
+                  await opener.focus();
+                  const element = await opener.elementHandle();
+                  assert(element, label + ': opener absent');
+                  assert(await opener.evaluate(el => document.activeElement === el), label + ': opener focus failed');
+                  await opener.click({ timeout: 12000 });
+                  const dialog = page.getByRole('dialog');
+                  await dialog.waitFor({ state: 'visible', timeout: 12000 });
+                  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'Fechar atendimento', null, { timeout: 12000 });
+                  assert.equal(await dialog.locator('a[href^="tel:"], a[href^="mailto:"], a[href*="wa.me/"]').count(), 0, label + ': contact shortcut');
+                  await page.keyboard.press('Escape');
+                  await dialog.waitFor({ state: 'hidden', timeout: 12000 });
+                  await page.waitForFunction(el => document.activeElement === el, element, { timeout: 12000 });
+                  checks++;
+                  console.log('FOCUS_PASS ' + width + 'px ' + label);
+                }
+                try {
+                  await page.goto(BASE + '/', { waitUntil: 'domcontentloaded', timeout: 25000 });
+                  await checkFocus('Home CTA', page.getByRole('button', { name: 'Pedir ajuda ao portal', exact: true }));
+                  const floating = page.getByRole('button', { name: 'Preciso de ajuda', exact: true });
+                  const offset = Number(await floating.evaluate(el => parseFloat(getComputedStyle(el).bottom)));
+                  if (width === 390) assert(offset >= 80 && offset <= 120, 'mobile #268 bottom offset: ' + offset);
+                  else assert(offset >= 90 && offset <= 110, 'desktop bottom offset: ' + offset);
+                  checks++;
+                  console.log('OFFSET_PASS ' + width + 'px bottom=' + offset);
+                  await checkFocus('floating CTA', floating);
+                  await page.goto(BASE + '/contato', { waitUntil: 'domcontentloaded', timeout: 25000 });
+                  await checkFocus('contact hero CTA', page.getByRole('button', { name: 'Pedir ajuda ao portal', exact: true }));
+                  await checkFocus('contact orientation card', page.getByRole('button', { name: /Preciso de orientação/ }));
+                  await checkFocus('contact privacy CTA', page.getByRole('button', { name: /Pedir ajuda com dados/ }));
+                  if (pageErrors.length) console.log('PAGE_ERRORS ' + width + 'px ' + JSON.stringify(pageErrors));
+                } finally {
+                  await context.close();
+                }
+              }
+              assert.equal(checks, 12);
+              console.log('LOCAL_CHROMIUM_FOCUS_QA_PASS ' + checks + '/12; blocked_external_requests=' + blockedExternal);
+            } finally {
+              await browser.close();
+            }
+          })().catch(error => { console.error('LOCAL_CHROMIUM_FOCUS_QA_FAIL', error); process.exitCode = 1; });
+          NODE
