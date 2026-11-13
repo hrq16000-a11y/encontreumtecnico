@@ -2,6 +2,7 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { handleErrorSignal } from "./lib/error-signal.server";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -53,6 +54,11 @@ function isH3SwallowedErrorBody(body: string): boolean {
 // twice and renders garbled.
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    // A first-party diagnostic receiver, independent of route generation.
+    // It accepts only anonymous, low-cardinality metadata and no raw errors.
+    if (request.method === "POST" && new URL(request.url).pathname === "/api/error-signal") {
+      return handleErrorSignal(request);
+    }
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);

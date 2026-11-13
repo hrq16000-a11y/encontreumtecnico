@@ -13,6 +13,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { emitErrorSignal, installErrorSensor } from "../lib/error-signal";
 import { FriendlyErrorState } from "../components/friendly-error-state";
 import { PageShell } from "../components/page-placeholder";
 import { AdSenseLoader } from "../components/adsense-loader";
@@ -36,10 +37,10 @@ function getFriendlyErrorStatus(error: unknown): 403 | 500 | 503 {
 }
 
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
-  console.error(error);
   const router = useRouter();
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    emitErrorSignal("route_error", getFriendlyErrorStatus(error));
   }, [error]);
 
   return (
@@ -124,6 +125,7 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  useEffect(() => installErrorSensor(), []);
   const pathname = useRouterState({ select: state => state.location.pathname });
   // Full-screen friendly 404/403/500 pages own their chrome.
   // Do not nest an extra header, footer or main around error boundaries.
