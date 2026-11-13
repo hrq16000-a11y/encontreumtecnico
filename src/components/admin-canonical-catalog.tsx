@@ -35,9 +35,9 @@ export function AdminCanonicalCatalog() {
   const [cities, setCities] = useState<{id: number;name: string;uf: string}[]>([]);
   const [cityId, setCityId] = useState("");
   const [category, setCategory] = useState("");
-  const [reason, setReason] = useState("");
+  const [reason, setReason] = useState("Cadastro manual pelo administrador");
   const [batch, setBatch] = useState("");
-  const [batchReason, setBatchReason] = useState("");
+  const [batchReason, setBatchReason] = useState("Importação administrativa em lote");
   const [target, setTarget] = useState<CatalogRow | null>(null);
   const [toggleReason, setToggleReason] = useState("");
   const pendingManualSource = useRef<string | null>(null);
@@ -106,7 +106,6 @@ export function AdminCanonicalCatalog() {
     if (category && !categories.some(c=>c.slug===category)) { setError("Categoria não está ativa."); return; }
     const municipality = cities.find(c=>String(c.id)===cityId);
     if (cityId && !municipality) { setError("Selecione um município oficial."); return; }
-    if (!window.confirm("Criar ficha canônica habilitada no catálogo operacional? Telefone protegido; não equivale a publicação pública nem a conta Auth.")) return;
     if (!pendingManualSource.current) pendingManualSource.current = "manual:" + crypto.randomUUID();
     setBusy(true); setError(""); setNotice("");
     try {
@@ -119,8 +118,8 @@ export function AdminCanonicalCatalog() {
         throw new Error(genericServerError(rpcError?.code));
       }
       await readback([data.technician_id],Boolean(data.catalog_enabled));
-      setPhone(""); setName(""); setReason(""); pendingManualSource.current=null;
-      setNotice("Ficha gravada e confirmada após nova leitura do banco, com auditoria. Não há publicação pública automática nesta etapa.");
+      setPhone(""); setName(""); pendingManualSource.current=null;
+      setNotice("Técnico habilitado no catálogo operacional. Gravação e auditoria verificadas automaticamente; a busca pública será ativada na etapa de integração.");
       await refresh(0,search);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha de gravação.");
@@ -135,8 +134,6 @@ export function AdminCanonicalCatalog() {
     if (batchReason.trim().length < 8 || batchReason.length > 400) {
       setError("Informe motivo de 8 a 400 caracteres."); return;
     }
-    if (!window.confirm("Importar " + prepared.rows.length +
-      " registros com suas chaves de origem? O lote é transacional, não publica telefones nem cria Auth.")) return;
     setBusy(true); setError(""); setNotice("");
     try {
       const {data,error:rpcError} = await db.rpc("eut_admin_catalog_import_batch",{
@@ -149,7 +146,7 @@ export function AdminCanonicalCatalog() {
       const ids=[...new Set(reply.results.map((x:CatalogWriteResult)=>String(x.technician_id)))];
       if (ids.length!==prepared.rows.length) throw new Error("IDs repetidos no lote. Confira o histórico antes de reenviar.");
       await readback(ids);
-      setBatch(""); setBatchReason("");
+      setBatch("");
       setNotice(ids.length+" registros verificados após releitura. Operações originais e duplicadas foram mantidas conforme suas origens.");
       await refresh(0,search);
     } catch(err) {
@@ -241,7 +238,7 @@ export function AdminCanonicalCatalog() {
             </label>
             <button type="submit" disabled={busy||categoryError||loadingCategories}
               className="min-h-12 rounded-xl bg-primary px-4 font-bold text-primary-foreground disabled:opacity-50">
-              {busy?"Gravando e conferindo…":"Criar e confirmar no banco"}
+              {busy?"Gravando e verificando…":"Cadastrar técnico habilitado"}
             </button>
           </form>
           <form onSubmit={e=>void importBatch(e)} className="grid gap-3 rounded-xl border border-border p-4">
@@ -257,7 +254,7 @@ export function AdminCanonicalCatalog() {
                 rows={2} value={batchReason} onChange={e=>setBatchReason(e.target.value)} required/>
             </label>
             <button type="submit" disabled={busy} className="min-h-12 rounded-xl border border-primary px-4 font-bold text-primary disabled:opacity-50">
-              {busy?"Importando e conferindo…":"Importar e verificar lote"}
+              {busy?"Importando e verificando…":"Importar técnicos habilitados"}
             </button>
           </form>
           <div className="rounded-xl border border-border p-4">

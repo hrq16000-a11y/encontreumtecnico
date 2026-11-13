@@ -28,6 +28,17 @@ describe("Admin catalog: only real persistence + private read RPC", () => {
     expect(parseCatalogBatch(JSON.stringify([JSON.parse(valid)[0],JSON.parse(valid)[0]])).ok).toBe(false);
     expect(parseCatalogBatch(JSON.stringify([{origin:"external_import",source_key:"22222222222",phone:"11999999999"}])).ok).toBe(false);
   });
+  it("cadastra e importa sem exigir aprovação ou confirmação individual", () => {
+    const ui = readFileSync("src/components/admin-canonical-catalog.tsx", "utf8");
+    const createPart = ui.split("  async function create(e: FormEvent) {")[1]?.split("  async function importBatch(e: FormEvent) {")[0] ?? "";
+    const importPart = ui.split("  async function importBatch(e: FormEvent) {")[1]?.split("  async function setEnabled(e: FormEvent) {")[0] ?? "";
+    expect(createPart).not.toContain("window.confirm(");
+    expect(importPart).not.toContain("window.confirm(");
+    expect(createPart).toContain("await readback([data.technician_id]");
+    expect(importPart).toContain("await readback(ids)");
+    expect(ui).toContain("Cadastrar técnico habilitado");
+    expect(ui).toContain("Importar técnicos habilitados");
+  });
   it("binds an actual list/write/readback and never uses client-side table insert", () => {
     const ui = readFileSync("src/components/admin-canonical-catalog.tsx","utf8");
     const admin = readFileSync("src/routes/admin.tsx","utf8");
