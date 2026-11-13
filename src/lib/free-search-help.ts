@@ -7,6 +7,7 @@ export type FreeHelpContext = {
   technicianName?: string;
   mode?: "direct" | "managed";
   guideSlug?: string;
+  initialProblem?: string;
 };
 
 const clean = (value: unknown) =>
@@ -27,6 +28,22 @@ export function freeHelpCopy(context: FreeHelpContext = {}) {
       "",
       "Detalhes do que preciso: ",
     ].join("\n"),
+  };
+}
+
+/** Contextual help always enters the existing managed funnel, not a raw phone or email. */
+export function portalHelpContext(
+  source: "home" | "contato",
+  reason: "geral" | "privacidade" = "geral",
+): FreeHelpContext {
+  const page = source === "home" ? "página inicial" : "página de contato";
+  const request = reason === "privacidade"
+    ? "Quero ajuda com privacidade ou meus dados pessoais."
+    : "Quero ajuda da equipe do portal.";
+  return {
+    mode: "managed",
+    service: "Outro serviço",
+    initialProblem: request + " Estou na " + page + " do Encontre um Técnico. ",
   };
 }
 

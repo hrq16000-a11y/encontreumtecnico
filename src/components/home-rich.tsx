@@ -8,7 +8,8 @@ import {
   Laptop,
   MapPinned,
   Newspaper,
-  Phone,
+  Headset,
+  TicketCheck,
   Printer,
   RadioTower,
   Search,
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 import { useActiveCategories } from "@/hooks/use-active-categories";
 import { FAQ } from "../lib/faq";
+import { openFreeHelp, portalHelpContext } from "@/lib/free-search-help";
 import { SectionHeading } from "./motion";
 import { NationalCoverage } from "./national-coverage";
 
@@ -232,40 +234,37 @@ export function FaqPreview() {
 export function ContactBand() {
   return (
     <section className="px-4 py-16">
-      <div className="mx-auto grid max-w-6xl items-center gap-6 rounded-3xl border border-border bg-gradient-to-br from-accent via-card to-card p-8 shadow-soft md:grid-cols-[1.4fr_1fr] md:p-12">
-        <div>
-          <SectionHeading
-            eyebrow="Atendimento"
-            title="Fale com a equipe do portal"
-            text="Dúvidas sobre cadastro, aprovação de perfil ou uma solicitação em andamento? A gente responde."
-          />
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link
-              to="/contato"
-              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-            >
-              Enviar mensagem <ArrowRight className="h-4 w-4" aria-hidden />
-            </Link>
-            <a
-              href="tel:+5541997452053"
-              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border bg-card px-5 text-sm font-semibold text-foreground hover:border-primary hover:text-primary"
-            >
-              <Phone className="h-4 w-4 text-primary" aria-hidden /> (41) 9 9745-2053
-            </a>
-          </div>
+      <div className="relative isolate mx-auto grid max-w-6xl items-center gap-8 overflow-hidden rounded-[28px] border border-brand-glow/25 bg-brand-navy p-7 text-brand-navy-foreground shadow-[0_28px_70px_-28px_rgba(5,20,44,.65)] md:grid-cols-[1.2fr_1fr] md:p-12">
+        <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-32 h-80 w-80 rounded-full bg-brand-glow/15 blur-3xl" />
+        <div className="relative">
+          <span className="inline-flex items-center gap-2 rounded-full border border-brand-glow/30 bg-white/10 px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-brand-navy-foreground">
+            <Headset className="h-4 w-4" aria-hidden="true" /> Atendimento guiado
+          </span>
+          <h2 className="mt-5 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">Precisa de ajuda do portal?</h2>
+          <p className="mt-4 max-w-xl text-sm leading-7 text-white/85 sm:text-base">
+            Dúvidas de cadastro, acesso ou solicitações? Conte o que aconteceu no nosso fluxo seguro.
+            A equipe recebe o pedido com o contexto da página inicial.
+          </p>
+          <button type="button" onClick={() => openFreeHelp(portalHelpContext("home"))}
+            className="group mt-6 inline-flex min-h-12 items-center justify-center gap-3 rounded-xl bg-white px-6 py-3 text-sm font-extrabold text-brand-navy shadow-lg transition-transform duration-200 hover:-translate-y-1 hover:shadow-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transform-none">
+            <Headset className="h-5 w-5" aria-hidden="true" />
+            Pedir ajuda ao portal
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1 motion-reduce:transform-none" aria-hidden="true" />
+          </button>
+          <p className="mt-3 text-xs text-white/70">Um único caminho: pedido registrado antes de oferecer WhatsApp. Sem telefone público.</p>
         </div>
-        <ul className="space-y-3 text-sm text-muted-foreground">
-          <li className="flex gap-3">
-            <ShieldCheck className="h-5 w-5 shrink-0 text-primary" aria-hidden />
-            Perfis públicos são cadastros declarados pelos próprios profissionais.
+        <ul className="relative grid gap-3 text-sm text-white/90">
+          <li className="eut-card-lift flex items-start gap-3 rounded-2xl border border-white/15 bg-white/10 p-4">
+            <Headset className="mt-0.5 h-5 w-5 shrink-0 text-brand-glow" aria-hidden="true" />
+            <span><strong className="block text-white">Orientação pela equipe</strong>Escolha o assunto e descreva sua necessidade.</span>
           </li>
-          <li className="flex gap-3">
-            <ClipboardCheck className="h-5 w-5 shrink-0 text-primary" aria-hidden />
-            Solicitações ficam registradas com histórico e status.
+          <li className="eut-card-lift flex items-start gap-3 rounded-2xl border border-white/15 bg-white/10 p-4">
+            <TicketCheck className="mt-0.5 h-5 w-5 shrink-0 text-brand-glow" aria-hidden="true" />
+            <span><strong className="block text-white">Solicitação registrada</strong>O registro acontece antes do encaminhamento ao WhatsApp.</span>
           </li>
-          <li className="flex gap-3">
-            <UserCheck className="h-5 w-5 shrink-0 text-primary" aria-hidden />
-            O técnico não paga para participar nem por contato.
+          <li className="eut-card-lift flex items-start gap-3 rounded-2xl border border-white/15 bg-white/10 p-4">
+            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-brand-glow" aria-hidden="true" />
+            <span><strong className="block text-white">Contatos protegidos</strong>O portal não divulga telefones de técnicos livremente.</span>
           </li>
         </ul>
       </div>
