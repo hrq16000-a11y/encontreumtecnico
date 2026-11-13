@@ -12,6 +12,7 @@ CREATE SCHEMA eut_visibility;
 ALTER TABLE public.technicians
   ADD COLUMN state_uf text,
   ADD COLUMN neighborhood text,
+  ADD COLUMN avatar_path text,
   ADD COLUMN service_slugs text[] NOT NULL DEFAULT '{}',
   ADD COLUMN coverage_city_ids integer[] NOT NULL DEFAULT '{}',
   ADD COLUMN service_radius_km integer,
