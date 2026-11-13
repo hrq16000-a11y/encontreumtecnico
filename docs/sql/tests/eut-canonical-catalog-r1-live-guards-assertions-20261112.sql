@@ -131,4 +131,60 @@ BEGIN
  THEN RAISE EXCEPTION 'Admin RPC failed with real RLS'; END IF;
 END $t$;
 RESET ROLE;
-\echo 'QA passed: quality, city, services, public text, bans and restrictive RLS'
+\echo 'Live trigger QA: complete deployed 9+1 event inventory'
+DO $t$
+DECLARE n integer; v_slug text;
+BEGIN
+ SELECT count(*) INTO n FROM pg_trigger
+ WHERE tgrelid='public.technicians'::regclass AND NOT tgisinternal;
+ IF n<>10 THEN RAISE EXCEPTION 'Expected 9 live + 1 new audit trigger; got %',n; END IF;
+ SELECT count(*) INTO n FROM pg_trigger
+ WHERE tgrelid='public.eut_technician_private_contacts'::regclass AND NOT tgisinternal;
+ IF n<>1 THEN RAISE EXCEPTION 'Deployed private phone trigger missing'; END IF;
+ SELECT count(*) INTO n FROM pg_policies
+ WHERE schemaname='public' AND tablename IN ('technicians','eut_admin_management_log');
+ IF n<>11 THEN RAISE EXCEPTION 'Expected 10 deployed + 1 new restrictive policy; got %',n; END IF;
+ IF EXISTS(SELECT 1 FROM public.technicians t JOIN public.qa_r1_legacy_versions v
+     ON t.id=v.id WHERE t.updated_at IS DISTINCT FROM v.updated_at
+       OR t.catalog_enabled IS NOT NULL) THEN
+   RAISE EXCEPTION 'Legacy timestamps or nullable flag modified'; END IF;
+ SELECT public_slug INTO v_slug FROM public.technicians
+ WHERE id='10000000-0000-4000-8000-000000000006';
+ IF v_slug IS NULL THEN RAISE EXCEPTION 'Deployed public slug trigger not active'; END IF;
+END $t$;
+
+\echo 'Live trigger QA: bronze, admin audit and restricted private contact'
+SET request.jwt.claim.sub='00000000-0000-4000-8000-000000000001';
+INSERT INTO eut_pioneers.pre_registrations
+ (linked_auth_user_id,claim_state,verified_at,bronze_eligible)
+ VALUES('00000000-0000-4000-8000-000000000006','vinculado',now(),true);
+UPDATE public.technicians SET status='aprovado'
+ WHERE id='10000000-0000-4000-8000-000000000006';
+DO $t$
+BEGIN
+ IF NOT EXISTS(SELECT 1 FROM public.eut_pioneer_badges
+     WHERE technician_id='10000000-0000-4000-8000-000000000006')
+ THEN RAISE EXCEPTION 'Pioneer bronze trigger did not run'; END IF;
+END $t$;
+UPDATE public.technicians SET bio='Apresentação profissional sem contato'
+ WHERE id='10000000-0000-4000-8000-000000000006';
+DO $t$
+BEGIN
+ IF NOT EXISTS(SELECT 1 FROM public.eut_admin_management_log
+  WHERE target_key='10000000-0000-4000-8000-000000000006'
+    AND action='technician_update') THEN
+   RAISE EXCEPTION 'Deployed audit trigger did not run'; END IF;
+END $t$;
+INSERT INTO eut_moderation.blocked_phones(phone_digits,reason_internal)
+ VALUES('5541999994444','Bloqueio de teste sintético');
+DO $t$
+DECLARE denied boolean:=false;
+BEGIN
+ BEGIN
+  INSERT INTO public.eut_technician_private_contacts(
+     user_id,phone_e164,allow_paid_contact)
+  VALUES('00000000-0000-4000-8000-000000000006','+5541999994444',false);
+ EXCEPTION WHEN SQLSTATE 'P0001' THEN denied:=true; END;
+ IF NOT denied THEN RAISE EXCEPTION 'Real private contact trigger not enforcing ban'; END IF;
+END $t$;
+\echo 'QA passed: 9 real technician triggers, 1 private trigger and 10 deployed RLS plus restrictive insert guard'

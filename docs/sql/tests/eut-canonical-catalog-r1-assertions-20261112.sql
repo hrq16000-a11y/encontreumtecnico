@@ -1,18 +1,18 @@
 -- TEST ONLY: isolated Postgres 16, seeded by the existing synthetic admin fixture.
-\echo 'EUT canonical R1: preserve existing bans and suspensions'
+\echo 'EUT canonical R1: legacy flags and timestamps preserved'
 DO $qa$
 BEGIN
- IF EXISTS (SELECT 1 FROM public.technicians
-    WHERE user_id IN ('00000000-0000-4000-8000-000000000003',
-                      '00000000-0000-4000-8000-000000000004')
-    AND catalog_enabled=true) THEN
-   RAISE EXCEPTION 'Legacy ban or suspension was incorrectly enabled';
- END IF;
+ IF EXISTS(SELECT 1 FROM public.technicians t
+   JOIN public.qa_r1_legacy_versions b ON b.id=t.id
+   WHERE t.catalog_enabled IS NOT NULL
+     OR t.updated_at IS DISTINCT FROM b.updated_at
+     OR t.status IS DISTINCT FROM b.status
+     OR t.public_slug IS DISTINCT FROM b.public_slug)
+ THEN RAISE EXCEPTION 'Historic record was rewritten during migration'; END IF;
  IF NOT EXISTS(SELECT 1 FROM public.technicians t
     WHERE t.user_id='00000000-0000-4000-8000-000000000003'
-      AND t.status='aprovado' AND t.catalog_enabled=false) THEN
-   RAISE EXCEPTION 'Banned approved record was not disabled';
- END IF;
+      AND t.status='aprovado' AND t.catalog_enabled IS NULL)
+ THEN RAISE EXCEPTION 'Banned legacy record changed'; END IF;
 END $qa$;
 \echo 'EUT canonical R1: source keys never in public table'
 DO $qa$

@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'docs/sql/eut-canonical-catalog-r1-proposal-20261112.sql'
+      - 'docs/sql/eut-canonical-catalog-r1-rollback-proposal-20261112.sql'
       - 'src/components/admin-canonical-catalog.tsx'
       - 'src/lib/admin-canonical-contract*.ts'
       - 'src/routes/admin.tsx'
@@ -55,6 +56,24 @@ jobs:
         run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-assertions-20261112.sql
       - name: Verify privacy quality location and RLS negative scenarios
         run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-live-guards-assertions-20261112.sql
+      - name: Ensure guarded rollback refuses populated canonical records
+        run: |
+          if output="$(printf "SET request.jwt.claim.sub='00000000-0000-4000-8000-000000000001';\n\\i docs/sql/eut-canonical-catalog-r1-rollback-proposal-20261112.sql\n" | psql -X -v ON_ERROR_STOP=1 2>&1)"; then
+            echo 'ERROR: guarded rollback unexpectedly permitted deletion'; exit 1
+          fi
+          echo "$output" | grep -F "ROLLBACK BLOCKED" >/dev/null || { echo 'Rollback failed for wrong reason'; exit 1; }
+          psql -X -v ON_ERROR_STOP=1 -c "SELECT count(*) AS catalog_records_preserved FROM eut_moderation.catalog_provenance;"
+      - name: Prove audited rollback in second clean disposable PostgreSQL database
+        run: |
+          createdb eut_rollback_fixture
+          export PGDATABASE=eut_rollback_fixture
+          psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-admin-crud-ephemeral-schema-20261111.sql
+          psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-fixture-20261112.sql
+          psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-hosted-compatibility-20261112.sql
+          psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-live-guards-20261112.sql
+          psql -X -v ON_ERROR_STOP=1 -f docs/sql/eut-canonical-catalog-r1-proposal-20261112.sql
+          printf "SET request.jwt.claim.sub='00000000-0000-4000-8000-000000000001';\n\\i docs/sql/eut-canonical-catalog-r1-rollback-proposal-20261112.sql\n" | psql -X -v ON_ERROR_STOP=1
+          psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-canonical-catalog-r1-rollback-assertions-20261112.sql
 
   admin-ui-contract:
     runs-on: ubuntu-latest

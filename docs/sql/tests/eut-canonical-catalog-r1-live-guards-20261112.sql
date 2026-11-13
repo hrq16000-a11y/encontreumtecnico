@@ -224,7 +224,8 @@ CREATE TRIGGER eut_technician_city_coverage_guard
 -- These are the relevant live permissive RLS policies, before the proposed fix.
 ALTER TABLE public.technicians ENABLE ROW LEVEL SECURITY;
 GRANT USAGE ON SCHEMA eut_migration,eut_profile_security,eut_visibility TO anon,authenticated;
-GRANT SELECT,INSERT,UPDATE ON public.technicians TO anon,authenticated;
+GRANT SELECT ON public.technicians TO anon,authenticated;
+GRANT INSERT,UPDATE ON public.technicians TO authenticated;
 GRANT SELECT ON public.eut_service_categories,public.eut_service_types,public.eut_ibge_municipalities TO anon,authenticated;
 GRANT EXECUTE ON FUNCTION eut_visibility.eut_public_technician_eligible(uuid) TO anon,authenticated;
 CREATE POLICY "Admin moderates" ON public.technicians FOR UPDATE TO authenticated
@@ -248,3 +249,147 @@ CREATE POLICY eut_public_visibility_anon_guard ON public.technicians FOR SELECT 
 CREATE POLICY eut_public_visibility_auth_guard ON public.technicians FOR SELECT TO authenticated
  USING(eut_visibility.eut_public_technician_eligible(id)
    OR auth.uid()=user_id OR public.has_role(auth.uid(),'admin'::public.app_role));
+
+-- Five additional verbatim deployed routines, restoring the full 9+1
+-- trigger inventory (9 technician triggers plus 1 private contact trigger).
+-- Replaces synthetic updated_at and contact-ban stand-ins; keeps slug semantics.
+CREATE SCHEMA eut_pioneers;
+CREATE TABLE eut_pioneers.pre_registrations(
+  linked_auth_user_id uuid,
+  claim_state text,
+  verified_at timestamptz,
+  bronze_eligible boolean NOT NULL DEFAULT false
+);
+CREATE TABLE public.eut_pioneer_badges(
+  technician_id uuid PRIMARY KEY REFERENCES public.technicians(id)
+);
+DROP TRIGGER fixture_updated ON public.technicians;
+DROP TRIGGER fixture_phone_restrict ON public.eut_technician_private_contacts;
+DROP TRIGGER eut_assign_technician_public_slug ON public.technicians;
+CREATE OR REPLACE FUNCTION eut_migration.technician_public_slug_base(_name text, _city text, _uf text)
+ RETURNS text
+ LANGUAGE sql
+ STABLE
+ SET search_path TO ''
+AS $function$
+  SELECT coalesce(nullif(trim(both '-' from left(
+    regexp_replace(
+      translate(
+        lower(concat_ws('-', nullif(trim(_name), ''), nullif(trim(_city), ''), nullif(trim(_uf), ''))),
+        'áàâãäéèêëíìîïóòôõöúùûüçñ',
+        'aaaaaeeeeiiiiooooouuuucn'
+      ),
+      '[^a-z0-9]+', '-', 'g'
+    ), 80
+  )), ''), 'tecnico');
+$function$
+
+
+CREATE OR REPLACE FUNCTION eut_moderation.eut_audit_admin_technician()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+DECLARE reason text;
+BEGIN
+ IF auth.uid() IS NULL OR NOT public.has_role(auth.uid(),'admin'::public.app_role) THEN RETURN NEW; END IF;
+ IF (OLD.status,OLD.display_name,OLD.bio,OLD.region)
+    IS NOT DISTINCT FROM (NEW.status,NEW.display_name,NEW.bio,NEW.region) THEN RETURN NEW; END IF;
+ reason:=COALESCE(NULLIF(btrim(current_setting('eut.admin_reason',true)),''),'Alteração administrativa sem motivo registrado');
+ INSERT INTO public.eut_admin_management_log(actor_id,target_type,target_key,action,reason,before_state,after_state)
+ VALUES(auth.uid(),'technician',NEW.id::text,'technician_update',left(reason,400),
+        jsonb_build_object('status',OLD.status::text,'name_changed',OLD.display_name IS DISTINCT FROM NEW.display_name),
+        jsonb_build_object('status',NEW.status::text,'name_changed',OLD.display_name IS DISTINCT FROM NEW.display_name,
+                           'bio_changed',OLD.bio IS DISTINCT FROM NEW.bio,'region_changed',OLD.region IS DISTINCT FROM NEW.region));
+ RETURN NEW;
+END; $function$
+
+
+CREATE OR REPLACE FUNCTION eut_moderation.reject_restricted_phone()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'pg_catalog'
+AS $function$
+begin
+  if exists(select 1 from eut_moderation.blocked_accounts a where a.user_id=new.user_id)
+    or exists(select 1 from eut_moderation.blocked_phones b
+      where b.phone_digits=regexp_replace(coalesce(new.phone_e164,''),'[^0-9]','','g'))
+  then
+    if TG_OP='UPDATE' and new.allow_paid_contact=false
+      and new.phone_e164 is not distinct from old.phone_e164
+      and new.user_id is not distinct from old.user_id then
+      return new;
+    end if;
+    raise exception 'Não foi possível concluir seu cadastro. Consulte o suporte.'
+      using errcode='P0001';
+  end if;
+  return new;
+end;
+$function$
+
+
+CREATE OR REPLACE FUNCTION eut_pioneers.award_bronze_after_publish()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'pg_catalog'
+AS $function$
+BEGIN
+ IF NEW.status='aprovado'::public.approval_status AND EXISTS(
+  SELECT 1 FROM eut_pioneers.pre_registrations p WHERE p.linked_auth_user_id=NEW.user_id
+   AND p.claim_state='vinculado' AND p.verified_at IS NOT NULL AND p.bronze_eligible
+ ) THEN
+  INSERT INTO public.eut_pioneer_badges(technician_id) VALUES (NEW.id) ON CONFLICT DO NOTHING;
+ END IF;
+ RETURN NEW;
+END
+$function$
+
+
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO 'public'
+AS $function$
+begin new.updated_at = now(); return new; end; $function$
+
+
+CREATE OR REPLACE FUNCTION eut_migration.assign_technician_public_slug()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+DECLARE base text;
+BEGIN
+  -- A slug belongs to the profile, not the current owner-entered name/city.
+  -- Later profile edits and user-supplied slug changes must never change links.
+  IF TG_OP = 'UPDATE' AND OLD.public_slug IS NOT NULL THEN
+    NEW.public_slug := OLD.public_slug;
+    RETURN NEW;
+  END IF;
+  base := eut_migration.technician_public_slug_base(NEW.display_name, NEW.city, NEW.state_uf);
+  -- Resolve duplicate names and locations; never disclose owner email/phone.
+  IF EXISTS (
+    SELECT 1 FROM public.technicians AS t
+    WHERE t.public_slug = base AND t.id <> NEW.id
+  ) THEN
+    base := left(base, 80) || '-' || left(replace(NEW.id::text, '-', ''), 12);
+  END IF;
+  NEW.public_slug := base;
+  RETURN NEW;
+END;
+$function$
+
+CREATE TRIGGER eut_admin_audit_technician AFTER UPDATE OF status, display_name, bio, region ON public.technicians FOR EACH ROW EXECUTE FUNCTION eut_moderation.eut_audit_admin_technician();
+CREATE TRIGGER eut_assign_technician_public_slug BEFORE INSERT OR UPDATE OF public_slug, display_name, city, state_uf ON public.technicians FOR EACH ROW EXECUTE FUNCTION eut_migration.assign_technician_public_slug();
+CREATE TRIGGER eut_pioneer_bronze_publish AFTER INSERT OR UPDATE OF status ON public.technicians FOR EACH ROW EXECUTE FUNCTION eut_pioneers.award_bronze_after_publish();
+CREATE TRIGGER eut_restrict_private_contact BEFORE INSERT OR UPDATE OF phone_e164, allow_paid_contact ON public.eut_technician_private_contacts FOR EACH ROW EXECUTE FUNCTION eut_moderation.reject_restricted_phone();
+CREATE TRIGGER technicians_updated BEFORE UPDATE ON public.technicians FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+ALTER TABLE public.eut_admin_management_log ENABLE ROW LEVEL SECURITY;
+GRANT SELECT ON public.eut_admin_management_log TO authenticated;
+CREATE POLICY "eut_admin_management_log_read" ON public.eut_admin_management_log AS PERMISSIVE FOR SELECT TO authenticated USING (((auth.uid() IS NOT NULL) AND has_role(auth.uid(), 'admin'::app_role)));
+-- Take a baseline AFTER the synthetic legacy fixture and BEFORE migration.
+CREATE TABLE public.qa_r1_legacy_versions AS
+ SELECT id,updated_at,status,public_slug FROM public.technicians;

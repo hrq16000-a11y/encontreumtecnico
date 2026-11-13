@@ -9,9 +9,12 @@ ALTER TABLE public.technicians
   ALTER COLUMN display_name DROP NOT NULL,
   ALTER COLUMN city DROP NOT NULL;
 ALTER TABLE public.technicians
-  ADD COLUMN IF NOT EXISTS catalog_enabled boolean NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS catalog_enabled boolean,
   ADD COLUMN IF NOT EXISTS catalog_origin text NOT NULL DEFAULT 'organic_auth',
   ADD COLUMN IF NOT EXISTS ddd_hint text;
+-- The existing rows receive NULL; new INSERTs default to TRUE.
+-- This avoids UPDATE/version changes in any historic profile.
+ALTER TABLE public.technicians ALTER COLUMN catalog_enabled SET DEFAULT true;
 -- Source keys are not kept in public: anon has SELECT on this RLS-protected table.
 
 -- Hosted INSERT policies are permissive (OR). When user_id becomes nullable,
@@ -27,31 +30,24 @@ CREATE POLICY eut_catalog_direct_insert_requires_owner ON public.technicians
 DROP POLICY IF EXISTS "Public reads approved" ON public.technicians;
 CREATE POLICY "Public reads approved" ON public.technicians
  FOR SELECT TO anon,authenticated
- USING(catalog_enabled AND status='aprovado'::public.approval_status
+ USING(COALESCE(catalog_enabled,true) AND status='aprovado'::public.approval_status
    AND eut_visibility.eut_public_technician_eligible(id));
 DROP POLICY IF EXISTS eut_public_visibility_anon_guard ON public.technicians;
 CREATE POLICY eut_public_visibility_anon_guard ON public.technicians
- FOR SELECT TO anon USING(catalog_enabled
+ FOR SELECT TO anon USING(COALESCE(catalog_enabled,true)
    AND status='aprovado'::public.approval_status
    AND eut_visibility.eut_public_technician_eligible(id));
 DROP POLICY IF EXISTS eut_public_visibility_auth_guard ON public.technicians;
 CREATE POLICY eut_public_visibility_auth_guard ON public.technicians
  FOR SELECT TO authenticated
- USING((catalog_enabled AND eut_visibility.eut_public_technician_eligible(id))
+ USING((COALESCE(catalog_enabled,true) AND eut_visibility.eut_public_technician_eligible(id))
    OR auth.uid()=user_id
    OR public.has_role(auth.uid(),'admin'::public.app_role));
 
--- Existing suspensions, rejections and bans MUST NOT be reset when catalog
--- activation is introduced. New Auth-less admin imports still default to true.
-UPDATE public.technicians AS t SET catalog_enabled=false
-WHERE t.user_id IS NOT NULL AND (
-   t.status IS DISTINCT FROM 'aprovado'::public.approval_status
-   OR EXISTS(SELECT 1 FROM eut_moderation.blocked_accounts b WHERE b.user_id=t.user_id)
-   OR EXISTS(SELECT 1 FROM public.eut_technician_private_contacts c
-      JOIN eut_moderation.blocked_phones b
-        ON b.phone_digits=regexp_replace(c.phone_e164,'[^0-9]','','g')
-      WHERE c.user_id=t.user_id)
-);
+-- Never modify legacy rows during this migration. NULL means use the
+-- historic status and live ban predicates (NOT an operational auto-approval).
+-- New Auth-less records explicitly INSERT catalog_enabled=true.
+-- Rollback can therefore drop columns without restoring touched timestamps.
 -- Future public eligibility MUST ALSO re-check bans at query time.
 -- Existing Auth profiles keep their current ids, roles, status, slugs and private contacts.
 -- Existing "status" is LEGACY publication/moderation; catalog_enabled is the
