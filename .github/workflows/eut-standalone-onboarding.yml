@@ -54,9 +54,13 @@ jobs:
             'Não precisa ter tido conta no site anterior',
             'Registrar minha necessidade',
             'canShowLegacyArchive(search)',
-            // Legacy archive remains available in text search but never leaks into IBGE browsing.
-            '<LegacyPublicArchive show={!search.municipio_ibge && canShowLegacyArchive(search)} />',
           ]) if (!search.includes(term)) throw Error('Independent onboarding regression: '+term);
+          // Both JSX forms must hide the legacy archive in official IBGE searches.
+          const inlineGuard = search.includes('<LegacyPublicArchive show={!search.municipio_ibge && canShowLegacyArchive(search)} />');
+          const enclosingGuard = /\{\s*!search\.municipio_ibge\s*&&\s*canShowLegacyArchive\(search\)\s*&&\s*\(\s*<LegacyPublicArchive\s+show=\{canShowLegacyArchive\(search\)\}\s*\/>\s*\)\s*\}/.test(search);
+          if (!inlineGuard && !enclosingGuard) {
+            throw Error('Legacy archive must stay hidden while filtering by official IBGE municipality');
+          }
           if (!search.includes('to="/entrar"') || !search.includes('to="/area-cliente"')) {
             throw Error('Real onboarding endpoints missing');
           }
