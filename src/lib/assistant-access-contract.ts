@@ -1,4 +1,5 @@
 import { LEGAL_UPDATED_AT } from "./legal-documents";
+import type { Role } from "../hooks/use-auth";
 
 /**
  * Offline policy contract for the future authenticated assistant (#261).
@@ -48,7 +49,8 @@ export type AssistantAccessDecision =
 
 const UUID = /^[a-f\d]{8}-(?:[a-f\d]{4}-){3}[a-f\d]{12}$/i;
 const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/;
-const ASSISTANT_ROLES = new Set(["cliente", "tecnico", "admin"]);
+// Share the existing app role vocabulary; never trust roles supplied by the UI.
+const ASSISTANT_ROLES: ReadonlySet<string> = new Set<Role>(["cliente", "tecnico", "admin"]);
 const MAX_CLOCK_SKEW_MS = 60_000;
 
 function isUuid(value: unknown): value is string {
