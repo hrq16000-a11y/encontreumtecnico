@@ -3,19 +3,23 @@ import { ArrowUpRight, BriefcaseBusiness, MapPin, Medal, Radio, ShieldCheck, Spa
 import type { PublicTechnician } from "@/lib/technicians.functions";
 import { TechnicianAvatar } from "@/components/technician-avatar";
 import { formatPublicLocation, placeKey } from "@/lib/location-labels";
+import { pioneerSearchName } from "@/lib/pioneer-search-name";
 import { useActiveCategories, categoryLabel } from "@/hooks/use-active-categories";
 import { useActiveServices, serviceLabel } from "@/hooks/use-active-services";
 
 type Categories = ReturnType<typeof useActiveCategories>["categories"];
 type Services = ReturnType<typeof useActiveServices>["services"];
 
-export function TechnicianSearchCard({ technician: t, categories, services, localMatch }: {
+export function TechnicianSearchCard({ technician: t, categories, services, localMatch, provenanceLinkedWordPressAlias }: {
   technician: PublicTechnician;
   categories: Categories;
   services: Services;
   localMatch?: string | null;
+  /** Pass only after audited WordPress provenance and R2 eligibility. */
+  provenanceLinkedWordPressAlias?: string | null;
 }) {
   // Only the curated, published technician record feeds this component.
+  const presentedName = pioneerSearchName(t.display_name, provenanceLinkedWordPressAlias);
   const specialtyPreview = t.specialties.slice(0, 3);
   const servicePreview = t.service_slugs.slice(0, 3);
   const moreSpecialties = Math.max(0, t.specialties.length - specialtyPreview.length);
@@ -29,19 +33,24 @@ export function TechnicianSearchCard({ technician: t, categories, services, loca
 
   return (
     <Link to="/tecnicos/$tecnicoId" params={{ tecnicoId: t.public_slug }}
-      aria-label={"Ver perfil e serviços de " + t.display_name}
+      aria-label={"Ver perfil e serviços de " + presentedName.display + (presentedName.suggested ? " (nome sugerido, não verificado)" : "")}
       className="eut-card-lift group relative flex h-full min-w-0 flex-col overflow-hidden rounded-[26px] border border-primary/20 bg-card shadow-sm transition-[border-color,box-shadow] duration-200 hover:border-primary/60 hover:shadow-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none">
       <div className="relative isolate bg-gradient-to-br from-brand-navy via-[#194467] to-[#0c2d4e] px-5 pb-10 pt-6 text-brand-navy-foreground sm:px-6 sm:pt-7">
         <div aria-hidden="true" className="pointer-events-none absolute -right-10 -top-20 h-52 w-52 rounded-full bg-brand-glow/20 blur-3xl" />
         <Wrench aria-hidden="true" className="pointer-events-none absolute -right-3 top-6 h-24 w-24 rotate-[-20deg] text-white/10" strokeWidth={1} />
         <div className="relative flex min-w-0 items-start gap-4">
-          <TechnicianAvatar name={t.display_name} avatarPath={t.avatar_path}
+          <TechnicianAvatar name={presentedName.display} avatarPath={t.avatar_path}
             className="h-[76px] w-[76px] shrink-0 rounded-2xl border-2 border-white/35 ring-4 ring-white/10 shadow-lg sm:h-[84px] sm:w-[84px]" />
           <div className="min-w-0 flex-1">
             <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[.13em] text-white/80">
               <BriefcaseBusiness className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> Perfil profissional
             </span>
-            <h2 className="mt-2 break-words text-xl font-extrabold leading-tight tracking-tight text-white sm:text-2xl">{t.display_name}</h2>
+            <h2 className="mt-2 break-words text-xl font-extrabold leading-tight tracking-tight text-white sm:text-2xl">{presentedName.display}</h2>
+            {presentedName.suggested && (
+              <p className="mt-1 break-all text-xs leading-4 text-white/85">
+                Nome sugerido (não verificado) · apelido original: {presentedName.originalAlias}
+              </p>
+            )}
             <p className="mt-2 flex items-start gap-1.5 text-xs leading-5 text-white/85 sm:text-sm">
               <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand-glow" aria-hidden="true" />
               <span className="break-words">{location}</span>
