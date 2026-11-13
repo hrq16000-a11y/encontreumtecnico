@@ -53,11 +53,21 @@ async function checkViewport(browser, width) {
   page.setDefaultTimeout(25000);
   const errors = [];
   page.on("pageerror", e => errors.push(e.message));
+  page.on("console", message => {
+    if (message.type() === "error") errors.push("console: " + message.text().slice(0, 250));
+  });
   try {
     const response = await page.goto(BASE + "/tecnicos", { waitUntil: "domcontentloaded", timeout: 60000 });
     assert(response && response.ok(), "Branch /tecnicos must respond successfully");
     await page.locator("#filtro-uf").waitFor({ state: "visible" });
     await page.locator("#filtro-uf").selectOption("PR");
+    await page.waitForTimeout(1500);
+    console.log("QA_DIAG_UF", JSON.stringify(await page.evaluate(() => ({
+      currentUrl: location.href,
+      selectedUF: document.querySelector("#filtro-uf")?.value,
+      municipalitySelect: Boolean(document.querySelector("#filtro-municipio-ibge")),
+      scripts: document.scripts.length,
+    }))));
     const selector = page.locator("#filtro-municipio-ibge");
     await selector.waitFor({ state: "visible" });
     await selector.locator('option[value="4125506"]').waitFor({ state: "attached" });
@@ -124,6 +134,23 @@ async function checkViewport(browser, width) {
     console.log("PASS branch IBGE Chromium", JSON.stringify({ width, fixtureRequests: tracker.fixtureRequests,
       externalRequestsBlocked: tracker.externalBlocked.length, pages: [50, 5],
       categoryEligible: 30, emptyState: true, privacy: true }));
+  } catch (error) {
+    let diagnostics = {};
+    try {
+      diagnostics = {
+        url: page.url(), body: (await page.locator("body").innerText()).slice(0, 1200),
+        activeUF: await page.locator("#filtro-uf").inputValue().catch(() => null),
+        scriptCount: await page.evaluate(() => document.scripts.length),
+        externalBlocked: tracker.externalBlocked, fixtureRequests: tracker.fixtureRequests,
+        pageErrors: errors.slice(0, 10),
+      };
+      await page.screenshot({ path: path.join(ARTIFACTS, "ibge-" + width + "-failed.png"),
+        fullPage: true }).catch(() => {});
+    } catch (secondary) {
+      diagnostics.inspectError = String(secondary);
+    }
+    console.error("QA_DIAGNOSTICS", JSON.stringify(diagnostics));
+    throw error;
   } finally { await context.close(); }
 }
 (async () => {

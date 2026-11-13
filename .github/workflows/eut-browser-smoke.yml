@@ -93,6 +93,11 @@ jobs:
           EUT_IBGE_QA_MODE: "1"
           EUT_QA_ARTIFACT_DIR: ${{ runner.temp }}/eut-ibge-qa
         run: NODE_PATH="$RUNNER_TEMP/eut-browser/node_modules" node scripts/eut-browser-smoke.cjs
+      - name: Show local QA logs only if test fails
+        if: failure()
+        run: |
+          tail -120 "$RUNNER_TEMP/eut-ibge-app.log" || true
+          tail -80 "$RUNNER_TEMP/eut-ibge-fixture.log" || true
       - name: Attach only synthetic screenshots and diagnostic logs
         if: always()
         uses: actions/upload-artifact@v4
