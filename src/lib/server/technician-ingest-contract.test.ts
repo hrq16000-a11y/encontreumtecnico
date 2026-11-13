@@ -87,7 +87,7 @@ describe("catálogo canônico: preparação server-only e fixtures sintéticas",
     ], []);
     expect(r.summary).toMatchObject({ creates: 2, rejected: 1, quarantined: 0 });
     expect(r.privateWrites).toHaveLength(2);
-    expect(JSON.stringify(r.summary)).not.toMatch(/+5541|99999|8888|legacy:123/);
+    expect(JSON.stringify(r.summary)).not.toMatch(/5541|99999|8888|legacy:123/);
   });
   it("segunda passagem com mapeamento persistido prepara UPDATE e não CREATE", () => {
     const one = prepareTechnicianIngest([record()], []);
