@@ -95,3 +95,55 @@ verificação do titular e upload controlado para hospedagem independente.
 ## Reconciliação com a main (12/11/2026)
 
 As correções de 404 real da PR #66 já estão presentes nas rotas `src/routes/tecnico.$slug.tsx` e `src/routes/cliente.$slug.tsx`, com testes idênticos em `src/lib/legacy-route-loaders.test.ts`. Este roteiro e as ferramentas foram migrados separadamente como **auditoria offline**, sem executar restauro, SQL ou publicar imagens. Os números de acervo descritos acima são observações históricas, não confirmação atual de integridade ou disponibilidade dos arquivos. O SQL de backfill original permanece somente na branch histórica da [PR #66](https://github.com/hrq16000-a11y/encontreumtecnico/pull/66) e requer autorização de staging e validação de privacidade antes de qualquer uso. A presença deste arquivo na main não aprova cutover nem mudança de DNS.
+
+## Reconciliador privado dos técnicos (13/11/2026)
+
+Reutilizar `verify_backup_integrity.py` e `build_private_media_manifest.py`
+antes do novo `reconcile_private_legacy_inventory.py`. O novo código é **offline
+e só produz inventário para revisão**: não importa usuários, não executa SQL,
+não chama Supabase, não acessa WordPress, não publica contatos/fotos e não
+atribui selo ou categoria pública. **Todos são técnicos**, sem reivindicação
+obrigatória de conta.
+
+O dump MySQL original **não está acessível neste executor**. Para não supor a
+estrutura real do backup, o novo reconciliador recebe somente CSVs normalizados
+a partir de um **restore MySQL local isolado** e fontes comprováveis, produzidos
+em armazenamento privado, fora do Git:
+
+- `technicians.csv`: obrigatórios `wp_post_id,phone`; opcionais
+  `wp_user_id,created_at,avatar_attachment_id,blocked,disabled`. Datas de
+  WordPress precisam manter a zona/semântica original, sem conversão presumida.
+  Ausência de flags não prova revisão administrativa; decisões finais exigem
+  cruzamento com bloqueios/desabilitações do catálogo.
+- `attachments.csv` (opcional): `wp_attachment_id,wp_author_user_id,uploaded_at`,
+  para propor **somente revisão manual** quando autor WordPress e horários
+  comparáveis coincidirem numa janela de 24 horas. Horário isolado nunca
+  atribui avatar. Sem CSV, vínculos possíveis usam exclusivamente ID explícito
+  do anexo ou `post_parent` do manifesto de mídias existente.
+- `private-media.json`: manifesto gerado com o script de mídias acima,
+  contendo IDs WP e candidatos de ZIP não aprovados.
+
+Execução exclusiva num computador privado com os backups originais:
+
+```bash
+python3 ops/cutover/reconcile_private_legacy_inventory.py \
+  --technicians-csv /private/technicians.csv \
+  --media-manifest /private/private-media.json \
+  --attachments-csv /private/attachments.csv \
+  --private-out /private/technician-review.json
+```
+
+O JSON privado usa IDs para revisão, **nunca grava o telefone bruto nem o
+normalizado**; a saída de terminal contém apenas contagens agregadas. O arquivo
+é criado em modo 0600, sem sobrescrever e recusando escrita dentro do Git.
+O resultado separa telefone ausente, formato implausível, duplicado, bloqueado
+ou desabilitado explícito. Formato plausível não comprova WhatsApp. Fotos
+associadas por ID, `post_parent` ou autor+tempo continuam pendentes de
+titularidade, consentimento e procedência; nenhuma é publicada automaticamente.
+DDD não se converte em município, e a origem do técnico permanece metadado
+interno.
+
+Validação proporcional com dados **100% sintéticos**:
+`python3 -m unittest discover -s ops/cutover/tests -p test_reconcile_private_legacy_inventory.py -v`.
+Nenhuma prova sintética equivale a executar o inventário dos ~900 contatos
+reais; isso depende de restaurar os arquivos originais num local autorizado.
