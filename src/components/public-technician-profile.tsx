@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { openFreeHelp } from "@/lib/free-search-help";
 import {
-  ArrowLeft, ArrowRight, BadgeInfo, BriefcaseBusiness, Check,
+  ArrowLeft, ArrowRight, ArrowUpRight, BadgeInfo, BriefcaseBusiness, Check,
   ChevronRight, Handshake, LockKeyhole, MapPin, Medal,
   MessageSquareText, MonitorCheck, Navigation, Sparkles, Wrench,
 } from "lucide-react";
@@ -40,10 +40,15 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
         <section aria-labelledby="tecnico-nome" className="relative isolate overflow-hidden rounded-[28px] bg-brand-navy p-6 text-brand-navy-foreground shadow-[0_24px_70px_-24px_rgba(7,28,57,.5)] sm:p-9 lg:p-10">
           <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-32 h-[380px] w-[380px] rounded-full bg-primary/25 blur-3xl" />
           <div aria-hidden="true" className="pointer-events-none absolute -bottom-40 left-1/4 h-[320px] w-[440px] rounded-full bg-brand-glow/10 blur-3xl" />
-          <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_240px] lg:items-center">
+          <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-center">
             <div className="flex min-w-0 flex-col items-start gap-5 sm:flex-row sm:gap-7">
-              <TechnicianAvatar name={t.display_name} avatarPath={t.avatar_path}
-                className="h-24 w-24 border-white/25 ring-4 ring-white/10 sm:h-28 sm:w-28" loading="eager" />
+              <div className="relative shrink-0 rounded-[26px] border border-white/20 bg-white/10 p-2 shadow-[0_18px_40px_-18px_rgba(0,0,0,.55)]">
+                <TechnicianAvatar name={t.display_name} avatarPath={t.avatar_path}
+                  className="h-32 w-32 border-white/30 ring-4 ring-white/10 sm:h-36 sm:w-36" loading="eager" />
+                <span aria-hidden="true" className="absolute -bottom-2 -right-2 inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/20 bg-brand-glow text-brand-navy shadow-lg">
+                  <BriefcaseBusiness className="h-5 w-5" />
+                </span>
+              </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap gap-2">
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white">
@@ -67,6 +72,16 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
                 </p>
                 <p className="mt-4 max-w-xl text-sm leading-6 text-white/75">Conheça as áreas e serviços informados por este profissional e descreva sua necessidade diretamente pelo portal.</p>
                 {t.online_now && <p className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-emerald-200"><span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-emerald-300" />Atividade recente · disponibilidade não garantida</p>}
+                <div className="mt-6 flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap">
+                  <Link to="/area-cliente" search={{ tecnico: t.id }}
+                    className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-brand-glow px-5 text-sm font-extrabold text-brand-navy shadow-lg shadow-black/15 transition-[transform,background-color,box-shadow] duration-200 hover:-translate-y-0.5 hover:bg-white hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white motion-reduce:transform-none motion-reduce:transition-none">
+                    Descrever meu problema <ArrowUpRight aria-hidden="true" className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transform-none motion-reduce:transition-none" />
+                  </Link>
+                  <a href="#servicos"
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/25 bg-white/10 px-5 text-sm font-semibold text-white transition-colors hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white motion-reduce:transition-none">
+                    Conhecer os serviços <ArrowRight aria-hidden="true" className="h-4 w-4" />
+                  </a>
+                </div>
               </div>
             </div>
             <div className="rounded-2xl border border-white/15 bg-white/[0.08] p-5 backdrop-blur-sm">
@@ -75,7 +90,11 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
                 <div><strong className="block text-3xl font-extrabold text-white">{t.specialties.length}</strong><span className="mt-1 block text-xs text-white/75">Áreas declaradas</span></div>
                 <div><strong className="block text-3xl font-extrabold text-white">{t.service_slugs.length}</strong><span className="mt-1 block text-xs text-white/75">Serviços listados</span></div>
               </div>
-              <p className="mt-4 border-t border-white/15 pt-3 text-xs leading-5 text-white/70">Dados informados pelo técnico, não avaliações ou certificações emitidas pela plataforma.</p>
+              <div className="mt-4 flex items-start gap-2 border-t border-white/15 pt-3">
+                <MapPin aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-brand-glow" />
+                <p className="text-xs leading-5 text-white/80">Base informada: <span className="font-semibold text-white">{t.city}{t.state_uf ? `/${t.state_uf}` : ""}</span>{additionalCities.length > 0 ? ` · +${additionalCities.length} ${additionalCities.length === 1 ? "outro município declarado" : "outros municípios declarados"}` : ""}.</p>
+              </div>
+              <p className="mt-3 text-xs leading-5 text-white/70">Dados declarados, não avaliações ou certificações emitidas pela plataforma.</p>
             </div>
           </div>
           {topCategories.length > 0 && (
@@ -88,9 +107,24 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
           )}
         </section>
 
+        <nav aria-label="Seções deste perfil" className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+          {([
+            { href: "#especialidades", label: "Especialidades", icon: BriefcaseBusiness },
+            { href: "#servicos", label: "Serviços", icon: Wrench },
+            { href: "#atendimento", label: "Cobertura", icon: MapPin },
+            { href: "#sobre", label: "Sobre", icon: BadgeInfo },
+          ] as const).map(({ href, label, icon: Icon }) => (
+            <a key={href} href={href} className="group flex min-h-16 items-center gap-2.5 rounded-2xl border border-border bg-card/95 px-3.5 py-3 text-sm font-bold text-foreground shadow-sm transition-[transform,border-color,box-shadow] duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transform-none motion-reduce:transition-none sm:px-4">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Icon aria-hidden="true" className="h-[18px] w-[18px]" /></span>
+              <span className="min-w-0 flex-1">{label}</span>
+              <ArrowRight aria-hidden="true" className="hidden h-4 w-4 shrink-0 text-primary/60 transition-transform group-hover:translate-x-0.5 motion-reduce:transform-none motion-reduce:transition-none md:block" />
+            </a>
+          ))}
+        </nav>
+
         <div className="mt-7 grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div className="min-w-0 space-y-6">
-            <section id="especialidades" aria-labelledby="titulo-areas" className="eut-card-lift rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
+            <section id="especialidades" aria-labelledby="titulo-areas" className="eut-card-lift scroll-mt-24 rounded-[24px] border border-border bg-card p-6 shadow-sm sm:p-8">
               <div className="flex items-start gap-3">
                 <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><BriefcaseBusiness className="h-5 w-5" aria-hidden="true" /></span>
                 <div><p className="text-xs font-bold uppercase tracking-[.17em] text-primary">Áreas de atuação</p><h2 id="titulo-areas" className="mt-1 text-xl font-bold text-card-foreground sm:text-2xl">Especialidades informadas</h2></div>
@@ -99,20 +133,20 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
                 {t.specialties.length ? t.specialties.map(slug => <span key={slug} className="rounded-xl border border-border bg-muted/60 px-3 py-2 text-sm font-medium text-foreground">{categoryLabel(slug, categories)}</span>) : <p className="text-sm text-muted-foreground">Ainda não há especialidades informadas neste perfil.</p>}
               </div>
             </section>
-            <section id="servicos" aria-labelledby="titulo-servicos" className="eut-card-lift rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
+            <section id="servicos" aria-labelledby="titulo-servicos" className="eut-card-lift scroll-mt-24 rounded-[24px] border border-border bg-card p-6 shadow-sm sm:p-8">
               <div className="flex items-start gap-3">
                 <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Wrench className="h-5 w-5" aria-hidden="true" /></span>
                 <div><p className="text-xs font-bold uppercase tracking-[.17em] text-primary">O que este profissional informa realizar</p><h2 id="titulo-servicos" className="mt-1 text-xl font-bold text-card-foreground sm:text-2xl">Serviços disponíveis no perfil</h2></div>
               </div>
               {t.service_slugs.length ? (
                 <ul className="mt-5 grid gap-3 sm:grid-cols-2">
-                  {t.service_slugs.map(slug => <li key={slug} className="flex min-h-14 items-start gap-3 rounded-xl border border-border bg-accent/40 p-3.5 text-sm font-medium leading-5 text-foreground"><span aria-hidden="true" className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"><Check className="h-4 w-4" /></span><span>{serviceLabel(slug, services)}</span></li>)}
+                  {t.service_slugs.map(slug => <li key={slug} className="flex min-h-14 items-start gap-3 rounded-xl border border-border bg-accent/40 p-3.5 text-sm font-medium leading-5 text-foreground transition-[border-color,background-color,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:bg-accent motion-reduce:transform-none motion-reduce:transition-none"><span aria-hidden="true" className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"><Check className="h-4 w-4" /></span><span>{serviceLabel(slug, services)}</span></li>)}
                 </ul>
               ) : <p className="mt-4 text-sm text-muted-foreground">Os serviços específicos ainda não foram detalhados.</p>}
               <p className="mt-5 border-t border-border pt-4 text-xs leading-5 text-muted-foreground">A descrição dos serviços é responsabilidade do profissional. Confirme os detalhes diretamente antes de contratar.</p>
             </section>
             <section id="atendimento" aria-labelledby="titulo-atendimento"
-              className="eut-card-lift rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
+              className="eut-card-lift scroll-mt-24 rounded-[24px] border border-border bg-card p-6 shadow-sm sm:p-8">
               <div className="flex items-start gap-3">
                 <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                   <MapPin className="h-5 w-5" aria-hidden="true" />
@@ -135,7 +169,7 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
                   </h3>
                   <ul className="mt-3 flex flex-wrap gap-2">
                     {additionalCities.map(city => (
-                      <li key={city.id} className="rounded-full border border-primary/20 bg-primary/5 px-3 py-2 text-sm font-medium text-primary">
+                      <li key={city.id} className="rounded-full border border-primary/20 bg-primary/5 px-3 py-2 text-sm font-medium text-primary transition-colors hover:border-primary/40 hover:bg-primary/10 motion-reduce:transition-none">
                         {city.name}/{city.uf}
                       </li>
                     ))}
@@ -159,7 +193,7 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
                 </Link>
               </div>
             </section>
-            <section id="sobre" aria-labelledby="titulo-sobre" className="eut-card-lift rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
+            <section id="sobre" aria-labelledby="titulo-sobre" className="eut-card-lift scroll-mt-24 rounded-[24px] border border-border bg-card p-6 shadow-sm sm:p-8">
               <div className="flex items-start gap-3">
                 <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><BadgeInfo className="h-5 w-5" aria-hidden="true" /></span>
                 <div><p className="text-xs font-bold uppercase tracking-[.17em] text-primary">Apresentação pessoal</p><h2 id="titulo-sobre" className="mt-1 text-xl font-bold text-card-foreground sm:text-2xl">Sobre o profissional</h2></div>
@@ -195,10 +229,10 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
                 <p className="mt-2 text-sm leading-6 text-white/85">Descreva sua necessidade para organizar o pedido com segurança.</p>
               </div>
               <div className="space-y-3 p-5">
-                <Link to="/area-cliente" search={{ tecnico: t.id }} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-center text-sm font-bold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-md motion-reduce:transform-none">
+                <Link to="/area-cliente" search={{ tecnico: t.id }} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-center text-sm font-bold text-primary-foreground shadow-sm transition-[transform,background-color,box-shadow] duration-200 hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transform-none motion-reduce:transition-none">
                   Descrever meu problema <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
-                <button type="button" onClick={() => openFreeHelp({ mode: "direct", technicianId: t.id, technicianName: t.display_name, service: t.service_slugs[0] || "" })} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-accent/50 px-4 text-center text-sm font-semibold text-primary transition-colors hover:bg-accent">
+                <button type="button" onClick={() => openFreeHelp({ mode: "direct", technicianId: t.id, technicianName: t.display_name, service: t.service_slugs[0] || "" })} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-accent/50 px-4 text-center text-sm font-semibold text-primary transition-colors hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none">
                   Solicitar contato via atendimento <ChevronRight className="h-4 w-4" aria-hidden="true" />
                 </button>
                 <p className="border-t border-border pt-3 text-xs leading-5 text-muted-foreground">A descrição é opcional e depende do consentimento do cliente. Nenhum número é revelado aqui. O pagamento está pausado. O funil registra seu interesse sem liberar telefone privado.</p>
