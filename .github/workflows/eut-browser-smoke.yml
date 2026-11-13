@@ -56,9 +56,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
+      - uses: oven-sh/setup-bun@v2
       - name: Install pinned app dependencies
-        run: npm ci --no-audit --no-fund
+        run: bun install --frozen-lockfile
       - name: Install isolated Chromium (no repository lockfile change)
         run: |
           mkdir -p "$RUNNER_TEMP/eut-legacy-chromium"
