@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { Archive, Check, Pencil, RotateCcw, ShieldAlert, SquareCheckBig, X } from "lucide-react";
+import { Archive, Check, ChevronDown, Pencil, RotateCcw, ShieldAlert, SquareCheckBig, X } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { LEGACY_REVIEW_PAGE_SIZE, normalizeLegacyReviewSearch } from "@/lib/legacy-review-utils";
 
@@ -36,6 +37,7 @@ export function LegacyReviewQueue() {
   const [rows, setRows] = useState<LegacyProfile[]>([]);
   const [managed, setManaged] = useState<Record<number, Managed>>({});
   const [selected, setSelected] = useState<number[]>([]);
+  const [expanded, setExpanded] = useState<number[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -88,7 +90,7 @@ export function LegacyReviewQueue() {
   function submitSearch(event: FormEvent) {
     event.preventDefault();
     setTerm(normalizeLegacyReviewSearch(draft));
-    setSelected([]); setPage(0); setAction(null);
+    setSelected([]); setExpanded([]); setPage(0); setAction(null);
   }
 
   function chooseAction(ids: number[], type: Action) {
@@ -141,9 +143,16 @@ export function LegacyReviewQueue() {
     } finally { setBusy(false); }
   }
 
-  const visibleIds = rows.map((row) => row.wp_post_id);
-  const selectable = visibleIds.slice(0,20);
+  const stateOf = (id: number) => managed[id]?.record_state ?? "pendente";
+  // A protected demo that is already archived has no permitted operation.
+  const selectable = rows.filter((row) => !(row.demo_candidate && stateOf(row.wp_post_id) === "excluido"))
+    .map((row) => row.wp_post_id).slice(0, 20);
   const allSelected = selectable.length > 0 && selectable.every((id) => selected.includes(id));
+  const chosenRows = rows.filter((row) => selected.includes(row.wp_post_id));
+  const hasDemoSelection = chosenRows.some((row) => row.demo_candidate);
+  const canArchiveSelection = chosenRows.length > 0 && chosenRows.every((row) => stateOf(row.wp_post_id) !== "excluido");
+  const canRestoreSelection = chosenRows.length > 0 && !hasDemoSelection &&
+    chosenRows.every((row) => stateOf(row.wp_post_id) === "excluido");
   return <section className="mt-2 rounded-2xl border border-border bg-card p-4 sm:p-6" aria-label="Cadastros históricos WordPress">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
@@ -153,13 +162,18 @@ export function LegacyReviewQueue() {
           corrigidas ou arquivadas individualmente ou em lote, sem alterar os dados originais.
           Nenhuma ação nesta tela publica um técnico ou concede acesso a uma conta.
         </p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Para editar perfis cadastrados, use a <Link to="/admin/$secao" params={{ secao: "tecnicos" }}
+            className="font-bold text-primary underline underline-offset-2">gestão de técnicos</Link>.
+          Este acervo preserva os originais para auditoria: arquivar não apaga definitivamente.
+        </p>
       </div>
       <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary">Até 20 por lote</span>
     </div>
     <div role="group" aria-label="Tipo de cadastro histórico" className="mt-5 flex flex-wrap gap-2">
       {([{value:"candidate",label:"Técnicos"},{value:"employer",label:"Contratantes"}] as const).map((item) =>
         <button key={item.value} type="button" aria-pressed={kind===item.value}
-          onClick={() => { setKind(item.value); setPage(0); setSelected([]); setAction(null); }}
+          onClick={() => { setKind(item.value); setPage(0); setSelected([]); setExpanded([]); setAction(null); }}
           className={"min-h-11 rounded-xl border px-4 text-sm font-semibold " +
             (kind===item.value?"bg-primary text-primary-foreground":"border-input text-foreground hover:bg-accent")}>{item.label}</button>)}
     </div>
@@ -176,18 +190,22 @@ export function LegacyReviewQueue() {
     </p>
     {!loading && rows.length > 0 && <>
       <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/30 p-3">
-        <button type="button" onClick={() => setSelected(allSelected ? [] : selectable)}
-          aria-pressed={allSelected} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-input bg-background px-3 text-sm font-semibold text-foreground">
+        <button type="button" disabled={!selectable.length} onClick={() => setSelected(allSelected ? [] : selectable)}
+          aria-pressed={allSelected} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-input bg-background px-3 text-sm font-semibold text-foreground disabled:opacity-50">
           <SquareCheckBig className="h-4 w-4" /> {allSelected ? "Desmarcar página" : "Selecionar página"}
         </button>
         <span className="text-sm text-muted-foreground">{selected.length} selecionada(s)</span>
-        <button type="button" disabled={!selected.length} onClick={() => chooseAction(selected,"revisar")}
+        <button type="button" disabled={!selected.length || hasDemoSelection} onClick={() => chooseAction(selected,"revisar")}
           className="min-h-11 rounded-lg border border-input px-3 text-sm font-medium text-foreground disabled:opacity-50">Revisar lote</button>
-        <button type="button" disabled={!selected.length} onClick={() => chooseAction(selected,"arquivar")}
+        <button type="button" disabled={!canArchiveSelection} onClick={() => chooseAction(selected,"arquivar")}
           className="min-h-11 rounded-lg border border-input px-3 text-sm font-medium text-foreground disabled:opacity-50">Arquivar lote</button>
-        <button type="button" disabled={!selected.length} onClick={() => chooseAction(selected,"restaurar")}
+        <button type="button" disabled={!canRestoreSelection} onClick={() => chooseAction(selected,"restaurar")}
           className="min-h-11 rounded-lg border border-input px-3 text-sm font-medium text-foreground disabled:opacity-50">Restaurar lote</button>
       </div>
+      {selected.length > 0 && <p className="mt-2 text-xs text-muted-foreground" role="status">
+        Ações em lote só ficam disponíveis quando todas as fichas selecionadas permitem a operação.
+        Registros de demonstração não podem ser revisados ou restaurados; arquivados não são apagados.
+      </p>}
       {action && <form onSubmit={(e) => void runAction(e)} aria-label="Confirmar gestão histórica"
         className="mt-4 space-y-3 rounded-2xl border-2 border-primary/30 bg-card p-5 shadow-sm">
         <div className="flex items-start justify-between gap-3">
@@ -214,16 +232,18 @@ export function LegacyReviewQueue() {
       </form>}
       <ul className="mt-4 grid gap-3 md:grid-cols-2">
         {rows.map((row)=>{
-          const state=managed[row.wp_post_id]?.record_state ?? "pendente";
+          const state=stateOf(row.wp_post_id);
           const archived=state==="excluido";
+          const protectedArchive=row.demo_candidate && archived;
+          const isExpanded=expanded.includes(row.wp_post_id);
           return <li key={row.wp_post_id} className={"rounded-xl border p-4 " +
             (archived?"border-amber-500/35 bg-amber-500/5":"border-border bg-background")}>
             <div className="flex items-start gap-3">
-              <input type="checkbox" checked={selected.includes(row.wp_post_id)}
+              <input type="checkbox" checked={selected.includes(row.wp_post_id)} disabled={protectedArchive}
                 aria-label={"Selecionar cadastro WordPress " + row.wp_post_id}
                 onChange={(e)=>setSelected((prev)=>e.target.checked
                   ? [...prev,row.wp_post_id].slice(0,20) : prev.filter((id)=>id!==row.wp_post_id))}
-                className="mt-1 h-5 w-5 shrink-0 accent-primary" />
+                className="mt-1 h-5 w-5 shrink-0 accent-primary disabled:opacity-40" />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <strong className="break-words text-foreground">{managed[row.wp_post_id]?.corrected_name || row.title}</strong>
@@ -240,12 +260,37 @@ export function LegacyReviewQueue() {
                   <p className="mt-2 rounded-lg bg-muted p-2 text-xs text-foreground">Nota privada: {managed[row.wp_post_id]?.admin_notes}</p>}
               </div>
             </div>
+            <button type="button" aria-expanded={isExpanded} aria-controls={`legacy-details-${kind}-${row.wp_post_id}`}
+              onClick={() => setExpanded((current) => isExpanded
+                ? current.filter((id) => id !== row.wp_post_id) : [...current, row.wp_post_id])}
+              className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg border border-input bg-background px-3 text-sm font-semibold text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+              {isExpanded ? "Ocultar ficha" : "Ver ficha"} · {row.title}
+              <ChevronDown className={"h-4 w-4 transition-transform " + (isExpanded ? "rotate-180" : "")} aria-hidden="true" />
+            </button>
+            {isExpanded && <div id={`legacy-details-${kind}-${row.wp_post_id}`}
+              className="mt-2 rounded-lg border border-border bg-background p-3 text-sm text-foreground">
+              <dl className="grid gap-2 sm:grid-cols-2">
+                <div><dt className="text-xs font-semibold text-muted-foreground">Nome original</dt><dd className="break-words">{row.title}</dd></div>
+                <div><dt className="text-xs font-semibold text-muted-foreground">Identificador WordPress</dt><dd>#{row.wp_post_id}</dd></div>
+                <div><dt className="text-xs font-semibold text-muted-foreground">Slug histórico</dt><dd className="break-all">{row.slug}</dd></div>
+                <div><dt className="text-xs font-semibold text-muted-foreground">Revisão de origem</dt><dd>{row.review_status}</dd></div>
+              </dl>
+              <p className="mt-3 text-xs text-muted-foreground">
+                {protectedArchive
+                  ? "Esta possível demonstração já está arquivada. Não há edição, restauração ou exclusão permanente disponível."
+                  : row.demo_candidate
+                    ? "Esta possível demonstração só permite arquivamento auditado."
+                    : "A edição altera apenas a revisão administrativa; não modifica o registro WordPress original."}
+              </p>
+            </div>}
             <div className="mt-4 flex flex-wrap gap-2">
               <button type="button" disabled={row.demo_candidate} onClick={()=>chooseAction([row.wp_post_id],"corrigir_nome")}
                 className="inline-flex min-h-10 items-center gap-1 rounded-lg border border-input px-3 text-xs font-semibold text-foreground"><Pencil className="h-4 w-4" /> Editar nome</button>
               <button type="button" disabled={row.demo_candidate} onClick={()=>chooseAction([row.wp_post_id],"anotar")}
                 className="inline-flex min-h-10 items-center gap-1 rounded-lg border border-input px-3 text-xs font-semibold text-foreground">Anotar</button>
-              {archived ? <button type="button" disabled={row.demo_candidate}
+              {archived && protectedArchive ? <span className="inline-flex min-h-10 items-center rounded-lg border border-input px-3 text-xs text-muted-foreground">
+                Arquivado · sem ações disponíveis
+              </span> : archived ? <button type="button" disabled={row.demo_candidate}
                 onClick={()=>chooseAction([row.wp_post_id],"restaurar")}
                 className="inline-flex min-h-10 items-center gap-1 rounded-lg border border-input px-3 text-xs font-semibold text-foreground disabled:opacity-40"><RotateCcw className="h-4 w-4" /> Restaurar revisão</button> : <button type="button"
                 onClick={()=>chooseAction([row.wp_post_id],"arquivar")}
@@ -259,11 +304,11 @@ export function LegacyReviewQueue() {
     </>}
     {!loading && !error && rows.length===0 && <p className="mt-5 text-sm text-muted-foreground">Nenhuma ficha corresponde à busca.</p>}
     <div className="mt-5 flex items-center justify-between gap-3">
-      <button disabled={busy||loading||page===0} type="button" onClick={()=>{setPage((x)=>Math.max(0,x-1));setSelected([]);setAction(null);}}
+      <button disabled={busy||loading||page===0} type="button" onClick={()=>{setPage((x)=>Math.max(0,x-1));setSelected([]);setExpanded([]);setAction(null);}}
         className="min-h-11 rounded-lg border border-input px-4 text-sm text-foreground disabled:opacity-40">Anterior</button>
       <span className="text-xs text-muted-foreground">Página {page+1} de {Math.max(1,Math.ceil(total/LEGACY_REVIEW_PAGE_SIZE))}</span>
       <button disabled={busy||loading||(page+1)*LEGACY_REVIEW_PAGE_SIZE>=total} type="button"
-        onClick={()=>{setPage((x)=>x+1);setSelected([]);setAction(null);}}
+        onClick={()=>{setPage((x)=>x+1);setSelected([]);setExpanded([]);setAction(null);}}
         className="min-h-11 rounded-lg border border-input px-4 text-sm text-foreground disabled:opacity-40">Próxima</button>
     </div>
     <p className="mt-5 border-t border-border pt-4 text-xs leading-5 text-muted-foreground">
