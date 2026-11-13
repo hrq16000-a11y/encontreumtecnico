@@ -79,7 +79,9 @@ function selected(rows, url) {
   // Even SELECT * in this fixture cannot disclose private provenance/contact.
   const safe = new Set(["id", "public_slug", "display_name", "specialties",
     "service_slugs", "city", "state_uf", "neighborhood", "region", "bio",
-    "avatar_path", "service_radius_km", "coverage_city_ids", "status", "created_at"]);
+    "avatar_path", "service_radius_km", "coverage_city_ids", "status", "created_at",
+    "name", "uf", "latitude", "longitude", "slug", "label",
+    "description", "active", "category_slug"]);
   if (!projection || projection === "*") return rows.map(row =>
     Object.fromEntries(Object.entries(row).filter(([key]) => safe.has(key))));
   const keys = projection.split(",").filter(key => /^[a-z_]+$/.test(key) && safe.has(key));
