@@ -102,9 +102,14 @@ def load_media(path: Path) -> list[dict]:
         if not attachment_id or attachment_id in seen_ids:
             raise ValidationError("Duplicate or missing media attachment ID")
         seen_ids.add(attachment_id)
+        # In WordPress, post_parent=0 means the attachment is not assigned to
+        # a parent post. It is not a broken ID and must not create a link.
+        raw_parent = entry.get("wp_parent_post_id")
+        parent_id = (None if raw_parent in (None, "", 0, "0")
+                     else positive_id(raw_parent))
         entries.append({
             "id": attachment_id,
-            "parent": positive_id(entry.get("wp_parent_post_id")),
+            "parent": parent_id,
         })
     return entries
 

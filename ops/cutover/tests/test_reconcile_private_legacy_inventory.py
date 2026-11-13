@@ -100,6 +100,15 @@ class PrivateLegacyReconciliationTests(unittest.TestCase):
         ])
         self.assertFalse(entry["approved_for_publication"])
 
+    def test_unattached_wordpress_media_parent_zero_is_not_identity_link(self):
+        self.write_profiles([{"wp_post_id": "101", "phone": "41987654321"}])
+        self.write_media([{"wp_attachment_id": 700, "wp_parent_post_id": 0}])
+        report = reconcile(self.technicians, self.media)
+        self.assertEqual(report["summary"]["media_manifest_items"], 1)
+        self.assertEqual(report["summary"]["photo_candidate_profiles"], 0)
+        self.assertEqual(report["entries"][0]["photo_candidate_ids"], [])
+        self.assertFalse(report["approved_for_publication"])
+
     def test_timestamp_requires_same_wp_author_and_remains_review_only(self):
         self.write_profiles([{
             "wp_post_id": "101", "wp_user_id": "41", "phone": "41987654321",
