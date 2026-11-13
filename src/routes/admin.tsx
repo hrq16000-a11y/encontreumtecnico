@@ -38,6 +38,13 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
+const ADMIN_QUICK_LINKS = [
+  { section: "tecnicos", label: "Técnicos" },
+  { section: "solicitacoes", label: "Solicitações" },
+  { section: "contas", label: "Contas e bloqueios" },
+  { section: "contatos", label: "Contatos privados" },
+] as const satisfies ReadonlyArray<{ section: AdminSection; label: string }>;
+
 export function AdminPage() {
   return <AdminWorkspace section="inicio" />;
 }
@@ -113,6 +120,22 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             <main className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6"
               aria-label={"Módulo administrativo: " + adminModuleTitle(section)}>
             <ConnectedGoogleIdentity user={user} />
+            <nav aria-label="Atalhos rápidos da administração"
+              className="mt-4 rounded-xl border border-border bg-muted/20 p-3 sm:p-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Acesso rápido</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {ADMIN_QUICK_LINKS.map((item) => (
+                  <Link key={item.section} to="/admin/$secao" params={{ secao: item.section }}
+                    aria-current={section === item.section ? "page" : undefined}
+                    className={"inline-flex min-h-11 items-center rounded-lg border px-4 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+                      (section === item.section
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-background text-foreground hover:border-primary hover:text-primary")}>
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            </nav>
             {(section === "inicio" || section === "tecnicos") &&
               <AdminOwnTechnicianRole isTechnician={roles.includes("tecnico")} refreshRoles={refreshRoles} />}
             {error && <p role="alert" className="mt-2 text-sm text-destructive">{error}</p>}
