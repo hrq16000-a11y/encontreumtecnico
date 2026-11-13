@@ -398,3 +398,59 @@ html {
 .eut-guide-stable-type h3 {
   font-family: inherit;
 }
+
+/*
+ * Public visual comfort — applied only by isPublicVisualRoute() in the root
+ * shell. Admin, signup, account panels, Home2 and LP2 keep their existing
+ * palette; legacy import tokens and semantic contrast pairs stay untouched.
+ *
+ * Soft tinted canvas, bright cards and clearer grouping. No external images,
+ * animation library, font download or JavaScript layout work is added.
+ */
+:root:not(.dark) .eut-public-calm {
+  --background: oklch(0.961 0.013 246);
+  --card: oklch(0.993 0.004 248);
+  --popover: oklch(0.993 0.004 248);
+  --secondary: oklch(0.926 0.024 246);
+  --muted: oklch(0.932 0.018 248);
+  --accent: oklch(0.899 0.035 233);
+  --border: oklch(0.775 0.026 250);
+  --brand-glow: oklch(0.745 0.108 216);
+  --shadow-soft: 0 16px 38px -22px oklch(0.24 0.06 258 / 40%);
+}
+
+:root:not(.dark) .eut-public-calm > main {
+  background-image:
+    radial-gradient(ellipse 36rem 24rem at 92% 0%, oklch(0.84 0.066 220 / 21%), transparent 76%),
+    radial-gradient(ellipse 32rem 24rem at 0% 55%, oklch(0.87 0.052 283 / 12%), transparent 76%);
+  background-repeat: no-repeat;
+}
+
+.eut-public-calm main :where(a.group.rounded-2xl.border, article.rounded-2xl.border) {
+  box-shadow: 0 8px 24px -20px oklch(0.19 0.05 259 / 48%);
+}
+
+/* Visible keyboard navigation without relying on hover or color alone. */
+.eut-public-calm main :where(a, button):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .eut-public-calm main a.group.rounded-2xl.border:hover {
+    box-shadow: 0 15px 32px -18px oklch(0.22 0.05 255 / 38%);
+  }
+  .eut-public-calm main a.group.rounded-2xl.border :where(svg) {
+    transition: transform 200ms cubic-bezier(.2,.7,.2,1);
+  }
+  .eut-public-calm main a.group.rounded-2xl.border:hover :where(svg) {
+    transform: translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eut-public-calm main a.group.rounded-2xl.border :where(svg) {
+    transition: none !important;
+    transform: none !important;
+  }
+}
