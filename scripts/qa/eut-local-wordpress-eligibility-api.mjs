@@ -80,6 +80,28 @@ const candidates = ok(await api('/rest/v1/rpc/eut_public_eligible_technician_ids
   ANON_KEY, 'POST', { _ids: ids }), 'Anonymous R2 candidate RPC');
 assert.deepEqual(candidates.map(row => row.technician_id),
   [eligible.technician_id], 'R2 offered a phone-less or missed a valid WP profile');
+// Reproduce the public #255 SSR candidate boundary: approved + pending is
+// only a candidate filter; R1/R2 RLS must still hide unverified records.
+const publicSearchPath = '/rest/v1/technicians?select=id,public_slug,display_name,city,status'
+  + '&status=in.(aprovado,pendente)&id=in.(' + ids.join(',') + ')';
+const searchRows = ok(await api(publicSearchPath), 'Public SSR-like search');
+assert.deepEqual(searchRows.map(row => row.id), [eligible.technician_id],
+  'SSR-like search omitted an enabled WP import or exposed a phone-less one');
+assert.equal(searchRows[0].status, 'pendente',
+  'Public R2 visibility incorrectly depended on legacy approval');
+assert.equal(searchRows[0].city, null, 'Search inferred municipality from DDD');
+assert.match(searchRows[0].public_slug, /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+  'Canonical import lost its public profile slug');
+const profilePath = '/rest/v1/technicians?select=id,public_slug,display_name,city,status'
+  + '&status=in.(aprovado,pendente)&public_slug=eq.'
+  + encodeURIComponent(searchRows[0].public_slug);
+const profileRows = ok(await api(profilePath), 'Public SSR-like profile');
+assert.deepEqual(profileRows.map(row => row.id), [eligible.technician_id],
+  'The discoverable WP import did not resolve to its public profile');
+assert.ok(!JSON.stringify({ searchRows, profileRows }).includes('999998181'),
+  'Private phone digits leaked through public SSR-like projection');
+console.log('LOCAL_WP_SEARCH_PROFILE_OK: pending import searchable by slug, private phone absent');
+
 const privateRead = await api('/rest/v1/catalog_private_contacts?select=*');
 assert.notEqual(privateRead.status, 200,
   'Private contacts were exposed in public PostgREST schema');
@@ -105,4 +127,8 @@ assert.equal(replay.created, false);
 assert.equal(replay.catalog_enabled, false);
 assert.deepEqual(await publicRead(eligible.technician_id), [],
   'Re-import silently re-enabled disabled WP profile');
+assert.deepEqual(ok(await api(publicSearchPath), 'Disabled public SSR-like search'), [],
+  'Disabled WP import remained in public search after re-import');
+assert.deepEqual(ok(await api(profilePath), 'Disabled public SSR-like profile'), [],
+  'Disabled WP import still resolved through its profile slug');
 console.log('LOCAL_WP_DISABLE_RELOAD_OK: audited disable, invisible after reimport, unchanged identity');
