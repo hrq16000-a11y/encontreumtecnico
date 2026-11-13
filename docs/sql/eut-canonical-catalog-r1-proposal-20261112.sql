@@ -293,17 +293,204 @@ BEGIN
 END;
 $rpc$;
 
+-- Edit a canonical administration-owned row without ever changing provenance,
+-- Auth ownership, operational enablement or legacy approval status.
+-- Absent JSON keys mean KEEP. A JSON null explicitly clears that field.
+CREATE OR REPLACE FUNCTION public.eut_admin_catalog_update(
+  _id uuid, _expected_updated_at timestamptz, _expected_audit_id bigint,
+  _changes jsonb, _reason text
+) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path='pg_catalog' AS $rpc$
+DECLARE
+  v_actor uuid:=auth.uid();
+  v_reason text:=btrim(coalesce(_reason,''));
+  v_row public.technicians%ROWTYPE;
+  v_old_phone text;
+  v_phone text;
+  v_digits text;
+  v_label text;
+  v_city text;
+  v_uf text;
+  v_specialties text[];
+  v_slug text;
+  v_code text;
+  v_current_audit bigint;
+  v_new_audit bigint;
+  v_public_changed boolean;
+  v_phone_changed boolean;
+BEGIN
+  IF v_actor IS NULL OR NOT public.has_role(v_actor,'admin'::public.app_role)
+     OR NOT public.eut_account_operational()
+     OR NOT EXISTS (SELECT 1 FROM auth.users u
+       WHERE u.id=v_actor AND u.email_confirmed_at IS NOT NULL)
+  THEN RAISE EXCEPTION 'Administrador verificado obrigatório'
+    USING ERRCODE='42501'; END IF;
+  IF char_length(v_reason) NOT BETWEEN 8 AND 400 OR
+     v_reason ~* '(https?://|www[.]|wa[.]me|@|[+][0-9][0-9 ()-]{8,})'
+  THEN RAISE EXCEPTION 'Motivo administrativo inválido' USING ERRCODE='22023'; END IF;
+  IF _id IS NULL OR _expected_updated_at IS NULL OR _expected_audit_id IS NULL
+     OR _expected_audit_id<1 OR _changes IS NULL OR
+     jsonb_typeof(_changes)<>'object' OR
+     (SELECT count(*) FROM jsonb_object_keys(_changes)) NOT BETWEEN 1 AND 4 OR
+     EXISTS (SELECT 1 FROM jsonb_object_keys(_changes) AS k(key)
+             WHERE k.key NOT IN ('label','city_ibge','category_slug','phone'))
+  THEN RAISE EXCEPTION 'Versão ou campos de edição inválidos'
+    USING ERRCODE='22023'; END IF;
+
+  SELECT * INTO v_row FROM public.technicians
+   WHERE id=_id AND user_id IS NULL
+     AND catalog_origin IN ('admin_manual','external_import','wordpress')
+   FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Cadastro não encontrado' USING ERRCODE='P0002'; END IF;
+  SELECT max(l.id) INTO v_current_audit
+    FROM public.eut_admin_management_log l
+    WHERE l.target_type='technician' AND l.target_key=_id::text
+      AND l.action IN ('catalog_created','catalog_enabled_changed',
+                       'catalog_edited','technician_update');
+  IF v_row.updated_at IS DISTINCT FROM _expected_updated_at OR
+     v_current_audit IS DISTINCT FROM _expected_audit_id
+  THEN RAISE EXCEPTION 'Registro alterado em outra sessão'
+    USING ERRCODE='40001'; END IF;
+
+  SELECT c.phone_e164 INTO v_old_phone
+    FROM eut_moderation.catalog_private_contacts c
+    WHERE c.technician_id=_id FOR UPDATE;
+  v_phone:=v_old_phone;
+  v_label:=v_row.display_name;
+  v_city:=v_row.city;
+  v_uf:=v_row.state_uf;
+  v_specialties:=coalesce(v_row.specialties,'{}'::text[]);
+
+  IF _changes ? 'label' THEN
+    IF jsonb_typeof(_changes->'label') NOT IN ('string','null')
+    THEN RAISE EXCEPTION 'Nome inválido' USING ERRCODE='22023'; END IF;
+    v_label:=nullif(btrim(coalesce(_changes->>'label','')),'');
+    IF v_label IS NOT NULL AND (char_length(v_label)>100 OR
+       eut_profile_security.is_unsafe_public_text(v_label,false))
+    THEN RAISE EXCEPTION 'Rótulo público inválido' USING ERRCODE='22023'; END IF;
+  END IF;
+
+  IF _changes ? 'city_ibge' THEN
+    IF jsonb_typeof(_changes->'city_ibge') NOT IN ('number','null')
+    THEN RAISE EXCEPTION 'Município IBGE inválido' USING ERRCODE='22023'; END IF;
+    v_code:=_changes->>'city_ibge';
+    v_city:=NULL; v_uf:=NULL;
+    IF v_code IS NOT NULL THEN
+      IF v_code !~ '^[1-9][0-9]{6}$'
+      THEN RAISE EXCEPTION 'Código IBGE inválido' USING ERRCODE='22023'; END IF;
+      SELECT m.name,m.uf INTO v_city,v_uf
+        FROM public.eut_ibge_municipalities m WHERE m.id=v_code::integer;
+      IF v_city IS NULL THEN RAISE EXCEPTION 'Município IBGE não encontrado'
+        USING ERRCODE='22023'; END IF;
+    END IF;
+  END IF;
+
+  IF _changes ? 'category_slug' THEN
+    IF jsonb_typeof(_changes->'category_slug') NOT IN ('string','null')
+    THEN RAISE EXCEPTION 'Categoria inválida' USING ERRCODE='22023'; END IF;
+    v_slug:=nullif(btrim(coalesce(_changes->>'category_slug','')),'');
+    IF v_slug IS NOT NULL AND NOT EXISTS (
+      SELECT 1 FROM public.eut_service_categories c
+      WHERE c.slug=v_slug AND c.active)
+    THEN RAISE EXCEPTION 'Categoria inválida ou inativa'
+      USING ERRCODE='22023'; END IF;
+    v_specialties:=CASE WHEN v_slug IS NULL THEN '{}'::text[] ELSE ARRAY[v_slug] END;
+  END IF;
+
+  IF _changes ? 'phone' THEN
+    IF jsonb_typeof(_changes->'phone') NOT IN ('string','null')
+    THEN RAISE EXCEPTION 'Telefone inválido' USING ERRCODE='22023'; END IF;
+    v_phone:=NULL;
+    IF jsonb_typeof(_changes->'phone')='string' THEN
+      IF length(_changes->>'phone')>40 OR
+         (_changes->>'phone') !~ '^[+]?[0-9 ().-]+$' OR
+         (left(btrim(_changes->>'phone'),1)='+' AND
+           left(regexp_replace(_changes->>'phone','[^0-9]','','g'),2)<>'55')
+      THEN RAISE EXCEPTION 'Formato de telefone inválido'
+        USING ERRCODE='22023'; END IF;
+      v_digits:=regexp_replace(_changes->>'phone','[^0-9]','','g');
+      IF left(v_digits,2)='55' AND length(v_digits) IN (12,13)
+      THEN v_digits:=substr(v_digits,3); END IF;
+      IF v_digits !~ '^[1-9]{2}[2-9][0-9]{7,8}$'
+      THEN RAISE EXCEPTION 'Telefone brasileiro inválido'
+        USING ERRCODE='22023'; END IF;
+      v_phone:='+55'||v_digits;
+      IF EXISTS(SELECT 1 FROM eut_moderation.blocked_phones b
+        WHERE b.phone_digits=regexp_replace(v_phone,'[^0-9]','','g'))
+      THEN RAISE EXCEPTION 'Contato restrito' USING ERRCODE='42501'; END IF;
+    END IF;
+  END IF;
+  IF v_label IS NULL AND v_phone IS NULL
+  THEN RAISE EXCEPTION 'Nome ou telefone obrigatório'
+    USING ERRCODE='22023'; END IF;
+
+  v_public_changed:=(v_row.display_name IS DISTINCT FROM v_label OR
+    v_row.city IS DISTINCT FROM v_city OR
+    v_row.state_uf IS DISTINCT FROM v_uf OR
+    v_row.specialties IS DISTINCT FROM v_specialties);
+  v_phone_changed:=(v_old_phone IS DISTINCT FROM v_phone);
+  IF NOT v_public_changed AND NOT v_phone_changed THEN
+    RETURN jsonb_build_object('ok',true,'changed',false,
+      'technician_id',_id,'last_audit_id',v_current_audit,
+      'catalog_enabled',v_row.catalog_enabled,'published',false);
+  END IF;
+
+  IF v_public_changed THEN
+    -- Reuse installed moderation trigger with the same genuine admin reason.
+    PERFORM pg_catalog.set_config('eut.admin_reason',v_reason,true);
+    UPDATE public.technicians SET display_name=v_label, city=v_city,
+      state_uf=v_uf, specialties=v_specialties WHERE id=_id;
+  END IF;
+  IF v_phone_changed THEN
+    IF v_phone IS NULL THEN
+      DELETE FROM eut_moderation.catalog_private_contacts WHERE technician_id=_id;
+    ELSE
+      INSERT INTO eut_moderation.catalog_private_contacts(
+        technician_id,phone_e164,allow_paid_contact)
+      VALUES(_id,v_phone,true)
+      ON CONFLICT(technician_id) DO UPDATE
+        SET phone_e164=EXCLUDED.phone_e164,updated_at=clock_timestamp();
+      -- Existing allow_paid_contact is preserved on replacement.
+    END IF;
+  END IF;
+
+  -- No phone, source key or Auth identity enters any audit/response.
+  INSERT INTO public.eut_admin_management_log(
+    actor_id,target_type,target_key,action,reason,before_state,after_state)
+  VALUES(v_actor,'technician',_id::text,'catalog_edited',v_reason,
+    jsonb_build_object('has_private_contact',v_old_phone IS NOT NULL,
+      'name_present',v_row.display_name IS NOT NULL,
+      'city_declared',v_row.city IS NOT NULL,
+      'category_count',coalesce(cardinality(v_row.specialties),0)),
+    jsonb_build_object('has_private_contact',v_phone IS NOT NULL,
+      'name_present',v_label IS NOT NULL,'city_declared',v_city IS NOT NULL,
+      'category_count',cardinality(v_specialties),
+      'name_changed',v_row.display_name IS DISTINCT FROM v_label,
+      'city_changed',v_row.city IS DISTINCT FROM v_city,
+      'category_changed',v_row.specialties IS DISTINCT FROM v_specialties,
+      'phone_changed',v_phone_changed))
+  RETURNING id INTO v_new_audit;
+  RETURN jsonb_build_object('ok',true,'changed',true,'technician_id',_id,
+    'last_audit_id',v_new_audit,'catalog_enabled',v_row.catalog_enabled,
+    'contact_available',v_phone IS NOT NULL,'published',false);
+END;
+$rpc$;
+
 REVOKE ALL ON FUNCTION public.eut_admin_catalog_upsert(text,text,text,integer,text,text,text)
   FROM PUBLIC,anon,authenticated;
 REVOKE ALL ON FUNCTION public.eut_admin_catalog_import_batch(jsonb,text)
   FROM PUBLIC,anon,authenticated;
 REVOKE ALL ON FUNCTION public.eut_admin_catalog_set_enabled(uuid,timestamptz,boolean,text)
   FROM PUBLIC,anon,authenticated;
+REVOKE ALL ON FUNCTION public.eut_admin_catalog_update(uuid,timestamptz,bigint,jsonb,text)
+  FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.eut_admin_catalog_upsert(text,text,text,integer,text,text,text)
   TO authenticated;
 GRANT EXECUTE ON FUNCTION public.eut_admin_catalog_import_batch(jsonb,text)
   TO authenticated;
 GRANT EXECUTE ON FUNCTION public.eut_admin_catalog_set_enabled(uuid,timestamptz,boolean,text)
+  TO authenticated;
+GRANT EXECUTE ON FUNCTION public.eut_admin_catalog_update(uuid,timestamptz,bigint,jsonb,text)
   TO authenticated;
 
 -- Admin-only read path; never expose raw phone, source_key, user credentials,
@@ -343,14 +530,15 @@ BEGIN
   SELECT coalesce(jsonb_agg(to_jsonb(s) ORDER BY s.created_at DESC,s.id),'[]'::jsonb)
     INTO v_rows
   FROM (
-    SELECT t.id,t.display_name,t.city,t.state_uf,
+    SELECT t.id,t.display_name,t.city,t.state_uf,t.specialties,
       t.catalog_origin,t.catalog_enabled,t.status::text AS legacy_status,
       t.created_at,t.updated_at,
       EXISTS(SELECT 1 FROM eut_moderation.catalog_private_contacts pc
           WHERE pc.technician_id=t.id) AS has_private_contact,
       (SELECT max(l.id) FROM public.eut_admin_management_log l
         WHERE l.target_type='technician' AND l.target_key=t.id::text
-          AND l.action IN ('catalog_created','catalog_enabled_changed')) AS last_audit_id
+          AND l.action IN ('catalog_created','catalog_enabled_changed',
+                           'catalog_edited','technician_update')) AS last_audit_id
     FROM public.technicians t
     WHERE t.user_id IS NULL
       AND t.catalog_origin IN ('admin_manual','external_import','wordpress')

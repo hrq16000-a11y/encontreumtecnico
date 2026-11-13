@@ -108,6 +108,34 @@ assert.ok(phoneOnly.last_audit_id);
 assert.ok(phoneOnly.updated_at);
 assert.doesNotMatch(JSON.stringify(byId), /phone_e164|source_key|999991010/);
 
+// Real local JWT+PostgREST UPDATE: change a private phone without seeing the old one.
+const deniedUpdate = await rpc('eut_admin_catalog_update', client, {
+  _id: first.technician_id, _expected_updated_at: phoneOnly.updated_at,
+  _expected_audit_id: phoneOnly.last_audit_id,
+  _changes: { phone: '(41) 99999-3030' }, _reason: reason,
+});
+assert.equal(deniedUpdate.status, 403, 'Client edited canonical technician');
+assert.equal(deniedUpdate.data?.code, '42501');
+const phoneEdited = success(await rpc('eut_admin_catalog_update', admin, {
+  _id: first.technician_id, _expected_updated_at: phoneOnly.updated_at,
+  _expected_audit_id: phoneOnly.last_audit_id,
+  _changes: { phone: '(41) 99999-3030' }, _reason: reason,
+}), 'Admin replace private phone');
+assert.equal(phoneEdited.changed, true);
+assert.ok(phoneEdited.last_audit_id > phoneOnly.last_audit_id);
+const phoneEditedRead = success(await list(admin, [first.technician_id]), 'Reload edited phone');
+assert.equal(phoneEditedRead.rows[0].has_private_contact, true);
+assert.equal(phoneEditedRead.rows[0].last_audit_id, phoneEdited.last_audit_id);
+assert.equal(phoneEditedRead.rows[0].display_name, null);
+assert.doesNotMatch(JSON.stringify(phoneEditedRead), /phone_e164|source_key|999993030|999991010/);
+const staleUpdate = await rpc('eut_admin_catalog_update', admin, {
+  _id: first.technician_id, _expected_updated_at: phoneOnly.updated_at,
+  _expected_audit_id: phoneOnly.last_audit_id,
+  _changes: { label: 'Stale attempt' }, _reason: reason,
+});
+assert.equal(staleUpdate.data?.code, '40001', 'Stale version overwrote edit');
+
+
 // A client cannot bypass the RPC to directly insert an Auth-less record.
 const direct = await api('/rest/v1/technicians', {
   method: 'POST', token: client,
@@ -147,6 +175,24 @@ const repeat = success(await rpc('eut_admin_catalog_import_batch', admin,
   { _rows: importRows, _reason: reason }), 'Idempotent batch import');
 assert.deepEqual(repeat.results.map(r => r.technician_id), ids);
 assert.deepEqual(repeat.results.map(r => r.created), [false, false]);
+
+// A named imported record is editable without provisioning its Auth identity.
+const namedBefore = success(await list(admin,[ids[1]]), 'Read named version').rows[0];
+const namedEdited = success(await rpc('eut_admin_catalog_update',admin,{
+  _id:ids[1],_expected_updated_at:namedBefore.updated_at,
+  _expected_audit_id:namedBefore.last_audit_id,
+  _changes:{label:'Técnico Sintético Atualizado',city_ibge:4125506,
+    category_slug:'computadores'},_reason:reason,
+}), 'Edit declared fields');
+assert.equal(namedEdited.changed,true);
+const namedAfter = success(await list(admin,[ids[1]]),'Reload declared fields').rows[0];
+assert.equal(namedAfter.display_name,'Técnico Sintético Atualizado');
+assert.equal(namedAfter.city,'São José dos Pinhais');
+assert.deepEqual(namedAfter.specialties,['computadores']);
+assert.equal(namedAfter.catalog_enabled,true);
+assert.equal(namedAfter.last_audit_id,namedEdited.last_audit_id);
+assert.equal(namedAfter.has_private_contact,false);
+
 
 // Disable in a version-checked admin operation; then RELOAD through new API
 // transactions, and re-import to prove a disabled contact stays disabled.
@@ -191,5 +237,5 @@ const auditClient = success(await api('/rest/v1/eut_admin_management_log?select=
   { token: client }), 'Client audit RLS');
 assert.deepEqual(auditClient, []);
 
-console.log('LOCAL_R1_API_OK: GoTrue JWT admin; phone-only create; private contact; batch import/idempotence; admin list; audited disable; HTTP reload; re-import preserves disable; bans and negative RLS');
+console.log('LOCAL_R1_API_OK: GoTrue JWT admin; phone-only create/edit; declared name/city/category edit; version/audit checks; private contact; batch import/idempotence; admin list; audited disable; HTTP reload; re-import preserves disable; bans and negative RLS');
 console.log('LOCAL_R1_LIMIT: 6 Git migrations plus local-only shim; NOT hosted schema parity or public cutover');

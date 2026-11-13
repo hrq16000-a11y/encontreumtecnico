@@ -4,6 +4,7 @@ export type CatalogRow = {
   display_name: string | null;
   city: string | null;
   state_uf: string | null;
+  specialties: string[];
   catalog_origin: "admin_manual" | "external_import" | "wordpress";
   catalog_enabled: boolean;
   legacy_status: string;
@@ -34,6 +35,21 @@ export type CatalogBatchResult = {
   ok: boolean; processed?: number; results?: CatalogWriteResult[];
 };
 
+export type CatalogEditChanges = {
+  label?: string | null;
+  city_ibge?: number | null;
+  category_slug?: string | null;
+  phone?: string | null;
+};
+export type CatalogEditExpected = {
+  display_name?: string | null;
+  city?: string | null;
+  state_uf?: string | null;
+  category_slug?: string | null;
+  has_private_contact?: boolean;
+  catalog_enabled?: boolean;
+};
+
 const UUID = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const SOURCE = /^[A-Za-z0-9][A-Za-z0-9_:/.-]{2,119}$/;
 const ORIGINS = new Set(["admin_manual", "external_import", "wordpress"]);
@@ -48,6 +64,9 @@ export function isCatalogSnapshot(data: unknown): data is CatalogSnapshot {
       const r = x as Record<string, unknown>;
       return typeof r["id"] === "string" && UUID.test(r["id"]) &&
         (typeof r["display_name"] === "string" || r["display_name"] === null) &&
+        (typeof r["city"] === "string" || r["city"] === null) &&
+        (typeof r["state_uf"] === "string" || r["state_uf"] === null) &&
+        Array.isArray(r["specialties"]) && r["specialties"].every((slug: unknown) => typeof slug === "string") &&
         typeof r["catalog_enabled"] === "boolean" &&
         typeof r["updated_at"] === "string" && typeof r["created_at"] === "string" &&
         typeof r["has_private_contact"] === "boolean" &&
@@ -113,4 +132,25 @@ export function confirmCatalogReadback(snapshot: unknown, ids: string[], expecte
     return !!row && (expected === undefined || row.catalog_enabled === expected) &&
       typeof row.last_audit_id === "number" && row.last_audit_id > 0;
   });
+}
+
+/** Verify the just-edited public fields and audit ID by a fresh admin-only RPC read.
+ * The private phone is never queried: only the has_private_contact boolean is observed.
+ */
+export function confirmCatalogEditReadback(
+  snapshot: unknown, id: string, auditId: number, expected: CatalogEditExpected,
+): boolean {
+  if (!isCatalogSnapshot(snapshot) || snapshot.total !== 1 || snapshot.rows.length !== 1 ||
+      !Number.isSafeInteger(auditId) || auditId < 1) return false;
+  const row = snapshot.rows[0]!;
+  if (row.id !== id || row.last_audit_id !== auditId) return false;
+  if ("display_name" in expected && row.display_name !== expected.display_name) return false;
+  if ("city" in expected && row.city !== expected.city) return false;
+  if ("state_uf" in expected && row.state_uf !== expected.state_uf) return false;
+  if ("category_slug" in expected && (expected.category_slug === null
+    ? row.specialties.length !== 0
+    : row.specialties.length !== 1 || row.specialties[0] !== expected.category_slug)) return false;
+  if ("has_private_contact" in expected && row.has_private_contact !== expected.has_private_contact) return false;
+  if ("catalog_enabled" in expected && row.catalog_enabled !== expected.catalog_enabled) return false;
+  return true;
 }

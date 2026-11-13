@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { confirmCatalogReadback, isCatalogSnapshot, parseCatalogBatch } from "./admin-canonical-contract";
+import { confirmCatalogEditReadback, confirmCatalogReadback, isCatalogSnapshot, parseCatalogBatch } from "./admin-canonical-contract";
 
 const uuid = "10000000-0000-4000-8000-000000000001";
 const goodRow = {
-  id: uuid, display_name: null, city: null, state_uf: null, catalog_origin: "admin_manual",
+  id: uuid, display_name: null, city: null, state_uf: null, specialties: [], catalog_origin: "admin_manual",
   catalog_enabled: true, legacy_status: "pendente",
   created_at: "2026-11-12T12:00:00Z", updated_at: "2026-11-12T12:00:00Z",
   has_private_contact: true, last_audit_id: 42,
@@ -18,6 +18,34 @@ describe("Admin catalog: only real persistence + private read RPC", () => {
     expect(confirmCatalogReadback({...snapshot, rows: [{...goodRow,last_audit_id: null}]}, [uuid])).toBe(false);
     expect(isCatalogSnapshot({...snapshot,rows: [{...goodRow,phone_e164: "+5541999998888"}]})).toBe(false);
     expect(isCatalogSnapshot({...snapshot,rows: [{...goodRow,source_key: "import:secret"}]})).toBe(false);
+  });
+  it("confirma edição versionada por releitura, sem revelar telefone", () => {
+    const latest = {...goodRow,last_audit_id: 45,display_name:"Oficina Atualizada",
+      city:"São José dos Pinhais",state_uf:"PR",specialties:["redes"]};
+    const snapshot = {ok:true,page:0,limit:1,total:1,rows:[latest]};
+    const expected = {display_name:"Oficina Atualizada",city:"São José dos Pinhais",
+      state_uf:"PR",category_slug:"redes",has_private_contact:true,catalog_enabled:true};
+    expect(confirmCatalogEditReadback(snapshot,uuid,45,expected)).toBe(true);
+    expect(confirmCatalogEditReadback(snapshot,uuid,42,expected)).toBe(false);
+    expect(confirmCatalogEditReadback({...snapshot,rows:[{...latest,specialties:[]}]},uuid,45,expected)).toBe(false);
+    expect(confirmCatalogEditReadback({...snapshot,rows:[{...latest,has_private_contact:false}]},uuid,45,expected)).toBe(false);
+    expect(confirmCatalogEditReadback({...snapshot,rows:[{...latest,phone_e164:"+5541999994040"}]},uuid,45,expected)).toBe(false);
+    expect(isCatalogSnapshot({...snapshot,rows:[{...latest,specialties:null}]})).toBe(false);
+    expect(confirmCatalogEditReadback({...snapshot,rows:[{...latest,city:null}]},uuid,45,expected)).toBe(false);
+  });
+  it("usa RPC de edição auditada sem carregar telefone existente no navegador", () => {
+    const ui=readFileSync("src/components/admin-canonical-catalog.tsx","utf8");
+    const sql=readFileSync("docs/sql/eut-canonical-catalog-r1-proposal-20261112.sql","utf8");
+    expect(ui).toContain('db.rpc("eut_admin_catalog_update"');
+    expect(ui).toContain("_expected_updated_at:editTarget.updated_at");
+    expect(ui).toContain("_expected_audit_id:editTarget.last_audit_id");
+    expect(ui).toContain("confirmCatalogEditReadback(read");
+    expect(ui).toContain("O número existente nunca é exibido");
+    expect(ui).not.toContain(".from(\"eut_moderation.catalog_private_contacts\")");
+    expect(sql).toContain("CREATE OR REPLACE FUNCTION public.eut_admin_catalog_update(");
+    expect(sql).toContain("'catalog_edited'");
+    expect(sql).toContain("FOR UPDATE;");
+    expect(sql).not.toContain("ADD COLUMN IF NOT EXISTS catalog_source_key");
   });
   it("rejects invalid/imported duplicate keys and keeps limit 50", () => {
     const valid = JSON.stringify([{origin: "wordpress",source_key: "wp:42",label: "Nome",phone: null,city_ibge: null,category_slug: null}]);

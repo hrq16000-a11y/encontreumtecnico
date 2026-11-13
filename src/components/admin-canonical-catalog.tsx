@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { ClipboardList, Database, LockKeyhole, PlusCircle, RefreshCw, ShieldCheck } from "lucide-react";
+import { ClipboardList, Database, LockKeyhole, Pencil, PlusCircle, RefreshCw, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveCategories } from "@/hooks/use-active-categories";
 import {
-  confirmCatalogReadback, isCatalogSnapshot, parseCatalogBatch,
-  type CatalogRow, type CatalogSnapshot, type CatalogWriteResult, type CatalogBatchResult,
+  confirmCatalogEditReadback, confirmCatalogReadback, isCatalogSnapshot, parseCatalogBatch,
+  type CatalogEditChanges, type CatalogEditExpected, type CatalogRow,
+  type CatalogSnapshot, type CatalogWriteResult, type CatalogBatchResult,
 } from "@/lib/admin-canonical-contract";
 
 const db = supabase as unknown as SupabaseClient;
@@ -40,6 +41,16 @@ export function AdminCanonicalCatalog() {
   const [batchReason, setBatchReason] = useState("Importação administrativa em lote");
   const [target, setTarget] = useState<CatalogRow | null>(null);
   const [toggleReason, setToggleReason] = useState("");
+  const [editTarget, setEditTarget] = useState<CatalogRow | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [removeEditPhone, setRemoveEditPhone] = useState(false);
+  const [editCityAction, setEditCityAction] = useState<"keep" | "replace" | "clear">("keep");
+  const [editCitySearch, setEditCitySearch] = useState("");
+  const [editCityId, setEditCityId] = useState("");
+  const [editCities, setEditCities] = useState<{id:number;name:string;uf:string}[]>([]);
+  const [editCategory, setEditCategory] = useState("__keep__");
+  const [editReason, setEditReason] = useState("Atualização administrativa da ficha");
   const pendingManualSource = useRef<string | null>(null);
   const requestCounter = useRef(0);
 
@@ -88,6 +99,91 @@ export function AdminCanonicalCatalog() {
       else setNotice("");
     } catch { setError("Não foi possível consultar os municípios oficiais."); }
     finally { setBusy(false); }
+  }
+
+  async function findEditCities() {
+    if (busy) return;
+    const value = editCitySearch.trim().replace(/[%_,\\]/g,"").slice(0,70);
+    if (value.length < 2) { setError("Digite ao menos duas letras do município."); return; }
+    setError(""); setBusy(true); setEditCities([]); setEditCityId("");
+    try {
+      const {data, error: cityError} = await db.from("eut_ibge_municipalities")
+        .select("id,name,uf").ilike("name",value+"%").order("name").limit(30);
+      if (cityError || !Array.isArray(data)) throw new Error("Consulta municipal indisponível.");
+      setEditCities(data as {id:number;name:string;uf:string}[]);
+      if (data.length===0) setNotice("Nenhum município correspondente.");
+      else setNotice("");
+    } catch { setError("Não foi possível consultar os municípios oficiais."); }
+    finally { setBusy(false); }
+  }
+
+  function openEdit(row: CatalogRow) {
+    setTarget(null); setEditTarget(row); setEditName(row.display_name??"");
+    setEditPhone(""); setRemoveEditPhone(false);
+    setEditCityAction("keep"); setEditCitySearch(""); setEditCityId(""); setEditCities([]);
+    setEditCategory("__keep__"); setEditReason("Atualização administrativa da ficha");
+    setError(""); setNotice("");
+  }
+
+  async function editCatalog(e: FormEvent) {
+    e.preventDefault();
+    if (!editTarget || busy || availability!=="available") return;
+    if (editReason.trim().length<8 || editReason.length>400) {
+      setError("Informe o motivo de 8 a 400 caracteres."); return;
+    }
+    const changes: CatalogEditChanges = {};
+    const expected: CatalogEditExpected = {catalog_enabled: editTarget.catalog_enabled};
+    const newName = editName.trim() || null;
+    if (newName !== editTarget.display_name) {
+      changes.label = newName; expected.display_name = newName;
+    }
+    if (editCityAction==="clear") {
+      changes.city_ibge = null; expected.city = null; expected.state_uf = null;
+    } else if (editCityAction==="replace") {
+      const municipality = editCities.find(city=>String(city.id)===editCityId);
+      if (!municipality) { setError("Selecione um município do catálogo IBGE."); return; }
+      changes.city_ibge = municipality.id;
+      expected.city = municipality.name; expected.state_uf = municipality.uf;
+    }
+    if (editCategory!=="__keep__") {
+      if (editCategory && (categoryError || loadingCategories ||
+          !categories.some(category=>category.slug===editCategory))) {
+        setError("Selecione uma categoria ativa."); return;
+      }
+      changes.category_slug = editCategory || null;
+      expected.category_slug = editCategory || null;
+    }
+    if (removeEditPhone) {
+      changes.phone = null; expected.has_private_contact = false;
+    } else if (editPhone.trim()) {
+      changes.phone = editPhone.trim(); expected.has_private_contact = true;
+    }
+    if (Object.keys(changes).length===0) {
+      setError("Altere ao menos um campo da ficha."); return;
+    }
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const {data,error:rpcError}=await db.rpc("eut_admin_catalog_update", {
+        _id:editTarget.id,_expected_updated_at:editTarget.updated_at,
+        _expected_audit_id:editTarget.last_audit_id,
+        _changes:changes,_reason:editReason.trim(),
+      });
+      if (rpcError || data?.ok!==true || data?.technician_id!==editTarget.id) {
+        throw new Error(genericServerError(rpcError?.code));
+      }
+      if (data.changed===true) {
+        const read = await readPage(0,"",[editTarget.id]);
+        if (!confirmCatalogEditReadback(read,editTarget.id,data.last_audit_id,expected))
+          throw new Error("O banco respondeu, mas a releitura não confirmou campos e auditoria. Confira antes de repetir.");
+      }
+      setEditTarget(null); setEditPhone(""); setRemoveEditPhone(false);
+      setNotice(data.changed===true
+        ? "Ficha editada e confirmada no banco com nova auditoria. Contato segue privado; habilitação preservada."
+        : "Nenhuma alteração necessária; registro preservado.");
+      await refresh(page,search);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Edição não confirmada. Atualize antes de repetir.");
+    } finally { setBusy(false); }
   }
 
   async function readback(ids: string[], expected?: boolean) {
@@ -279,10 +375,16 @@ export function AdminCanonicalCatalog() {
                       <p className="text-xs text-muted-foreground">{r.city?(r.city+"/"+(r.state_uf||"")):"Município não informado"} · {r.catalog_origin==="admin_manual"?"Manual":r.catalog_origin==="wordpress"?"WordPress":"Importado"} · {r.has_private_contact?"Contato protegido":"Sem telefone"} · {r.catalog_enabled?"Habilitado operacionalmente":"Desabilitado"}</p>
                       <p className="text-xs text-muted-foreground">Registro {r.id} · auditoria {r.last_audit_id??"não localizada"}</p>
                     </div>
-                    <button type="button" disabled={busy||!r.last_audit_id}
-                      onClick={()=>{setTarget(r);setToggleReason("");}} className="min-h-11 rounded-lg border border-border px-4 text-sm font-semibold">
-                      {r.catalog_enabled?"Desabilitar":"Habilitar"}
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button type="button" disabled={busy||!r.last_audit_id} onClick={()=>openEdit(r)}
+                        className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-primary/30 px-4 text-sm font-semibold text-primary">
+                        <Pencil aria-hidden="true" className="h-4 w-4"/> Editar ficha
+                      </button>
+                      <button type="button" disabled={busy||!r.last_audit_id}
+                        onClick={()=>{setEditTarget(null);setTarget(r);setToggleReason("");}} className="min-h-11 rounded-lg border border-border px-4 text-sm font-semibold">
+                        {r.catalog_enabled?"Desabilitar":"Habilitar"}
+                      </button>
+                    </div>
                   </div>
                 </li>)}
               </ul>
@@ -295,6 +397,78 @@ export function AdminCanonicalCatalog() {
                 className="min-h-11 rounded-lg border border-border px-3 text-sm disabled:opacity-50">Próxima</button>
             </div>
           </div>
+          {editTarget && <form onSubmit={e=>void editCatalog(e)}
+            className="grid gap-3 rounded-xl border border-primary/25 bg-muted/15 p-4" aria-label="Editar ficha canônica">
+            <h3 className="flex items-center gap-2 font-bold"><Pencil aria-hidden="true" className="h-4 w-4"/> Editar ficha administrativa</h3>
+            <p className="text-xs text-muted-foreground">
+              {editTarget.id} · {editTarget.catalog_enabled?"Habilitado":"Desabilitado"} · {editTarget.catalog_origin}.
+              Somente campos modificados serão gravados. Origem, acesso e status permanecem inalterados.
+            </p>
+            <label className="grid gap-1 text-sm font-medium">Nome público (pode ficar vazio se houver telefone)
+              <input value={editName} onChange={e=>setEditName(e.target.value)}
+                maxLength={100} className="min-h-11 rounded-lg border border-input bg-background px-3 text-base"/>
+            </label>
+            <div className="rounded-lg border border-border p-3">
+              <label className="grid gap-1 text-sm font-medium">Telefone privado novo (deixe vazio para manter)
+                <input type="tel" autoComplete="off" maxLength={40} disabled={removeEditPhone}
+                  value={editPhone} onChange={e=>setEditPhone(e.target.value)}
+                  className="min-h-11 rounded-lg border border-input bg-background px-3 text-base"/>
+              </label>
+              <label className="mt-2 flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={removeEditPhone} disabled={!editTarget.has_private_contact}
+                  onChange={e=>{setRemoveEditPhone(e.target.checked);setEditPhone("");}}/>
+                Remover telefone privado existente
+              </label>
+              <p className="mt-2 text-xs text-muted-foreground">O número existente nunca é exibido. Substituição/remoção exige gravação auditada.</p>
+            </div>
+            <label className="grid gap-1 text-sm font-medium">Município declarado
+              <select className="min-h-11 rounded-lg border border-input bg-background px-3 text-base"
+                value={editCityAction} onChange={e=>setEditCityAction(e.target.value as "keep"|"replace"|"clear")}>
+                <option value="keep">Manter: {editTarget.city?(editTarget.city+"/"+editTarget.state_uf):"não informado"}</option>
+                <option value="replace">Trocar por município IBGE</option>
+                <option value="clear">Remover município declarado</option>
+              </select>
+            </label>
+            {editCityAction==="replace" && <>
+              <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                <label className="grid gap-1 text-sm font-medium">Buscar município IBGE
+                  <input value={editCitySearch} onChange={e=>setEditCitySearch(e.target.value)}
+                    maxLength={70} className="min-h-11 rounded-lg border border-input bg-background px-3 text-base"/>
+                </label>
+                <button type="button" disabled={busy} onClick={()=>void findEditCities()}
+                  className="min-h-11 self-end rounded-lg border border-border px-4 text-sm font-semibold">Buscar cidade</button>
+              </div>
+              <label className="grid gap-1 text-sm font-medium">Município oficial
+                <select value={editCityId} onChange={e=>setEditCityId(e.target.value)}
+                  className="min-h-11 rounded-lg border border-input bg-background px-3 text-base">
+                  <option value="">Selecione um município válido</option>
+                  {editCities.map(c=><option key={c.id} value={c.id}>{c.name}/{c.uf} (IBGE {c.id})</option>)}
+                </select>
+              </label>
+            </>}
+            <label className="grid gap-1 text-sm font-medium">Categoria declarada
+              <select value={editCategory} onChange={e=>setEditCategory(e.target.value)}
+                disabled={loadingCategories||categoryError}
+                className="min-h-11 rounded-lg border border-input bg-background px-3 text-base">
+                <option value="__keep__">Manter categorias atuais {editTarget.specialties.join(", ")||"(não informadas)"}</option>
+                <option value="">Remover categoria declarada</option>
+                {categories.map(c=><option key={c.slug} value={c.slug}>{c.label}</option>)}
+              </select>
+            </label>
+            <label className="grid gap-1 text-sm font-medium">Motivo da edição (auditoria)
+              <textarea required rows={2} minLength={8} maxLength={400}
+                value={editReason} onChange={e=>setEditReason(e.target.value)}
+                className="rounded-lg border border-input bg-background p-3 text-base"/>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <button type="submit" disabled={busy}
+                className="min-h-11 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+                {busy?"Salvando e conferindo…":"Salvar edição no banco"}
+              </button>
+              <button type="button" disabled={busy} onClick={()=>{setEditTarget(null);setEditPhone("");}}
+                className="min-h-11 rounded-lg border border-border px-4 text-sm">Cancelar</button>
+            </div>
+          </form>}
           {target && <form onSubmit={e=>void setEnabled(e)} className="grid gap-3 rounded-xl border border-primary/25 p-4" aria-label="Confirmar mudança auditada">
             <h3 className="font-bold">{target.catalog_enabled?"Desabilitar":"Habilitar"} cadastro</h3>
             <p className="text-sm text-muted-foreground">{target.display_name||target.id} — nenhuma publicação ou contato será liberado por esta ação isolada.</p>

@@ -162,6 +162,166 @@ BEGIN
  THEN RAISE EXCEPTION 'Disable audit missing'; END IF;
 END $qa$;
 
+\echo 'EUT canonical R1: audited, versioned edit without Auth or private disclosure'
+SET request.jwt.claim.sub='00000000-0000-4000-8000-000000000002';
+SET ROLE authenticated;
+DO $qa$
+DECLARE denied boolean:=false;
+BEGIN
+ BEGIN PERFORM public.eut_admin_catalog_update(
+   '20000000-0000-4000-8000-000000000001',now(),1,
+   '{"label":"Invasão de edição"}'::jsonb,'Negar edição por cliente');
+ EXCEPTION WHEN SQLSTATE '42501' THEN denied:=true; END;
+ IF NOT denied THEN RAISE EXCEPTION 'Non-admin edit allowed'; END IF;
+END $qa$;
+RESET ROLE;
+SET request.jwt.claim.sub='00000000-0000-4000-8000-000000000001';
+
+DO $qa$
+DECLARE v_id uuid; v_version timestamptz; v_slug text; v_audit bigint;
+        v_new_audit bigint; v_result jsonb; v_denied boolean; v_before_count integer;
+BEGIN
+ SELECT t.id,t.updated_at,t.public_slug INTO v_id,v_version,v_slug
+   FROM public.technicians t JOIN eut_moderation.catalog_provenance p
+     ON p.technician_id=t.id
+  WHERE p.catalog_origin='external_import' AND p.source_key='capture:two-01';
+ SELECT max(id) INTO v_audit FROM public.eut_admin_management_log
+   WHERE target_type='technician' AND target_key=v_id::text
+     AND action IN ('catalog_created','catalog_enabled_changed','catalog_edited','technician_update');
+ IF v_id IS NULL OR v_audit IS NULL THEN RAISE EXCEPTION 'Missing import to edit'; END IF;
+
+ v_result:=public.eut_admin_catalog_update(v_id,v_version,v_audit,
+   '{"label":"Oficina Atualizada","city_ibge":4125506,"category_slug":"redes","phone":"(41) 99999-4040"}'::jsonb,
+   'Atualização administrativa sintética com versão');
+ v_new_audit:=(v_result->>'last_audit_id')::bigint;
+ IF v_result->>'ok'<>'true' OR v_result->>'changed'<>'true'
+    OR v_result->>'catalog_enabled'<>'true'
+    OR v_new_audit<=v_audit OR v_result ? 'phone'
+ THEN RAISE EXCEPTION 'Edited operation or audit response invalid'; END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.technicians t WHERE t.id=v_id
+     AND t.user_id IS NULL AND t.status='pendente'::public.approval_status
+     AND t.catalog_enabled IS TRUE AND t.catalog_origin='external_import'
+     AND t.display_name='Oficina Atualizada' AND t.city='São José dos Pinhais'
+     AND t.state_uf='PR' AND t.specialties=ARRAY['redes']::text[]
+     AND cardinality(t.coverage_city_ids)=0 AND t.public_slug=v_slug)
+ THEN RAISE EXCEPTION 'Edit altered Auth, enablement, slug, or declared facts'; END IF;
+ IF NOT EXISTS(SELECT 1 FROM eut_moderation.catalog_private_contacts c
+     WHERE c.technician_id=v_id AND c.phone_e164='+5541999994040'
+       AND c.allow_paid_contact IS TRUE)
+ THEN RAISE EXCEPTION 'Private contact replacement failed'; END IF;
+ IF NOT EXISTS(SELECT 1 FROM eut_moderation.catalog_provenance p WHERE
+     p.technician_id=v_id AND p.catalog_origin='external_import'
+     AND p.source_key='capture:two-01')
+ THEN RAISE EXCEPTION 'Source key/provenance was rewritten'; END IF;
+ IF EXISTS(SELECT 1 FROM public.eut_admin_management_log l
+    WHERE l.target_key=v_id::text AND
+      (l.before_state::text LIKE '%999994040%'
+       OR l.after_state::text LIKE '%999994040%'
+       OR l.before_state::text LIKE '%999997070%'
+       OR l.after_state::text LIKE '%999997070%'))
+ THEN RAISE EXCEPTION 'Private contact leaked into audit'; END IF;
+
+ -- Old version must be refused even when the updated_at trigger used now()
+ -- within this same fixture transaction; the monotonic audit ID is the guard.
+ v_denied:=false;
+ BEGIN PERFORM public.eut_admin_catalog_update(v_id,v_version,v_audit,
+   '{"label":"Edição concorrente"}'::jsonb,'Bloquear versão anterior do catálogo');
+ EXCEPTION WHEN SQLSTATE '40001' THEN v_denied:=true; END;
+ IF NOT v_denied THEN RAISE EXCEPTION 'Stale admin edit accepted'; END IF;
+
+ -- No-op is idempotent: no new audit, no mutation and no leaked phone.
+ SELECT updated_at INTO v_version FROM public.technicians WHERE id=v_id;
+ SELECT count(*) INTO v_before_count FROM public.eut_admin_management_log
+   WHERE target_type='technician' AND target_key=v_id::text AND action='catalog_edited';
+ v_result:=public.eut_admin_catalog_update(v_id,v_version,v_new_audit,
+   '{"label":"Oficina Atualizada"}'::jsonb,'Repetir edição sem mudar cadastro');
+ IF v_result->>'changed'<>'false' OR
+    (v_result->>'last_audit_id')::bigint<>v_new_audit OR
+    (SELECT count(*) FROM public.eut_admin_management_log
+      WHERE target_type='technician' AND target_key=v_id::text
+        AND action='catalog_edited')<>v_before_count
+ THEN RAISE EXCEPTION 'No-op edit mutated record/audit'; END IF;
+
+ -- Only explicit JSON null removes a phone; the rest of the record stays live.
+ v_result:=public.eut_admin_catalog_update(v_id,v_version,v_new_audit,
+   '{"phone":null}'::jsonb,'Remover telefone privado de ficha identificada');
+ IF v_result->>'changed'<>'true' OR v_result->>'contact_available'<>'false'
+   OR EXISTS(SELECT 1 FROM eut_moderation.catalog_private_contacts WHERE technician_id=v_id)
+ THEN RAISE EXCEPTION 'Private phone removal failed'; END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.technicians WHERE id=v_id
+   AND catalog_enabled IS TRUE AND display_name='Oficina Atualizada')
+ THEN RAISE EXCEPTION 'Phone removal incorrectly disabled or renamed listing'; END IF;
+
+ -- A new import with the old phone must not overwrite an edited or removed phone.
+ v_result:=public.eut_admin_catalog_upsert(
+   'external_import','capture:two-01','Oficina Origem',4106902,'computadores',
+   '(41) 99999-7070','Reimportação sem sobrescrever edição administrativa');
+ IF v_result->>'conflict'<>'true' THEN
+   RAISE EXCEPTION 'Reimport silently overwrote edited private phone'; END IF;
+
+ -- Unknown fields, invalid city/category and untrusted phone fail closed.
+ SELECT updated_at INTO v_version FROM public.technicians WHERE id=v_id;
+ SELECT max(id) INTO v_new_audit FROM public.eut_admin_management_log
+   WHERE target_type='technician' AND target_key=v_id::text
+     AND action IN ('catalog_created','catalog_enabled_changed',
+                    'catalog_edited','technician_update');
+ v_denied:=false;
+ BEGIN PERFORM public.eut_admin_catalog_update(v_id,v_version,v_new_audit,
+   '{"catalog_enabled":false}'::jsonb,'Recusar alteração fora do CRUD');
+ EXCEPTION WHEN SQLSTATE '22023' THEN v_denied:=true; END;
+ IF NOT v_denied THEN RAISE EXCEPTION 'Unexpected field mutated enablement'; END IF;
+ v_denied:=false;
+ BEGIN PERFORM public.eut_admin_catalog_update(v_id,v_version,v_new_audit,
+   '{"city_ibge":1234567}'::jsonb,'Recusar município não declarado');
+ EXCEPTION WHEN SQLSTATE '22023' THEN v_denied:=true; END;
+ IF NOT v_denied THEN RAISE EXCEPTION 'Unverified IBGE code accepted'; END IF;
+ v_denied:=false;
+ BEGIN PERFORM public.eut_admin_catalog_update(v_id,v_version,v_new_audit,
+   '{"category_slug":"desativada"}'::jsonb,'Recusar categoria desativada');
+ EXCEPTION WHEN SQLSTATE '22023' THEN v_denied:=true; END;
+ IF NOT v_denied THEN RAISE EXCEPTION 'Inactive category accepted'; END IF;
+ v_denied:=false;
+ BEGIN PERFORM public.eut_admin_catalog_update(v_id,v_version,v_new_audit,
+   '{"phone":"(41) 1333-4444"}'::jsonb,'Recusar telefone inválido');
+ EXCEPTION WHEN SQLSTATE '22023' THEN v_denied:=true; END;
+ IF NOT v_denied THEN RAISE EXCEPTION 'Invalid phone accepted'; END IF;
+ v_denied:=false;
+ BEGIN PERFORM public.eut_admin_catalog_update(v_id,v_version,v_new_audit,
+   '{"label":"Contato wa.me/5541999998888"}'::jsonb,'Recusar contato no nome público');
+ EXCEPTION WHEN SQLSTATE '22023' THEN v_denied:=true; END;
+ IF NOT v_denied THEN RAISE EXCEPTION 'Public phone in name accepted'; END IF;
+END $qa$;
+
+\echo 'EUT canonical R1: disabled rows edit without reenable; no empty identities'
+DO $qa$
+DECLARE v_id uuid; v_version timestamptz; v_audit bigint; v_reply jsonb; rejected boolean;
+BEGIN
+ SELECT p.technician_id,t.updated_at INTO v_id,v_version
+   FROM eut_moderation.catalog_provenance p JOIN public.technicians t ON t.id=p.technician_id
+   WHERE p.catalog_origin='wordpress' AND p.source_key='wp:old-42';
+ SELECT max(id) INTO v_audit FROM public.eut_admin_management_log
+   WHERE target_type='technician' AND target_key=v_id::text
+     AND action IN ('catalog_created','catalog_enabled_changed','catalog_edited','technician_update');
+ v_reply:=public.eut_admin_catalog_update(v_id,v_version,v_audit,
+   '{"label":"Prestador antigo atualizado"}'::jsonb,'Corrigir ficha desabilitada sem habilitar');
+ IF v_reply->>'ok'<>'true' OR v_reply->>'catalog_enabled'<>'false'
+   OR NOT EXISTS(SELECT 1 FROM public.technicians
+     WHERE id=v_id AND catalog_enabled IS FALSE AND display_name='Prestador antigo atualizado')
+ THEN RAISE EXCEPTION 'Editing reenabled a disabled record'; END IF;
+
+ SELECT p.technician_id,t.updated_at INTO v_id,v_version
+   FROM eut_moderation.catalog_provenance p JOIN public.technicians t ON t.id=p.technician_id
+   WHERE p.catalog_origin='admin_manual' AND p.source_key='manual:lead-001';
+ SELECT max(id) INTO v_audit FROM public.eut_admin_management_log
+   WHERE target_type='technician' AND target_key=v_id::text
+     AND action IN ('catalog_created','catalog_enabled_changed','catalog_edited','technician_update');
+ rejected:=false;
+ BEGIN PERFORM public.eut_admin_catalog_update(v_id,v_version,v_audit,
+   '{"phone":null}'::jsonb,'Não apagar o único identificador');
+ EXCEPTION WHEN SQLSTATE '22023' THEN rejected:=true; END;
+ IF NOT rejected THEN RAISE EXCEPTION 'Phone-only identity became empty'; END IF;
+END $qa$;
+
 \echo 'EUT canonical R1: hosted phone format, RLS and NULL batch compatibility'
 DO $qa$
 DECLARE bad boolean; before_count integer;
