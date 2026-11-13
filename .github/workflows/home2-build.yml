@@ -1,72 +1,15 @@
-name: Home2 build gate
+name: Home2 build gate (deprecated)
 
 on:
-  pull_request:
-    paths:
-      - 'src/routes/home2.tsx'
-      - 'src/routes/faq.tsx'
-      - 'src/routes/contato.tsx'
-      - 'src/routes/servicos.tsx'
-      - 'src/routes/como-funciona.tsx'
-      - 'src/lib/seo-public-pages.test.ts'
-      - 'src/lib/service-catalog.ts'
-      - 'src/lib/service-catalog.test.ts'
-      - 'src/lib/service-specialty-content.ts'
-      - 'src/lib/guide-faqs.ts'
-      - 'src/lib/guide-artwork.ts'
-      - 'src/components/guide-section-visual.tsx'
-      - 'src/routes/servicos.$categoria.tsx'
-      - 'src/lib/public-sitemap-index.ts'
-      - 'src/lib/public-sitemap-index.test.ts'
-      - 'src/lib/public-sitemap-http.ts'
-      - 'src/lib/public-sitemap-http.test.ts'
-      - 'src/components/public-seo-discovery.ssr.test.tsx'
-      - '.github/workflows/home2-build.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: home2-build-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  build:
+  deprecated:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-      - name: Install (locked)
-        run: bun install --frozen-lockfile
-      - name: Build TanStack
-        run: bun run build
-      - name: SEO public pages, redirects and privacy tests
-        run: bunx vitest run src/lib/seo-public-pages.test.ts src/lib/service-catalog.test.ts src/lib/guide-reading-tools.test.ts src/lib/public-sitemap.test.ts src/lib/assistance-intent.test.ts src/lib/assistance-whatsapp.test.ts src/lib/whatsapp-cloud-adapter.test.ts src/lib/whatsapp-webhook-design.test.ts src/components/free-search-help.test.tsx src/lib/public-coverage.test.ts
-      - name: Sitemap index, SSR canonical, 404/503
-        run: bunx vitest run src/lib/public-sitemap-index.test.ts src/lib/public-sitemap-http.test.ts src/components/public-seo-discovery.ssr.test.tsx src/routes/public-seo-routes.test.tsx
-      - name: Regression triage fallback
-        run: bunx vitest run src/lib/problem-triage-local.test.ts
-      - name: TypeScript check
-        run: bunx tsc --noEmit --pretty false
-      - name: Smoke estático Home2 — rota, isolamento e indexação
-        shell: bash
-        run: |
-          node --input-type=module <<'NODE'
-          import { readFileSync, existsSync } from 'node:fs';
-          const home2 = readFileSync('src/routes/home2.tsx', 'utf8');
-          const root = readFileSync('src/routes/index.tsx', 'utf8');
-          const check = (ok, reason) => { if (!ok) throw Error(reason); };
-          check(home2.includes('createFileRoute("/home2")'), 'Rota /home2 ausente');
-          check(root.includes('createFileRoute("/")'), 'Home1 original ausente');
-          check(home2.includes('function Home2Header()') && home2.includes('function Home2Footer()'), 'Shell próprio incompleto');
-          check(!home2.includes('PageShell') || home2.includes('Não importar PageShell'), 'Revisar importação de PageShell');
-          check(home2.includes('noindex, nofollow'), 'Proteção de homologação ausente');
-          check(home2.includes('useActiveCategories()') && home2.includes('search={{ especialidade: cat.slug'), 'Categorias não usam catálogo oficial via Link com slug');
-          check(home2.includes('to="/tecnicos"') && !home2.includes('window.location.assign('), 'Home2 não pode forçar navegação completa e perder rascunhos');
-          check(existsSync('src/routes/tecnicos.index.tsx'), 'Destino /tecnicos ausente');
-          check(existsSync('src/routes/entrar.tsx'), 'Destino /entrar ausente');
-          check(existsSync('src/routes/cadastro.tsx'), 'Destino /cadastro ausente');
-          console.log('Home2 smoke estático: OK');
-          NODE
+      - name: Obsolete workflow
+        run: echo "This workflow is obsolete and intentionally not used. The project now relies on the newer EUT/LP2 workflows."
