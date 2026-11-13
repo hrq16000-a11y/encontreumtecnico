@@ -1,3 +1,19 @@
+\echo 'Live guard QA: public contact wording is rejected by the RPC'
+SET request.jwt.claim.sub='00000000-0000-4000-8000-000000000001';
+DO $t$
+DECLARE denied boolean:=false;
+BEGIN
+ BEGIN
+   PERFORM public.eut_admin_catalog_upsert(
+     'admin_manual','manual:unsafe-label','Contato pelo WhatsApp',
+     NULL,NULL,'(41) 99999-3030','Recusar divulgação de contato público');
+ EXCEPTION WHEN SQLSTATE '22023' THEN denied:=true; END;
+ IF NOT denied THEN RAISE EXCEPTION 'RPC accepted public WhatsApp text'; END IF;
+ IF EXISTS(SELECT 1 FROM eut_moderation.catalog_provenance
+   WHERE source_key='manual:unsafe-label') THEN
+   RAISE EXCEPTION 'Forbidden public label persisted'; END IF;
+END $t$;
+
 -- ONLY disposable PostgreSQL. Run after canonical R1 original assertions.
 \echo 'Live guard QA: a complete legacy Auth technician remains public'
 INSERT INTO auth.users(id,email_confirmed_at)

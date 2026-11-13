@@ -126,7 +126,7 @@ BEGIN
       'label','Oficina Origem', 'city_ibge',4106902, 'category_slug','computadores',
       'phone','+55 (41) 99999-7070'),
    jsonb_build_object('origin','wordpress','source_key','wp:old-42',
-      'label','Prestador antigo sem telefone')
+      'label','Prestador antigo')
  );
  v_result:=public.eut_admin_catalog_import_batch(v_batch,'Importação sintética em dois lotes');
  IF v_result->>'processed'<>'2' OR v_result->>'ok'<>'true'

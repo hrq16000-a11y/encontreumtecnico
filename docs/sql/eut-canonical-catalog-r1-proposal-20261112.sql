@@ -143,7 +143,7 @@ BEGIN
     v_source ~ '^[0-9]{10,13}$'
   THEN RAISE EXCEPTION 'Chave de procedência inválida' USING ERRCODE='22023'; END IF;
   IF v_label IS NOT NULL AND (char_length(v_label)>100 OR
-    v_label ~* '(https?://|www[.]|wa[.]me|@|[+][0-9][0-9 ()-]{8,})')
+    eut_profile_security.is_unsafe_public_text(v_label,false))
   THEN RAISE EXCEPTION 'Rótulo público inválido' USING ERRCODE='22023'; END IF;
 
   IF nullif(btrim(coalesce(_phone_input,'')),'') IS NOT NULL THEN
