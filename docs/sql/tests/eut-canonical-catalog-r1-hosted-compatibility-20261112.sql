@@ -7,6 +7,7 @@ INSERT INTO public.profiles SELECT id FROM auth.users;
 ALTER TABLE public.technicians DROP CONSTRAINT technicians_user_id_fkey;
 ALTER TABLE public.technicians ADD CONSTRAINT technicians_user_id_fkey
   FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
+ALTER TABLE public.technicians ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
 ALTER TABLE public.technicians ADD COLUMN public_slug text;
 CREATE OR REPLACE FUNCTION eut_migration.technician_public_slug_base(
  _name text,_city text,_uf text) RETURNS text LANGUAGE sql STABLE SET search_path='' AS $$

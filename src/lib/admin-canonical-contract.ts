@@ -41,18 +41,18 @@ const ORIGINS = new Set(["admin_manual", "external_import", "wordpress"]);
 export function isCatalogSnapshot(data: unknown): data is CatalogSnapshot {
   if (!data || typeof data !== "object") return false;
   const v = data as Record<string, unknown>;
-  return v.ok === true && Number.isInteger(v.page) && Number.isInteger(v.limit) &&
-    Number.isInteger(v.total) && Array.isArray(v.rows) &&
-    v.rows.every((x: unknown) => {
+  return v["ok"] === true && Number.isInteger(v["page"]) && Number.isInteger(v["limit"]) &&
+    Number.isInteger(v["total"]) && Array.isArray(v["rows"]) &&
+    v["rows"].every((x: unknown) => {
       if (!x || typeof x !== "object") return false;
       const r = x as Record<string, unknown>;
-      return typeof r.id === "string" && UUID.test(r.id) &&
-        (typeof r.display_name === "string" || r.display_name === null) &&
-        typeof r.catalog_enabled === "boolean" &&
-        typeof r.updated_at === "string" && typeof r.created_at === "string" &&
-        typeof r.has_private_contact === "boolean" &&
-        (r.last_audit_id === null || (typeof r.last_audit_id === "number" && r.last_audit_id > 0)) &&
-        ORIGINS.has(String(r.catalog_origin)) &&
+      return typeof r["id"] === "string" && UUID.test(r["id"]) &&
+        (typeof r["display_name"] === "string" || r["display_name"] === null) &&
+        typeof r["catalog_enabled"] === "boolean" &&
+        typeof r["updated_at"] === "string" && typeof r["created_at"] === "string" &&
+        typeof r["has_private_contact"] === "boolean" &&
+        (r["last_audit_id"] === null || (typeof r["last_audit_id"] === "number" && r["last_audit_id"] > 0)) &&
+        ORIGINS.has(String(r["catalog_origin"])) &&
         !("phone_e164" in r) && !("source_key" in r) && !("catalog_source_key" in r);
     });
 }
@@ -71,8 +71,8 @@ export function parseCatalogBatch(raw: string):
     if (!value || typeof value !== "object" || Array.isArray(value))
       return { ok: false, issue: "Lote contém item inválido." };
     const r = value as Record<string, unknown>;
-    const origin = r.origin;
-    const sourceKey = r.source_key;
+    const origin = r["origin"];
+    const sourceKey = r["source_key"];
     if (typeof origin !== "string" || !ORIGINS.has(origin) ||
       typeof sourceKey !== "string" || !SOURCE.test(sourceKey) ||
       /^\d{10,13}$/.test(sourceKey))
@@ -80,17 +80,17 @@ export function parseCatalogBatch(raw: string):
     const dedupeKey = origin + "\n" + sourceKey;
     if (seen.has(dedupeKey)) return { ok: false, issue: "Chave repetida dentro do lote." };
     seen.add(dedupeKey);
-    const label = r.label === null || r.label === undefined || r.label === ""
-      ? null : r.label;
-    const phone = r.phone === null || r.phone === undefined || r.phone === ""
-      ? null : r.phone;
+    const label = r["label"] === null || r["label"] === undefined || r["label"] === ""
+      ? null : r["label"];
+    const phone = r["phone"] === null || r["phone"] === undefined || r["phone"] === ""
+      ? null : r["phone"];
     if ((label !== null && (typeof label !== "string" || label.trim().length > 100)) ||
       (phone !== null && (typeof phone !== "string" || phone.length > 40)) ||
       (!label && !phone)) return { ok: false, issue: "Nome/telefone inválido." };
-    const city = r.city_ibge ?? null;
+    const city = r["city_ibge"] ?? null;
     if (city !== null && (!Number.isInteger(city) || Number(city) < 1000000 || Number(city) > 9999999))
       return { ok: false, issue: "Código municipal IBGE inválido." };
-    const category = r.category_slug ?? null;
+    const category = r["category_slug"] ?? null;
     if (category !== null && (typeof category !== "string" || !/^[a-z0-9-]{2,80}$/.test(category)))
       return { ok: false, issue: "Categoria inválida." };
     result.push({
@@ -107,7 +107,7 @@ export function parseCatalogBatch(raw: string):
 export function confirmCatalogReadback(snapshot: unknown, ids: string[], expected?: boolean): boolean {
   if (!isCatalogSnapshot(snapshot) || ids.length === 0 || snapshot.total !== ids.length ||
     snapshot.rows.length !== ids.length) return false;
-  const byId = new Map(snapshot.rows.map(r => [r.id, r]));
+  const byId = new Map(snapshot.rows.map(r => [r["id"], r]));
   return ids.every(id => {
     const row = byId.get(id);
     return !!row && (expected === undefined || row.catalog_enabled === expected) &&

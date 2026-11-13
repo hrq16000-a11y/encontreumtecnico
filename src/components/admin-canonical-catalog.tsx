@@ -74,8 +74,7 @@ export function AdminCanonicalCatalog() {
     return () => { requestCounter.current++; };
   }, [refresh]);
 
-  async function findCities(e: FormEvent) {
-    e.preventDefault();
+  async function findCities() {
     if (busy) return;
     const value = citySearch.trim().replace(/[%_,\\]/g,"").slice(0,70);
     if (value.length < 2) { setError("Digite ao menos duas letras do município."); return; }
@@ -215,13 +214,13 @@ export function AdminCanonicalCatalog() {
               <input className="min-h-11 rounded-lg border border-input bg-background px-3 text-base" type="tel" maxLength={30}
                 autoComplete="off" value={phone} onChange={e=>setPhone(e.target.value)}/>
             </label>
-            <form onSubmit={e=>void findCities(e)} className="grid gap-2 sm:grid-cols-[1fr_auto]">
+            <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
               <label className="grid gap-1 text-sm font-medium">Município IBGE (opcional)
                 <input className="min-h-11 rounded-lg border border-input bg-background px-3 text-base"
                   value={citySearch} onChange={e=>setCitySearch(e.target.value)} maxLength={70} placeholder="Pesquisar município"/>
               </label>
-              <button className="min-h-11 self-end rounded-lg border border-border px-4 text-sm font-semibold" type="submit" disabled={busy}>Buscar cidade</button>
-            </form>
+              <button className="min-h-11 self-end rounded-lg border border-border px-4 text-sm font-semibold" type="button" onClick={()=>void findCities()} disabled={busy}>Buscar cidade</button>
+            </div>
             {cities.length>0 && <label className="grid gap-1 text-sm font-medium">Cidade oficial
               <select className="min-h-11 rounded-lg border border-input bg-background px-3 text-base"
                 value={cityId} onChange={e=>setCityId(e.target.value)}>
