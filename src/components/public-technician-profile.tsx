@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { openFreeHelp } from "@/lib/free-search-help";
 import {
   ArrowLeft, ArrowRight, ArrowUpRight, BadgeInfo, BriefcaseBusiness, Check,
-  ChevronRight, Handshake, LockKeyhole, MapPin, Medal,
+  ChevronRight, Handshake, LockKeyhole, MapPin,
   MessageSquareText, MonitorCheck, Navigation, Sparkles, Wrench,
 } from "lucide-react";
 import type { PublicTechnician } from "@/lib/technicians.functions";
@@ -54,11 +54,6 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white">
                     <MonitorCheck className="h-3.5 w-3.5" aria-hidden="true" /> Perfil profissional publicado
                   </span>
-                  {t.pioneer_bronze && (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/40 bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-100">
-                      <Medal className="h-3.5 w-3.5" aria-hidden="true" /> Pioneiro Bronze
-                    </span>
-                  )}
                   {t.referral_highlight && (
                     <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-200/40 bg-cyan-500/20 px-3 py-1 text-xs font-semibold text-cyan-50">
                       <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Destaque por indicações
