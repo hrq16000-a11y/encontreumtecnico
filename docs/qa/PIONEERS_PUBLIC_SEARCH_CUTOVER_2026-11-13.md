@@ -120,3 +120,58 @@ um workflow autorizado equivalente. Preservar o alias original ao aplicar
 `suggestLegacyDisplayName` apenas em fichas WordPress; nunca forçar município
 a partir de DDD nem ampliar RLS. Após isso, homologar release/rollback antes
 de ativar registros reais.
+
+## Gate de procedência para nomes na ficha pública — 13/11/2026
+
+Reconsulta somente de código versionado, sem acesso ao banco hospedado:
+`main dc75adf5`, Draft #255 `9aa43cc7`, Draft #256 `ed04735b`, branch
+de nomes `a286a20d`. Esta seção prevalece sobre a pendência de SSR
+registrada acima: o run **43386276276 SUCCESS** já comprovou R1/R2 REAL
+local + TanStack SSR #255 + Chromium **390px/1440px** (Issue comment
+`6847031333` na PR #255), com 1 elegível/4 negados e contato privado.
+Não repetir esse gate verde nem considerá-lo deploy de produção.
+
+**Bloqueio específico da ligação do nome:**
+
+1. A #255 recebe de `public.technicians` somente `COLUMNS` públicas
+   (`id`, `public_slug`, `display_name` e campos de apresentação). A sua
+   `PublicTechnician` **não inclui origem WordPress**. A função
+   `eut_public_eligible_technician_ids(_ids)` devolve **IDs apenas**,
+   corretamente sem procedência/contatos. O selo Bronze não é procedência.
+2. A proposta R1 da #256 adiciona `catalog_origin` à tabela canônica e
+   mantém o vínculo com `source_key` em
+   `eut_moderation.catalog_provenance`, **privado e sem SELECT anônimo**.
+   A R2 valida essa relação, auditoria, telefone privado e bloqueios
+   antes de admitir Auth-less `pendente`. Mas as alterações são **SQL
+   proposto**, sem prova nesta rodada de paridade do esquema hospedado.
+   Adicionar `catalog_origin` ao `COLUMNS` da busca antes dessa paridade
+   pode quebrar o SSR com coluna ausente.
+3. O CRUD da R1 pode editar `display_name` sem guardar uma coluna imutável
+   para o **apelido antigo**. O `source_key` privado identifica a origem,
+   mas não é contrato de nome original. Portanto não é seguro reconstruir
+   o apelido após uma edição nem inventá-lo com base no nome atual.
+
+**Menor conexão segura quando o contrato estiver liberado:** no mesmo
+servidor que já chama a RPC R2, depois de receber os IDs elegíveis,
+consultar a coluna pública `catalog_origin` **somente após comprovar a
+existência da migração R1/R2 no ambiente-alvo**. Reconhecer WordPress
+apenas se `user_id IS NULL`, `status='pendente'`, `catalog_enabled=true`
+e `catalog_origin='wordpress'`, com a RPC R2 aprovada para o mesmo ID.
+Projetar ao cliente apenas o apelido público já existente (se ainda
+corresponder ao `display_name`) como
+`provenanceLinkedWordPressAlias` e a sugestão marcada **não verificada**.
+Excluir do DTO final `catalog_origin`, `user_id`, `catalog_enabled`,
+`source_key`, auditoria, bloqueios, telefones e DDD bruto. Sem fallback
+por selo, padrão do texto ou status isolado. Perfil por slug e lista
+devem usar **a mesma** projeção. Uma futura edição do nome exige
+decisão explícita de preservação do alias de origem em contrato privado.
+
+**Decisão desta micro-rodada:** não conectar o prop opcional diretamente
+à consulta pública enquanto faltarem esses contratos ativos e a fonte
+imutável do apelido. A ficha preparada no commit `a286a20d` permanece
+sem mudança para quem não recebe sinal de procedência. Nenhum código,
+RLS, RPC, SQL ou dado foi alterado nesta verificação. Próximo teste
+proporcional: fixture local sintética de projeção **após R2**, provando
+origem WordPress verdadeira e negativos de origem orgânica/sem procedência,
+apelido editado, desabilitado e contato oculto; sem novo workflow ou CI
+automático sem autorização específica.
