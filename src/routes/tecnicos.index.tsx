@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { listApprovedTechnicians } from "../lib/technicians.functions";
+import { listApprovedTechnicians, listApprovedMunicipalTechnicians } from "../lib/technicians.functions";
 import { TechnicianSearchCard } from "@/components/technician-search-card";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
@@ -75,7 +75,9 @@ const searchSchema = z.object({
 export const Route = createFileRoute("/tecnicos/")({
   validateSearch: zodValidator(searchSchema),
   loaderDeps: ({ search }) => search,
-  loader: ({ deps }) => listApprovedTechnicians({ data: deps }),
+  loader: async ({ deps }) => deps.municipio_ibge
+    ? listApprovedMunicipalTechnicians({ data: deps })
+    : { technicians: await listApprovedTechnicians({ data: deps }), hasMore: false },
   head: () => ({
     meta: [
       { title: "Técnicos de CFTV, informática e redes — Encontre um Técnico" },

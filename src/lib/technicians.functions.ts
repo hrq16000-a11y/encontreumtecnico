@@ -141,11 +141,14 @@ async function withCoverageCities(rows: PublicTechnician[]): Promise<PublicTechn
 // Strip characters that would break PostgREST ilike filters.
 const clean = (s: string) => s.replace(/[%,()*\\]/g, " ").trim().slice(0, 80);
 
-export const listApprovedTechnicians = createServerFn({ method: "GET" })
-  .inputValidator((d) =>
-    z.object({ especialidade: z.string().max(80), cidade: z.string().max(80), regiao: z.string().max(80), servico: z.string().max(80).default(""), uf: z.string().max(2).default(""), bairro: z.string().max(80).default(""), prioridade: z.string().max(12).default(""), municipio_ibge: z.string().max(7).default(""), pagina: z.number().int().min(1).max(MUNICIPAL_MAX_PAGE).default(1) }).parse(d),
-  )
-  .handler(async ({ data }): Promise<{ technicians: PublicTechnician[]; hasMore: boolean }> => {
+const approvedSearchInput = z.object({ especialidade: z.string().max(80), cidade: z.string().max(80), regiao: z.string().max(80), servico: z.string().max(80).default(""), uf: z.string().max(2).default(""), bairro: z.string().max(80).default(""), prioridade: z.string().max(12).default(""), municipio_ibge: z.string().max(7).default(""), pagina: z.number().int().min(1).max(MUNICIPAL_MAX_PAGE).default(1) });
+type ApprovedSearchInput = z.infer<typeof approvedSearchInput>;
+
+/** Shared server-only implementation; both interfaces retain exactly the same
+ * candidate source, municipality validation and authoritative eligibility RPC.
+ */
+async function getApprovedSearchPage(data: ApprovedSearchInput):
+  Promise<{ technicians: PublicTechnician[]; hasMore: boolean }> {
     setResponseHeader("Cache-Control", "no-store");
     // "Priorizar minha região" is not a strict geography filter. It ranks
     // among approved matching professionals so other regions remain options.
@@ -235,7 +238,18 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
           uf, cidade: data.cidade, bairro: data.bairro,
         });
     return { technicians, hasMore: page.hasMore };
-  });
+}
+
+export const listApprovedTechnicians = createServerFn({ method: "GET" })
+  .inputValidator((d) => approvedSearchInput.parse(d))
+  .handler(async ({ data }): Promise<PublicTechnician[]> =>
+    (await getApprovedSearchPage(data)).technicians);
+
+/** Only /tecnicos uses page metadata; existing Home/LP2/service callers keep arrays. */
+export const listApprovedMunicipalTechnicians = createServerFn({ method: "GET" })
+  .inputValidator((d) => approvedSearchInput.parse(d))
+  .handler(async ({ data }): Promise<{ technicians: PublicTechnician[]; hasMore: boolean }> =>
+    getApprovedSearchPage(data));
 
 export const getApprovedTechnician = createServerFn({ method: "GET" })
   .inputValidator((d) => z.object({ id: z.string().min(1).max(96) }).parse(d))
