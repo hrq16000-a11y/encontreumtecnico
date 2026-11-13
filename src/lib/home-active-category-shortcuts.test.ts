@@ -44,4 +44,12 @@ describe("Home1 active category shortcuts", () => {
     expect(directory).toContain('q.contains("service_slugs", [data.servico])');
     expect(shortcuts).not.toMatch(/\b(?:wa\.me|tel:|mailto:)\b/i);
   });
+
+  it("keeps search fields shrinkable and specialty hint readable across narrow desktop widths", () => {
+    const form = home.slice(home.indexOf("<form"), home.indexOf("</form>") + 7);
+    expect(form).toContain('placeholder="Especialidade (ex.: CFTV)"');
+    expect(form).toContain('htmlFor="busca-especialidade"');
+    expect(form.match(/min-w-0 w-full sm:w-auto sm:flex-1/g)).toHaveLength(2);
+    expect(form).not.toContain("w-full shrink-0 sm:w-auto sm:flex-1");
+  });
 });

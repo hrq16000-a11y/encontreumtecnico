@@ -180,8 +180,8 @@ function HomePage() {
                 type="text"
                 value={specialty}
                 onChange={(e) => { saveUiTextDraft("home", { specialty:e.target.value, city, uf:locationUf, neighborhood:locationNeighborhood }); setSpecialty(e.target.value); }}
-                placeholder="Especialidade (ex.: Computador)"
-                className="h-11 min-h-11 w-full shrink-0 sm:w-auto sm:flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder="Especialidade (ex.: CFTV)"
+                className="h-11 min-h-11 min-w-0 w-full sm:w-auto sm:flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
               <label className="sr-only" htmlFor="busca-cidade">Município</label>
               <input
@@ -190,7 +190,7 @@ function HomePage() {
                 value={city}
                 onChange={(e) => { cityEditedByUser.current = true; saveUiTextDraft("home", { specialty, city:e.target.value, uf:"", neighborhood:"" }); setCity(e.target.value); setLocationUf(""); setLocationNeighborhood(""); }}
                 placeholder="Município (ex.: São José dos Pinhais)"
-                className="h-11 min-h-11 w-full shrink-0 sm:w-auto sm:flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="h-11 min-h-11 min-w-0 w-full sm:w-auto sm:flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
               <button
                 type="submit"
