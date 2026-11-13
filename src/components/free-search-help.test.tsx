@@ -13,7 +13,9 @@ describe("Funil flutuante de atendimento", () => {
   it("não abre de forma intrusiva e permanece acessível em qualquer página", async () => {
     render(<FreeSearchHelp />);
     expect(screen.queryByRole("dialog")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /preciso de ajuda/i }));
+    const trigger = screen.getByRole("button", { name: /preciso de ajuda/i });
+    expect(trigger.className).toContain("bottom-[calc(5.5rem+env(safe-area-inset-bottom))]");
+    fireEvent.click(trigger);
     expect(screen.getByRole("dialog")).toBeTruthy();
     expect((await screen.findByTestId("guided-funnel")).textContent).toContain("Etapa 1 de 3");
     fireEvent.keyDown(window, { key: "Escape" });
