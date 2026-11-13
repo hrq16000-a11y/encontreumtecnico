@@ -5,6 +5,10 @@ import {
   CircuitBoard,
   Cctv,
   ClipboardCheck,
+  ChevronDown,
+  CircleHelp,
+  HandCoins,
+  Sparkles,
   Laptop,
   MapPinned,
   Newspaper,
@@ -205,28 +209,52 @@ export function ApprovalProcessSection() {
   );
 }
 
+const FAQ_PREVIEW_ICONS = [CircleHelp, HandCoins, ShieldCheck, ClipboardCheck] as const;
+
 export function FaqPreview() {
   return (
-    <section className="mx-auto max-w-6xl px-4 py-16">
-      <SectionHeading
-        eyebrow="Dúvidas frequentes"
-        title="O que os clientes mais perguntam"
-        text="Respostas rápidas. A lista completa está na página de perguntas frequentes."
-      />
-      <ul className="mt-8 grid gap-4 md:grid-cols-2">
-        {FAQ.slice(0, 4).map((item) => (
-          <li key={item.q} className="rounded-2xl border border-border bg-card p-5">
-            <h3 className="font-semibold text-card-foreground">{item.q}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">{item.a}</p>
-          </li>
-        ))}
-      </ul>
-      <Link
-        to="/faq"
-        className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full border border-border bg-card px-5 text-sm font-medium text-foreground hover:border-primary hover:text-primary"
-      >
-        Ver todas as perguntas <ArrowRight className="h-4 w-4" aria-hidden />
-      </Link>
+    <section aria-labelledby="home-faq-title" className="relative overflow-hidden border-y border-border bg-gradient-to-br from-accent/70 via-background to-muted/70 px-4 py-16 sm:py-20">
+      <div className="mx-auto max-w-6xl">
+        <div className="flex flex-wrap items-center justify-between gap-5">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-card px-3 py-1.5 text-xs font-extrabold uppercase tracking-widest text-primary">
+              <Sparkles className="h-4 w-4" aria-hidden="true" /> Respostas sem complicação
+            </div>
+            <h2 id="home-faq-title" className="mt-4 text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">O que os clientes mais perguntam</h2>
+            <p className="mt-3 text-sm leading-7 text-muted-foreground sm:text-base">
+              Toque em uma pergunta para ver a resposta. Sem sair da página.
+            </p>
+          </div>
+          <div aria-hidden="true" className="hidden h-20 w-20 items-center justify-center rounded-3xl border border-primary/25 bg-primary/10 text-primary shadow-soft md:flex">
+            <CircleHelp className="h-10 w-10" />
+          </div>
+        </div>
+        <ul className="mt-8 grid items-start gap-4 md:grid-cols-2">
+          {FAQ.slice(0, 4).map((item, index) => {
+            const Icon = FAQ_PREVIEW_ICONS[index] ?? CircleHelp;
+            return (
+              <li key={item.q} className="min-w-0">
+                <details className="eut-card-lift group overflow-hidden rounded-2xl border border-border bg-card shadow-sm" open={index === 0}>
+                  <summary className="flex min-h-20 cursor-pointer list-none items-center gap-3 p-5 text-left marker:hidden focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-primary [&::-webkit-details-marker]:hidden">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-open:bg-primary group-open:text-primary-foreground motion-reduce:transition-none">
+                      <Icon className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                    <span className="flex-1 text-sm font-bold leading-6 text-card-foreground sm:text-base">{item.q}</span>
+                    <ChevronDown className="h-5 w-5 shrink-0 text-primary transition-transform duration-200 group-open:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
+                  </summary>
+                  <div className="border-t border-border px-5 pb-5 pt-4">
+                    <p className="text-sm leading-7 text-muted-foreground">{item.a}</p>
+                  </div>
+                </details>
+              </li>
+            );
+          })}
+        </ul>
+        <Link to="/faq"
+          className="group mt-7 inline-flex min-h-12 items-center gap-2 rounded-xl border border-primary/30 bg-card px-5 text-sm font-bold text-primary transition-colors hover:border-primary hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+          Ver todas as perguntas <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1 motion-reduce:transform-none" aria-hidden="true" />
+        </Link>
+      </div>
     </section>
   );
 }
