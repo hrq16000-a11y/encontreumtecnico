@@ -86,7 +86,13 @@ export function previewSanitizedCityBackendResponse({
   // A name collision alone is NOT proof of shared identity.
   if (allowComplete) {
     const publicPaths = new Set();
+    const sourceAliases = new Set();
     for (const [index, record] of records.entries()) {
+      // Validate all source keys, even those excluded by a route facet.
+      if (sourceAliases.has(record.stableKey)) {
+        throw Error("Identidade duplicada exige revisão");
+      }
+      sourceAliases.add(record.stableKey);
       if (vetted[index].enabled !== true) continue;
       const path = verifiedPublicPath(record);
       if (path === null) continue;
