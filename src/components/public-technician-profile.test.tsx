@@ -80,12 +80,12 @@ describe("Perfil técnico premium sem prova social fabricada", () => {
     expect(screen.queryByText("Texto fornecido pelo titular do perfil.")).toBeNull();
   });
 
-  it("só apresenta Bronze e indicação se vierem dos dados do perfil", () => {
+  it("não diferencia técnicos por origem e preserva indicação informada", () => {
     const { rerender } = render(<PublicTechnicianProfile technician={profile} />);
     expect(screen.queryByText("Pioneiro Bronze")).toBeNull();
     expect(screen.queryByText("Destaque por indicações")).toBeNull();
     rerender(<PublicTechnicianProfile technician={{ ...profile, pioneer_bronze: true, referral_highlight: true }} />);
-    expect(screen.getByText("Pioneiro Bronze")).toBeTruthy();
+    expect(screen.queryByText("Pioneiro Bronze")).toBeNull();
     expect(screen.getByText("Destaque por indicações")).toBeTruthy();
   });
 });
