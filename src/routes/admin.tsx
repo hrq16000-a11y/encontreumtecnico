@@ -156,7 +156,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             {section === "tecnicos" && <section aria-label="Gestão de técnicos">
               <AdminMemberInvites initialRole="tecnico" />
               <AdminTechnicianCreate adminId={user.id} onCreated={() => setTechnicianCreateVersion(v => v + 1)} />
-              <AdminTechnicianManager adminOwnerId={user.id} key={technicianCreateVersion} initialStatus={technicianCreateVersion > 0 ? "pendente" : "aprovado"} />
+              <div key={technicianCreateVersion}><AdminTechnicianManager adminOwnerId={user.id} /></div>
             </section>}
             {section === "mensagens" && <section aria-label="Mensagens administrativas">
               <h2 id="admin-mensagens" className="mt-10 scroll-mt-20 text-lg font-semibold text-foreground">Mensagens de contato</h2>

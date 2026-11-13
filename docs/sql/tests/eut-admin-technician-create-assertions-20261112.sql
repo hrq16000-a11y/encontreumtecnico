@@ -34,6 +34,7 @@ BEGIN
  IF NOT denied THEN RAISE EXCEPTION 'Unverified admin was permitted'; END IF;
 END $qa$;
 SET request.jwt.claim.sub='00000000-0000-4000-8000-000000000001';
+RESET ROLE;
 DO $qa$
 DECLARE rejected boolean; target uuid; city integer; slug text; result jsonb;
 BEGIN

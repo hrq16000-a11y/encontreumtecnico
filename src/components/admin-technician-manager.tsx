@@ -23,8 +23,8 @@ const actionLabels: Record<Action, string> = {
   reativar: "Reativar perfil", rejeitar: "Rejeitar perfil", revisar: "Enviar para revisão",
 };
 
-export function AdminTechnicianManager({ adminOwnerId, initialStatus = "aprovado" }: { adminOwnerId: string; initialStatus?: Status }) {
-  const [status, setStatus] = useState<Status>(initialStatus);
+export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string }) {
+  const [status, setStatus] = useState<Status>("aprovado");
   const [search, setSearch] = useState("");
   const [draftSearch, setDraftSearch] = useState("");
   const [uf, setUf] = useState("");
