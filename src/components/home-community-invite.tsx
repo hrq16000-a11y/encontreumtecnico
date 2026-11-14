@@ -11,7 +11,7 @@ export function HomeCommunityInvite() {
 
   useEffect(() => {
     // The persistent, accessible banner is always available, including mobile.
-    // The optional desktop popup is non-modal: it cannot erase a draft, block
+    // The optional responsive popup is non-modal: it cannot erase a draft, block
     // navigation or steal focus from the search form.
     let alreadyShown = true;
     try { alreadyShown = sessionStorage.getItem(SEEN_KEY) === "1"; }
@@ -19,7 +19,6 @@ export function HomeCommunityInvite() {
     if (alreadyShown) return;
 
     const timer = window.setTimeout(() => {
-      if (!window.matchMedia("(min-width: 1024px)").matches) return;
       if (document.visibilityState !== "visible") return;
       const focused = document.activeElement;
       if (focused instanceof HTMLElement &&
@@ -70,7 +69,7 @@ export function HomeCommunityInvite() {
 
       {showPopup && (
         <aside aria-label="Convite para profissionais participarem da comunidade"
-          className="fixed bottom-44 right-6 z-40 hidden w-[342px] max-w-[calc(100vw-3rem)] rounded-2xl border border-primary/20 bg-card p-5 text-card-foreground shadow-2xl lg:block">
+          className="fixed bottom-24 left-3 right-3 z-40 mx-auto w-auto max-w-[342px] rounded-2xl border border-primary/20 bg-card p-4 text-card-foreground shadow-2xl lg:bottom-44 lg:left-auto lg:right-6 lg:mx-0 lg:p-5">
           <button type="button" aria-label="Dispensar convite da comunidade"
             onClick={() => setShowPopup(false)}
             className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary">
@@ -79,10 +78,10 @@ export function HomeCommunityInvite() {
           <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-primary">
             <UsersRound className="h-4 w-4" aria-hidden="true" /> Comunidade nacional
           </span>
-          <h3 className="mt-3 pr-6 text-xl font-extrabold leading-snug text-foreground">
+          <h3 className="mt-2 pr-6 text-lg font-extrabold leading-snug text-foreground lg:mt-3 lg:text-xl">
             Trabalha com tecnologia?
           </h3>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          <p className="mt-2 hidden text-sm leading-6 text-muted-foreground lg:block">
             Conheça a comunidade de técnicos e troque experiências com outros profissionais.
           </p>
           <a href={COMMUNITY_INVITE_URL} target="_blank" rel="noopener noreferrer"
@@ -91,7 +90,7 @@ export function HomeCommunityInvite() {
             Participar da comunidade <ExternalLink className="h-4 w-4" aria-hidden="true" />
           </a>
           <Link to="/cadastro" onClick={() => setShowPopup(false)}
-            className="mt-2 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-border text-sm font-semibold text-foreground hover:bg-accent">
+            className="mt-2 hidden min-h-11 w-full items-center justify-center rounded-xl border border-border text-sm font-semibold text-foreground hover:bg-accent lg:inline-flex">
             Quero me cadastrar no portal
           </Link>
         </aside>

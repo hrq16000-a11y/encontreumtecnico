@@ -55,6 +55,23 @@ describe("convite factual para comunidade", () => {
     expect(sessionStorage.getItem("eut-community-invite-home-v1")).toBe("1");
   });
 
+  it("oferece convite compacto no celular após atraso, sem bloquear o conteúdo", () => {
+    vi.mocked(window.matchMedia).mockImplementation((query) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(), removeListener: vi.fn(),
+      addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn(),
+    }));
+    render(<HomeCommunityInvite />);
+    act(() => { vi.advanceTimersByTime(11000); });
+    const popup = screen.getByRole("complementary", { name: /convite para profissionais/i });
+    expect(popup.className).not.toContain("hidden");
+    expect(popup.className).toContain("bottom-24");
+    fireEvent.click(screen.getByRole("button", { name: "Dispensar convite da comunidade" }));
+    expect(popup.isConnected).toBe(false);
+  });
+
   it("não interrompe quem estiver digitando na busca da Home", () => {
     render(<><input aria-label="Cidade da busca" /><HomeCommunityInvite /></>);
     screen.getByRole("textbox", { name: "Cidade da busca" }).focus();
