@@ -47,22 +47,28 @@ export function AdminMessageQueue() {
         if (!active) return;
         if (queryError) { setError("Não foi possível consultar mensagens."); setRows([]); setTotal(null); }
         else { setRows(data ?? []); setTotal(count ?? null); }
-      }).finally(() => { if (active) setLoading(false); });
+      }).catch(() => { if (active) { setError("Não foi possível consultar mensagens."); setRows([]); setTotal(null); } })
+      .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [term, filter, focusedId, page, revision]);
 
   async function updateStatus(id: string, status: "respondida" | "arquivada" | "nova") {
     if (busyId) return;
     setBusyId(id); setError(null); setSuccess(null);
-    const { data, error: updateError } = await supabase.from("contact_messages")
-      .update({ status }).eq("id", id).select("id,status").single();
-    if (updateError || data?.id !== id || data.status !== status) {
+    try {
+      const { data, error: updateError } = await supabase.from("contact_messages")
+        .update({ status }).eq("id", id).select("id,status").single();
+      if (updateError || data?.id !== id || data.status !== status) {
+        setError("A mudança não foi confirmada no banco. Nenhum sucesso foi presumido.");
+      } else {
+        setSuccess("Situação da mensagem atualizada e confirmada no banco.");
+        setRevision((n) => n + 1);
+      }
+    } catch {
       setError("A mudança não foi confirmada no banco. Nenhum sucesso foi presumido.");
-    } else {
-      setSuccess("Situação da mensagem atualizada e confirmada no banco.");
-      setRevision((n) => n + 1);
+    } finally {
+      setBusyId(null);
     }
-    setBusyId(null);
   }
 
   const pages = Math.max(1, Math.ceil((total ?? 0) / PAGE_SIZE));

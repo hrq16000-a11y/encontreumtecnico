@@ -48,7 +48,8 @@ export function AdminRequestQueue() {
         if (!active) return;
         if (queryError) { setError(true); setRows([]); setTotal(null); }
         else { setRows(data ?? []); setTotal(count ?? null); }
-      }).finally(() => { if (active) setLoading(false); });
+      }).catch(() => { if (active) { setError(true); setRows([]); setTotal(null); } })
+      .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [status, term, focusedId, page, revision]);
 
