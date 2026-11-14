@@ -92,6 +92,10 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const { categories } = useActiveCategories();
+  useEffect(() => {
+    const initialSearch = new URLSearchParams(window.location.search).get("busca");
+    if (initialSearch) setDraft(cleanUnifiedSearch(initialSearch));
+  }, []);
   const specialtyTerm = categoryKeyword(specialty);
   const matchedSlugs = useMemo(() => specialtyTerm
     ? categories.filter((item) => normalizeGuiafixSearch(`${item.slug} ${item.label}`)

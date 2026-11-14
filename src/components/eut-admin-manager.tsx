@@ -51,6 +51,12 @@ export function EutAdminManager() {
   const [serviceEvidence,setServiceEvidence] = useState("");
   const [message,setMessage] = useState("");
   const [busy,setBusy] = useState(false);
+  const [catalogSearch,setCatalogSearch] = useState("");
+
+  useEffect(() => {
+    const deepLinkedSearch = new URLSearchParams(window.location.search).get("busca");
+    if (deepLinkedSearch) setCatalogSearch(deepLinkedSearch.slice(0, 80));
+  }, []);
 
   async function loadCatalog() {
     const [ca,sv] = await Promise.all([
@@ -257,6 +263,9 @@ export function EutAdminManager() {
   const common="min-h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground";
   const btn="min-h-10 rounded-md border border-input px-3 text-sm text-foreground disabled:opacity-50";
   const activeServices=services.filter(s=>s.active && categories.some(c=>c.slug===s.category_slug&&c.active));
+  const matchesCatalog = (label: string, slug: string) =>
+    `${label} ${slug}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR")
+      .includes(catalogSearch.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR"));
   const selectedService=assignments.map(a=>a.service_slug);
   return (
     <section className="mt-10 rounded-xl border border-border bg-card p-5" aria-label="Gestão de categorias e regiões">
@@ -269,6 +278,10 @@ export function EutAdminManager() {
         Catálogo: criar, consultar, editar e ocultar/reativar. O identificador permanece estável e a exclusão é lógica
         para preservar vínculos, histórico e páginas existentes. Oculte os serviços ativos antes de ocultar uma categoria.
       </p>
+      <label className="mt-4 grid gap-1 text-sm font-semibold text-foreground">Localizar categoria ou serviço
+        <input className={common} value={catalogSearch} onChange={e=>setCatalogSearch(e.target.value)}
+          maxLength={80} placeholder="Buscar pelo nome ou identificador" />
+      </label>
       {message&&<p className="mt-4 rounded-md bg-muted p-3 text-sm text-foreground" role="status">{message}</p>}
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <section className="rounded-lg border border-border p-4" aria-label="Categorias administráveis">
@@ -285,7 +298,7 @@ export function EutAdminManager() {
             <button disabled={busy} className={btn} type="submit">Criar categoria</button>
           </form>
           <ul className="mt-4 max-h-72 space-y-2 overflow-auto">
-            {categories.map(c=><li key={c.slug} className="flex items-center justify-between gap-2 border-b border-border py-2">
+            {categories.filter(c=>matchesCatalog(c.label,c.slug)).map(c=><li key={c.slug} className="flex items-center justify-between gap-2 border-b border-border py-2">
               <span className="min-w-0 text-sm">{c.label} <span className="text-xs text-muted-foreground">({c.slug} · ordem {c.display_order} · {c.active?"ativa":"oculta"})</span></span>
               <span className="flex shrink-0 gap-1">
                 <button className={btn} disabled={busy} type="button" onClick={()=>editCatalog("category",c)}>Editar</button>
@@ -314,7 +327,7 @@ export function EutAdminManager() {
             <button disabled={busy} className={btn} type="submit">Criar serviço</button>
           </form>
           <ul className="mt-4 max-h-72 space-y-2 overflow-auto">
-            {services.map(s=><li key={s.slug} className="flex items-center justify-between gap-2 border-b border-border py-2">
+            {services.filter(s=>matchesCatalog(s.label,s.slug)).map(s=><li key={s.slug} className="flex items-center justify-between gap-2 border-b border-border py-2">
               <span className="min-w-0 text-sm">{s.label}<span className="block text-xs text-muted-foreground">{categories.find(c=>c.slug===s.category_slug)?.label??s.category_slug} · ordem {s.display_order} · {s.active?"ativo":"oculto"}</span></span>
               <span className="flex shrink-0 gap-1">
                 <button type="button" disabled={busy} className={btn} onClick={()=>editCatalog("service",s)}>Editar</button>
