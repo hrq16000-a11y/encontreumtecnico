@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { legacyAvatarUrl } from "@/lib/legacy-avatar-urls";
 import { suggestLegacyDisplayName } from "@/lib/legacy-display-name";
+import { getLegacyApproximateRegion } from "@/lib/legacy-ddd-region";
 
 type HistoricalProfile = {
   wp_post_id: number;
@@ -53,12 +54,14 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
     <section className="mt-12 border-t border-border pt-8" aria-label="Mais técnicos">
       <h2 className="text-xl font-semibold tracking-tight text-foreground">Técnicos do portal anterior</h2>
       <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-        Nomes organizados em ordem alfabética. Os dados de atendimento e localização
-        serão completados pelos próprios profissionais, sem atribuir especialidades automaticamente.
+        Todos os profissionais apresentados são técnicos, organizados alfabeticamente.
+        As especialidades não são presumidas. A referência regional por DDD, quando disponível,
+        não confirma a cidade de atendimento.
       </p>
       {!show ? (
         <p className="mt-4 text-sm text-muted-foreground">
-          Limpe os filtros para ver também os cadastros históricos sem região confirmada.
+          Para consultar também técnicos sem cidade ou especialidade detalhada,
+          limpe os filtros. A região aproximada pelo DDD não substitui a cidade de atendimento confirmada.
         </p>
       ) : (
         <>
@@ -95,7 +98,9 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
                     </div>
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Região de atendimento a confirmar
+                    {getLegacyApproximateRegion(profile.wp_post_id)
+                      ? `Referência regional: ${getLegacyApproximateRegion(profile.wp_post_id)} · atendimento não confirmado`
+                      : "Região de atendimento a confirmar"}
                   </p>
                 </li>
               ))}

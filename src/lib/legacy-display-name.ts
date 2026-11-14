@@ -82,8 +82,7 @@ export function suggestLegacyDisplayName(value: string): LegacyNameSuggestion {
   if (alias.length < 6 || alias.length > 60 ||
       !/^[a-z]+(?:[_.-][a-z]+)*$/u.test(alias)) return fallback;
 
-  // A trade name after a recognizable given name or a short brand acronym
-  // is a presentation hint, never a claim about the person's legal name.
+  // Presentation hints for a recognizable name or short business acronym.
   if (/^[a-z]+$/u.test(alias)) {
     for (const [suffix, label] of tradeSuffixes) {
       if (!alias.endsWith(suffix)) continue;
@@ -96,8 +95,6 @@ export function suggestLegacyDisplayName(value: string): LegacyNameSuggestion {
       }
     }
 
-    // Historical usernames occasionally append two-letter brand initials
-    // after a fully recognized given name and surname (e.g. allan+oliveira+tj).
     const initials = alias.slice(-2);
     const recognized = splitRecognizedAlias(alias.slice(0, -2));
     if (recognized && recognized.length >= 2 &&

@@ -46,7 +46,8 @@ describe("Cartão do técnico publicado", () => {
     expect(container.textContent).toContain("Tubarão/SC");
     expect(container.textContent).toContain("+1 áreas");
     expect(container.textContent).toContain("+1 serviços");
-    expect(container.textContent).toContain("Contato privado protegido");
+    expect(container.textContent).toContain("Ver perfil completo");
+    expect(container.querySelector('a[href^="tel:"], a[href^="mailto:"], a[href*="wa.me"]')).toBeNull();
     expect(container.textContent).not.toMatch(/5 estrelas|avaliado por clientes|técnico verificado/i);
     expect(container.textContent).not.toMatch(/\+55\d{10,11}/);
   });

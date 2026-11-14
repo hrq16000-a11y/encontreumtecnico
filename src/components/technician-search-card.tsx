@@ -107,7 +107,7 @@ export function TechnicianSearchCard({ technician: t, categories, services, loca
           </p>
         )}
 
-        <div className="mt-auto flex items-center justify-end border-t border-border pt-4 text-sm font-bold text-primary">
+        <div className="mt-auto flex flex-wrap items-center justify-end gap-3 border-t border-border pt-4 text-sm font-bold text-primary">
           <span className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-sm transition-transform group-hover:translate-x-0.5 motion-reduce:transform-none">
             Ver perfil completo <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
           </span>
