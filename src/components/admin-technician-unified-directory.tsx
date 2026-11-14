@@ -46,7 +46,7 @@ type DirectoryRow = {
 
 // PostgREST `or` filtering is structural syntax: only safe search characters enter it.
 export function cleanUnifiedSearch(value: string): string {
-  return value.trim().replace(/[^\p{L}\p{N}\s'-]/gu, " ").replace(/\s+/g, " ").slice(0, 80).trim();
+  return value.trim().replace(/[^\p{L}\p{N}\p{Pd}\s']/gu, " ").replace(/\s+/g, " ").slice(0, 80).trim();
 }
 
 export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId: string }) {

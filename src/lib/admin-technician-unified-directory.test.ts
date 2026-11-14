@@ -6,6 +6,7 @@ describe("busca administrativa unificada", () => {
   it("normaliza termos sem introduzir operadores PostgREST", () => {
     expect(cleanUnifiedSearch("  Curitiba, (41)   ")).toBe("Curitiba 41");
     expect(cleanUnifiedSearch("São José dos Pinhais")).toBe("São José dos Pinhais");
+    expect(cleanUnifiedSearch("Teste interno de homologacao EUT — QA 284")).toBe("Teste interno de homologacao EUT — QA 284");
   });
   it("exibe técnicos das três origens numa única consulta protegida", () => {
     const page = readFileSync("src/routes/admin.tsx", "utf8");
