@@ -36,6 +36,8 @@ describe("busca administrativa unificada", () => {
     expect(directory).toContain('row.origin === "guiafix"');
     expect(directory).toContain('aria-label="Forma de exibição"');
     expect(directory).toContain('aria-label="Ações em massa"');
+    expect(directory).toContain("Copiar nomes (");
+    expect(directory).toContain('selectedRows.map((row) => row.name).join("\\n")');
     expect(directory).toContain("Ver ficha");
     expect(directory).toContain("Selecionar página");
     expect(directory).toContain('value="name-desc"');

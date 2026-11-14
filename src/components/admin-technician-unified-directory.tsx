@@ -12,7 +12,7 @@ import { useActiveCategories } from "@/hooks/use-active-categories";
 import { categoryKeyword, UNIFIED_DIRECTORY_PAGE_SIZE, unifiedPageCount, unifiedPageSlice } from "@/lib/admin-unified-pagination";
 import { canBulkAct, orderTechnicians, technicianState, type TechnicianBulkAction,
   type TechnicianSortMode, type TechnicianStateFilter, type TechnicianViewMode } from "@/lib/admin-technician-directory-view";
-import { Grid2X2, LayoutGrid, List, SlidersHorizontal } from "lucide-react";
+import { Copy, Grid2X2, LayoutGrid, List, SlidersHorizontal } from "lucide-react";
 import { csvImportErrorText, prepareTechnicianCsv, type TechnicianImportRow } from "@/lib/admin-technician-csv-import";
 
 // The three imports are independent sources, NOT additional approved accounts.
@@ -354,6 +354,16 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
   const total = stateFilter !== "all" || allLoaded ? (allLoaded ? merged.rows.length : null) : sourceTotal;
   const pages = unifiedPageCount(total ?? 0);
   const selectedRows = results.filter((row) => selected.has(row.key));
+
+  async function copySelectedNames() {
+    if (!selectedRows.length) return;
+    try {
+      await navigator.clipboard.writeText(selectedRows.map((row) => row.name).join("\n"));
+      setFeedback(`${selectedRows.length} nome(s) copiado(s), sem contatos privados.`);
+    } catch {
+      setFeedback("Não foi possível copiar os nomes. Verifique a permissão da área de transferência.");
+    }
+  }
   const selectableRows = results.filter((row) => !row.demo);
   const selectedAll = selectableRows.length > 0 && selectableRows.every((row) => selected.has(row.key));
 
@@ -674,6 +684,10 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       </div>
       {selectedRows.length > 0 && <>
         <div role="group" aria-label="Ações em massa" className="mt-2 flex flex-wrap gap-2">
+          <button type="button" disabled={bulkBusy} onClick={() => void copySelectedNames()}
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-input bg-background px-3 text-sm font-semibold text-foreground disabled:opacity-40">
+            <Copy className="h-4 w-4" /> Copiar nomes ({selectedRows.length})
+          </button>
           {([{"value":"import","label":"Cadastrar selecionados"},{"value":"archive","label":"Arquivar / suspender"},{"value":"restore","label":"Restaurar / reativar"}] as const)
             .map((action) => <button type="button" key={action.value} disabled={bulkBusy}
               aria-pressed={bulkAction === action.value} onClick={() => { setBulkAction(action.value); setBulkReason(""); }}
