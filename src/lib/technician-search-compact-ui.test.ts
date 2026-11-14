@@ -55,15 +55,17 @@ describe("Busca compacta: filtros e perfis com privacidade", () => {
     expect(page).toContain("Perfis públicos declarados");
   });
 
-  it("preserva foto real e selo factual, sem telefone ou avaliações inventadas", () => {
+  it("preserva foto real e apenas sinais factuais, sem telefone ou avaliações inventadas", () => {
     expect(card).toContain('avatarPath={t.avatar_path}');
     expect(card).toContain('params={{ tecnicoId: t.public_slug }}');
     expect(card).toContain('aria-label={"Ver perfil e serviços de " + t.display_name}');
     expect(card).toContain('t.online_now');
-    expect(card).toContain('t.pioneer_bronze');
+    expect(card).toContain('Atividade recente, sem garantia de disponibilidade');
     expect(card).toContain('t.referral_highlight');
+    expect(card).toContain('Destaque por indicações');
     expect(card).toContain('t.service_slugs.slice(0, 3)');
-    expect(card).toContain("Contato privado protegido");
+    expect(card).toContain('formatPublicLocation(t)');
+    expect(card).not.toContain('t.pioneer_bronze');
     expect(card).toContain("Ver perfil completo");
     expect(card).toContain('motion-reduce:transition-none');
     expect(card).not.toMatch(/href=["'](?:tel:|mailto:|https?:\/\/wa\.me)/i);
