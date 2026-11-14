@@ -25,11 +25,11 @@ type DirectoryRow = {
   registry?: AdminTechnicianRegistryRecord;
   name: string;
   location: string;
-  regionKey?: string;
+  regionKey?: string | undefined;
   specialty: string | null;
   createdAt?: string;
   origin: "portal" | "wordpress" | "guiafix" | "manual" | "other_import";
-  recordState?: string;
+  recordState?: string | undefined;
   demo?: boolean;
 };
 
