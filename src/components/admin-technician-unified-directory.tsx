@@ -6,9 +6,11 @@ import { technicianDisplayName } from "@/lib/admin-technician-display-name";
 import { publicTextProblem } from "@/lib/public-profile-text";
 import { AdminTechnicianManager } from "@/components/admin-technician-manager";
 import { AdminTechnicianRecordEditor, type AdminTechnicianRegistryRecord } from "@/components/admin-technician-record-editor";
+import { TechnicianAvatar } from "@/components/technician-avatar";
 import { Link } from "@tanstack/react-router";
 import { useActiveCategories } from "@/hooks/use-active-categories";
 import { categoryKeyword, UNIFIED_DIRECTORY_PAGE_SIZE, unifiedPageCount, unifiedPageSlice } from "@/lib/admin-unified-pagination";
+import { csvImportErrorText, prepareTechnicianCsv, type TechnicianImportRow } from "@/lib/admin-technician-csv-import";
 
 // The three imports are independent sources, NOT additional approved accounts.
 // Admin-only public fields; never query telephone, e-mail or private contacts here.
@@ -22,6 +24,9 @@ const FETCH_CHUNK = 200;
 type DirectoryRow = {
   key: string;
   portalId?: string;
+  portalUpdatedAt?: string;
+  avatarPath?: string | null;
+  cityIbgeId?: number;
   wpPostId?: number;
   registry?: AdminTechnicianRegistryRecord;
   name: string;
@@ -33,6 +38,8 @@ type DirectoryRow = {
   recordState?: string | undefined;
   demo?: boolean;
 };
+type ViewMode = "linhas" | "cartoes" | "avatares";
+type SortMode = "nome" | "localidade" | "especialidade" | "cadastro";
 
 // PostgREST `or` filtering is structural syntax: only safe search characters enter it.
 export function cleanUnifiedSearch(value: string): string {
@@ -47,10 +54,16 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
   const [region, setRegion] = useState("");
   const [specialty, setSpecialty] = useState("");
   const [recentOnly, setRecentOnly] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("linhas");
+  const [sortMode, setSortMode] = useState<SortMode>("nome");
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
+  const [bulkReason, setBulkReason] = useState("");
+  const [bulkBusy, setBulkBusy] = useState(false);
   const [page, setPage] = useState(0);
   const [legacy, setLegacy] = useState<DirectoryRow[]>([]);
   const [operational, setOperational] = useState<DirectoryRow[]>([]);
   const [registry, setRegistry] = useState<AdminTechnicianRegistryRecord[]>([]);
+  const [municipalityNames, setMunicipalityNames] = useState<Record<number, string>>({});
   const [legacyTotal, setLegacyTotal] = useState<number | null>(null);
   const [operationalTotal, setOperationalTotal] = useState<number | null>(null);
   const [registryTotal, setRegistryTotal] = useState(0);
@@ -59,6 +72,10 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
   const [registryError, setRegistryError] = useState<string | null>(null);
   const [manualSourceId, setManualSourceId] = useState<string | null>(null);
   const [csvInfo, setCsvInfo] = useState<string | null>(null);
+  const [csvRows, setCsvRows] = useState<TechnicianImportRow[]>([]);
+  const [csvReason, setCsvReason] = useState("");
+  const [csvAcknowledged, setCsvAcknowledged] = useState(false);
+  const [csvBusy, setCsvBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [reload, setReload] = useState(0);
@@ -84,6 +101,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       setPage(0);
       setSelectedKey(null);
       setImportKey(null);
+      setSelectedKeys([]);
     }, 320);
     return () => window.clearTimeout(timer);
   }, [draft, regionDraft, specialtyDraft]);
@@ -93,9 +111,9 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     setLoading(true);
     setFailed(false);
     async function load() {
-      // The merged page needs only the first N sorted rows from EACH source.
-      // Fetch in 200-row chunks to avoid PostgREST's 1,000-row response cap.
-      const needed = (page + 1) * UNIFIED_DIRECTORY_PAGE_SIZE;
+      // Query each source in bounded chunks until its count is satisfied.
+      // Cross-source sorting and arbitrary page jumps require the complete
+      // filtered set; partial per-source prefixes gave misleading page order.
       let matchedIds: number[] = [];
       if (term) {
         // The historical title is immutable. Searching only that field would lose
@@ -114,20 +132,18 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       async function loadPortal() {
         const rows: DirectoryRow[] = [];
         let total = 0;
-        for (let start = 0; start < needed && current; start += FETCH_CHUNK) {
+        for (let start = 0; current; start += FETCH_CHUNK) {
           let query = db.from("technicians")
-            .select("id,display_name,city,state_uf,region,specialties,status,created_at", { count: "exact" });
+            .select("id,display_name,city,state_uf,region,specialties,status,created_at,updated_at,avatar_path", { count: "exact" });
           if (term) query = query.ilike("display_name", `%${term}%`);
           if (region) query = region.length === 2 ? query.eq("state_uf", region.toUpperCase())
             : query.or(["city", "region"].map((field) => `${field}.ilike.%${region}%`).join(","));
           if (specialtyTerm) query = query.overlaps("specialties", matchedSlugs);
-          const result = await query
-            .order(recentOnly ? "created_at" : "display_name", { ascending: !recentOnly })
-            .order("id").range(start, Math.min(start + FETCH_CHUNK, needed) - 1);
+          const result = await query.order("display_name").order("id").range(start, start + FETCH_CHUNK - 1);
           if (result.error) throw new Error("portal directory unavailable");
           total = result.count ?? 0;
           rows.push(...(result.data ?? []).map((item): DirectoryRow => ({
-            key: `portal:${item.id}`, portalId: item.id,
+            key: `portal:${item.id}`, portalId: item.id, portalUpdatedAt: item.updated_at, avatarPath: item.avatar_path,
             name: item.display_name || "Técnico sem nome de exibição",
             location: [item.city, item.state_uf].filter(Boolean).join("/") || item.region || "Localidade não informada",
             regionKey: item.city || item.state_uf || undefined,
@@ -143,7 +159,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
         if (recentOnly) return { rows: [] as DirectoryRow[], total: 0 };
         const rows: DirectoryRow[] = [];
         let total = 0;
-        for (let start = 0; start < needed && current; start += FETCH_CHUNK) {
+        for (let start = 0; current; start += FETCH_CHUNK) {
           let query = db.from("legacy_review_profiles")
             .select("source_key,wp_post_id,kind,title,specialty_title,location1,location2,location3,demo_candidate", { count: "exact" })
             .eq("source_key", "wordpress_20261108").eq("kind", "candidate");
@@ -157,16 +173,18 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
             .map((field) => `${field}.ilike.%${region}%`).join(","));
           if (specialtyTerm) query = query.ilike("specialty_title", `%${specialtyTerm}%`);
           const result = await query.order("title").order("wp_post_id")
-            .range(start, Math.min(start + FETCH_CHUNK, needed) - 1);
+            .range(start, start + FETCH_CHUNK - 1);
           if (result.error) throw new Error("WordPress directory unavailable");
           total = result.count ?? 0;
           rows.push(...(result.data ?? []).map((item): DirectoryRow => {
-            const locations = [item.location1, item.location2, item.location3].filter(Boolean) as string[];
-            const specific = locations.find((loc) => loc.toLowerCase() !== "brasil");
+            const locations = [...new Set(([item.location1, item.location2, item.location3]
+              .filter(Boolean) as string[]).map((value) => value.trim())
+              .filter((value) => value.toLocaleLowerCase("pt-BR") !== "brasil"))];
+            const specific = locations[0];
             return {
               key: `wp:${item.kind}:${item.wp_post_id}`, wpPostId: item.wp_post_id,
               name: technicianDisplayName(item.title || "Técnico sem nome recuperado", specific?.split("/")[0]?.trim()),
-              location: locations.join(" · ") || "Localidade não confirmada",
+              location: locations.join(" · ") || "Localidade não informada",
               regionKey: specific?.split("/")[0]?.trim(),
               specialty: item.specialty_title || null,
               origin: "wordpress", demo: item.demo_candidate,
@@ -204,7 +222,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       setOperational([]); setLegacy([]); setFailed(true); setLoading(false);
     } });
     return () => { current = false; };
-  }, [term, region, specialtyTerm, matchedSlugs, page, recentOnly, reload]);
+  }, [term, region, specialtyTerm, matchedSlugs, recentOnly, reload]);
 
   useEffect(() => {
     let current = true;
@@ -214,12 +232,10 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       // The registry RPC has a strict 100-row maximum per call.
       // With locality/specialty filters, read all matching-by-name records so
       // the client does not silently omit later matching category/region rows.
-      const needAll = Boolean(region || specialtyTerm);
-      const wanted = needAll ? Number.POSITIVE_INFINITY : (page + 1) * UNIFIED_DIRECTORY_PAGE_SIZE;
       let total = 0;
-      for (let offset = 0; offset < wanted && current; offset += 100) {
+      for (let offset = 0; current; offset += 100) {
         const { data, error } = await db.rpc("eut_admin_technician_registry_list", {
-          _search: term, _limit: Math.min(100, wanted - offset), _offset: offset,
+          _search: term, _limit: 100, _offset: offset,
         });
         if (error) throw error;
         const rows = (data ?? []) as AdminTechnicianRegistryRecord[];
@@ -248,7 +264,20 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
         : "Sem conexão com a API administrativa; nenhuma gravação está habilitada.");
     });
     return () => { current = false; };
-  }, [term, region, specialtyTerm, page, reload]);
+  }, [term, region, specialtyTerm, reload]);
+
+  useEffect(() => {
+    const ids = [...new Set(registry.map((item) => item.city_ibge_id).filter((id): id is number => id !== null))];
+    if (!ids.length) { setMunicipalityNames({}); return; }
+    let current = true;
+    void Promise.resolve(db.from("eut_ibge_municipalities")
+      .select("id,name,uf").in("id", ids.slice(0, 1000)))
+      .then(({ data }) => { if (current) setMunicipalityNames(Object.fromEntries(
+        (data ?? []).map((city: { id: number; name: string; uf: string }) =>
+          [city.id, `${city.name}/${city.uf}`]))); })
+      .catch(() => { if (current) setMunicipalityNames({}); });
+    return () => { current = false; };
+  }, [registry]);
 
   function refreshAfterSaved() {
     // Requery authoritative server values after an audited write. The selected
@@ -256,6 +285,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     setSelectedKey(null);
     setImportKey(null);
     setManualSourceId(null);
+    setSelectedKeys([]);
     setPage(0);
     setReload((version) => version + 1);
     setFeedback("Alteração confirmada. Atualizando a listagem de técnicos…");
@@ -269,21 +299,21 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     (!specialtyTerm || normalizeGuiafixSearch(row.category).includes(specialtyTerm))
   ).map((row): DirectoryRow => ({
     key: guiafixAdminSourceId(row.key), name: technicianDisplayName(row.name, row.city), location: `${row.city}/${row.uf}`,
-    regionKey: row.city, specialty: row.category, origin: "guiafix",
+    regionKey: row.city, cityIbgeId: row.cityIbgeId, specialty: row.category, origin: "guiafix",
   })), [term, region, specialtyTerm, recentOnly]);
   const merged = useMemo(() => {
     const importedWp = new Set(registry.filter((r) => r.origin === "wordpress").map((r) => r.source_id));
     const importedGuiafix = new Set(registry.filter((r) => r.origin === "guiafix").map((r) => r.source_id));
     const registryRows: DirectoryRow[] = recentOnly ? [] : registry.filter((item) =>
-      (!region || normalizeGuiafixSearch(`${item.region_approx ?? ""} ${item.ddd ?? ""} ${item.city_ibge_id ?? ""}`)
+      (!region || normalizeGuiafixSearch(`${item.region_approx ?? ""} ${municipalityNames[item.city_ibge_id ?? -1] ?? ""} ${item.ddd ?? ""} ${item.city_ibge_id ?? ""}`)
         .includes(normalizeGuiafixSearch(region))) &&
       (!specialtyTerm || item.category_slugs.some((slug) => normalizeGuiafixSearch(slug).includes(specialtyTerm)))
     ).map((item) => ({
       key: `registry:${item.technician_id}`, registry: item,
       name: technicianDisplayName(item.display_name, item.region_approx), origin: item.origin,
-      location: [item.region_approx, item.ddd ? `DDD ${item.ddd}` : null,
-        item.city_ibge_id ? `IBGE ${item.city_ibge_id}` : null].filter(Boolean).join(" · ") || "Localidade não informada",
-      regionKey: item.region_approx || undefined,
+      location: [...new Set([municipalityNames[item.city_ibge_id ?? -1], item.region_approx,
+        item.ddd ? `DDD ${item.ddd}` : null].filter(Boolean))].join(" · ") || "Localidade não informada",
+      regionKey: municipalityNames[item.city_ibge_id ?? -1]?.split("/")[0] || item.region_approx || undefined,
       specialty: item.category_slugs.join(" · ") || null,
       demo: item.is_demo,
     }));
@@ -293,12 +323,20 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       ...legacyUnlinked,
       ...guiafixUnlinked,
       ...registryRows];
-    rows.sort((a, b) => recentOnly
-      ? (Date.parse(b.createdAt ?? "") || 0) - (Date.parse(a.createdAt ?? "") || 0)
-      : a.name.localeCompare(b.name, "pt-BR") || a.key.localeCompare(b.key));
+    const compare = (a: string, b: string) => a.localeCompare(b, "pt-BR");
+    rows.sort((a, b) => {
+      if (recentOnly || sortMode === "cadastro")
+        return (Date.parse(b.createdAt ?? "") || 0) - (Date.parse(a.createdAt ?? "") || 0)
+          || compare(a.name, b.name) || compare(a.key, b.key);
+      if (sortMode === "localidade")
+        return compare(a.regionKey ?? "zzzz", b.regionKey ?? "zzzz") || compare(a.name, b.name);
+      if (sortMode === "especialidade")
+        return compare(a.specialty ?? "zzzz", b.specialty ?? "zzzz") || compare(a.name, b.name);
+      return compare(a.name, b.name) || compare(a.key, b.key);
+    });
     return { rows, importedCount: legacy.length - legacyUnlinked.length + guiafixResults.length - guiafixUnlinked.length,
       registryFilteredCount: registryRows.length };
-  }, [operational, legacy, guiafixResults, registry, region, specialtyTerm, recentOnly]);
+  }, [operational, legacy, guiafixResults, registry, municipalityNames, region, specialtyTerm, recentOnly, sortMode]);
   const results = useMemo(() => unifiedPageSlice(merged.rows, page), [merged, page]);
   const registryCount = recentOnly ? 0 : region || specialtyTerm ? merged.registryFilteredCount : registryAvailable ? registryTotal : 0;
   const total = operationalTotal === null || legacyTotal === null ? null
@@ -307,12 +345,14 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     operational.length >= operationalTotal && legacy.length >= legacyTotal &&
     (!registryAvailable || registry.length >= registryTotal);
   const pages = unifiedPageCount(total ?? 0);
+  const selectablePage = results.filter((row) => !row.demo);
+  const selectedRows = merged.rows.filter((row) => selectedKeys.includes(row.key) && !row.demo);
 
   function filterRegion(value: string) {
-    setRegionDraft(value); setRegion(cleanUnifiedSearch(value)); setPage(0); setSelectedKey(null); setImportKey(null);
+    setRegionDraft(value); setRegion(cleanUnifiedSearch(value)); setPage(0); setSelectedKey(null); setImportKey(null); setSelectedKeys([]);
   }
   function filterSpecialty(value: string) {
-    setSpecialtyDraft(value); setSpecialty(cleanUnifiedSearch(value)); setPage(0); setSelectedKey(null); setImportKey(null);
+    setSpecialtyDraft(value); setSpecialty(cleanUnifiedSearch(value)); setPage(0); setSelectedKey(null); setImportKey(null); setSelectedKeys([]);
   }
 
   function openManualForm() {
@@ -326,23 +366,126 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
   }
 
   async function inspectImport(file?: File) {
+    setCsvRows([]);
+    setCsvInfo(null);
+    setCsvAcknowledged(false);
     if (!file) return;
-    if (file.size > 2_000_000) {
-      setCsvInfo("Arquivo acima de 2 MB. Divida em lotes menores.");
+    try {
+      const contents = await file.text();
+      const prepared = prepareTechnicianCsv(contents, categories);
+      setCsvRows(prepared);
+      setCsvInfo(`${prepared.length} técnicos prontos para importar. Nenhum dado foi gravado ainda.`);
+    } catch (error) {
+      setCsvInfo(csvImportErrorText(error));
+    }
+  }
+
+  async function submitCsvImport() {
+    const auditReason = csvReason.trim();
+    if (csvBusy || !registryAvailable || !csvRows.length || !csvAcknowledged ||
+      auditReason.length < 8 || auditReason.length > 400 || publicTextProblem(auditReason, "identity")) return;
+    if (!window.confirm(`Importar ${csvRows.length} técnicos como fichas administrativas editáveis? Contatos permanecerão privados e nenhuma conta será ativada.`)) return;
+    setCsvBusy(true);
+    let saved = 0;
+    let failedAt = 0;
+    for (const [index, row] of csvRows.entries()) {
+      const payload = {
+        display_name: row.displayName, city_ibge_id: row.cityIbgeId,
+        ddd: row.ddd, region_approx: row.regionApprox,
+        category_slugs: row.categorySlugs, service_slugs: [],
+        admin_active: false, is_demo: false,
+        phone_action: row.phoneE164 ? "replace" : "keep",
+        ...(row.phoneE164 ? { phone_e164: row.phoneE164, contact_suspended: false } : {}),
+      };
+      const { data, error } = await db.rpc("eut_admin_technician_record_save", {
+        _origin: "other_import", _source_id: row.sourceId,
+        _expected_updated_at: null, _payload: payload, _reason: auditReason,
+      });
+      if (error || data?.ok !== true || !data.technician_id) {
+        failedAt = index + 1;
+        break;
+      }
+      saved += 1;
+      if (saved % 5 === 0 || saved === csvRows.length)
+        setCsvInfo(`Importação real em andamento: ${saved} de ${csvRows.length} confirmados pelo banco.`);
+    }
+    setCsvBusy(false);
+    if (failedAt) {
+      // Keep the exact same file keys: retrying cannot overwrite prior imports.
+      setCsvInfo(`${saved} fichas confirmadas. Falha na linha ${failedAt + 1}; revise seus dados e tente novamente com o mesmo arquivo.`);
+    } else {
+      setCsvRows([]);
+      setCsvAcknowledged(false);
+      setCsvInfo(`${saved} técnicos importados e auditados no banco; nenhum contato foi publicado.`);
+    }
+    if (saved) setReload((value) => value + 1);
+  }
+
+  function toggleSelected(key: string, checked: boolean) {
+    setSelectedKeys((before) => checked
+      ? before.includes(key) ? before : before.length < 50 ? [...before, key] : before
+      : before.filter((value) => value !== key));
+  }
+
+  async function executeBulk(action: "importar" | "arquivar") {
+    const auditReason = bulkReason.trim();
+    if (bulkBusy || !registryAvailable || !selectedRows.length ||
+      auditReason.length < 8 || auditReason.length > 400 || publicTextProblem(auditReason, "identity")) {
+      setFeedback("Selecione técnicos e informe uma justificativa administrativa de 8 a 400 caracteres.");
       return;
     }
-    try {
-      // Read header/count locally: no row data, names or phone numbers are uploaded.
-      const contents = await file.text();
-      const lines = contents.split(/\r?\n/).filter(Boolean);
-      const columns = (lines[0] ?? "").replace(/^\uFEFF/, "").toLowerCase()
-        .split(/[;,\t]/).map((value) => value.trim());
-      setCsvInfo(columns.includes("nome") || columns.includes("name")
-        ? `${Math.max(0, lines.length - 1)} linhas identificadas, ${columns.length} colunas. Prévia local: nenhum cadastro foi enviado ou importado.`
-        : "Cabeçalho sem coluna 'nome' ou 'name'. Nenhum cadastro foi enviado.");
-    } catch {
-      setCsvInfo("Não foi possível analisar o arquivo localmente.");
+    const candidates = selectedRows.filter((row) => action === "importar"
+      ? !row.registry && (row.origin === "wordpress" || row.origin === "guiafix")
+      : Boolean(row.registry && !row.registry.archived) ||
+        Boolean(row.wpPostId !== undefined && row.recordState !== "excluido") ||
+        Boolean(row.portalId && row.portalUpdatedAt));
+    if (!candidates.length) {
+      setFeedback("Nenhum dos selecionados permite esta operação. Abra o técnico para editar individualmente.");
+      return;
     }
+    const label = action === "importar" ? "Importar" : "Arquivar";
+    if (!window.confirm(`${label} ${candidates.length} técnicos com registro de auditoria? Operações não eliminam dados nem liberam contatos.`)) return;
+    setBulkBusy(true);
+    setFeedback(null);
+    let done = 0;
+    for (const row of candidates) {
+      let data: { ok?: boolean; updated?: number } | null = null;
+      let error: unknown = null;
+      if (action === "importar") {
+        const sourceId = row.origin === "wordpress"
+          ? `wordpress_20261108:${row.wpPostId}` : row.key;
+        ({ data, error } = await db.rpc("eut_admin_technician_record_save", {
+          _origin: row.origin, _source_id: sourceId,
+          _expected_updated_at: null, _reason: auditReason,
+          _payload: { display_name: row.name, city_ibge_id: row.cityIbgeId ?? null, ddd: null,
+            region_approx: row.regionKey || null, category_slugs: [], service_slugs: [],
+            admin_active: false, is_demo: false, phone_action: "keep" },
+        }));
+      } else if (row.registry) {
+        ({ data, error } = await db.rpc("eut_admin_technician_record_archive", {
+          _technician_id: row.registry.technician_id,
+          _expected_updated_at: row.registry.updated_at,
+          _action: "archive", _reason: auditReason,
+        }));
+      } else if (row.wpPostId !== undefined) {
+        ({ data, error } = await db.rpc("eut_admin_legacy_action", {
+          p_ids: [row.wpPostId], p_action: "arquivar",
+          p_value: "", p_reason: auditReason,
+        }));
+      } else if (row.portalId && row.portalUpdatedAt) {
+        ({ data, error } = await db.rpc("eut_admin_technician_archive", {
+          _technician_id: row.portalId, _expected_updated_at: row.portalUpdatedAt,
+          _action: "archive", _reason: auditReason,
+        }));
+      }
+      if (error || (!data?.ok && data?.updated !== 1)) break;
+      done += 1;
+    }
+    setBulkBusy(false);
+    setSelectedKeys([]);
+    setFeedback(`${done} de ${candidates.length} técnicos ${action === "importar" ? "importados" : "arquivados"} com confirmação no banco.` +
+      (done < candidates.length ? " A operação foi interrompida na primeira falha; revise a ficha antes de repetir." : ""));
+    if (done) setReload((value) => value + 1);
   }
 
   function selectRow(row: DirectoryRow) {
@@ -424,11 +567,11 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       available={registryAvailable} onCancel={() => setManualSourceId(null)}
       onSaved={(message) => { refreshAfterSaved(); setFeedback(message); }} />}
     <div role="group" aria-label="Navegação entre técnicos" className="mt-4 flex flex-wrap gap-2">
-      <button type="button" aria-pressed={!recentOnly} onClick={() => { setRecentOnly(false); setPage(0); setSelectedKey(null); setImportKey(null); }}
+      <button type="button" aria-pressed={!recentOnly} onClick={() => { setRecentOnly(false); setPage(0); setSelectedKey(null); setImportKey(null); setSelectedKeys([]); }}
         className={"min-h-11 rounded-lg border px-4 text-sm font-semibold " + (!recentOnly ? "bg-primary text-primary-foreground" : "border-input text-foreground")}>
         Todos os técnicos
       </button>
-      <button type="button" aria-pressed={recentOnly} onClick={() => { setRecentOnly(true); setPage(0); setSelectedKey(null); setImportKey(null); }}
+      <button type="button" aria-pressed={recentOnly} onClick={() => { setRecentOnly(true); setPage(0); setSelectedKey(null); setImportKey(null); setSelectedKeys([]); }}
         className={"min-h-11 rounded-lg border px-4 text-sm font-semibold " + (recentOnly ? "bg-primary text-primary-foreground" : "border-input text-foreground")}>
         Últimos cadastros
       </button>
@@ -452,6 +595,28 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
           maxLength={80} placeholder="Ex.: informática" className="min-h-12 w-full rounded-xl border border-input bg-background px-4 font-normal text-foreground" />
       </label>
     </div>
+    <div className="mt-4 flex flex-wrap items-end justify-between gap-3 rounded-xl border border-border bg-background p-3">
+      <label className="grid min-w-[170px] gap-1 text-xs font-semibold text-foreground">
+        Ordenar listagem
+        <select value={recentOnly ? "cadastro" : sortMode}
+          onChange={(event) => { setSortMode(event.target.value as SortMode); setRecentOnly(false); setPage(0); setSelectedKey(null); setSelectedKeys([]); }}
+          className="min-h-11 rounded-lg border border-input bg-card px-3 text-sm text-foreground">
+          <option value="nome">Nome (A–Z)</option>
+          <option value="cadastro">Cadastro mais recente</option>
+          <option value="localidade">Cidade / região</option>
+          <option value="especialidade">Categoria / especialidade</option>
+        </select>
+      </label>
+      <div role="group" aria-label="Modo de visualização dos técnicos" className="flex flex-wrap gap-1">
+        {(["linhas", "cartoes", "avatares"] as const).map((mode) =>
+          <button key={mode} type="button" aria-pressed={viewMode === mode}
+            onClick={() => { setViewMode(mode); setSelectedKey(null); }}
+            className={"min-h-11 rounded-lg border px-3 text-sm font-semibold " +
+              (viewMode === mode ? "border-primary bg-primary text-primary-foreground" : "border-input text-foreground")}>
+            {mode === "linhas" ? "Linhas" : mode === "cartoes" ? "Detalhado" : "Avatares"}
+          </button>)}
+      </div>
+    </div>
     {(region || specialty) && <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
       <span>Filtros ativos:</span>
       {region && <button type="button" onClick={() => filterRegion("")} className="min-h-9 rounded-full border border-input px-3">Região: {region} ×</button>}
@@ -459,32 +624,75 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     </div>}
     <p role="status" className="mt-3 text-sm text-muted-foreground">
       {loading || registryLoading ? "Consultando registros…" : failed ? "Consulta incompleta: verifique a permissão ou conexão." :
-        `${total === null ? "Total indisponível" : (exactTotal ? "" : "cerca de ") + total.toLocaleString("pt-BR") + " referências"} · página ${page + 1} de ${pages} · até ${UNIFIED_DIRECTORY_PAGE_SIZE} cartões por página`}
+        `${total === null ? "Total indisponível" : (exactTotal ? "" : "cerca de ") + total.toLocaleString("pt-BR") + " técnicos"} · página ${page + 1} de ${pages} · até ${UNIFIED_DIRECTORY_PAGE_SIZE} por página`}
     </p>
     {feedback && <p role="status" className="mt-3 rounded-lg border border-border bg-muted/50 p-3 text-sm text-foreground">{feedback}</p>}
-    {!loading && !registryLoading && !failed && <ul className="mt-4 grid min-w-0 gap-3">
-      {results.map((row) => <li key={row.key} className="min-w-0 rounded-xl border border-border bg-background p-3 sm:p-4">
-        <div className="flex min-w-0 flex-col justify-between gap-3 sm:flex-row sm:items-start">
-          <div className="min-w-0">
+    {!loading && !registryLoading && !failed && results.length > 0 && <div className="mt-3 rounded-xl border border-border p-3">
+      <label className="flex min-h-10 items-center gap-2 text-sm font-semibold text-foreground">
+        <input type="checkbox" aria-label="Selecionar técnicos desta página"
+          checked={selectablePage.length > 0 && selectablePage.every((row) => selectedKeys.includes(row.key))}
+          onChange={(event) => setSelectedKeys((before) => event.target.checked
+            ? [...new Set([...before, ...selectablePage.map((row) => row.key)])].slice(0, 50)
+            : before.filter((key) => !selectablePage.some((row) => row.key === key)))} />
+        Selecionar página · {selectedRows.length} selecionados (máximo 50)
+      </label>
+      {selectedRows.length > 0 && <div className="mt-2 grid gap-2 md:grid-cols-[1fr_auto_auto] md:items-end">
+        <label className="grid gap-1 text-xs font-semibold text-foreground">Justificativa para ação em massa
+          <input value={bulkReason} onChange={(event) => setBulkReason(event.target.value)}
+            minLength={8} maxLength={400} placeholder="Motivo administrativo (mínimo 8 caracteres)"
+            className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm font-normal" />
+        </label>
+        <button type="button" disabled={bulkBusy || !registryAvailable}
+          onClick={() => void executeBulk("importar")}
+          className="min-h-11 rounded-lg border border-primary/40 px-3 text-sm font-semibold text-primary disabled:opacity-50">
+          {bulkBusy ? "Aguarde…" : "Importar selecionados"}
+        </button>
+        <button type="button" disabled={bulkBusy || !registryAvailable}
+          onClick={() => void executeBulk("arquivar")}
+          className="min-h-11 rounded-lg border border-amber-500/50 px-3 text-sm font-semibold text-foreground disabled:opacity-50">
+          {bulkBusy ? "Aguarde…" : "Arquivar selecionados"}
+        </button>
+      </div>}
+    </div>}
+    {!loading && !registryLoading && !failed && <ul className={"mt-4 grid min-w-0 " +
+      (viewMode === "avatares" ? "grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5" :
+        viewMode === "cartoes" ? "gap-3 sm:grid-cols-2" : "gap-1 lg:grid-cols-2")}>
+      {results.map((row) => <li key={row.key} className={"min-w-0 rounded-xl border border-border bg-background " +
+        (selectedKey === row.key ? "col-span-full " : "") +
+        (viewMode === "linhas" ? "px-3 py-2" : "p-3 sm:p-4")}>
+        <div className={"flex min-w-0 justify-between gap-2 " +
+          (viewMode === "avatares" ? "flex-col items-center text-center" :
+            viewMode === "cartoes" ? "flex-col sm:flex-row sm:items-start" : "items-start")}>
+          <div className={"flex min-w-0 gap-2 " +
+            (viewMode === "avatares" ? "flex-col items-center" : "items-start")}>
+            <label className="flex shrink-0 items-center" title="Selecionar para ação em massa">
+              <input type="checkbox" aria-label={`Selecionar ${row.name}`}
+                checked={selectedKeys.includes(row.key)} disabled={Boolean(row.demo)}
+                onChange={(event) => toggleSelected(row.key, event.target.checked)} />
+            </label>
+            {viewMode === "avatares" && <TechnicianAvatar name={row.name} avatarPath={row.avatarPath}
+              className="h-16 w-16" />}
+            <div className="min-w-0">
             <strong className="break-words text-foreground">{row.name}</strong>
             {row.regionKey ? <button type="button" onClick={() => filterRegion(row.regionKey ?? "")}
               className="mt-1 min-h-9 break-words text-left text-sm text-primary underline-offset-2 hover:underline"
               title="Encontrar outros técnicos nesta região">{row.location}</button>
               : <p className="mt-1 text-sm text-muted-foreground">{row.location}</p>}
-            {row.specialty && <button type="button" onClick={() => filterSpecialty(categoryKeyword(row.specialty ?? ""))}
+            {row.specialty && viewMode !== "avatares" && <button type="button" onClick={() => filterSpecialty(categoryKeyword(row.specialty ?? ""))}
               className="mt-1 min-h-9 break-words text-left text-xs text-primary underline-offset-2 hover:underline"
               title="Encontrar especialidades semelhantes">{row.specialty}</button>}
             {row.demo && <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">Demonstração protegida: indisponível para ativação.</p>}
+            </div>
           </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
+          <div className={"flex shrink-0 flex-wrap gap-2 " + (viewMode === "avatares" ? "w-full" : "")}>
             {!row.demo &&
               <button type="button" onClick={() => selectRow(row)} aria-expanded={selectedKey === row.key}
-                className="min-h-11 w-full shrink-0 rounded-xl border border-primary/40 bg-primary/10 px-4 text-sm font-semibold text-primary hover:bg-primary/20 sm:w-auto">
-                {selectedKey === row.key ? "Fechar edição" : "Editar técnico"}
+                className="min-h-10 w-full shrink-0 rounded-lg border border-primary/40 bg-primary/10 px-3 text-sm font-semibold text-primary hover:bg-primary/20 sm:w-auto">
+                {selectedKey === row.key ? "Fechar" : "Abrir / editar"}
               </button>}
           </div>
         </div>
-        {row.registry && <p className="mt-2 text-xs text-muted-foreground">
+        {row.registry && viewMode === "cartoes" && <p className="mt-2 text-xs text-muted-foreground">
           {row.registry.archived ? "Registro arquivado" : row.registry.admin_active ? "Registro administrativo ativo" : "Registro administrativo não ativo"}
           {row.registry.contact_last4 ? ` · Contato privado final ${row.registry.contact_last4}` : ""}
         </p>}
@@ -496,12 +704,13 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
         {selectedKey === row.key && importKey === row.key && row.wpPostId !== undefined && !row.demo && !row.registry &&
           <AdminTechnicianRecordEditor key={`wp-import:${row.wpPostId}`}
             sourceId={`wordpress_20261108:${row.wpPostId}`} createOrigin="wordpress"
-            importedName={row.name} importedDemo={Boolean(row.demo)} available={registryAvailable}
+            importedName={row.name} importedRegion={row.regionKey ?? ""} importedDemo={Boolean(row.demo)} available={registryAvailable}
             onCancel={() => { setImportKey(null); setSelectedKey(null); }}
             onSaved={(message) => { refreshAfterSaved(); setDraft(row.name); setFeedback(message); }} />}
         {selectedKey === row.key && importKey === row.key && !row.demo && !row.registry && row.origin === "guiafix" &&
           <AdminTechnicianRecordEditor key={row.key} sourceId={row.key} createOrigin="guiafix"
-            importedName={row.name} available={registryAvailable}
+            importedName={row.name} importedRegion={row.regionKey ?? ""}
+            importedCityIbgeId={row.cityIbgeId ?? null} available={registryAvailable}
             onCancel={() => { setImportKey(null); setSelectedKey(null); }}
             onSaved={(message) => { refreshAfterSaved(); setDraft(row.name); setFeedback(message); }} />}
         {selectedKey === row.key && row.portalId && !row.registry &&
@@ -568,19 +777,40 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
         className="min-h-11 rounded-lg border border-input px-4 text-sm font-semibold text-foreground disabled:opacity-40">Próxima</button>
     </nav>}
     <p className="mt-4 text-xs text-muted-foreground">
-      Cadastro manual e edição avançada funcionam somente após instalar as RPCs homologadas.
-      Importação de lotes ainda não está disponível; nenhuma ficha de origem ou demonstração é ativada automaticamente.
+      Toda edição é confirmada e auditada no banco. Contatos privados, demonstrações protegidas e restrições
+      permanecem preservados. Técnico histórico pode ser editado diretamente após salvar sua ficha administrativa.
     </p>
     <fieldset className="mt-4 space-y-2 rounded-xl border border-dashed border-border p-3">
       <legend className="text-sm font-semibold">Preparar importação CSV</legend>
       <p className="text-xs text-muted-foreground">
-        Apenas conferir cabeçalho e quantidade no aparelho, sem enviar dados. A importação real
-        depende de conciliação, proteção de bloqueios e operação administrativa homologada.
+        Importe até 500 técnicos por arquivo de até 2 MB, com coluna nome obrigatória.
+        Campos opcionais: ddd, cidade/regiao, ibge, categoria e telefone. Separe múltiplas categorias por |.
+        A prévia fica neste aparelho; ao confirmar, as fichas são gravadas individualmente com auditoria,
+        sem ativar conta nem contato público. Reenviar o mesmo arquivo não duplica técnicos.
       </p>
       <input type="file" accept=".csv,text/csv" aria-label="Selecionar CSV para análise local"
         className="max-w-full text-sm text-foreground"
         onChange={(event) => void inspectImport(event.target.files?.[0])} />
       {csvInfo && <p role="status" className="text-sm text-muted-foreground">{csvInfo}</p>}
+      {csvRows.length > 0 && <div className="grid gap-3 rounded-lg border border-border p-3">
+        <p className="text-sm font-semibold text-foreground">{csvRows.length} técnicos validados, aguardando confirmação.</p>
+        <label className="grid gap-1 text-xs font-semibold text-foreground">
+          Motivo administrativo para auditoria do lote
+          <input value={csvReason} onChange={(event) => setCsvReason(event.target.value)}
+            minLength={8} maxLength={400} placeholder="Ex.: importação autorizada do cadastro existente"
+            className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm font-normal" />
+        </label>
+        <label className="flex items-center gap-2 text-xs text-foreground">
+          <input type="checkbox" checked={csvAcknowledged}
+            onChange={(event) => setCsvAcknowledged(event.target.checked)} />
+          Confirmo que tenho autorização para cadastrar estes técnicos e tratar os contatos como privados.
+        </label>
+        <button type="button" disabled={csvBusy || !registryAvailable || !csvAcknowledged || csvReason.trim().length < 8}
+          onClick={() => void submitCsvImport()}
+          className="min-h-12 rounded-xl bg-primary px-4 font-bold text-primary-foreground disabled:opacity-50">
+          {csvBusy ? "Importando no banco…" : `Importar ${csvRows.length} técnicos agora`}
+        </button>
+      </div>}
     </fieldset>
   </section>;
 }

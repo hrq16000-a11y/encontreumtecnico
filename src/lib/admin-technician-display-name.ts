@@ -11,5 +11,13 @@ export function technicianDisplayName(rawName: string, confirmedCity?: string | 
   const quotedCity = city.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const suffix = new RegExp(`\\s+Técnico\\s+de\\s+Informática\\s+${quotedCity}$`, "iu");
   const nameOnly = original.replace(suffix, "").trim();
-  return nameOnly.length >= 2 ? nameOnly : original;
+  if (nameOnly !== original && nameOnly.length >= 2) return nameOnly;
+  // Captures sometimes append the verified city directly to a business name.
+  // Only strip multiword city suffixes from multiword prefixes, leaving ambiguous
+  // names such as "Informática Curitiba" untouched. This never mutates source data.
+  if (city.split(/\s+/).length < 2) return original;
+  const plainCitySuffix = new RegExp(`\\s+${quotedCity}$`, "iu");
+  const withoutCity = original.replace(plainCitySuffix, "").trim();
+  if (/^Técnico de Informática$/iu.test(withoutCity)) return original;
+  return withoutCity.split(/\s+/).length >= 2 ? withoutCity : original;
 }

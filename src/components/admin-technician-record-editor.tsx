@@ -45,11 +45,13 @@ function safeRegistryError(error: unknown): string {
 }
 
 export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin = "manual",
-  importedName = "", importedDemo = false, available, onSaved, onCancel }: {
+  importedName = "", importedRegion = "", importedCityIbgeId = null, importedDemo = false, available, onSaved, onCancel }: {
   sourceId: string;
   existing?: AdminTechnicianRegistryRecord;
   createOrigin?: "manual" | "wordpress" | "guiafix";
   importedName?: string;
+  importedRegion?: string;
+  importedCityIbgeId?: number | null;
   importedDemo?: boolean;
   available: boolean;
   onSaved: (message: string) => void;
@@ -58,8 +60,8 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
   const importedCreation = !existing && createOrigin !== "manual";
   const [name, setName] = useState(existing?.display_name ?? importedName);
   const [ddd, setDdd] = useState(existing?.ddd ?? "");
-  const [region, setRegion] = useState(existing?.region_approx ?? "");
-  const [cityId, setCityId] = useState<number | null>(existing?.city_ibge_id ?? null);
+  const [region, setRegion] = useState(existing?.region_approx ?? importedRegion);
+  const [cityId, setCityId] = useState<number | null>(existing?.city_ibge_id ?? importedCityIbgeId);
   const [citySearch, setCitySearch] = useState("");
   const [cities, setCities] = useState<City[]>([]);
   const [categories, setCategories] = useState<string[]>(existing?.category_slugs ?? []);
@@ -77,6 +79,17 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
   const [error, setError] = useState<string | null>(null);
   const [catalogError, setCatalogError] = useState(false);
   const { categories: catalogCategories, loading: categoryLoading, error: categoryError } = useActiveCategories();
+
+  useEffect(() => {
+    const initialCityId = existing?.city_ibge_id ?? importedCityIbgeId;
+    if (!initialCityId) return;
+    let current = true;
+    void Promise.resolve(db.from("eut_ibge_municipalities").select("id,name,uf")
+      .eq("id", initialCityId).maybeSingle())
+      .then(({ data }) => { if (current && data) setCitySearch(`${data.name}/${data.uf}`); })
+      .catch(() => {});
+    return () => { current = false; };
+  }, [existing?.city_ibge_id, importedCityIbgeId]);
 
   useEffect(() => {
     let current = true;
@@ -199,8 +212,8 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
 
   return <form onSubmit={(event) => void submit(event)}
     className="mt-4 grid min-w-0 gap-4 rounded-xl border border-primary/20 bg-card p-3 sm:p-5"
-    aria-label={existing ? `Editar técnico ${existing.display_name}` : importedCreation ? "Importar técnico histórico" : "Adicionar técnico manualmente"}>
-    <h3 className="text-lg font-bold text-foreground">{existing ? "Editar ficha do técnico" : importedCreation ? "Importar técnico para gestão" : "Adicionar técnico"}</h3>
+    aria-label={existing ? `Editar técnico ${existing.display_name}` : importedCreation ? "Editar técnico do diretório" : "Adicionar técnico manualmente"}>
+    <h3 className="text-lg font-bold text-foreground">{existing ? "Editar ficha do técnico" : importedCreation ? "Completar cadastro e salvar técnico" : "Adicionar técnico"}</h3>
     <p className="text-xs leading-5 text-muted-foreground">
       Informe os dados deste técnico e salve com auditoria. O contato é privado; esta operação não publica
       telefone, não cria conta de login e não libera acesso pago ao número.
