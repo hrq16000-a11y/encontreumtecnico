@@ -3,6 +3,8 @@
  * Lovable editor previews and localhost retain their own origin for testing.
  */
 export const EUT_CANONICAL_ORIGIN = "https://www.encontreumtecnico.com.br";
+// A single branch-preview alias is allowed for administrative QA, not arbitrary Vercel hosts.
+export const EUT_ADMIN_QA_ORIGIN = "https://encontreumtecnico-git-fix-admin-unified-list-cont-34e9f5-msolus.vercel.app";
 
 export function authReturnOrigin(origin: string): string {
   try {
@@ -11,6 +13,7 @@ export function authReturnOrigin(origin: string): string {
       return EUT_CANONICAL_ORIGIN;
     }
     const host = url.hostname.toLowerCase();
+    if (url.origin === EUT_ADMIN_QA_ORIGIN) return url.origin;
     if (host === "localhost" || host === "127.0.0.1" ||
         host === "lovable.app" || host.endsWith(".lovable.app") ||
         host.endsWith(".lovableproject.com") || host.endsWith(".lovableproject-dev.com") ||
