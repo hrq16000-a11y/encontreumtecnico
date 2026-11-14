@@ -48,6 +48,9 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
   const [specialty, setSpecialty] = useState("");
   const [recentOnly, setRecentOnly] = useState(false);
   const [page, setPage] = useState(0);
+  const [viewMode, setViewMode] = useState<"cards" | "rows" | "grid">("rows");
+  const [sortMode, setSortMode] = useState<"name_asc" | "name_desc" | "newest">("name_asc");
+  const [checkedKeys, setCheckedKeys] = useState<string[]>([]);
   const [legacy, setLegacy] = useState<DirectoryRow[]>([]);
   const [operational, setOperational] = useState<DirectoryRow[]>([]);
   const [registry, setRegistry] = useState<AdminTechnicianRegistryRecord[]>([]);
@@ -82,6 +85,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       setRegion(cleanUnifiedSearch(regionDraft));
       setSpecialty(cleanUnifiedSearch(specialtyDraft));
       setPage(0);
+      setCheckedKeys([]);
       setSelectedKey(null);
       setImportKey(null);
     }, 320);
@@ -307,6 +311,29 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     operational.length >= operationalTotal && legacy.length >= legacyTotal &&
     (!registryAvailable || registry.length >= registryTotal);
   const pages = unifiedPageCount(total ?? 0);
+  // Sorting is explicitly limited to the loaded page. Server pagination remains authoritative.
+  const visibleRows = useMemo(() => [...results].sort((a, b) => {
+    if (sortMode === "newest") {
+      const dateDelta = (b.createdAt ?? "").localeCompare(a.createdAt ?? "");
+      if (dateDelta !== 0) return dateDelta;
+    }
+    return sortMode === "name_desc"
+      ? b.name.localeCompare(a.name, "pt-BR")
+      : a.name.localeCompare(b.name, "pt-BR");
+  }), [results, sortMode]);
+  const checkedVisible = visibleRows.filter((row) => checkedKeys.includes(row.key));
+  function toggleChecked(key: string) {
+    setCheckedKeys((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key]);
+  }
+  async function copyCheckedNames() {
+    if (checkedVisible.length === 0) return;
+    try {
+      await navigator.clipboard.writeText(checkedVisible.map((row) => row.name).join("\n"));
+      setFeedback(`${checkedVisible.length} nomes copiados, sem dados de contato.`);
+    } catch {
+      setFeedback("Não foi possível copiar automaticamente. Verifique a permissão da área de transferência.");
+    }
+  }
 
   function filterRegion(value: string) {
     setRegionDraft(value); setRegion(cleanUnifiedSearch(value)); setPage(0); setSelectedKey(null); setImportKey(null);
@@ -452,6 +479,29 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
           maxLength={80} placeholder="Ex.: informática" className="min-h-12 w-full rounded-xl border border-input bg-background px-4 font-normal text-foreground" />
       </label>
     </div>
+    <div className="mt-4 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-muted/30 p-3" aria-label="Organizar visualização">
+      <label className="grid gap-1 text-xs font-semibold text-foreground">Exibição
+        <select value={viewMode} onChange={(event) => setViewMode(event.target.value as typeof viewMode)}
+          className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm">
+          <option value="rows">Linhas compactas</option><option value="cards">Cartões</option><option value="grid">Grade</option>
+        </select>
+      </label>
+      <label className="grid gap-1 text-xs font-semibold text-foreground">Ordenar esta página
+        <select value={sortMode} onChange={(event) => setSortMode(event.target.value as typeof sortMode)}
+          className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm">
+          <option value="name_asc">Nome A–Z</option><option value="name_desc">Nome Z–A</option><option value="newest">Cadastro recente (quando informado)</option>
+        </select>
+      </label>
+      <button type="button" onClick={() => setCheckedKeys(visibleRows.map((row) => row.key))}
+        className="min-h-11 rounded-lg border border-input px-3 text-sm">Selecionar página</button>
+      <button type="button" onClick={() => setCheckedKeys([])} disabled={checkedKeys.length === 0}
+        className="min-h-11 rounded-lg border border-input px-3 text-sm disabled:opacity-50">Limpar seleção</button>
+      <button type="button" onClick={() => void copyCheckedNames()} disabled={checkedVisible.length === 0}
+        className="min-h-11 rounded-lg border border-primary/40 px-3 text-sm font-semibold text-primary disabled:opacity-50">
+        Copiar nomes ({checkedVisible.length})
+      </button>
+      <span className="w-full text-xs text-muted-foreground">A seleção e a ordenação se aplicam à página atual. Nenhuma ação em lote altera cadastros ou contatos.</span>
+    </div>
     {(region || specialty) && <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
       <span>Filtros ativos:</span>
       {region && <button type="button" onClick={() => filterRegion("")} className="min-h-9 rounded-full border border-input px-3">Região: {region} ×</button>}
@@ -462,10 +512,13 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
         `${total === null ? "Total indisponível" : (exactTotal ? "" : "cerca de ") + total.toLocaleString("pt-BR") + " referências"} · página ${page + 1} de ${pages} · até ${UNIFIED_DIRECTORY_PAGE_SIZE} cartões por página`}
     </p>
     {feedback && <p role="status" className="mt-3 rounded-lg border border-border bg-muted/50 p-3 text-sm text-foreground">{feedback}</p>}
-    {!loading && !registryLoading && !failed && <ul className="mt-4 grid min-w-0 gap-3">
-      {results.map((row) => <li key={row.key} className="min-w-0 rounded-xl border border-border bg-background p-3 sm:p-4">
+    {!loading && !registryLoading && !failed && <ul className={"mt-4 grid min-w-0 gap-3 " + (viewMode === "cards" ? "sm:grid-cols-2" : viewMode === "grid" ? "sm:grid-cols-2 xl:grid-cols-3" : "")}>
+      {visibleRows.map((row) => <li key={row.key} className={"min-w-0 rounded-xl border border-border bg-background " + (viewMode === "rows" ? "p-2 sm:p-3" : "p-3 sm:p-4")}>
         <div className="flex min-w-0 flex-col justify-between gap-3 sm:flex-row sm:items-start">
-          <div className="min-w-0">
+          <div className="flex min-w-0 items-start gap-3">
+            <input type="checkbox" aria-label={`Selecionar ${row.name}`} checked={checkedKeys.includes(row.key)}
+              onChange={() => toggleChecked(row.key)} className="mt-1 h-5 w-5 shrink-0 accent-primary" />
+            <div className="min-w-0">
             <strong className="break-words text-foreground">{row.name}</strong>
             {row.regionKey ? <button type="button" onClick={() => filterRegion(row.regionKey ?? "")}
               className="mt-1 min-h-9 break-words text-left text-sm text-primary underline-offset-2 hover:underline"
@@ -475,6 +528,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
               className="mt-1 min-h-9 break-words text-left text-xs text-primary underline-offset-2 hover:underline"
               title="Encontrar especialidades semelhantes">{row.specialty}</button>}
             {row.demo && <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">Demonstração protegida: indisponível para ativação.</p>}
+            </div>
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
             {!row.demo &&
@@ -556,15 +610,15 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     {!loading && !registryLoading && !failed && results.length === 0 && <p className="mt-4 text-sm text-muted-foreground">Nenhum registro corresponde à busca.</p>}
     {!loading && !registryLoading && !failed && total !== null && total > 0 && <nav aria-label="Paginação do diretório unificado"
       className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
-      <button type="button" disabled={page === 0} onClick={() => { setPage((current) => Math.max(0, current - 1)); setSelectedKey(null); setImportKey(null); }}
+      <button type="button" disabled={page === 0} onClick={() => { setPage((current) => Math.max(0, current - 1)); setSelectedKey(null); setImportKey(null); setCheckedKeys([]); }}
         className="min-h-11 rounded-lg border border-input px-4 text-sm font-semibold text-foreground disabled:opacity-40">Anterior</button>
       <label className="flex items-center gap-2 text-sm text-foreground">Página
-        <select aria-label="Ir para a página" value={page} onChange={(event) => { setPage(Number(event.target.value)); setSelectedKey(null); setImportKey(null); }}
+        <select aria-label="Ir para a página" value={page} onChange={(event) => { setPage(Number(event.target.value)); setSelectedKey(null); setImportKey(null); setCheckedKeys([]); }}
           className="min-h-11 rounded-lg border border-input bg-background px-3">
           {Array.from({ length: pages }, (_, index) => <option key={index} value={index}>{index + 1} de {pages}</option>)}
         </select>
       </label>
-      <button type="button" disabled={page + 1 >= pages} onClick={() => { setPage((current) => Math.min(pages - 1, current + 1)); setSelectedKey(null); setImportKey(null); }}
+      <button type="button" disabled={page + 1 >= pages} onClick={() => { setPage((current) => Math.min(pages - 1, current + 1)); setSelectedKey(null); setImportKey(null); setCheckedKeys([]); }}
         className="min-h-11 rounded-lg border border-input px-4 text-sm font-semibold text-foreground disabled:opacity-40">Próxima</button>
     </nav>}
     <p className="mt-4 text-xs text-muted-foreground">
