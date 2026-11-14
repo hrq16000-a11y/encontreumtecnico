@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { catalogWriteError, validateCatalogDraft, type CatalogDraft } from "@/lib/admin-catalog-validation";
 import { BRAZIL_STATES, serviceSlug, validMunicipality } from "@/lib/service-taxonomy";
 
 const db = supabase as unknown as SupabaseClient;
@@ -8,7 +9,7 @@ const SOURCE = "wordpress_20261108";
 const PER_PAGE = 15;
 
 type Category = {slug:string;label:string;description:string;active:boolean;display_order:number};
-type Service = {slug:string;category_slug:string;label:string;active:boolean;display_order:number};
+type Service = {slug:string;category_slug:string;label:string;description:string;active:boolean;display_order:number};
 type Historical = {
   source_key:string;wp_post_id:number;title:string;demo_candidate:boolean;wp_sector_tags:string[];
 };
@@ -40,8 +41,12 @@ export function EutAdminManager() {
   const [specialtyEvidence,setSpecialtyEvidence] = useState<SpecialtyEvidence[]>([]);
   const [catName,setCatName] = useState("");
   const [catDescription,setCatDescription] = useState("");
+  const [catOrder,setCatOrder] = useState("0");
   const [serviceName,setServiceName] = useState("");
+  const [serviceDescription,setServiceDescription] = useState("");
+  const [serviceOrder,setServiceOrder] = useState("0");
   const [parent,setParent] = useState("");
+  const [catalogDraft,setCatalogDraft] = useState<CatalogDraft|null>(null);
   const [serviceToAdd,setServiceToAdd] = useState("");
   const [serviceEvidence,setServiceEvidence] = useState("");
   const [message,setMessage] = useState("");
@@ -50,7 +55,7 @@ export function EutAdminManager() {
   async function loadCatalog() {
     const [ca,sv] = await Promise.all([
       db.from("eut_service_categories").select("slug,label,description,active,display_order").order("display_order"),
-      db.from("eut_service_types").select("slug,category_slug,label,active,display_order").order("display_order"),
+      db.from("eut_service_types").select("slug,category_slug,label,description,active,display_order").order("display_order"),
     ]);
     if (ca.error || sv.error) setMessage("Não foi possível carregar categorias e serviços.");
     else {
@@ -117,34 +122,86 @@ export function EutAdminManager() {
     } finally { setBusy(false); }
   }
 
+  // A written row must actually be returned: an RLS-blocked or stale update is not success.
+  async function catalogOperation(
+    slug:string,
+    write:()=>Promise<{data:{slug:string}|null;error:{message:string}|null}>,
+    success:string,
+  ) {
+    return runOperation(async()=>{
+      const result=await write();
+      return {error:catalogWriteError(slug,result)};
+    },success);
+  }
+
   async function newCategory(event:FormEvent) {
     event.preventDefault();
-    const label=catName.trim().slice(0,100), slug=serviceSlug(label);
-    if(label.length<3||!slug){setMessage("Informe uma categoria válida.");return;}
-    const ok=await runOperation(async()=>db.from("eut_service_categories")
-      .insert({slug,label,description:catDescription.trim().slice(0,500),active:true}),
+    const slug=serviceSlug(catName.trim());
+    const validated=validateCatalogDraft({kind:"category",slug,label:catName,description:catDescription,
+      displayOrder:catOrder,categorySlug:""},[]);
+    if(validated.error||!slug){setMessage(validated.error??"Informe uma categoria válida.");return;}
+    if(categories.some(c=>c.slug===slug)){setMessage("Já existe uma categoria com esse identificador.");return;}
+    const ok=await catalogOperation(slug,async()=>db.from("eut_service_categories")
+      .insert({slug,...validated.changes,active:true}).select("slug").maybeSingle(),
       "Categoria adicionada.");
-    if(ok){setCatName("");setCatDescription("");await loadCatalog();}
+    if(ok){setCatName("");setCatDescription("");setCatOrder("0");await loadCatalog();}
   }
   async function newService(event:FormEvent) {
     event.preventDefault();
-    const label=serviceName.trim().slice(0,120), slug=serviceSlug(label);
-    if(!parent||!slug||label.length<3){setMessage("Escolha uma categoria e informe o serviço.");return;}
-    const ok=await runOperation(async()=>db.from("eut_service_types")
-      .insert({slug,label,category_slug:parent,active:true}),"Serviço adicionado.");
-    if(ok){setServiceName("");await loadCatalog();}
+    const slug=serviceSlug(serviceName.trim());
+    const validated=validateCatalogDraft({kind:"service",slug,label:serviceName,description:serviceDescription,
+      displayOrder:serviceOrder,categorySlug:parent},categories.filter(c=>c.active).map(c=>c.slug));
+    if(validated.error||!slug){setMessage(validated.error??"Informe um serviço válido.");return;}
+    if(services.some(s=>s.slug===slug)){setMessage("Já existe um serviço com esse identificador.");return;}
+    const ok=await catalogOperation(slug,async()=>db.from("eut_service_types")
+      .insert({slug,...validated.changes,category_slug:parent,active:true}).select("slug").maybeSingle(),
+      "Serviço adicionado.");
+    if(ok){setServiceName("");setServiceDescription("");setServiceOrder("0");await loadCatalog();}
   }
   async function toggleCatalog(which:"category"|"service",slug:string,active:boolean) {
+    const dependent=which==="category"?services.filter(s=>s.category_slug===slug&&s.active).length:0;
+    if(active&&dependent){
+      setMessage(`Oculte antes os ${dependent} serviço(s) ativos desta categoria para manter a descoberta consistente.`);
+      return;
+    }
+    if(which==="service"&&!active){
+      const service=services.find(s=>s.slug===slug);
+      if(!service||!categories.some(c=>c.slug===service.category_slug&&c.active)){
+        setMessage("Reative primeiro a categoria responsável por este serviço.");return;
+      }
+    }
+    if(active){
+      if(!window.confirm(`Ocultar este ${which==="category"?"grupo":"serviço"}? O histórico será preservado.`))return;
+    }
     const table=which==="category"?"eut_service_categories":"eut_service_types";
-    if(await runOperation(async()=>db.from(table).update({active:!active}).eq("slug",slug),
-      active?"Item desativado.":"Item reativado.")) await loadCatalog();
+    if(await catalogOperation(slug,async()=>db.from(table).update({active:!active})
+      .eq("slug",slug).eq("active",active).select("slug").maybeSingle(),
+      active?"Item ocultado sem apagar histórico.":"Item reativado.")) await loadCatalog();
   }
-  async function rename(which:"category"|"service",slug:string,label:string) {
-    const next=window.prompt("Novo nome (o identificador permanece estável):",label)?.trim();
-    if(!next||next.length<3||next.length>120)return;
-    const table=which==="category"?"eut_service_categories":"eut_service_types";
-    if(await runOperation(async()=>db.from(table).update({label:next}).eq("slug",slug),"Nome atualizado."))
-      await loadCatalog();
+  function editCatalog(which:"category"|"service",item:Category|Service) {
+    setMessage("");
+    setCatalogDraft({kind:which,slug:item.slug,label:item.label,description:item.description,
+      displayOrder:String(item.display_order),categorySlug:which==="service"?(item as Service).category_slug:""});
+  }
+  async function saveCatalogEdit(event:FormEvent) {
+    event.preventDefault();
+    if(!catalogDraft)return;
+    const validated=validateCatalogDraft(catalogDraft,categories.filter(c=>c.active).map(c=>c.slug));
+    if(!validated.changes){setMessage(validated.error);return;}
+    const changes=validated.changes;
+    const original=catalogDraft.kind==="category"?
+      categories.find(c=>c.slug===catalogDraft.slug):services.find(s=>s.slug===catalogDraft.slug);
+    if(!original){setMessage("Registro não encontrado. Recarregue o catálogo.");return;}
+    const table=catalogDraft.kind==="category"?"eut_service_categories":"eut_service_types";
+    const slug=catalogDraft.slug;
+    const ok=await catalogOperation(slug,async()=>{
+      let query=db.from(table).update(changes).eq("slug",slug)
+        .eq("label",original.label).eq("description",original.description)
+        .eq("display_order",original.display_order).eq("active",original.active);
+      if(catalogDraft.kind==="service")query=query.eq("category_slug",(original as Service).category_slug);
+      return query.select("slug").maybeSingle();
+    },"Alterações do catálogo salvas.");
+    if(ok){setCatalogDraft(null);await loadCatalog();}
   }
   async function saveProfile(event:FormEvent) {
     event.preventDefault();
@@ -208,6 +265,10 @@ export function EutAdminManager() {
         Gestão manual da migração WordPress. A antiga categoria genérica TI não comprova serviço algum.
         Municípios e bairros só são gravados mediante confirmação. Perfis históricos continuam sem contratação.
       </p>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Catálogo: criar, consultar, editar e ocultar/reativar. O identificador permanece estável e a exclusão é lógica
+        para preservar vínculos, histórico e páginas existentes. Oculte os serviços ativos antes de ocultar uma categoria.
+      </p>
       {message&&<p className="mt-4 rounded-md bg-muted p-3 text-sm text-foreground" role="status">{message}</p>}
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <section className="rounded-lg border border-border p-4" aria-label="Categorias administráveis">
@@ -217,13 +278,17 @@ export function EutAdminManager() {
               placeholder="Nova categoria" aria-label="Nova categoria" onChange={e=>setCatName(e.target.value)}/>
             <input className={common} value={catDescription} maxLength={500}
               placeholder="Descrição (opcional)" aria-label="Descrição da categoria" onChange={e=>setCatDescription(e.target.value)}/>
+            <label className="grid gap-1 text-xs text-muted-foreground">Posição de exibição
+              <input className={common} type="number" min={0} max={9999} step={1} value={catOrder}
+                onChange={e=>setCatOrder(e.target.value)} required/>
+            </label>
             <button disabled={busy} className={btn} type="submit">Criar categoria</button>
           </form>
           <ul className="mt-4 max-h-72 space-y-2 overflow-auto">
             {categories.map(c=><li key={c.slug} className="flex items-center justify-between gap-2 border-b border-border py-2">
-              <span className="min-w-0 text-sm">{c.label} <span className="text-xs text-muted-foreground">({c.slug})</span></span>
+              <span className="min-w-0 text-sm">{c.label} <span className="text-xs text-muted-foreground">({c.slug} · ordem {c.display_order} · {c.active?"ativa":"oculta"})</span></span>
               <span className="flex shrink-0 gap-1">
-                <button className={btn} disabled={busy} type="button" onClick={()=>void rename("category",c.slug,c.label)}>Editar</button>
+                <button className={btn} disabled={busy} type="button" onClick={()=>editCatalog("category",c)}>Editar</button>
                 <button className={btn} disabled={busy} type="button" onClick={()=>void toggleCatalog("category",c.slug,c.active)}>{c.active?"Ocultar":"Ativar"}</button>
               </span>
             </li>)}
@@ -239,19 +304,59 @@ export function EutAdminManager() {
             <input className={common} value={serviceName} maxLength={120}
               placeholder="Ex.: Reparo de placa-mãe" aria-label="Nome do novo serviço"
               onChange={e=>setServiceName(e.target.value)} required/>
+            <input className={common} value={serviceDescription} maxLength={500}
+              placeholder="Descrição (opcional)" aria-label="Descrição do novo serviço"
+              onChange={e=>setServiceDescription(e.target.value)}/>
+            <label className="grid gap-1 text-xs text-muted-foreground">Posição de exibição
+              <input className={common} type="number" min={0} max={9999} step={1} value={serviceOrder}
+                onChange={e=>setServiceOrder(e.target.value)} required/>
+            </label>
             <button disabled={busy} className={btn} type="submit">Criar serviço</button>
           </form>
           <ul className="mt-4 max-h-72 space-y-2 overflow-auto">
             {services.map(s=><li key={s.slug} className="flex items-center justify-between gap-2 border-b border-border py-2">
-              <span className="min-w-0 text-sm">{s.label}<span className="block text-xs text-muted-foreground">{categories.find(c=>c.slug===s.category_slug)?.label??s.category_slug}</span></span>
+              <span className="min-w-0 text-sm">{s.label}<span className="block text-xs text-muted-foreground">{categories.find(c=>c.slug===s.category_slug)?.label??s.category_slug} · ordem {s.display_order} · {s.active?"ativo":"oculto"}</span></span>
               <span className="flex shrink-0 gap-1">
-                <button type="button" disabled={busy} className={btn} onClick={()=>void rename("service",s.slug,s.label)}>Editar</button>
+                <button type="button" disabled={busy} className={btn} onClick={()=>editCatalog("service",s)}>Editar</button>
                 <button type="button" disabled={busy} className={btn} onClick={()=>void toggleCatalog("service",s.slug,s.active)}>{s.active?"Ocultar":"Ativar"}</button>
               </span>
             </li>)}
           </ul>
         </section>
       </div>
+      {catalogDraft&&(
+        <section className="mt-6 rounded-lg border border-primary/30 bg-muted/20 p-4" aria-label="Editor do catálogo">
+          <h3 className="font-semibold">Editar {catalogDraft.kind==="category"?"categoria":"serviço"}: {catalogDraft.slug}</h3>
+          <p className="mt-1 text-xs text-muted-foreground">O identificador não muda. Alterações concorrentes são recusadas para evitar sobrescritas.</p>
+          <form className="mt-4 grid gap-3 md:grid-cols-2" onSubmit={saveCatalogEdit}>
+            <label className="grid gap-1 text-sm">Nome
+              <input className={common} maxLength={catalogDraft.kind==="category"?100:120} required
+                value={catalogDraft.label} onChange={e=>setCatalogDraft(v=>v?{...v,label:e.target.value}:v)}/>
+            </label>
+            <label className="grid gap-1 text-sm">Posição de exibição
+              <input className={common} type="number" min={0} max={9999} step={1} required
+                value={catalogDraft.displayOrder} onChange={e=>setCatalogDraft(v=>v?{...v,displayOrder:e.target.value}:v)}/>
+            </label>
+            {catalogDraft.kind==="service"&&(
+              <label className="grid gap-1 text-sm md:col-span-2">Categoria responsável
+                <select className={common} required value={catalogDraft.categorySlug}
+                  onChange={e=>setCatalogDraft(v=>v?{...v,categorySlug:e.target.value}:v)}>
+                  <option value="">Escolha uma categoria ativa</option>
+                  {categories.filter(c=>c.active).map(c=><option key={c.slug} value={c.slug}>{c.label}</option>)}
+                </select>
+              </label>
+            )}
+            <label className="grid gap-1 text-sm md:col-span-2">Descrição
+              <textarea className={common} maxLength={500} rows={3} value={catalogDraft.description}
+                onChange={e=>setCatalogDraft(v=>v?{...v,description:e.target.value}:v)}/>
+            </label>
+            <div className="flex flex-wrap gap-2 md:col-span-2">
+              <button type="submit" disabled={busy} className="min-h-10 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50">Salvar alterações</button>
+              <button type="button" disabled={busy} className={btn} onClick={()=>setCatalogDraft(null)}>Cancelar edição</button>
+            </div>
+          </form>
+        </section>
+      )}
       <section className="mt-7 border-t border-border pt-5" aria-label="Organização dos técnicos importados">
         <h3 className="font-semibold">Fichas WordPress — {total} técnicos</h3>
         <p className="mt-1 text-xs text-muted-foreground">

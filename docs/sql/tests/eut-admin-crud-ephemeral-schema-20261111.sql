@@ -1,5 +1,15 @@
 -- ONLY FOR A BRAND-NEW DISPOSABLE POSTGRES INSTANCE IN GITHUB ACTIONS.
 -- Never run against Supabase or any populated database.
+DO $fixture_guard$
+BEGIN
+  IF current_database() <> 'eut_fixture' OR current_user <> 'eut_fixture'
+    OR EXISTS (SELECT 1 FROM pg_catalog.pg_namespace WHERE nspname = 'auth')
+    OR EXISTS (SELECT 1 FROM pg_catalog.pg_namespace WHERE nspname = 'eut_moderation')
+    OR EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname IN ('anon','authenticated'))
+  THEN
+    RAISE EXCEPTION 'Refusing SQL fixture outside a clean, disposable eut_fixture database';
+  END IF;
+END $fixture_guard$;
 CREATE ROLE anon NOLOGIN;
 CREATE ROLE authenticated NOLOGIN;
 CREATE SCHEMA auth;

@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Tables } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { TechnicianAvatar } from "@/components/technician-avatar";
+import { AdminTechnicianComprehensiveDraft } from "@/components/admin-technician-comprehensive-draft";
 import { publicTextProblem } from "@/lib/public-profile-text";
 import { clearAdminPublicDraft, readAdminPublicDraft, saveAdminPublicDraft, type AdminPublicFields } from "@/lib/admin-public-profile-draft";
 import { useActiveCategories } from "@/hooks/use-active-categories";
@@ -10,7 +11,10 @@ import { BRAZIL_STATES } from "@/lib/service-taxonomy";
 import { adminPageRange, cleanAdminSearch } from "@/lib/admin-technician-pagination";
 import { Check, Pencil, RotateCcw, ShieldAlert, UserRoundX, X } from "lucide-react";
 
-type Technician = Pick<Tables<"technicians">, "id" | "status" | "display_name" | "bio" | "region" | "city" | "state_uf" | "specialties" | "avatar_path" | "created_at">;
+type Technician = Pick<Tables<"technicians">,
+  "id" | "status" | "display_name" | "bio" | "region" | "city" | "state_uf" |
+  "specialties" | "avatar_path" | "created_at" | "updated_at" | "neighborhood" |
+  "coverage_city_ids" | "service_slugs" | "service_radius_km">;
 type Status = Technician["status"];
 type Action = "editar" | "aprovar" | "suspender" | "reativar" | "rejeitar" | "revisar";
 const db = supabase as unknown as SupabaseClient;
@@ -59,7 +63,7 @@ export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string 
     void (async () => {
       const [from, to] = adminPageRange(page);
       let query = supabase.from("technicians")
-        .select("id,status,display_name,bio,region,city,state_uf,specialties,avatar_path,created_at", { count: "exact" })
+        .select("id,status,display_name,bio,region,city,state_uf,specialties,avatar_path,created_at,updated_at,neighborhood,coverage_city_ids,service_slugs,service_radius_km", { count: "exact" })
         .eq("status", status);
       const term = cleanAdminSearch(search);
       if (term) query = query.ilike("display_name", `%${term}%`);
@@ -108,6 +112,7 @@ export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string 
   }, [reload]);
 
   const [target, setTarget] = useState<{ technician: Technician; action: Action } | null>(null);
+  const [advanced, setAdvanced] = useState<Technician | null>(null);
   const [draft, setDraft] = useState({ display_name: "", bio: "", region: "" });
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -118,6 +123,7 @@ export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string 
   }
 
   function choose(technician: Technician, action: Action) {
+    setAdvanced(null);
     const baseline = publicBaseline(technician);
     const recovered = action === "editar"
       ? readAdminPublicDraft(adminOwnerId, technician.id, baseline) : null;
@@ -229,7 +235,7 @@ export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string 
     </div>
     <div role="tablist" aria-label="Status dos técnicos" className="mt-4 flex gap-2 overflow-x-auto pb-2">
       {TABS.map((tab) => <button key={tab.key} type="button" role="tab"
-        aria-selected={status === tab.key} onClick={() => { setStatus(tab.key); setPage(0); setTarget(null); }}
+        aria-selected={status === tab.key} onClick={() => { setStatus(tab.key); setPage(0); setTarget(null); setAdvanced(null); }}
         className={"min-h-11 shrink-0 rounded-full border px-4 text-sm font-semibold " +
           (status === tab.key ? "border-primary bg-primary text-primary-foreground" : "border-input text-foreground hover:bg-accent")}>
         {tab.label} ({counts[tab.key] ?? "…"})
@@ -279,6 +285,7 @@ export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string 
         <Check className="h-4 w-4" /> {busy ? "Gravando no banco…" : "Confirmar e registrar"}
       </button>
     </form>}
+    {advanced && <AdminTechnicianComprehensiveDraft key={advanced.id} technician={advanced} onClose={() => setAdvanced(null)} />}
     {readError && <p role="alert" className="mt-4 rounded-lg border border-destructive/30 p-3 text-sm text-destructive">{readError}</p>}
     {loadingRows || rows === null ? <p role="status" className="mt-5 text-sm text-muted-foreground">Carregando página de técnicos…</p>
       : filtered.length === 0 ? <p className="mt-5 rounded-xl border border-border p-6 text-sm text-muted-foreground">Nenhum técnico encontrado neste filtro.</p>
@@ -295,6 +302,10 @@ export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string 
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <button type="button" onClick={() => choose(technician, "editar")} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-input px-3 text-sm font-semibold text-foreground hover:bg-accent"><Pencil className="h-4 w-4" /> Editar</button>
+            <button type="button" onClick={() => { setTarget(null); setAdvanced(technician); }}
+              className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-primary/40 px-3 text-sm font-semibold text-foreground hover:bg-accent">
+              Revisar cidade, categorias e contato
+            </button>
             {technician.status === "aprovado" && <button type="button" onClick={() => choose(technician, "suspender")} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-amber-500/40 px-3 text-sm font-semibold text-foreground hover:bg-accent"><ShieldAlert className="h-4 w-4" /> Suspender</button>}
             {technician.status === "suspenso" && <button type="button" onClick={() => choose(technician, "reativar")} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground"><RotateCcw className="h-4 w-4" /> Dessuspender</button>}
             {technician.status === "pendente" && <button type="button" onClick={() => choose(technician, "aprovar")} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground"><Check className="h-4 w-4" /> Aprovar</button>}
@@ -309,10 +320,10 @@ export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string 
       </p>
       <div className="flex gap-2">
         <button type="button" disabled={loadingRows || page === 0}
-          onClick={() => { setPage((p) => Math.max(0, p - 1)); setTarget(null); }}
+          onClick={() => { setPage((p) => Math.max(0, p - 1)); setTarget(null); setAdvanced(null); }}
           className="min-h-11 rounded-lg border border-input px-4 text-sm disabled:opacity-40">Anterior</button>
         <button type="button" disabled={loadingRows || page + 1 >= pages}
-          onClick={() => { setPage((p) => p + 1); setTarget(null); }}
+          onClick={() => { setPage((p) => p + 1); setTarget(null); setAdvanced(null); }}
           className="min-h-11 rounded-lg border border-input px-4 text-sm disabled:opacity-40">Próximo</button>
       </div>
     </nav>
