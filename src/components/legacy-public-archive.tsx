@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { legacyAvatarUrl } from "@/lib/legacy-avatar-urls";
 import { suggestLegacyDisplayName } from "@/lib/legacy-display-name";
+import { getLegacyApproximateRegion } from "@/lib/legacy-ddd-region";
 
 type HistoricalProfile = {
   wp_post_id: number;
@@ -56,12 +57,13 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
       <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
         Todos os profissionais apresentados são técnicos. Alguns ainda não informaram cidade
         ou especialidades detalhadas. A exibição não representa certificação nem presença online;
-        os telefones particulares permanecem protegidos.
+        os telefones particulares permanecem protegidos. Quando o backup permite, exibimos uma
+        referência regional aproximada pelo DDD, que não confirma a cidade de atendimento.
       </p>
       {!show ? (
         <p className="mt-4 text-sm text-muted-foreground">
           Para consultar também técnicos sem cidade ou especialidade detalhada,
-          limpe os filtros. Não presumimos cidade pelo DDD.
+          limpe os filtros. A região aproximada pelo DDD não substitui a cidade de atendimento confirmada.
         </p>
       ) : (
         <>
@@ -97,7 +99,9 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
                     </div>
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Local de atendimento não confirmado
+                    {getLegacyApproximateRegion(profile.wp_post_id)
+                      ? `Referência regional: ${getLegacyApproximateRegion(profile.wp_post_id)} · atendimento não confirmado`
+                      : "Local de atendimento não confirmado"}
                   </p>
                   <ul className="mt-3 flex flex-wrap gap-1.5">
                     {(profile.sector_tags.filter((tag) => !/^TI\s*[-–]\s*Informática$/i.test(tag)).length ? profile.sector_tags.filter((tag) => !/^TI\s*[-–]\s*Informática$/i.test(tag)) : ["Categoria ainda não declarada"]).map((tag) => (
