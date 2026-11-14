@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 
 const sql = readFileSync("docs/sql/eut-admin-technician-crud-staging-proposal-20261111.sql", "utf8");
 const assertions = readFileSync("docs/sql/tests/eut-admin-crud-ephemeral-assertions-20261111.sql", "utf8");
-const manager = readFileSync("src/components/admin-technician-intake-manager.tsx", "utf8");
+const manager = readFileSync("src/components/admin-technician-record-editor.tsx", "utf8");
+const directory = readFileSync("src/components/admin-technician-unified-directory.tsx", "utf8");
 const editor = readFileSync("src/components/admin-technician-manager.tsx", "utf8");
 const advanced = readFileSync("src/components/admin-technician-comprehensive-draft.tsx", "utf8");
 
@@ -16,7 +17,7 @@ describe("CRUD administrativo de técnicos com contato privado", () => {
   });
   it("cria e edita fichas manuais sem criar usuários fictícios ou divulgar contato", () => {
     expect(manager).toContain('db.rpc("eut_admin_technician_record_save"');
-    expect(manager).toContain('db.rpc("eut_admin_technician_registry_list"');
+    expect(directory).toContain('db.rpc("eut_admin_technician_registry_list"');
     expect(manager).toContain('db.rpc("eut_admin_technician_record_archive"');
     expect(manager).toContain("normalizeBrazilPhoneE164(phone)");
     expect(manager).not.toContain("auth.admin.createUser");
