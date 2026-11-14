@@ -7,6 +7,7 @@ import { normalizeGuiafixSearch, readGuiafixStaging } from "@/lib/guiafix-stagin
 import {
   adminSearchUrl,
   cleanAdminSearch,
+  importedTechnicianSearchResult,
   matchingAdminModules,
   type AdminSearchResult,
 } from "@/lib/admin-global-search";
@@ -203,11 +204,7 @@ async function findRecords(term: string): Promise<SearchResponse> {
   for (const row of importedTechnicians.filter((entry) =>
     normalizeGuiafixSearch(`${entry.name} ${entry.city} ${entry.uf}`)
       .includes(normalizeGuiafixSearch(term))).slice(0, 6)) {
-    items.push({
-      key: `technician-import:${row.key}`, title: row.name,
-      description: `Técnico · ${row.city}/${row.uf}`,
-      section: "tecnicos", url: adminSearchUrl("tecnicos", row.name),
-    });
+    items.push(importedTechnicianSearchResult(row));
   }
   return { items, unavailable };
 }

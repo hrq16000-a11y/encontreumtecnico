@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { adminSearchUrl, cleanAdminSearch, matchingAdminModules } from "./admin-global-search";
+import { adminSearchUrl, cleanAdminSearch, importedTechnicianSearchResult, matchingAdminModules } from "./admin-global-search";
 
 describe("busca unificada do painel administrativo", () => {
   it("localiza qualquer módulo por nome sem depender do banco", () => {
@@ -21,6 +21,23 @@ describe("busca unificada do painel administrativo", () => {
     );
     expect(adminSearchUrl("contatos", "a%_*,.(b)", "../fora")).toBe("/admin/contatos?busca=a+b");
     expect(cleanAdminSearch(" ").length).toBe(0);
+  });
+
+  it("limpa o título do importado sem alterar a chave de pesquisa do registro", () => {
+    const rawName = "Hospital da Eletrônica Técnico de Informática Cruzeiro do Sul";
+    const result = importedTechnicianSearchResult({
+      key: "AC:cruzeiro do sul:hospital da eletronica tecnico de informatica cruzeiro do sul",
+      name: rawName,
+      city: "Cruzeiro do Sul",
+      uf: "AC",
+    });
+    expect(result.title).toBe("Hospital da Eletrônica");
+    expect(result.description).toBe("Técnico · Cruzeiro do Sul/AC");
+    expect(result.url).toBe(adminSearchUrl("tecnicos", rawName));
+    expect(result.url).toContain("Hospital+da+Eletr%C3%B4nica+T%C3%A9cnico+de+Inform%C3%A1tica");
+    expect(importedTechnicianSearchResult({
+      key: "PR:curitiba:informatica curitiba", name: "Informática Curitiba", city: "Curitiba", uf: "PR",
+    }).title).toBe("Informática Curitiba");
   });
 
   it("mantém pesquisa privada dentro do guarda administrativo e consultas limitadas", () => {
