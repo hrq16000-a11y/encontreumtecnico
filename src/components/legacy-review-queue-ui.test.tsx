@@ -47,6 +47,14 @@ beforeEach(() => {
 afterEach(() => { cleanup(); from.mockReset(); rpc.mockReset(); });
 
 describe("gestão visual do acervo histórico", () => {
+  it("permite consultar técnicos importados dentro da gestão de técnicos, sem misturar contratantes", async () => {
+    render(<LegacyReviewQueue onlyTechnicians />);
+    expect(await screen.findByRole("heading", { name: "Técnicos importados — gestão auditada" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Contratantes" })).toBeNull();
+    expect(await screen.findByRole("button", { name: "Ver ficha · Técnico Sintético" })).toBeTruthy();
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
   it("abre detalhes sem contato privado e explica por que uma demonstração arquivada não pode ser editada", async () => {
     render(<LegacyReviewQueue />);
     const open = await screen.findByRole("button", { name: "Ver ficha · Wanda Histórica" });

@@ -156,6 +156,9 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
               <AdminMemberInvites initialRole="tecnico" />
               <AdminGuiafixStaging />
               <AdminTechnicianManager adminOwnerId={user.id} />
+              <div className="mt-10 border-t border-border pt-8" id="tecnicos-importados">
+                <LegacyReviewQueue onlyTechnicians />
+              </div>
             </section>}
             {section === "mensagens" && <section aria-label="Mensagens administrativas">
               <h2 id="admin-mensagens" className="mt-10 scroll-mt-20 text-lg font-semibold text-foreground">Mensagens de contato</h2>
