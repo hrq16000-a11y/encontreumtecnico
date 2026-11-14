@@ -15,6 +15,15 @@ describe("busca administrativa unificada", () => {
     expect(directory).toContain('db.from("legacy_review_profiles")');
     expect(directory).toContain('db.from("technicians")');
     expect(directory).toContain('readGuiafixStaging(Object.values(captures))');
+    expect(directory).toContain('unifiedPageSlice(');
+    expect(directory).toContain('Paginação do diretório unificado');
+    expect(directory).toContain('Últimos cadastros do portal');
+    expect(directory).toContain('onEditTechnician({');
+    expect(directory).toContain('onReviewLegacy({');
+    expect(directory).toContain('.eq("kind", "candidate")');
+    expect(directory).not.toContain('Carregar mais técnicos');
+    expect(page).toContain('focusRequest={technicianFocus}');
+    expect(page).toContain('focusRequest={legacyFocus}');
     expect(directory).not.toMatch(/private_contacts|auth\.admin|service_role|\.from\("eut_technician_private_contacts"\)/);
   });
 });

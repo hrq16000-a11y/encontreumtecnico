@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { PageShell, LP2EmbeddedContext } from "../components/page-placeholder";
 import { RequestCard, type Req } from "../components/request-list";
 import { useAuth } from "@/hooks/use-auth";
@@ -15,7 +15,11 @@ import { AdminCommandOverview } from "@/components/admin-command-overview";
 import { AdminAdvertisingManager } from "@/components/admin-advertising-manager";
 import { AdminNavigation } from "@/components/admin-navigation";
 import { AdminTechnicianManager } from "@/components/admin-technician-manager";
-import { AdminTechnicianUnifiedDirectory } from "@/components/admin-technician-unified-directory";
+import {
+  AdminTechnicianUnifiedDirectory,
+  type AdminLegacyDirectoryFocus,
+  type AdminTechnicianDirectoryFocus,
+} from "@/components/admin-technician-unified-directory";
 import { AdminOwnTechnicianRole } from "@/components/admin-own-technician-role";
 import { AdminMemberInvites } from "@/components/admin-member-invites";
 import { AdminAccountsManager } from "@/components/admin-accounts-manager";
@@ -57,6 +61,24 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
   const [reqs, setReqs] = useState<Req[]>([]);
   const [msgs, setMsgs] = useState<Tables<"contact_messages">[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [technicianFocus, setTechnicianFocus] = useState<(AdminTechnicianDirectoryFocus & { requestId: number }) | null>(null);
+  const [legacyFocus, setLegacyFocus] = useState<(AdminLegacyDirectoryFocus & { requestId: number }) | null>(null);
+  const technicianManagementRef = useRef<HTMLDetailsElement>(null);
+  const legacyManagementRef = useRef<HTMLDetailsElement>(null);
+
+  function openTechnicianFromDirectory(focus: AdminTechnicianDirectoryFocus) {
+    setTechnicianFocus((current) => ({ ...focus, requestId: (current?.requestId ?? 0) + 1 }));
+    if (technicianManagementRef.current) technicianManagementRef.current.open = true;
+    window.requestAnimationFrame(() => document.getElementById("admin-operational-editor")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
+
+  function openLegacyFromDirectory(focus: AdminLegacyDirectoryFocus) {
+    setLegacyFocus((current) => ({ ...focus, requestId: (current?.requestId ?? 0) + 1 }));
+    if (legacyManagementRef.current) legacyManagementRef.current.open = true;
+    window.requestAnimationFrame(() => document.getElementById("admin-wordpress-editor")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
 
   async function load() {
     // A page only queries the records it needs. RLS remains authoritative.
@@ -153,14 +175,16 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             {section === "contas" && <section aria-label="Contas e bloqueios"><AdminMemberInvites /><AdminAccountsManager /></section>}
             {section === "contatos" && <section aria-label="Contatos administrativos"><AdminContactsDashboard adminId={user.id} /></section>}
             {section === "tecnicos" && <section aria-label="Gestão de técnicos">
-              <AdminTechnicianUnifiedDirectory />
-              <details className="mt-6 rounded-xl border border-border p-4" open>
+              <AdminTechnicianUnifiedDirectory
+                onEditTechnician={openTechnicianFromDirectory}
+                onReviewLegacy={openLegacyFromDirectory} />
+              <details ref={technicianManagementRef} id="admin-operational-editor" className="mt-6 scroll-mt-24 rounded-xl border border-border p-4" open>
                 <summary className="cursor-pointer text-lg font-bold text-foreground">Gerenciar dados e situação dos técnicos do portal</summary>
-                <div className="mt-5"><AdminTechnicianManager adminOwnerId={user.id} /></div>
+                <div className="mt-5"><AdminTechnicianManager adminOwnerId={user.id} focusRequest={technicianFocus} /></div>
               </details>
-              <details className="mt-4 rounded-xl border border-border p-4">
+              <details ref={legacyManagementRef} id="admin-wordpress-editor" className="mt-4 scroll-mt-24 rounded-xl border border-border p-4">
                 <summary className="cursor-pointer text-lg font-bold text-foreground">Gerenciar fichas importadas do WordPress</summary>
-                <div className="mt-5"><LegacyReviewQueue /></div>
+                <div className="mt-5"><LegacyReviewQueue onlyTechnicians focusRequest={legacyFocus} /></div>
               </details>
             </section>}
             {section === "mensagens" && <section aria-label="Mensagens administrativas">

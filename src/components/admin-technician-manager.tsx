@@ -1,9 +1,10 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Tables } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { TechnicianAvatar } from "@/components/technician-avatar";
 import { AdminTechnicianComprehensiveDraft } from "@/components/admin-technician-comprehensive-draft";
+import type { AdminTechnicianDirectoryFocus } from "@/components/admin-technician-unified-directory";
 import { publicTextProblem } from "@/lib/public-profile-text";
 import { clearAdminPublicDraft, readAdminPublicDraft, saveAdminPublicDraft, type AdminPublicFields } from "@/lib/admin-public-profile-draft";
 import { useActiveCategories } from "@/hooks/use-active-categories";
@@ -27,7 +28,10 @@ const actionLabels: Record<Action, string> = {
   reativar: "Reativar perfil", rejeitar: "Rejeitar perfil", revisar: "Enviar para revisão",
 };
 
-export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string }) {
+export function AdminTechnicianManager({ adminOwnerId, focusRequest }: {
+  adminOwnerId: string;
+  focusRequest?: (AdminTechnicianDirectoryFocus & { requestId: number }) | null;
+}) {
   const [status, setStatus] = useState<Status>("aprovado");
   const [search, setSearch] = useState("");
   const [draftSearch, setDraftSearch] = useState("");
@@ -117,6 +121,26 @@ export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string 
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const handledFocusRequest = useRef(0);
+
+  useEffect(() => {
+    if (!focusRequest || handledFocusRequest.current === focusRequest.requestId) return;
+    setStatus(focusRequest.status);
+    setDraftSearch(focusRequest.name);
+    setSearch(cleanAdminSearch(focusRequest.name));
+    setUf(""); setCity(""); setNeighborhood(""); setCategory(""); setPage(0);
+    setTarget(null); setAdvanced(null);
+  }, [focusRequest]);
+
+  useEffect(() => {
+    if (!focusRequest || !rows || handledFocusRequest.current === focusRequest.requestId) return;
+    const selected = rows.find((row) => row.id === focusRequest.id);
+    if (!selected) return;
+    handledFocusRequest.current = focusRequest.requestId;
+    setTarget(null);
+    setAdvanced(selected);
+    setFeedback("Cadastro localizado. Use Editar para nome/apresentação ou a revisão avançada para cidade, categorias e contato privado.");
+  }, [focusRequest, rows]);
 
   function publicBaseline(technician: Technician): AdminPublicFields {
     return { display_name: technician.display_name, bio: technician.bio ?? "", region: technician.region ?? "" };

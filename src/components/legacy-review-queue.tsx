@@ -1,9 +1,10 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Archive, Check, ChevronDown, Pencil, RotateCcw, ShieldAlert, SquareCheckBig, X } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { LEGACY_REVIEW_PAGE_SIZE, normalizeLegacyReviewSearch } from "@/lib/legacy-review-utils";
+import type { AdminLegacyDirectoryFocus } from "@/components/admin-technician-unified-directory";
 
 type LegacyKind = "candidate" | "employer";
 type LegacyProfile = {
@@ -28,7 +29,10 @@ const FIELDS = "source_key,wp_post_id,wp_user_id,kind,slug,title,specialty_title
 const db = supabase as unknown as SupabaseClient;
 
 /** WordPress source remains immutable; only an audited, admin-owned review overlay is edited. */
-export function LegacyReviewQueue({ onlyTechnicians = false }: { onlyTechnicians?: boolean } = {}) {
+export function LegacyReviewQueue({ onlyTechnicians = false, focusRequest }: {
+  onlyTechnicians?: boolean;
+  focusRequest?: (AdminLegacyDirectoryFocus & { requestId: number }) | null;
+} = {}) {
   const [kind, setKind] = useState<LegacyKind>("candidate");
   const [draft, setDraft] = useState("");
   const [term, setTerm] = useState("");
@@ -46,6 +50,16 @@ export function LegacyReviewQueue({ onlyTechnicians = false }: { onlyTechnicians
   const [action, setAction] = useState<{ ids: number[]; type: Action } | null>(null);
   const [value, setValue] = useState("");
   const [reason, setReason] = useState("");
+  const [focusedWpPostId, setFocusedWpPostId] = useState<number | null>(null);
+  const handledFocusRequest = useRef(0);
+
+  useEffect(() => {
+    if (!focusRequest || handledFocusRequest.current === focusRequest.requestId) return;
+    handledFocusRequest.current = focusRequest.requestId;
+    setKind("candidate"); setPage(0); setTerm(""); setDraft("");
+    setFocusedWpPostId(focusRequest.wpPostId);
+    setSelected([]); setExpanded([focusRequest.wpPostId]); setAction(null);
+  }, [focusRequest]);
 
   useEffect(() => {
     let current = true;
@@ -54,6 +68,7 @@ export function LegacyReviewQueue({ onlyTechnicians = false }: { onlyTechnicians
       setError(null);
       let query = db.from("legacy_review_profiles")
         .select(FIELDS, { count: "exact" }).eq("source_key", "wordpress_20261108").eq("kind", kind);
+      if (focusedWpPostId !== null) query = query.eq("wp_post_id", focusedWpPostId);
       if (term) query = query.ilike("title", `%${term}%`);
       const { data, error: readError, count } = await query
         .order("wp_post_id", { ascending: true })
@@ -85,10 +100,11 @@ export function LegacyReviewQueue({ onlyTechnicians = false }: { onlyTechnicians
     }
     void load();
     return () => { current = false; };
-  }, [kind, page, term, version]);
+  }, [kind, page, term, version, focusedWpPostId]);
 
   function submitSearch(event: FormEvent) {
     event.preventDefault();
+    setFocusedWpPostId(null);
     setTerm(normalizeLegacyReviewSearch(draft));
     setSelected([]); setExpanded([]); setPage(0); setAction(null);
   }
@@ -183,6 +199,11 @@ export function LegacyReviewQueue({ onlyTechnicians = false }: { onlyTechnicians
         placeholder="Buscar por nome do WordPress" className="min-h-12 flex-1 rounded-xl border border-input bg-background px-4 text-foreground" />
       <button type="submit" className="min-h-12 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground">Buscar</button>
     </form>
+    {focusedWpPostId !== null && <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-foreground">
+      <span>Ficha WordPress #{focusedWpPostId} selecionada pelo diretório.</span>
+      <button type="button" onClick={() => { setFocusedWpPostId(null); setExpanded([]); setPage(0); }}
+        className="min-h-11 rounded-lg border border-input px-3 font-semibold text-primary">Voltar a todas as fichas</button>
+    </div>}
     {error && <p role="alert" className="mt-4 rounded-xl border border-destructive/30 p-4 text-sm text-destructive">{error}</p>}
     {feedback && <p role="status" className="mt-4 rounded-xl border border-border bg-muted p-4 text-sm text-foreground">{feedback}</p>}
     <p role="status" className="mt-4 text-sm text-muted-foreground">
