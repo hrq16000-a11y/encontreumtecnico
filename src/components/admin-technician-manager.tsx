@@ -343,7 +343,14 @@ export function AdminTechnicianManager({
         <Check className="h-4 w-4" /> {busy ? "Gravando no banco…" : "Confirmar e registrar"}
       </button>
     </form>}
-    {advanced && <AdminTechnicianComprehensiveDraft key={advanced.id} technician={advanced} onClose={() => setAdvanced(null)} onSave={saveAdvanced} />}
+    {advanced && <AdminTechnicianComprehensiveDraft key={advanced.id} technician={advanced}
+      onClose={() => setAdvanced(null)} onSave={saveAdvanced}
+      onArchived={(message) => {
+        setAdvanced(null);
+        setReload((value) => value + 1);
+        onUpdated?.();
+        setFeedback(message);
+      }} />}
     </div>
     {readError && <p role="alert" className="mt-4 rounded-lg border border-destructive/30 p-3 text-sm text-destructive">{readError}</p>}
     {loadingRows || rows === null ? <p role="status" className="mt-5 text-sm text-muted-foreground">Carregando página de técnicos…</p>

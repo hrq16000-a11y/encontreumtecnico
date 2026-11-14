@@ -5,6 +5,7 @@ const sql = readFileSync("docs/sql/eut-admin-technician-crud-staging-proposal-20
 const assertions = readFileSync("docs/sql/tests/eut-admin-crud-ephemeral-assertions-20261111.sql", "utf8");
 const manager = readFileSync("src/components/admin-technician-intake-manager.tsx", "utf8");
 const editor = readFileSync("src/components/admin-technician-manager.tsx", "utf8");
+const advanced = readFileSync("src/components/admin-technician-comprehensive-draft.tsx", "utf8");
 
 describe("CRUD administrativo de técnicos com contato privado", () => {
   it("envia edição avançada somente pela RPC auditada e reconhece ausência da função", () => {
@@ -23,6 +24,14 @@ describe("CRUD administrativo de técnicos com contato privado", () => {
     expect(sql).toContain("portal_technician_id uuid UNIQUE REFERENCES public.technicians(id)");
     expect(sql).toContain("contact_suspended boolean NOT NULL DEFAULT false");
     expect(sql).toContain("ENABLE ROW LEVEL SECURITY");
+  });
+  it("arquiva e restaura cadastros operacionais somente por RPC auditada", () => {
+    expect(advanced).toContain('adminDb.rpc("eut_admin_technician_archive"');
+    expect(advanced).toContain("prepareReversibleArchive");
+    expect(advanced).toContain("data?.contact_enabled !== false");
+    expect(advanced).toContain("data?.archived !== !isArchived");
+    expect(editor).toContain("onArchived={(message)");
+    expect(advanced).not.toContain(".delete(");
   });
   it("homologa duplicidade, banimento, versão, privacidade, arquivo e permissões", () => {
     for (const message of [

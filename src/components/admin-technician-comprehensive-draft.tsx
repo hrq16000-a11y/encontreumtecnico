@@ -1,8 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Tables } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import {
   prepareAdminTechnicianEdit,
+  prepareReversibleArchive,
   type AdminCatalog,
   type AdminCity,
   type AdminEditDraft,
@@ -42,16 +44,19 @@ const input =
   "min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground";
 const button =
   "min-h-11 rounded-lg border border-input px-3 text-sm text-foreground disabled:opacity-50";
+const adminDb = supabase as unknown as SupabaseClient;
 
 export function AdminTechnicianComprehensiveDraft({
   technician,
   onClose,
   onSave,
+  onArchived,
 }: {
   technician: AdminTechnicianAdvancedRecord;
   onClose: () => void;
   /** The parent owns the authenticated RPC and verifies the server response. */
   onSave: (edit: PreparedEdit) => Promise<void>;
+  onArchived: (message: string) => void;
 }) {
   const [catalog, setCatalog] = useState<AdminCatalog>({
     cities: [],
@@ -81,6 +86,20 @@ export function AdminTechnicianComprehensiveDraft({
   const [prepared, setPrepared] = useState<PreparedEdit | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [isArchived, setIsArchived] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    // The audit exposes only the archive state, never the private contact.
+    void adminDb.from("eut_admin_management_log").select("action")
+      .eq("target_type", "technician").eq("target_key", technician.id)
+      .in("action", ["technician_archived", "technician_restored_pending"])
+      .order("created_at", { ascending: false }).limit(1).maybeSingle()
+      .then(({ data, error }) => {
+        if (active) setIsArchived(error ? null : data?.action === "technician_archived");
+      });
+    return () => { active = false; };
+  }, [technician.id]);
 
   useEffect(() => {
     let active = true;
@@ -274,6 +293,51 @@ export function AdminTechnicianComprehensiveDraft({
     } finally {
       setSaving(false);
     }
+  }
+
+  async function archiveOrRestore() {
+    if (saving || isArchived === null) return;
+    const action = isArchived ? "restore" : "archive";
+    const gate = prepareReversibleArchive({
+      technicianId: technician.id,
+      expectedUpdatedAt: technician.updated_at,
+      reason,
+      action,
+      isArchived,
+      accountBlocked: true,
+      phoneBlocked: true,
+    });
+    if (!gate.ok) { setSaveError(gate.issue); return; }
+    if (!window.confirm(isArchived
+      ? "Restaurar para revisão, sem liberar contatos ou retirar bloqueios?"
+      : "Arquivar este técnico com auditoria, sem apagar seus dados?")) return;
+    setSaving(true); setSaveError(null);
+    try {
+      const { data, error } = await adminDb.rpc("eut_admin_technician_archive", {
+        _technician_id: technician.id,
+        _expected_updated_at: technician.updated_at,
+        _action: action,
+        _reason: reason.trim(),
+      });
+      if (error) {
+        setSaveError(error.code === "40001"
+          ? "O técnico foi modificado em outra sessão. Atualize a ficha."
+          : "O servidor recusou o arquivamento. Confira a permissão e o estado do técnico.");
+        return;
+      }
+      if (data?.ok !== true || data?.technician_id !== technician.id ||
+          data?.archived !== !isArchived || data?.contact_enabled !== false ||
+          !Number.isFinite(Date.parse(data?.updated_at ?? ""))) {
+        setSaveError("A resposta do servidor não confirmou a operação. Atualize a listagem.");
+        return;
+      }
+      setPhoneInput(""); setPhoneMode("keep"); setPrepared(null);
+      onArchived(isArchived
+        ? "Ficha restaurada para revisão, sem liberar contatos ou bloqueios."
+        : "Ficha arquivada com auditoria, sem apagar contatos privados.");
+    } catch {
+      setSaveError("Falha na conexão; confira o estado da ficha antes de repetir.");
+    } finally { setSaving(false); }
   }
 
   return (
@@ -634,6 +698,14 @@ export function AdminTechnicianComprehensiveDraft({
             className="min-h-12 w-full rounded-lg bg-primary px-5 text-sm font-bold text-primary-foreground disabled:opacity-40 sm:ml-2 sm:w-auto"
             onClick={() => void savePrepared()}
           >{saving ? "Gravando…" : "Confirmar e salvar no banco"}</button>}
+          {isArchived !== null && !prepared && <button type="button"
+            disabled={saving || reason.trim().length < 8}
+            className="mt-3 min-h-12 w-full rounded-lg border border-amber-500/40 px-5 text-sm font-bold text-foreground disabled:opacity-40 sm:ml-2 sm:mt-0 sm:w-auto"
+            onClick={() => void archiveOrRestore()}
+          >{saving ? "Registrando…" : isArchived ? "Restaurar para revisão" : "Arquivar técnico"}</button>}
+          {isArchived && <p className="mt-2 text-xs text-muted-foreground">
+            Restaurar não aprova o técnico, não retira bloqueios nem libera contato pago.
+          </p>}
         </form>
       )}
     </section>
