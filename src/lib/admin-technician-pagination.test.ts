@@ -16,7 +16,7 @@ describe("Paginação administrativa para milhares de técnicos", () => {
   it("filtra no banco com RLS, contagem e ordenação estável; não busca todos", () => {
     const manager=readFileSync("src/components/admin-technician-manager.tsx","utf8");
     const admin=readFileSync("src/routes/admin.tsx","utf8");
-    expect(manager).toContain('select("id,status,display_name,bio,region,city,state_uf,specialties,avatar_path,created_at", { count: "exact" })');
+    expect(manager).toContain('select("id,status,display_name,bio,region,city,state_uf,specialties,service_slugs,coverage_city_ids,updated_at,avatar_path,created_at", { count: "exact" })');
     expect(manager).toContain('.eq("status", status)');
     expect(manager).toContain('.range(from, to)');
     expect(manager).toContain('.order("id", { ascending: true })');

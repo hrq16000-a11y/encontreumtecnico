@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Tables } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { TechnicianAvatar } from "@/components/technician-avatar";
+import { AdminTechnicianCatalogEditor } from "@/components/admin-technician-catalog-editor";
 import { publicTextProblem } from "@/lib/public-profile-text";
 import { clearAdminPublicDraft, readAdminPublicDraft, saveAdminPublicDraft, type AdminPublicFields } from "@/lib/admin-public-profile-draft";
 import { useActiveCategories } from "@/hooks/use-active-categories";
@@ -10,10 +11,12 @@ import { BRAZIL_STATES } from "@/lib/service-taxonomy";
 import { adminPageRange, cleanAdminSearch } from "@/lib/admin-technician-pagination";
 import { Check, Pencil, RotateCcw, ShieldAlert, UserRoundX, X } from "lucide-react";
 
-type Technician = Pick<Tables<"technicians">, "id" | "status" | "display_name" | "bio" | "region" | "city" | "state_uf" | "specialties" | "avatar_path" | "created_at">;
+type Technician = Pick<Tables<"technicians">, "id" | "status" | "display_name" | "bio" | "region" | "city" | "state_uf" | "specialties" | "service_slugs" | "coverage_city_ids" | "updated_at" | "avatar_path" | "created_at">;
 type Status = Technician["status"];
 type Action = "editar" | "aprovar" | "suspender" | "reativar" | "rejeitar" | "revisar";
 const db = supabase as unknown as SupabaseClient;
+// The reviewed SQL contract must be installed before exposing this action.
+const catalogEditEnabled = import.meta.env.VITE_EUT_ADMIN_CATALOG_EDIT === "enabled";
 const TABS: { key: Status; label: string }[] = [
   { key: "pendente", label: "Pendentes" }, { key: "aprovado", label: "Aprovados" },
   { key: "suspenso", label: "Suspensos" }, { key: "rejeitado", label: "Rejeitados" },
@@ -59,7 +62,7 @@ export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string 
     void (async () => {
       const [from, to] = adminPageRange(page);
       let query = supabase.from("technicians")
-        .select("id,status,display_name,bio,region,city,state_uf,specialties,avatar_path,created_at", { count: "exact" })
+        .select("id,status,display_name,bio,region,city,state_uf,specialties,service_slugs,coverage_city_ids,updated_at,avatar_path,created_at", { count: "exact" })
         .eq("status", status);
       const term = cleanAdminSearch(search);
       if (term) query = query.ilike("display_name", `%${term}%`);
@@ -108,6 +111,7 @@ export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string 
   }, [reload]);
 
   const [target, setTarget] = useState<{ technician: Technician; action: Action } | null>(null);
+  const [catalogTarget, setCatalogTarget] = useState<Technician | null>(null);
   const [draft, setDraft] = useState({ display_name: "", bio: "", region: "" });
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -118,6 +122,7 @@ export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string 
   }
 
   function choose(technician: Technician, action: Action) {
+    setCatalogTarget(null);
     const baseline = publicBaseline(technician);
     const recovered = action === "editar"
       ? readAdminPublicDraft(adminOwnerId, technician.id, baseline) : null;
@@ -236,6 +241,13 @@ export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string 
       </button>)}
     </div>
     {feedback && <p role="status" className="mt-3 rounded-xl border border-border bg-muted/60 p-4 text-sm text-foreground">{feedback}</p>}
+    {catalogTarget && <AdminTechnicianCatalogEditor key={catalogTarget.id} technician={catalogTarget}
+      onCancel={() => setCatalogTarget(null)}
+      onSaved={() => {
+        setCatalogTarget(null);
+        setReload((value) => value + 1);
+        setFeedback("Cidade e especialidades atualizadas com confirmação e auditoria do banco.");
+      }} />}
     {target && <form onSubmit={(e) => void submit(e)} className="mt-5 space-y-4 rounded-2xl border-2 border-primary/30 bg-card p-5 shadow-sm" aria-label="Confirmar ação administrativa">
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -295,6 +307,10 @@ export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string 
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <button type="button" onClick={() => choose(technician, "editar")} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-input px-3 text-sm font-semibold text-foreground hover:bg-accent"><Pencil className="h-4 w-4" /> Editar</button>
+            {catalogEditEnabled && <button type="button" onClick={() => { setTarget(null); setCatalogTarget(technician); setFeedback(null); }}
+              className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-input px-3 text-sm font-semibold text-foreground hover:bg-accent">
+              <Pencil className="h-4 w-4" /> Cidade e especialidades
+            </button>}
             {technician.status === "aprovado" && <button type="button" onClick={() => choose(technician, "suspender")} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-amber-500/40 px-3 text-sm font-semibold text-foreground hover:bg-accent"><ShieldAlert className="h-4 w-4" /> Suspender</button>}
             {technician.status === "suspenso" && <button type="button" onClick={() => choose(technician, "reativar")} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground"><RotateCcw className="h-4 w-4" /> Dessuspender</button>}
             {technician.status === "pendente" && <button type="button" onClick={() => choose(technician, "aprovar")} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground"><Check className="h-4 w-4" /> Aprovar</button>}

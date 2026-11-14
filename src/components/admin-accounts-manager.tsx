@@ -232,6 +232,10 @@ export function AdminAccountsManager({ initialFilter = "todos" }: { initialFilte
           <div className="min-w-0">
             <h3 className="font-bold text-foreground">{account.full_name}</h3>
             <p className="mt-1 text-sm text-muted-foreground">{account.masked_email ?? "Sem e-mail"} · {account.roles || "Papel não escolhido"}</p>
+             <p className="mt-1 text-xs text-muted-foreground">
+               E-mail {account.email_confirmed ? "confirmado" : "a confirmar"} · Cadastro em{" "}
+               <time dateTime={account.created_at}>{new Date(account.created_at).toLocaleDateString("pt-BR")}</time>
+             </p>
             {account.masked_phone && <p className="mt-1 text-xs text-muted-foreground">Contato: {account.masked_phone}</p>}
             {account.technician_status && <p className="mt-1 text-xs text-muted-foreground">Perfil técnico: {account.technician_status}</p>}
           </div>
