@@ -4,8 +4,13 @@ import { Search, ArrowUpRight, X, LoaderCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ADMIN_SECTIONS, type AdminModule } from "@/lib/admin-sections";
 import { adminResultHref, cleanAdminQuery } from "@/lib/admin-search";
+import { normalizeGuiafixSearch, readGuiafixStaging } from "@/lib/guiafix-staging-normalizer";
 
 const db = supabase as unknown as SupabaseClient;
+const captures = import.meta.glob("../../data/external-staging/guiafix-*.capture.json", {
+  eager: true, import: "default",
+}) as Record<string, unknown>;
+const importedTechnicians = readGuiafixStaging(Object.values(captures));
 
 type SearchHit = {
   key: string;
@@ -34,6 +39,17 @@ async function searchRecords(term: string): Promise<{ hits: SearchHit[]; failed:
           key: `technician:portal:${row.id}`, label: row.display_name,
           detail: [row.city, row.state_uf].filter(Boolean).join("/") || "Técnico",
           module: "tecnicos" as const, filter: row.display_name,
+        }));
+      }),
+    Promise.resolve(db.from("legacy_review_profiles").select("wp_post_id,title,location1")
+      .eq("source_key", "wordpress_20261108").eq("kind", "candidate")
+      .ilike("title", `%${term}%`).order("title").limit(8))
+      .then(({ data, error }) => {
+        if (error) throw error;
+        return ((data ?? []) as Array<{ wp_post_id: number; title: string; location1: string | null }>).map((row) => ({
+          key: `technician:wp:${row.wp_post_id}`, label: row.title,
+          detail: row.location1 || "Técnico",
+          module: "tecnicos" as const, filter: row.title,
         }));
       }),
     Promise.resolve(db.from("service_requests").select("id,title,city,category,status")
@@ -70,6 +86,14 @@ async function searchRecords(term: string): Promise<{ hits: SearchHit[]; failed:
   ];
   const settled = await Promise.allSettled(jobs);
   const dedup = new Map<string, SearchHit>();
+  for (const row of importedTechnicians.filter((item) =>
+    normalizeGuiafixSearch(`${item.name} ${item.city} ${item.uf}`)
+      .includes(normalizeGuiafixSearch(term))).slice(0, 8)) {
+    const hit: SearchHit = { key: `technician:capture:${row.key}`, label: row.name,
+      detail: [row.city, row.uf].filter(Boolean).join("/") || "Técnico",
+      module: "tecnicos", filter: row.name };
+    dedup.set(`${hit.module}:${hit.label.toLocaleLowerCase("pt-BR")}:${hit.detail}`, hit);
+  }
   for (const result of settled) if (result.status === "fulfilled") {
     for (const hit of result.value) if (hit.label) {
       const identity = `${hit.module}:${hit.label.toLocaleLowerCase("pt-BR")}:${hit.detail}`;
@@ -107,7 +131,7 @@ export function AdminGlobalSearch() {
     setLoading(true);
     void searchRecords(term).then((result) => {
       if (active) { setHits(result.hits); setFailed(result.failed); }
-    }).catch(() => { if (active) { setHits([]); setFailed(5); } })
+      }).catch(() => { if (active) { setHits([]); setFailed(6); } })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [term]);
