@@ -160,5 +160,9 @@ export function AdminCommandOverview() {
       <Link to="/admin/$secao" params={{ secao: "mensagens" }} className="flex min-h-12 items-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-bold hover:border-primary">
         <Inbox className="h-4 w-4 text-primary" /> Tratar mensagens</Link>
     </div>
+    <Link to="/admin/$secao" params={{ secao: "metricas" }}
+      className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg border border-primary/25 px-4 py-2 text-sm font-semibold text-primary hover:border-primary">
+      <Activity className="h-4 w-4" /> Consultar buscas recentes com consentimento <ArrowUpRight className="h-4 w-4" />
+    </Link>
   </section>;
 }

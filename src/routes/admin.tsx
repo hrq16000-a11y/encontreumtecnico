@@ -4,6 +4,7 @@ import { PageShell, LP2EmbeddedContext } from "../components/page-placeholder";
 import { useAuth } from "@/hooks/use-auth";
 import { ConnectedGoogleIdentity } from "@/components/connected-google-identity";
 import { SearchMetrics } from "@/components/search-metrics";
+import { AdminVisitorActivity } from "@/components/admin-visitor-activity";
 import { LegacyReviewQueue } from "@/components/legacy-review-queue";
 import { LegacyClaimReview } from "@/components/legacy-claim-review";
 import { EutAdminManager } from "@/components/eut-admin-manager";
@@ -113,7 +114,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
               <AdminControlHub />
             </section>)}
             {section === "patrocinadores" && <section aria-label="Patrocinadores e banners"><div id="admin-patrocinadores"><AdminAdvertisingManager /></div></section>}
-            {section === "metricas" && <section aria-label="Buscas e indicadores"><div id="admin-metricas"><SearchMetrics /></div></section>}
+            {section === "metricas" && <section aria-label="Buscas e indicadores"><div id="admin-metricas"><AdminVisitorActivity /><SearchMetrics /></div></section>}
             {section === "legado" && <section aria-label="Acervo WordPress"><div id="admin-legado"><LegacyReviewQueue /></div></section>}
             {section === "reivindicacoes" && <section aria-label="Reivindicações"><div id="admin-reivindicacoes"><LegacyClaimReview /></div></section>}
             {section === "catalogo" && <section aria-label="Categorias e serviços"><div id="admin-catalogo"><EutAdminManager /></div></section>}
