@@ -217,8 +217,9 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       setLegacy((before) => before.map((item) => item.key === row.key
         ? { ...item,
             name: wpAction === "corrigir_nome" ? newName : item.name,
-            recordState: wpAction === "arquivar" ? "excluido"
-              : wpAction === "restaurar" ? "pendente" : item.recordState }
+            ...(wpAction === "corrigir_nome" ? {} : {
+              recordState: wpAction === "arquivar" ? "excluido" : "pendente",
+            }) }
         : item));
       setFeedback("Alteração registrada no banco. O cadastro original e os contatos privados foram preservados.");
       setSelectedKey(null);
