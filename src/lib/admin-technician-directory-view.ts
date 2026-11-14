@@ -14,6 +14,7 @@ export type DirectoryActionRow = {
   demo?: boolean | undefined;
   registry?: { archived: boolean; admin_active: boolean } | undefined;
   createdAt?: string | undefined;
+  importedAt?: string | undefined;
   updatedAt?: string | undefined;
 };
 
@@ -53,7 +54,7 @@ export function orderTechnicians<T extends DirectoryActionRow>(
   return [...rows].sort((a, b) => {
     if (sort === "newest" || sort === "updated") {
       const getDate = (row: T) =>
-        Date.parse((sort === "updated" ? row.updatedAt || row.createdAt : row.createdAt) || "") ||
+        Date.parse((sort === "updated" ? row.updatedAt || row.createdAt || row.importedAt : row.createdAt || row.importedAt) || "") ||
         0;
       const delta = getDate(b) - getDate(a);
       if (delta) return delta;

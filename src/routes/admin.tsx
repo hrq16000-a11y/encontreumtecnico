@@ -134,6 +134,9 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
               <AdminMemberInvites initialRole="cliente" />
               <AdminClientInsights />
               <AdminAccountsManager initialFilter="clientes" />
+              <div className="mt-6" aria-label="Gestão dos cadastros antigos de clientes">
+                <LegacyReviewQueue onlyClients />
+              </div>
               <div className="mt-5 rounded-xl border border-border bg-muted/20 p-5">
                 <h3 className="font-bold text-foreground">Solicitações em módulo protegido</h3>
                 <p className="mt-2 text-sm text-muted-foreground">

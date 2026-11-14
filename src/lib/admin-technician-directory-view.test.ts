@@ -38,6 +38,14 @@ describe("visualização e operações em lote de técnicos", () => {
     expect(orderTechnicians([wp, imported, portal], "newest")[0]?.key).toBe("portal:1");
   });
 
+  it("considera a data de importação de fichas antigas nas entradas recentes sem chamá-la de cadastro", () => {
+    const historical = { ...wp, importedAt: "2026-11-14T11:00:00Z" };
+    expect(orderTechnicians([portal, historical], "newest").map((r) => r.key))
+      .toEqual(["wp:7", "portal:1"]);
+    expect(orderTechnicians([portal, historical], "name-asc").map((r) => r.key))
+      .toEqual(["portal:1", "wp:7"]);
+  });
+
   it("permite importar referências e suspender contas, mantendo diferenças operacionais internas", () => {
     expect(canBulkAct(wp, "import")).toBe(true);
     expect(canBulkAct(portal, "archive")).toBe(true);

@@ -35,6 +35,7 @@ type DirectoryRow = {
   regionKey?: string | undefined;
   specialty: string | null;
   createdAt?: string;
+  importedAt?: string;
   updatedAt?: string;
   avatarPath?: string | null;
   portalStatus?: "pendente" | "aprovado" | "suspenso" | "rejeitado";
@@ -127,7 +128,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       // Fetch in 200-row chunks to avoid PostgREST's 1,000-row response cap.
       // Alternate sorts and status filters require the whole matching candidate set;
       // otherwise a name-sorted prefix would give false ordering/empty pages.
-      const needed = sort === "name-asc" && stateFilter === "all" && !region && !specialtyTerm
+      const needed = sort === "name-asc" && !recentOnly && stateFilter === "all" && !region && !specialtyTerm
         ? (page + 1) * UNIFIED_DIRECTORY_PAGE_SIZE : 10000;
       let matchedIds: number[] = [];
       if (term) {
@@ -174,12 +175,11 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       }
 
       async function loadWordPress() {
-        if (recentOnly) return { rows: [] as DirectoryRow[], total: 0 };
         const rows: DirectoryRow[] = [];
         let total = 0;
         for (let start = 0; start < needed && current; start += FETCH_CHUNK) {
           let query = db.from("legacy_review_profiles")
-            .select("source_key,wp_post_id,kind,title,specialty_title,location1,location2,location3,demo_candidate", { count: "exact" })
+            .select("source_key,wp_post_id,kind,title,specialty_title,location1,location2,location3,demo_candidate,imported_at", { count: "exact" })
             .eq("source_key", "wordpress_20261108").eq("kind", "candidate");
           if (term) {
             const searchFields = ["title", "location1", "location2", "location3"]
@@ -205,6 +205,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
               location: locations.join(" · ") || "Localidade não informada",
               regionKey: specific?.split("/")[0]?.trim(),
               specialty: item.specialty_title || null,
+              importedAt: item.imported_at,
               origin: "wordpress", demo: item.demo_candidate,
             };
           }));
@@ -323,7 +324,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
   const merged = useMemo(() => {
     const importedWp = new Set(registry.filter((r) => r.origin === "wordpress").map((r) => r.source_id));
     const importedGuiafix = new Set(registry.filter((r) => r.origin === "guiafix").map((r) => r.source_id));
-    const registryRows: DirectoryRow[] = recentOnly ? [] : registry.filter((item) =>
+    const registryRows: DirectoryRow[] = registry.filter((item) =>
       (!region || normalizeGuiafixSearch(`${item.region_approx ?? ""} ${municipalityNames[item.city_ibge_id ?? -1] ?? ""} ${item.ddd ?? ""} ${item.city_ibge_id ?? ""}`)
         .includes(normalizeGuiafixSearch(region))) &&
       (!specialtyTerm || item.category_slugs.some((slug) => normalizeGuiafixSearch(slug).includes(specialtyTerm)))
@@ -343,20 +344,21 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       ...legacyUnlinked,
       ...guiafixUnlinked,
       ...registryRows];
-    const ordered = orderTechnicians(rows.filter((row) => stateFilter === "all" || technicianState(row) === stateFilter),
+    const datedRows = recentOnly ? rows.filter((row) => Boolean(row.createdAt || row.importedAt)) : rows;
+    const ordered = orderTechnicians(datedRows.filter((row) => stateFilter === "all" || technicianState(row) === stateFilter),
       recentOnly ? "newest" : sort);
     return { rows: ordered, importedCount: legacy.length - legacyUnlinked.length + guiafixResults.length - guiafixUnlinked.length,
       registryFilteredCount: registryRows.length };
   }, [operational, legacy, guiafixResults, registry, municipalityNames, region, specialtyTerm, recentOnly, sort, stateFilter]);
   const results = useMemo(() => unifiedPageSlice(merged.rows, page), [merged, page]);
-  const registryCount = recentOnly ? 0 : region || specialtyTerm ? merged.registryFilteredCount : registryAvailable ? registryTotal : 0;
+  const registryCount = region || specialtyTerm ? merged.registryFilteredCount : registryAvailable ? registryTotal : 0;
   const sourceTotal = operationalTotal === null || legacyTotal === null ? null
-    : Math.max(0, operationalTotal + legacyTotal + guiafixResults.length + registryCount - (recentOnly ? 0 : merged.importedCount));
+    : Math.max(0, operationalTotal + legacyTotal + guiafixResults.length + registryCount - merged.importedCount);
   const exactTotal = operationalTotal !== null && legacyTotal !== null &&
     operational.length >= operationalTotal && legacy.length >= legacyTotal &&
     (!registryAvailable || registry.length >= registryTotal);
   const allLoaded = exactTotal && !loading && !registryLoading;
-  const total = stateFilter !== "all" || allLoaded ? (allLoaded ? merged.rows.length : null) : sourceTotal;
+  const total = recentOnly || stateFilter !== "all" || allLoaded ? (allLoaded ? merged.rows.length : null) : sourceTotal;
   const pages = unifiedPageCount(total ?? 0);
   const selectedRows = results.filter((row) => selected.has(row.key));
 
@@ -624,7 +626,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
         Categorias e serviços
       </Link>
     </div>
-    {recentOnly && <p className="mt-2 text-xs text-muted-foreground">Exibindo técnicos com data de cadastro confirmada. Registros sem data não são ordenados artificialmente.</p>}
+    {recentOnly && <p className="mt-2 text-xs text-muted-foreground">Últimas entradas no sistema: para cadastros atuais, a data de cadastro; para fichas antigas, a data da importação. A importação não indica quando a pessoa se cadastrou originalmente.</p>}
     <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       <label className="grid gap-1 text-sm font-semibold text-foreground">Nome
         <input id="admin-unified-technician-search" value={draft} onChange={(event) => setDraft(event.target.value)}
@@ -655,7 +657,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
             className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm">
             <option value="name-asc">Nome A–Z</option>
             <option value="name-desc">Nome Z–A</option>
-            <option value="newest">Cadastro mais recente (quando conhecido)</option>
+            <option value="newest">Entradas mais recentes (cadastro ou importação)</option>
             <option value="updated">Última atualização (quando conhecida)</option>
           </select>
         </label>
@@ -771,6 +773,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
           <div><span className="block text-xs text-muted-foreground">Categoria / especialidade</span>{row.specialty || "Não informada"}</div>
           <div><span className="block text-xs text-muted-foreground">Situação</span>{technicianState(row) === "active" ? "Ativo" : technicianState(row) === "inactive" ? "Suspenso / arquivado" : "A revisar"}</div>
           <div><span className="block text-xs text-muted-foreground">Cadastro</span>{formatDate(row.createdAt)}</div>
+          {row.importedAt && <div><span className="block text-xs text-muted-foreground">Entrada no sistema (importação)</span>{formatDate(row.importedAt)}</div>}
           <div><span className="block text-xs text-muted-foreground">Última atualização</span>{formatDate(row.updatedAt)}</div>
           <div className="sm:col-span-2"><span className="block text-xs text-muted-foreground">Contato</span>
             {row.registry?.contact_last4 ? `Privado · final ${row.registry.contact_last4}` : "Use Consultar contato para verificar disponibilidade"}

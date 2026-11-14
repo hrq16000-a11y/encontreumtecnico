@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { Search, ArrowUpRight, LoaderCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { normalizeGuiafixSearch, readGuiafixStaging } from "@/lib/guiafix-staging-normalizer";
 import {
   adminSearchUrl,
   cleanAdminSearch,
@@ -11,6 +12,10 @@ import {
 } from "@/lib/admin-global-search";
 
 const db = supabase as unknown as SupabaseClient;
+const captures = import.meta.glob("../../data/external-staging/guiafix-*.capture.json", {
+  eager: true, import: "default",
+}) as Record<string, unknown>;
+const importedTechnicians = readGuiafixStaging(Object.values(captures));
 
 type SearchResponse = { items: AdminSearchResult[]; unavailable: boolean };
 
@@ -50,6 +55,9 @@ async function findRecords(term: string): Promise<SearchResponse> {
       .limit(5),
     db.from("eut_service_categories").select("slug,label,active").ilike("label", like).limit(5),
     db.from("eut_service_types").select("slug,label,active").ilike("label", like).limit(5),
+    db.from("legacy_review_profiles").select("wp_post_id,title,location1")
+      .eq("source_key", "wordpress_20261108").eq("kind", "employer")
+      .eq("demo_candidate", false).ilike("title", like).order("title").limit(6),
   ]);
   const items: AdminSearchResult[] = [];
   let unavailable = false;
@@ -153,6 +161,22 @@ async function findRecords(term: string): Promise<SearchResponse> {
       description: `Serviço · ${row.active ? "Ativo" : "Oculto"}`,
       section: "catalogo",
       url: adminSearchUrl("catalogo", row.label),
+    });
+  }
+  for (const row of (data[8] ?? []) as Array<{ wp_post_id: number; title: string; location1: string | null }>) {
+    items.push({
+      key: `client-history:${row.wp_post_id}`, title: row.title,
+      description: `Cliente · ${row.location1 || "Localidade não informada"}`,
+      section: "clientes", url: adminSearchUrl("clientes", row.title),
+    });
+  }
+  for (const row of importedTechnicians.filter((entry) =>
+    normalizeGuiafixSearch(`${entry.name} ${entry.city} ${entry.uf}`)
+      .includes(normalizeGuiafixSearch(term))).slice(0, 6)) {
+    items.push({
+      key: `technician-import:${row.key}`, title: row.name,
+      description: `Técnico · ${row.city}/${row.uf}`,
+      section: "tecnicos", url: adminSearchUrl("tecnicos", row.name),
     });
   }
   return { items, unavailable };
