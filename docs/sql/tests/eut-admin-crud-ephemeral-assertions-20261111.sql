@@ -112,6 +112,36 @@ BEGIN
      'Telefone duplicado recusado no servidor');
  EXCEPTION WHEN SQLSTATE '23505' THEN v_rejected:=true; END;
  IF NOT v_rejected THEN RAISE EXCEPTION 'Duplicate phone accepted'; END IF;
+
+ -- A blocked destination number cannot be attached, regardless of consent.
+ INSERT INTO eut_moderation.blocked_phones(phone_digits,reason_internal)
+   VALUES('5541999997777','Bloqueio sintético de número');
+ v_rejected:=false;
+ BEGIN
+   PERFORM public.eut_admin_technician_change(
+     '10000000-0000-4000-8000-000000000001',v_stale,
+     v_payload || '{"phone_e164":"+5541999997777","allow_paid_contact":false}'::jsonb,
+     'Número bloqueado recusado no servidor');
+ EXCEPTION WHEN SQLSTATE 'P0001' THEN v_rejected:=true; END;
+ IF NOT v_rejected THEN RAISE EXCEPTION 'Blocked destination phone accepted'; END IF;
+
+ -- Refuse unknown payload keys and official-looking but absent city codes.
+ v_rejected:=false;
+ BEGIN
+   PERFORM public.eut_admin_technician_change(
+     '10000000-0000-4000-8000-000000000001',v_stale,
+     v_payload || '{"unreviewed_flag":true}'::jsonb,
+     'Campo não auditado recusado pelo servidor');
+ EXCEPTION WHEN SQLSTATE '22023' THEN v_rejected:=true; END;
+ IF NOT v_rejected THEN RAISE EXCEPTION 'Unknown payload key accepted'; END IF;
+ v_rejected:=false;
+ BEGIN
+   PERFORM public.eut_admin_technician_change(
+     '10000000-0000-4000-8000-000000000001',v_stale,
+     v_payload || '{"base_city_ibge_id":9999999}'::jsonb,
+     'Município inexistente recusado pelo servidor');
+ EXCEPTION WHEN SQLSTATE '22023' THEN v_rejected:=true; END;
+ IF NOT v_rejected THEN RAISE EXCEPTION 'Unknown municipality accepted'; END IF;
 END $assert$;
 
 \echo 'QA: audit failure rolls back city, phone and version'
@@ -125,6 +155,30 @@ BEGIN
 END $$;
 CREATE TRIGGER fixture_audit_fail BEFORE INSERT ON public.eut_admin_management_log
 FOR EACH ROW EXECUTE FUNCTION public.fixture_fail_audit();
+\echo 'QA: archive audit failure also rolls back public status and private consent'
+DO $assert$
+DECLARE
+  original public.technicians%ROWTYPE;
+  original_consent boolean;
+  rejected boolean:=false;
+BEGIN
+  SELECT * INTO original FROM public.technicians
+    WHERE id='10000000-0000-4000-8000-000000000002';
+  SELECT allow_paid_contact INTO original_consent
+    FROM public.eut_technician_private_contacts WHERE user_id=original.user_id;
+  BEGIN
+    PERFORM public.eut_admin_technician_archive(original.id,original.updated_at,'archive',
+      'Falha forçada ao arquivar técnico sintético');
+  EXCEPTION WHEN SQLSTATE 'P0001' THEN rejected:=true; END;
+  IF NOT rejected THEN RAISE EXCEPTION 'Archive audit failure did not roll back'; END IF;
+  IF NOT EXISTS(SELECT 1 FROM public.technicians
+    WHERE id=original.id AND updated_at=original.updated_at AND status=original.status)
+    OR EXISTS(SELECT 1 FROM eut_moderation.archived_technicians
+      WHERE technician_id=original.id)
+    OR NOT EXISTS(SELECT 1 FROM public.eut_technician_private_contacts
+      WHERE user_id=original.user_id AND allow_paid_contact=original_consent)
+  THEN RAISE EXCEPTION 'Archive transaction partially committed after failed audit'; END IF;
+END $assert$;
 DO $assert$
 DECLARE
   original public.technicians%ROWTYPE;
@@ -240,3 +294,54 @@ BEGIN
  THEN RAISE EXCEPTION 'Real authenticated SQL role did not archive'; END IF;
 END $assert$;
 \echo 'QA passed: authenticated role access verified independently of superuser test role'
+
+\echo 'QA: keeping and removing a private phone preserves bans and audits only its suffix'
+SET request.jwt.claim.sub = '00000000-0000-4000-8000-000000000001';
+DO $assert$
+DECLARE
+  v_time timestamptz;
+  v_result jsonb;
+  v_payload jsonb:=pg_catalog.jsonb_build_object(
+    'base_city_ibge_id',4106902,
+    'coverage_city_ids',pg_catalog.jsonb_build_array(),
+    'radius_km',null,'neighborhood','Centro',
+    'category_slugs',pg_catalog.jsonb_build_array('computadores'),
+    'service_slugs',pg_catalog.jsonb_build_array('manutencao-pc'),
+    'phone_action','keep');
+BEGIN
+  -- Synthetic technician A was restored to pending above and remains account-blocked.
+  SELECT updated_at INTO v_time FROM public.technicians
+    WHERE id='10000000-0000-4000-8000-000000000001';
+  v_result:=public.eut_admin_technician_change(
+    '10000000-0000-4000-8000-000000000001',v_time,v_payload,
+    'Manter contato privado durante revisão sintética');
+  IF v_result->>'phone_changed' IS DISTINCT FROM 'false' OR NOT EXISTS(
+    SELECT 1 FROM public.eut_technician_private_contacts
+     WHERE user_id='00000000-0000-4000-8000-000000000003'
+       AND phone_e164='+5541999994444' AND allow_paid_contact=false) THEN
+    RAISE EXCEPTION 'Keep operation unexpectedly modified private contact'; END IF;
+
+  SELECT updated_at INTO v_time FROM public.technicians
+    WHERE id='10000000-0000-4000-8000-000000000001';
+  v_result:=public.eut_admin_technician_change(
+    '10000000-0000-4000-8000-000000000001',v_time,
+    v_payload || '{"phone_action":"remove"}'::jsonb,
+    'Remover contato privado sem remover bloqueio');
+  IF v_result->>'phone_changed' IS DISTINCT FROM 'true'
+    OR EXISTS(SELECT 1 FROM public.eut_technician_private_contacts
+      WHERE user_id='00000000-0000-4000-8000-000000000003')
+    OR NOT EXISTS(SELECT 1 FROM eut_moderation.blocked_accounts
+      WHERE user_id='00000000-0000-4000-8000-000000000003') THEN
+    RAISE EXCEPTION 'Remove contact did not preserve account ban'; END IF;
+  IF NOT EXISTS(SELECT 1 FROM public.eut_admin_management_log l
+      WHERE l.action='technician_comprehensive_edit'
+        AND l.reason='Remover contato privado sem remover bloqueio'
+        AND l.before_state->>'phone_last4'='4444'
+        AND l.after_state->>'phone_last4' IS NULL)
+    OR EXISTS(SELECT 1 FROM public.eut_admin_management_log l
+      WHERE l.before_state::text LIKE '%+5541999994444%'
+         OR l.after_state::text LIKE '%+5541999994444%') THEN
+    RAISE EXCEPTION 'Private contact audit missing, or full phone leaked'; END IF;
+END $assert$;
+
+\echo 'QA passed: keep/remove phone, private audit and ban preservation'

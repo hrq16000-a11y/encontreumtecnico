@@ -16,7 +16,16 @@ describe("Paginação administrativa para milhares de técnicos", () => {
   it("filtra no banco com RLS, contagem e ordenação estável; não busca todos", () => {
     const manager=readFileSync("src/components/admin-technician-manager.tsx","utf8");
     const admin=readFileSync("src/routes/admin.tsx","utf8");
-    expect(manager).toContain('select("id,status,display_name,bio,region,city,state_uf,specialties,avatar_path,created_at", { count: "exact" })');
+    expect(manager).toContain('select("id,status,display_name,bio,region,city,state_uf,specialties,avatar_path,created_at,updated_at,neighborhood,coverage_city_ids,service_slugs,service_radius_km", { count: "exact" })');
+    expect(manager).toContain("<AdminTechnicianComprehensiveDraft");
+    const advanced = readFileSync("src/components/admin-technician-comprehensive-draft.tsx", "utf8");
+    expect(advanced).toContain("prepareAdminTechnicianEdit");
+    expect(advanced).toContain("dddFromBrazilPhone");
+    expect(advanced).not.toContain("localStorage");
+    expect(advanced).not.toContain("sessionStorage");
+    expect(advanced).not.toContain(".rpc(");
+    expect(advanced).not.toContain(".update(");
+    expect(advanced).not.toContain(".delete(");
     expect(manager).toContain('.eq("status", status)');
     expect(manager).toContain('.range(from, to)');
     expect(manager).toContain('.order("id", { ascending: true })');
