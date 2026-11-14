@@ -49,6 +49,10 @@ export function AdminAccountsManager({ initialFilter = "todos" }: { initialFilte
   const [error, setError] = useState<string | null>(null);
   const [showAudit, setShowAudit] = useState(false);
   const [showPhones, setShowPhones] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [bulkAction, setBulkAction] = useState<"block_account" | "unblock_account" | null>(null);
+  const [bulkReason, setBulkReason] = useState("");
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -86,7 +90,14 @@ export function AdminAccountsManager({ initialFilter = "todos" }: { initialFilte
     return () => { active = false; };
   }, [filter, page, search, version]);
 
+  useEffect(() => {
+    setSelectedIds(new Set());
+    setBulkAction(null);
+    setSelection(null);
+  }, [filter, page, search]);
+
   function choose(action: Action, user: Account | null = null, block: PhoneBlock | null = null) {
+    if (bulkBusy) return;
     if (user?.is_admin) {
       setError("Contas administrativas não podem ser alteradas por este módulo.");
       return;
@@ -102,11 +113,68 @@ export function AdminAccountsManager({ initialFilter = "todos" }: { initialFilte
     setSearch(draftSearch.trim().slice(0, 80));
     setPage(0);
     setSelection(null);
+    setSelectedIds(new Set());
+    setBulkAction(null);
+  }
+
+  function toggleAccountSelection(id: string) {
+    setSelectedIds((before) => {
+      const next = new Set(before);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  async function applyBulk(event: FormEvent) {
+    event.preventDefault();
+    const justification = bulkReason.trim();
+    const rows = (snapshot?.accounts ?? []).filter((account) =>
+      selectedIds.has(account.id) && !account.is_admin &&
+      (bulkAction === "block_account" ? !account.blocked_account : account.blocked_account));
+    if (!bulkAction || busy || bulkBusy || rows.length === 0 ||
+      justification.length < 8 || justification.length > 400) return;
+    const label = bulkAction === "block_account" ? "banir" : "desbanir";
+    if (!window.confirm(`Confirmar ${label} ${rows.length} conta(s) desta página? ` +
+      "Cada operação terá justificativa e será conferida individualmente. Restrições de telefone não serão removidas.")) return;
+    setBulkBusy(true);
+    setNotice(null);
+    setError(null);
+    let confirmed = 0;
+    let unconfirmed = 0;
+    for (const account of rows) {
+      try {
+        const actionResponse: { data: unknown; error: unknown } = await db.rpc("eut_admin_contact_action", {
+          _action: bulkAction, _user_id: account.id, _phone: null,
+          _block_id: null, _message_id: null, _message_status: null, _reason: justification,
+        });
+        const actionResult = actionResponse.data as { ok?: boolean; action?: string } | null;
+        if (actionResponse.error || actionResult?.ok !== true || actionResult?.action !== bulkAction)
+          throw new Error("action_failed");
+        const { data: checkedData, error: checkError } = await db.rpc("eut_admin_accounts_snapshot", {
+          _search: account.id, _filter: "todos", _page: 0,
+        });
+        const checked = checkedData as Snapshot | null;
+        const persisted = checked?.accounts?.find((item: Account) => item.id === account.id);
+        if (checkError || !persisted || persisted.blocked_account !== (bulkAction === "block_account"))
+          throw new Error("unverified");
+        confirmed++;
+      } catch {
+        unconfirmed++;
+      }
+    }
+    setBulkBusy(false);
+    setSelectedIds(new Set());
+    setBulkAction(null);
+    setBulkReason("");
+    setVersion((v) => v + 1);
+    setNotice(`${confirmed} conta(s) com estado persistido confirmado. ` +
+      (unconfirmed ? `${unconfirmed} operação(ões) sem confirmação completa; revise antes de repetir.` :
+        "Cada operação utilizou o RPC administrativo auditado."));
   }
 
   async function apply(event: FormEvent) {
     event.preventDefault();
-    if (busy || !selection) return;
+    if (busy || bulkBusy || !selection) return;
     const justification = reason.trim();
     if (justification.length < 8 || justification.length > 400) {
       setError("Informe um motivo de 8 a 400 caracteres.");
@@ -156,6 +224,11 @@ export function AdminAccountsManager({ initialFilter = "todos" }: { initialFilte
   }
 
   const maxPage = snapshot ? Math.max(1, Math.ceil(snapshot.total / snapshot.page_size)) : 1;
+  const eligibleAccounts = (snapshot?.accounts ?? []).filter((account) => !account.is_admin);
+  const allSelected = eligibleAccounts.length > 0 && eligibleAccounts.every((account) => selectedIds.has(account.id));
+  const selectedAccounts = eligibleAccounts.filter((account) => selectedIds.has(account.id));
+  const actionableCount = selectedAccounts.filter((account) => bulkAction === "block_account"
+    ? !account.blocked_account : account.blocked_account).length;
   return <section aria-label="Contas e bloqueios administrativos" className="mt-2 space-y-5">
     <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5">
       <div className="flex items-center gap-3">
@@ -180,7 +253,7 @@ export function AdminAccountsManager({ initialFilter = "todos" }: { initialFilte
     </form>
     <div className="flex gap-2 overflow-x-auto pb-2" aria-label="Filtro de contas">
       {FILTERS.map((item) => <button key={item.value} type="button"
-        aria-pressed={filter === item.value} onClick={() => { setFilter(item.value); setPage(0); setSelection(null); }}
+        aria-pressed={filter === item.value} onClick={() => { setFilter(item.value); setPage(0); setSelection(null); setSelectedIds(new Set()); setBulkAction(null); }}
         className={"min-h-11 shrink-0 rounded-full border px-4 text-sm font-semibold " +
           (filter === item.value ? "border-primary bg-primary text-primary-foreground" : "border-input bg-card text-foreground hover:bg-accent")}>
         {item.label}</button>)}
@@ -219,11 +292,47 @@ export function AdminAccountsManager({ initialFilter = "todos" }: { initialFilte
     </form>}
     <div className="flex flex-wrap items-center justify-between gap-2">
       <p role="status" className="text-sm text-muted-foreground">
-        {loading ? "Consultando contas…" : `${snapshot?.total ?? 0} conta(s) · página ${page + 1} de ${maxPage}`}
+        {loading ? "Consultando contas…" : !snapshot ? "Consulta indisponível" : `${snapshot.total} conta(s) · página ${page + 1} de ${maxPage}`}
       </p>
       <button type="button" onClick={() => setVersion((v) => v + 1)}
         className="min-h-10 rounded-lg border border-input px-4 text-sm text-foreground hover:bg-accent">Atualizar</button>
     </div>
+    {snapshot && <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/20 p-3" aria-label="Organização dos cadastros">
+      <span className="text-xs font-semibold text-muted-foreground">Por data de cadastro:</span>
+      <button type="button" disabled={loading || bulkBusy} onClick={() => { setPage(0); setSelectedIds(new Set()); setBulkAction(null); }}
+        className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm font-semibold">Mais recentes</button>
+      <button type="button" disabled={loading || bulkBusy} onClick={() => { setPage(maxPage - 1); setSelectedIds(new Set()); setBulkAction(null); }}
+        className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm font-semibold">Cadastros mais antigos</button>
+      <span className="text-xs text-muted-foreground">20 por página · ordem cronológica do banco</span>
+    </div>}
+    {snapshot && <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-3 sm:p-4" aria-label="Ações em massa de contas">
+      <label className="flex min-h-11 items-center gap-3 text-sm font-semibold">
+        <input type="checkbox" checked={allSelected} disabled={busy || bulkBusy || !eligibleAccounts.length}
+          onChange={() => setSelectedIds(allSelected ? new Set() : new Set(eligibleAccounts.map((account) => account.id)))} />
+        Selecionar contas desta página ({eligibleAccounts.length} elegíveis)
+      </label>
+      <p role="status" className="text-xs text-muted-foreground">{selectedAccounts.length} selecionada(s). Administradores e outras páginas não são selecionados.</p>
+      {selectedAccounts.length > 0 && <div className="flex flex-wrap gap-2">
+        <button type="button" disabled={busy || bulkBusy} aria-pressed={bulkAction === "block_account"}
+          onClick={() => { setSelection(null); setBulkAction("block_account"); setBulkReason(""); }}
+          className="min-h-11 rounded-lg border border-destructive/40 bg-background px-3 text-sm font-semibold">Banir selecionadas</button>
+        <button type="button" disabled={busy || bulkBusy} aria-pressed={bulkAction === "unblock_account"}
+          onClick={() => { setSelection(null); setBulkAction("unblock_account"); setBulkReason(""); }}
+          className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm font-semibold">Desbanir selecionadas</button>
+        <button type="button" disabled={bulkBusy} onClick={() => { setSelectedIds(new Set()); setBulkAction(null); }}
+          className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm">Limpar seleção</button>
+      </div>}
+      {bulkAction && <form onSubmit={(event) => void applyBulk(event)} className="space-y-2 rounded-lg border border-border bg-background p-3">
+        <p className="text-sm">{actionableCount} de {selectedAccounts.length} conta(s) selecionada(s) permitem esta operação. Restrições de telefone permanecem independentes.</p>
+        <label className="block text-sm font-semibold">Motivo administrativo para auditoria do lote
+          <textarea required minLength={8} maxLength={400} value={bulkReason} onChange={(event) => setBulkReason(event.target.value)}
+            className="mt-1 min-h-24 w-full rounded-lg border border-input p-3" /></label>
+        <button type="submit" disabled={busy || bulkBusy || actionableCount === 0 || bulkReason.trim().length < 8}
+          className="min-h-12 rounded-lg bg-primary px-4 font-bold text-primary-foreground disabled:opacity-40">
+          {bulkBusy ? "Confirmando cada conta…" : "Confirmar ações auditadas"}
+        </button>
+      </form>}
+    </div>}
     {!loading && snapshot && snapshot.accounts.length === 0 &&
       <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
         Nenhuma conta neste filtro. Usuários WordPress antigos só aparecem aqui após confirmar sua identidade no sistema novo.
@@ -233,6 +342,10 @@ export function AdminAccountsManager({ initialFilter = "todos" }: { initialFilte
         className="rounded-2xl border border-border bg-card p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
+            {!account.is_admin && <label className="mb-2 flex min-h-11 items-center gap-2 text-xs font-semibold text-muted-foreground">
+              <input type="checkbox" disabled={busy || bulkBusy} checked={selectedIds.has(account.id)}
+                onChange={() => toggleAccountSelection(account.id)} aria-label={`Selecionar ${account.full_name}`} /> Selecionar para lote
+            </label>}
             <h3 className="font-bold text-foreground">{account.full_name}</h3>
             <p className="mt-1 text-sm text-muted-foreground">{account.masked_email ?? "Sem e-mail"} · {account.roles || "Papel não escolhido"}</p>
             {account.masked_phone && <p className="mt-1 text-xs text-muted-foreground">Contato: {account.masked_phone}</p>}
