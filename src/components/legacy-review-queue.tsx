@@ -28,7 +28,7 @@ const FIELDS = "source_key,wp_post_id,wp_user_id,kind,slug,title,specialty_title
 const db = supabase as unknown as SupabaseClient;
 
 /** WordPress source remains immutable; only an audited, admin-owned review overlay is edited. */
-export function LegacyReviewQueue() {
+export function LegacyReviewQueue({ techniciansOnly = false }: { techniciansOnly?: boolean }) {
   const [kind, setKind] = useState<LegacyKind>("candidate");
   const [draft, setDraft] = useState("");
   const [term, setTerm] = useState("");
@@ -156,31 +156,35 @@ export function LegacyReviewQueue() {
   return <section className="mt-2 rounded-2xl border border-border bg-card p-4 sm:p-6" aria-label="Cadastros históricos WordPress">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h2 className="text-xl font-bold text-card-foreground">Acervo WordPress — gestão auditada</h2>
+        <h2 className="text-xl font-bold text-card-foreground">
+          {techniciansOnly ? "Técnicos migrados do WordPress" : "Acervo WordPress — gestão auditada"}
+        </h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-          Fichas do portal antigo são arquivos históricos: podem ser revisadas, anotadas,
-          corrigidas ou arquivadas individualmente ou em lote, sem alterar os dados originais.
-          Nenhuma ação nesta tela publica um técnico ou concede acesso a uma conta.
+          {techniciansOnly
+            ? "Pesquise aqui os profissionais importados do portal anterior. Eles são técnicos do acervo histórico, ainda sem conta operacional associada. É possível corrigir nomes e revisar registros com auditoria, preservando os originais."
+            : "Fichas do portal antigo são arquivos históricos: podem ser revisadas, anotadas, corrigidas ou arquivadas individualmente ou em lote, sem alterar os dados originais."}
+          {" "}Nenhuma ação nesta tela publica um técnico ou concede acesso a uma conta.
         </p>
-        <p className="mt-2 text-sm text-muted-foreground">
+        {!techniciansOnly && <p className="mt-2 text-sm text-muted-foreground">
           Para editar perfis cadastrados, use a <Link to="/admin/$secao" params={{ secao: "tecnicos" }}
             className="font-bold text-primary underline underline-offset-2">gestão de técnicos</Link>.
           Este acervo preserva os originais para auditoria: arquivar não apaga definitivamente.
-        </p>
+        </p>}
       </div>
       <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary">Até 20 por lote</span>
     </div>
-    <div role="group" aria-label="Tipo de cadastro histórico" className="mt-5 flex flex-wrap gap-2">
+    {!techniciansOnly && <div role="group" aria-label="Tipo de cadastro histórico" className="mt-5 flex flex-wrap gap-2">
       {([{value:"candidate",label:"Técnicos"},{value:"employer",label:"Contratantes"}] as const).map((item) =>
         <button key={item.value} type="button" aria-pressed={kind===item.value}
           onClick={() => { setKind(item.value); setPage(0); setSelected([]); setExpanded([]); setAction(null); }}
           className={"min-h-11 rounded-xl border px-4 text-sm font-semibold " +
             (kind===item.value?"bg-primary text-primary-foreground":"border-input text-foreground hover:bg-accent")}>{item.label}</button>)}
-    </div>
+    </div>}
     <form onSubmit={submitSearch} className="mt-4 flex flex-col gap-2 sm:flex-row">
       <label className="sr-only" htmlFor="legacy-review-search">Buscar nome histórico</label>
       <input id="legacy-review-search" value={draft} maxLength={100} onChange={(e)=>setDraft(e.target.value)}
-        placeholder="Buscar por nome do WordPress" className="min-h-12 flex-1 rounded-xl border border-input bg-background px-4 text-foreground" />
+        placeholder={techniciansOnly ? "Buscar técnico migrado por nome" : "Buscar por nome do WordPress"}
+        className="min-h-12 flex-1 rounded-xl border border-input bg-background px-4 text-foreground" />
       <button type="submit" className="min-h-12 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground">Buscar</button>
     </form>
     {error && <p role="alert" className="mt-4 rounded-xl border border-destructive/30 p-4 text-sm text-destructive">{error}</p>}

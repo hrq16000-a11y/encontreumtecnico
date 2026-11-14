@@ -152,8 +152,18 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             {section === "contas" && <section aria-label="Contas e bloqueios"><AdminMemberInvites /><AdminAccountsManager /></section>}
             {section === "contatos" && <section aria-label="Contatos administrativos"><AdminContactsDashboard adminId={user.id} /></section>}
             {section === "tecnicos" && <section aria-label="Gestão de técnicos">
-              <AdminMemberInvites initialRole="tecnico" />
+              <div className="mt-6 rounded-xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
+                <h2 className="text-lg font-bold text-foreground">Encontre todos os tipos de cadastro técnico</h2>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  Os profissionais migrados do WordPress aparecem na busca histórica abaixo.
+                  Contas novas e perfis operacionais continuam separados para impedir que uma importação
+                  habilite contatos privados ou publique perfis sem autorização.
+                </p>
+              </div>
+              <LegacyReviewQueue techniciansOnly />
+              <h2 className="mt-8 text-xl font-bold text-foreground">Técnicos com conta operacional</h2>
               <AdminTechnicianManager adminOwnerId={user.id} />
+              <AdminMemberInvites initialRole="tecnico" />
             </section>}
             {section === "mensagens" && <section aria-label="Mensagens administrativas">
               <h2 id="admin-mensagens" className="mt-10 scroll-mt-20 text-lg font-semibold text-foreground">Mensagens de contato</h2>
