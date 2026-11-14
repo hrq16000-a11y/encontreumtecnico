@@ -6,6 +6,7 @@ import { technicianDisplayName } from "@/lib/admin-technician-display-name";
 import { publicTextProblem } from "@/lib/public-profile-text";
 import { AdminTechnicianManager } from "@/components/admin-technician-manager";
 import { AdminTechnicianRecordEditor, type AdminTechnicianRegistryRecord } from "@/components/admin-technician-record-editor";
+import { AdminTechnicianContactAccess } from "@/components/admin-technician-contact-access";
 import { TechnicianAvatar } from "@/components/technician-avatar";
 import { Link } from "@tanstack/react-router";
 import { useActiveCategories } from "@/hooks/use-active-categories";
@@ -745,6 +746,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
               className="min-h-10 rounded-lg border border-primary/40 bg-primary/10 px-3 text-xs font-semibold text-primary hover:bg-primary/20">
               {selectedKey === row.key ? "Fechar edição" : "Editar"}
             </button>}
+            {!row.demo && <AdminTechnicianContactAccess recordKey={row.key} />}
           </div>
         </div>
         {detailKey === row.key && <section aria-label={`Ficha de ${row.name}`}
@@ -756,7 +758,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
           <div><span className="block text-xs text-muted-foreground">Cadastro</span>{formatDate(row.createdAt)}</div>
           <div><span className="block text-xs text-muted-foreground">Última atualização</span>{formatDate(row.updatedAt)}</div>
           <div className="sm:col-span-2"><span className="block text-xs text-muted-foreground">Contato</span>
-            {row.registry?.contact_last4 ? `Privado · final ${row.registry.contact_last4}` : "Privado / não informado"}
+            {row.registry?.contact_last4 ? `Privado · final ${row.registry.contact_last4}` : "Use Consultar contato para verificar disponibilidade"}
           </div>
         </section>}
         {row.registry && <p className="mt-2 text-xs text-muted-foreground">
