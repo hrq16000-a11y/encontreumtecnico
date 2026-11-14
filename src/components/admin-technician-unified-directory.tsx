@@ -17,7 +17,7 @@ type DirectoryRow = {
   name: string;
   location: string;
   specialty: string | null;
-  origin: "portal" | "wordpress" | "guiafix";
+  origin: "portal" | "wordpress" | "guiafix" | "manual";
   operational: boolean;
   demo?: boolean;
 };
@@ -39,6 +39,7 @@ export function AdminTechnicianUnifiedDirectory() {
   const [legacyPage, setLegacyPage] = useState(0);
   const [legacy, setLegacy] = useState<DirectoryRow[]>([]);
   const [operational, setOperational] = useState<DirectoryRow[]>([]);
+  const [manual, setManual] = useState<DirectoryRow[]>([]);
   const [legacyTotal, setLegacyTotal] = useState<number | null>(null);
   const [operationalTotal, setOperationalTotal] = useState<number | null>(null);
   const [failed, setFailed] = useState(false);
@@ -68,10 +69,11 @@ export function AdminTechnicianUnifiedDirectory() {
         wpQuery = wpQuery.or(["title", "location1", "location2", "location3"]
           .map((field) => `${field}.ilike.%${term}%`).join(","));
       }
-      const [tech, wp] = await Promise.all([
+      const [tech, wp, intake] = await Promise.all([
         techQuery.order("display_name").order("id")
           .range(operationalPage * PAGE_SIZE, (operationalPage + 1) * PAGE_SIZE - 1),
         wpQuery.order("title").order("wp_post_id").range(legacyPage * PAGE_SIZE, (legacyPage + 1) * PAGE_SIZE - 1),
+        db.rpc("eut_admin_technician_intake_list", { _query: term, _offset: 0 }),
       ]);
       if (!current) return;
       if (tech.error || wp.error) {
@@ -96,6 +98,14 @@ export function AdminTechnicianUnifiedDirectory() {
       setOperationalTotal(tech.count);
       setLegacy((prev) => legacyPage === 0 ? wpRows : appendUnique(prev, wpRows));
       setLegacyTotal(wp.count);
+      if (!intake.error) {
+        setManual((intake.data ?? []).map((entry: { id: string; display_name: string; city: string | null; state_uf: string | null; category_slugs: string[] }) => ({
+          key: `manual:${entry.id}`, name: entry.display_name,
+          location: entry.city ? `${entry.city}/${entry.state_uf ?? ""}` : "Localidade não confirmada",
+          specialty: entry.category_slugs.join(", ") || null,
+          origin: "manual" as const, operational: false,
+        })));
+      } else setManual([]); // Backend activation is pending; preserve working #280 search.
       setLoading(false);
     }
     void load().catch(() => { if (current) { setFailed(true); setLoading(false); } });
@@ -109,18 +119,18 @@ export function AdminTechnicianUnifiedDirectory() {
     key: `guiafix:${row.key}`, name: row.name, location: `${row.city}/${row.uf} (local da fonte)`,
     specialty: row.category, origin: "guiafix", operational: false,
   })), [term]);
-  const results = useMemo(() => [...operational, ...legacy, ...guiafixResults]
+  const results = useMemo(() => [...operational, ...legacy, ...guiafixResults, ...manual]
     .sort((a, b) => a.name.localeCompare(b.name, "pt-BR") || a.key.localeCompare(b.key)),
-  [operational, legacy, guiafixResults]);
+  [operational, legacy, guiafixResults, manual]);
   const total = operationalTotal === null || legacyTotal === null ? null
-    : operationalTotal + legacyTotal + guiafixResults.length;
+    : operationalTotal + legacyTotal + guiafixResults.length + manual.length;
   const moreLegacy = legacyTotal !== null && legacy.length < legacyTotal;
   const moreOperational = operationalTotal !== null && operational.length < operationalTotal;
 
   return <section className="mt-6 rounded-2xl border border-primary/20 bg-card p-4 sm:p-6" aria-label="Busca unificada de técnicos">
     <h2 className="text-xl font-bold text-foreground">Todos os técnicos — pesquisa administrativa</h2>
     <p className="mt-2 text-sm leading-6 text-muted-foreground">
-      Um único campo de busca para registros do portal, WordPress e Guiafix. As origens ficam registradas
+      Um único campo de busca para registros do portal, WordPress, Guiafix e inclusões manuais. As origens ficam registradas
       para auditoria, sem separar os profissionais em categorias de pessoa. Esta lista não concede
       automaticamente login, contato comercial ou área de atendimento aos arquivos importados.
     </p>
@@ -137,7 +147,7 @@ export function AdminTechnicianUnifiedDirectory() {
         <p className="mt-1 text-sm text-muted-foreground">{row.location}</p>
         {row.specialty && <p className="mt-1 text-xs text-muted-foreground">{row.specialty}</p>}
         <p className="mt-2 text-xs text-muted-foreground">
-          {row.origin === "portal" ? "Cadastro do portal" : row.origin === "wordpress" ? "Origem WordPress" : "Origem Guiafix"}
+          {row.origin === "portal" ? "Cadastro do portal" : row.origin === "wordpress" ? "Origem WordPress" : row.origin === "manual" ? "Cadastro manual" : "Origem Guiafix"}
           {row.demo ? " · Exemplo de demonstração protegido" : ""}
         </p>
         <span className="mt-2 block text-xs font-medium text-foreground">
@@ -155,8 +165,8 @@ export function AdminTechnicianUnifiedDirectory() {
       {loading ? "Carregando…" : "Carregar mais técnicos do portal"}
     </button>}
     <p className="mt-4 text-xs text-muted-foreground">
-      Gestão auditada disponível abaixo para contas do portal e fichas WordPress. Inclusão manual,
-      importação com contatos e edição do Guiafix dependem da API administrativa de cadastro ainda não publicada.
+      Gestão auditada abaixo para contas do portal e fichas de inclusão manual. Entradas históricas
+      aguardam conciliação; importação de contatos e edição do Guiafix não são ativadas por esta busca.
     </p>
   </section>;
 }

@@ -4,6 +4,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { TechnicianAvatar } from "@/components/technician-avatar";
 import { AdminTechnicianComprehensiveDraft } from "@/components/admin-technician-comprehensive-draft";
+import { AdminTechnicianIntakeManager } from "@/components/admin-technician-intake-manager";
 import { publicTextProblem } from "@/lib/public-profile-text";
 import { clearAdminPublicDraft, readAdminPublicDraft, saveAdminPublicDraft, type AdminPublicFields } from "@/lib/admin-public-profile-draft";
 import { useActiveCategories } from "@/hooks/use-active-categories";
@@ -285,7 +286,8 @@ export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string 
         <Check className="h-4 w-4" /> {busy ? "Gravando no banco…" : "Confirmar e registrar"}
       </button>
     </form>}
-    {advanced && <AdminTechnicianComprehensiveDraft key={advanced.id} technician={advanced} onClose={() => setAdvanced(null)} />}
+    {advanced && <AdminTechnicianComprehensiveDraft key={advanced.id} technician={advanced} onClose={() => setAdvanced(null)}
+      onSaved={() => { setAdvanced(null); setReload((value) => value + 1); }} />}
     {readError && <p role="alert" className="mt-4 rounded-lg border border-destructive/30 p-3 text-sm text-destructive">{readError}</p>}
     {loadingRows || rows === null ? <p role="status" className="mt-5 text-sm text-muted-foreground">Carregando página de técnicos…</p>
       : filtered.length === 0 ? <p className="mt-5 rounded-xl border border-border p-6 text-sm text-muted-foreground">Nenhum técnico encontrado neste filtro.</p>
@@ -327,5 +329,6 @@ export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string 
           className="min-h-11 rounded-lg border border-input px-4 text-sm disabled:opacity-40">Próximo</button>
       </div>
     </nav>
+    <AdminTechnicianIntakeManager />
   </section>;
 }

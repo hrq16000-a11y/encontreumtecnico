@@ -8,6 +8,7 @@ const edit: PreparedEdit = {
   expectedUpdatedAt: "2026-11-13T16:00:00.000Z",
   reason: "Revisão administrativa sintética",
   changes: {
+    displayName: "Técnico QA",
     city: "Curitiba",
     uf: "PR",
     baseCityId: 4106902,
@@ -36,6 +37,7 @@ describe("contrato offline da RPC de edição transacional", () => {
       _expected_updated_at: edit.expectedUpdatedAt,
       _reason: edit.reason,
       _payload: {
+        display_name: "Técnico QA",
         base_city_ibge_id: 4106902,
         coverage_city_ids: [4106902, 4125506],
         radius_km: 30,

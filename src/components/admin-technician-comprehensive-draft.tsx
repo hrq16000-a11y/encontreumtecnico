@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Tables } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -8,6 +9,7 @@ import {
   type PhoneChange,
 } from "@/lib/admin-technician-crud-intent";
 import { dddFromBrazilPhone, verifiedBaseCity } from "@/lib/admin-technician-geo";
+import { buildProposedTechnicianChangeArgs } from "@/lib/admin-technician-rpc-payload";
 import { BRAZIL_STATES } from "@/lib/service-taxonomy";
 
 export type AdminTechnicianAdvancedRecord = Pick<
@@ -43,10 +45,13 @@ const button =
 export function AdminTechnicianComprehensiveDraft({
   technician,
   onClose,
+  onSaved,
 }: {
   technician: AdminTechnicianAdvancedRecord;
   onClose: () => void;
+  onSaved: () => void;
 }) {
+  const [displayName, setDisplayName] = useState(technician.display_name);
   const [catalog, setCatalog] = useState<AdminCatalog>({
     cities: [],
     categories: [],
@@ -72,6 +77,8 @@ export function AdminTechnicianComprehensiveDraft({
   const [phoneInput, setPhoneInput] = useState("");
   const [issues, setIssues] = useState<string[]>([]);
   const [preview, setPreview] = useState<Preview | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [resultMessage, setResultMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -179,9 +186,10 @@ export function AdminTechnicianComprehensiveDraft({
     setPreview(null);
   }
 
-  function previewChanges(event: FormEvent) {
+  async function saveChanges(event: FormEvent) {
     event.preventDefault();
-    if (loading || loadError) return;
+    if (loading || loadError || busy) return;
+    setResultMessage(null);
     const phone: PhoneChange =
       phoneMode === "replace"
         ? { kind: "replace", input: phoneInput, allowPaidContact: false }
@@ -191,6 +199,7 @@ export function AdminTechnicianComprehensiveDraft({
         technicianId: technician.id,
         expectedUpdatedAt: technician.updated_at,
         reason,
+        displayName,
         baseCityId,
         coverageCityIds: approved ? coverage : [],
         radiusKm: approved ? radius : null,
@@ -214,31 +223,50 @@ export function AdminTechnicianComprehensiveDraft({
     }
     setIssues([]);
     setPreview({
-      city: result.value.changes.city,
-      uf: result.value.changes.uf,
+      city: result.value.changes.city ?? technician.city,
+      uf: result.value.changes.uf ?? technician.state_uf ?? "",
       coverage: result.value.auditPreview.coverageCityCount,
       categories: result.value.changes.categorySlugs.length,
       services: result.value.auditPreview.serviceCount,
       phoneChanged: result.value.auditPreview.phoneChanged,
       phoneLast4: result.value.auditPreview.phoneLast4,
     });
-    // The raw phone never enters a persisted draft, browser storage or preview.
-    setPhoneInput("");
-    setPhoneMode("keep");
+    if (!window.confirm(`Confirmar gravação auditada de ${displayName.trim()}? O contato privado não será exibido nem liberado para venda.`)) return;
+    setBusy(true);
+    try {
+      // Auth and authorization are enforced again inside SECURITY DEFINER RPC.
+      // No private number is logged, rendered, or saved to client storage.
+      const db = supabase as unknown as SupabaseClient;
+      const { data, error } = await db.rpc("eut_admin_technician_change", buildProposedTechnicianChangeArgs(result.value));
+      if (error) throw error;
+      if (!data || data.ok !== true || data.technician_id !== technician.id || !data.updated_at)
+        throw new Error("O servidor não confirmou a gravação auditada.");
+      setPhoneInput("");
+      setPhoneMode("keep");
+      setReason("");
+      setResultMessage("Alterações gravadas e auditadas. A autorização do contato pago foi preservada.");
+      onSaved();
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "";
+      setResultMessage(detail.includes("Could not find the function") || detail.includes("PGRST202")
+        ? "A função administrativa ainda não está instalada no banco. Não houve gravação; é necessária homologação e autorização de SQL de produção."
+        : "Gravação não confirmada. Recarregue o registro antes de tentar novamente. " + detail.slice(0, 150));
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
     <section
       aria-label="Revisão completa de cadastro de técnico"
-      className="mt-5 rounded-2xl border-2 border-primary/30 bg-card p-5"
+      className="mt-5 min-w-0 rounded-2xl border-2 border-primary/30 bg-card p-3 sm:p-5"
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="font-bold text-foreground">Revisão avançada: {technician.display_name}</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Município IBGE, cobertura, categorias, serviços e contato privado. Esta tela valida uma
-            prévia; a gravação transacional aguarda homologação da função administrativa no
-            servidor.
+            Nome, município IBGE, cobertura, categorias, serviços e contato privado. A gravação
+            exige a função transacional auditada instalada e permissão administrativa no servidor.
           </p>
         </div>
         <button type="button" onClick={onClose} className={button}>
@@ -256,7 +284,12 @@ export function AdminTechnicianComprehensiveDraft({
         </p>
       )}
       {!loading && (
-        <form className="mt-5 space-y-5" onSubmit={previewChanges}>
+        <form className="mt-5 space-y-5" onSubmit={(event) => void saveChanges(event)}>
+          <label className="grid gap-1 text-sm font-semibold">
+            Nome profissional
+            <input className={input} required minLength={3} maxLength={80} value={displayName}
+              onChange={(event) => { setDisplayName(event.target.value); setPreview(null); }} />
+          </label>
           <fieldset className="grid gap-3 md:grid-cols-2">
             <legend className="mb-3 font-semibold">Localização oficial</legend>
             <label className="grid gap-1 text-sm">
@@ -292,7 +325,7 @@ export function AdminTechnicianComprehensiveDraft({
             </label>
             <div className="md:col-span-2">
               <p className="text-xs text-muted-foreground">
-                Cidade-base: {knownCity(baseCityId)?.name ?? "não conciliada"}{" "}
+                Cidade-base: {knownCity(baseCityId)?.name ?? "manter localidade existente sem inferência"}{" "}
                 {knownCity(baseCityId)?.uf ?? ""}. A cidade nunca é inferida pelo DDD.
               </p>
               {cityOptions.length > 0 && (
@@ -491,8 +524,8 @@ export function AdminTechnicianComprehensiveDraft({
           <fieldset className="space-y-3 rounded-lg border border-border p-3">
             <legend className="font-semibold">Contato privado — sem exposição pública</legend>
             <p className="text-xs text-muted-foreground">
-              O telefone atual não é consultado nem exibido aqui. Substituir/remover depende de RPC
-              auditada; a opção de contato pago permanece desabilitada.
+              O telefone atual não é consultado nem exibido aqui. Substituir/remover exige RPC
+              auditada; a opção de contato pago permanece desabilitada. Contatos suspensos não são liberados.
             </p>
             <label className="grid max-w-sm gap-1 text-sm">
               Ação proposta
@@ -547,6 +580,7 @@ export function AdminTechnicianComprehensiveDraft({
               }}
             />
           </label>
+          {resultMessage && <p role="status" className="rounded-lg border border-border bg-muted p-3 text-sm">{resultMessage}</p>}
           {issues.length > 0 && (
             <ul role="alert" className="list-disc space-y-1 pl-5 text-sm text-destructive">
               {issues.map((issue) => (
@@ -559,7 +593,7 @@ export function AdminTechnicianComprehensiveDraft({
               role="status"
               className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm"
             >
-              <strong>Prévia validada — nenhuma alteração gravada</strong>
+              <strong>Dados validados para envio administrativo</strong>
               <p>
                 {preview.city}/{preview.uf} · {preview.coverage} cidades · {preview.categories}{" "}
                 categorias · {preview.services} serviços.
@@ -569,18 +603,15 @@ export function AdminTechnicianComprehensiveDraft({
                   ? `Contato proposto para alteração${preview.phoneLast4 ? ` (final ${preview.phoneLast4})` : ""}.`
                   : "Contato preservado."}
               </p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                O envio só será disponibilizado após homologação da operação transacional,
-                permissões e auditoria no servidor.
-              </p>
+              <p className="mt-2 text-xs text-muted-foreground">A confirmação de sucesso depende do retorno do banco.</p>
             </div>
           )}
           <button
             type="submit"
-            disabled={loading || Boolean(loadError)}
-            className="min-h-11 rounded-lg bg-primary px-5 text-sm font-bold text-primary-foreground disabled:opacity-40"
+            disabled={loading || busy || Boolean(loadError)}
+            className="min-h-12 w-full rounded-lg bg-primary px-5 text-sm font-bold text-primary-foreground disabled:opacity-40 sm:w-auto"
           >
-            Validar prévia sem gravar
+            {busy ? "Gravando e auditando…" : "Salvar alterações no banco"}
           </button>
         </form>
       )}

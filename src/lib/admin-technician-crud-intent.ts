@@ -21,6 +21,7 @@ export type AdminEditDraft = {
   technicianId: string;
   expectedUpdatedAt: string;
   reason: string;
+  displayName: string;
   baseCityId: number;
   coverageCityIds: number[];
   radiusKm: number | null;
@@ -35,7 +36,7 @@ export type PreparedEdit = {
   expectedUpdatedAt: string;
   reason: string;
   changes: {
-    city: string; uf: string; baseCityId: number;
+    displayName: string; city: string | null; uf: string | null; baseCityId: number | null;
     coverageCityIds: number[]; radiusKm: number | null; neighborhood: string | null;
     categorySlugs: string[]; serviceSlugs: string[];
     phone: { kind: "keep" } | { kind: "remove" } |
@@ -77,9 +78,13 @@ export function prepareAdminTechnicianEdit(
   const reason = draft.reason.trim();
   if (reason.length < 8 || reason.length > 400 || DANGEROUS_CONTACT.test(reason))
     issues.push("Motivo obrigatório (8–400 caracteres), sem contatos, links ou números privados.");
+  const displayName = draft.displayName.trim();
+  if (displayName.length < 3 || displayName.length > 80 || DANGEROUS_CONTACT.test(displayName))
+    issues.push("Nome profissional inválido ou contendo contato privado.");
   const city = catalog.cities.find(c => c.id === draft.baseCityId &&
     Number.isInteger(c.id) && /^[A-Z]{2}$/.test(c.uf) && c.name.length > 0);
-  if (!city) issues.push("Selecione a cidade-base por código do catálogo oficial IBGE.");
+  if (draft.baseCityId !== 0 && !city)
+    issues.push("Selecione a cidade-base por código do catálogo oficial IBGE.");
   const coverage = draft.coverageCityIds;
   const distinctCities = new Set(coverage);
   if ((guard.technicianStatus === "aprovado" && (coverage.length < 1 || coverage.length > 5)) ||
@@ -120,14 +125,15 @@ export function prepareAdminTechnicianEdit(
   } else if (draft.phone.kind === "remove") {
     phone = { kind: "remove" };
   }
-  if (issues.length || !city) return { ok: false, issues };
+  if (issues.length) return { ok: false, issues };
   return {
     ok: true,
     value: {
       kind: "preview_only",
       technicianId: draft.technicianId, expectedUpdatedAt: draft.expectedUpdatedAt, reason,
       changes: {
-        city: city.name, uf: city.uf, baseCityId: city.id,
+        displayName, city: city?.name ?? null, uf: city?.uf ?? null,
+        baseCityId: city?.id ?? null,
         coverageCityIds: [...coverage], radiusKm: draft.radiusKm,
         neighborhood, categorySlugs: [...draft.categorySlugs],
         serviceSlugs: [...draft.serviceSlugs], phone,

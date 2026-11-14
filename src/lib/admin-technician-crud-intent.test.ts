@@ -26,6 +26,7 @@ const REV = "2026-11-11T17:13:20.000Z";
 const GUARD: AdminGuard = { technicianStatus: "aprovado", accountBlocked: false, phoneBlocked: false };
 const DRAFT: AdminEditDraft = {
   technicianId: UUID, expectedUpdatedAt: REV,
+  displayName: "Técnico QA",
   reason: "Correção administrativa da cobertura",
   baseCityId: 4125506, coverageCityIds: [4125506, 4106902], radiusKm: 30,
   neighborhood: "Jardim Itália", categorySlugs: ["computadores","redes"],
@@ -96,6 +97,15 @@ describe("P0 administração: validação local não substitui RBAC/RLS/SQL audi
   it("não permite contatos no campo bairro nem motivo", () => {
     expect(fail(prepare({ neighborhood: "www.example.com" })).join(" ")).toMatch(/Bairro/);
     expect(fail(prepare({ reason: "Meu número é 41 99999-8888" })).join(" ")).toMatch(/Motivo/);
+    expect(fail(prepare({ displayName: "contato@teste.com" })).join(" ")).toMatch(/Nome/);
+  });
+  it("mantém a cidade legada sem inferir município por DDD durante uma edição de nome", () => {
+    const result = prepare({ baseCityId: 0, displayName: "Novo nome QA" });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.changes.baseCityId).toBeNull();
+      expect(result.value.changes.displayName).toBe("Novo nome QA");
+    }
   });
   it("arquivo reversível não significa desbanimento, aprovação ou publicação", () => {
     const archive = prepareReversibleArchive({

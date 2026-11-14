@@ -1,9 +1,6 @@
 import type { PreparedEdit } from "./admin-technician-crud-intent";
 
-/**
- * Offline contract fixture only. The server RPC is a proposal, NOT installed.
- * Do not send this payload, persist it, log it, or expose it through SSR.
- */
+/** Send only to the admin-authenticated, audited server RPC. Never log this payload. */
 export function buildProposedTechnicianChangeArgs(edit: PreparedEdit) {
   const phone = edit.changes.phone;
   return {
@@ -11,6 +8,7 @@ export function buildProposedTechnicianChangeArgs(edit: PreparedEdit) {
     _expected_updated_at: edit.expectedUpdatedAt,
     _reason: edit.reason,
     _payload: {
+      display_name: edit.changes.displayName,
       base_city_ibge_id: edit.changes.baseCityId,
       coverage_city_ids: [...edit.changes.coverageCityIds],
       radius_km: edit.changes.radiusKm,

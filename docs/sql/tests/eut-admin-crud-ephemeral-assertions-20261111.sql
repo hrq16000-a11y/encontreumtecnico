@@ -345,3 +345,106 @@ BEGIN
 END $assert$;
 
 \echo 'QA passed: keep/remove phone, private audit and ban preservation'
+
+\echo 'QA: edit name without inventing city or changing a blocked contact'
+DO $assert$
+DECLARE v_time timestamptz; v_result jsonb;
+BEGIN
+  SELECT updated_at INTO v_time FROM public.technicians
+    WHERE id='10000000-0000-4000-8000-000000000001';
+  v_result:=public.eut_admin_technician_change(
+    '10000000-0000-4000-8000-000000000001',v_time,
+    jsonb_build_object('display_name','Nome Profissional Revisado',
+      'base_city_ibge_id',null,'coverage_city_ids',jsonb_build_array(),
+      'radius_km',null,'category_slugs',jsonb_build_array('computadores'),
+      'service_slugs',jsonb_build_array('manutencao-pc'),'phone_action','keep'),
+    'Corrigir apenas nome preservando dados originais');
+  IF v_result->>'ok'<>'true' OR NOT EXISTS (
+    SELECT 1 FROM public.technicians WHERE id='10000000-0000-4000-8000-000000000001'
+      AND display_name='Nome Profissional Revisado' AND city='Curitiba' AND state_uf='PR')
+    OR NOT EXISTS(SELECT 1 FROM eut_moderation.blocked_accounts
+      WHERE user_id='00000000-0000-4000-8000-000000000003') THEN
+    RAISE EXCEPTION 'Name-only edit fabricated locality or unblocked contact'; END IF;
+END $assert$;
+
+\echo 'QA: manual intake create/edit/list/archive; full phones remain private'
+DO $assert$
+DECLARE
+  v_id uuid; v_time timestamptz; v_result jsonb; v_denied boolean;
+  v_payload jsonb:=jsonb_build_object('display_name','Novo Técnico Manual',
+    'city_ibge_id',4125506,'category_slugs',jsonb_build_array('computadores'),
+    'service_slugs',jsonb_build_array('manutencao-pc'),
+    'phone_action','replace','phone_e164','+5541999998833');
+BEGIN
+  -- Cannot attach one of the original operational contacts.
+  v_denied:=false;
+  BEGIN
+    PERFORM public.eut_admin_technician_intake_save(null,null,
+      v_payload || '{"phone_e164":"+5541999990002"}'::jsonb,
+      'Contato original preservado sem duplicação');
+  EXCEPTION WHEN SQLSTATE '23505' THEN v_denied:=true; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'Intake duplicated an existing technician contact'; END IF;
+  v_denied:=false;
+  BEGIN
+    PERFORM public.eut_admin_technician_intake_save(null,null,
+      v_payload || '{"phone_e164":"+5541999997777"}'::jsonb,
+      'Número suspenso não pode ser importado');
+  EXCEPTION WHEN SQLSTATE '23505' THEN v_denied:=true; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'Intake accepted a blocked phone'; END IF;
+
+  v_result:=public.eut_admin_technician_intake_save(null,null,v_payload,
+    'Cadastro manual sintético sem divulgação');
+  v_id:=(v_result->>'id')::uuid; v_time:=(v_result->>'updated_at')::timestamptz;
+  IF v_id IS NULL OR v_result->>'contact_public'<>'false' OR
+    NOT EXISTS (SELECT 1 FROM public.eut_admin_technician_intake t
+      WHERE t.id=v_id AND t.phone_e164='+5541999998833' AND t.linked_technician_id IS NULL)
+    OR EXISTS (SELECT 1 FROM public.technicians t WHERE t.id=v_id) THEN
+    RAISE EXCEPTION 'Intake created published/auth-linked technician'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.eut_admin_technician_intake_list('Novo Técnico',0) l
+      WHERE l.id=v_id AND l.city_ibge_id=4125506)
+    OR EXISTS (SELECT 1 FROM public.eut_admin_technician_intake_list('Novo Técnico',0) l
+       CROSS JOIN LATERAL jsonb_object_keys(to_jsonb(l)) AS field(name)
+       WHERE l.id=v_id AND field.name IN ('phone_e164','phone_last4')) THEN
+    RAISE EXCEPTION 'Admin roster exposed contact or did not return intake'; END IF;
+  v_denied:=false;
+  BEGIN
+    PERFORM public.eut_admin_technician_intake_save(v_id,v_time,
+      v_payload || '{"display_name":"Nome concorrente"}'::jsonb,
+      'Tentativa de substituição concorrente');
+  EXCEPTION WHEN OTHERS THEN v_denied:=false; END;
+  -- The previous call is a valid update, so use the original revision to check staleness.
+  BEGIN
+    PERFORM public.eut_admin_technician_intake_save(v_id,v_time,v_payload,
+      'Versão antiga deve ser rejeitada');
+  EXCEPTION WHEN SQLSTATE '40001' THEN v_denied:=true; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'Intake stale version accepted'; END IF;
+  SELECT updated_at INTO v_time FROM public.eut_admin_technician_intake WHERE id=v_id;
+  v_result:=public.eut_admin_technician_intake_save(v_id,v_time,
+    (v_payload || '{"archive":true,"phone_action":"keep"}'::jsonb) - 'phone_e164',
+    'Arquivo reversível da ficha importada');
+  IF NOT EXISTS (SELECT 1 FROM public.eut_admin_technician_intake
+      WHERE id=v_id AND archived_at IS NOT NULL AND phone_e164='+5541999998833')
+    OR EXISTS (SELECT 1 FROM public.eut_admin_technician_intake_list('Novo Técnico',0) l
+      WHERE l.id=v_id)
+    OR NOT EXISTS (SELECT 1 FROM public.eut_admin_management_log l
+      WHERE l.target_key=v_id::text AND l.action='intake_archived')
+    OR EXISTS (SELECT 1 FROM public.eut_admin_management_log l
+      WHERE l.target_key=v_id::text AND (l.before_state::text LIKE '%+5541999998833%'
+        OR l.after_state::text LIKE '%+5541999998833%')) THEN
+    RAISE EXCEPTION 'Intake archive lost contact, omitted audit or leaked phone'; END IF;
+END $assert$;
+
+\echo 'QA: unauthorized caller cannot read or write manual intake'
+SET request.jwt.claim.sub = '00000000-0000-4000-8000-000000000002';
+DO $assert$
+DECLARE v_denied boolean:=false;
+BEGIN
+  BEGIN PERFORM public.eut_admin_technician_intake_list('',0);
+  EXCEPTION WHEN SQLSTATE '42501' THEN v_denied:=true; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'Client can enumerate manual intake'; END IF;
+  v_denied:=false;
+  BEGIN PERFORM public.eut_admin_technician_intake_save(null,null,'{}'::jsonb,'Cliente proibido de salvar');
+  EXCEPTION WHEN SQLSTATE '42501' THEN v_denied:=true; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'Client can create manual intake'; END IF;
+END $assert$;
+\echo 'QA passed: operational editor, manual intake and isolated contact protections'
