@@ -73,7 +73,8 @@ describe("Contrato SQL e painel isolado antes da homologação", () => {
   it("protege autorização, concorrência, catálogo IBGE, auditoria e RLS", () => {
     for (const term of [
       "public.has_role(v_actor, 'admin'::public.app_role)",
-      "auth.users u", "FOR UPDATE", "updated_at IS DISTINCT FROM _expected_updated_at",
+      "auth.users u", "public.eut_account_operational()",
+      "eut_moderation.blocked_accounts", "FOR UPDATE", "updated_at IS DISTINCT FROM _expected_updated_at",
       "public.eut_ibge_municipalities", "public.eut_service_categories", "public.eut_service_types",
       "public.eut_admin_management_log", "technician_catalog_edit",
       "REVOKE ALL ON FUNCTION", "GRANT EXECUTE ON FUNCTION",

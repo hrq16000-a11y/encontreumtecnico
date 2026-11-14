@@ -24,7 +24,8 @@ DECLARE
 BEGIN
   IF v_actor IS NULL OR NOT public.has_role(v_actor, 'admin'::public.app_role)
      OR NOT EXISTS (SELECT 1 FROM auth.users u
-                    WHERE u.id=v_actor AND u.email_confirmed_at IS NOT NULL) THEN
+                    WHERE u.id=v_actor AND u.email_confirmed_at IS NOT NULL)
+     OR NOT public.eut_account_operational() THEN
     RAISE EXCEPTION 'Administrador autenticado e confirmado é obrigatório' USING ERRCODE='42501';
   END IF;
   IF char_length(v_reason) NOT BETWEEN 8 AND 400 OR
@@ -43,6 +44,12 @@ BEGIN
   IF EXISTS (SELECT 1 FROM public.user_roles r
              WHERE r.user_id=v_before.user_id AND r.role='admin'::public.app_role) THEN
     RAISE EXCEPTION 'Contas administrativas são protegidas' USING ERRCODE='42501';
+  END IF;
+  -- O CRUD territorial não remove bloqueios nem reabilita cadastros banidos.
+  -- A liberação de uma conta deve seguir seu fluxo específico de moderação.
+  IF EXISTS (SELECT 1 FROM eut_moderation.blocked_accounts b
+             WHERE b.user_id=v_before.user_id) THEN
+    RAISE EXCEPTION 'Cadastro bloqueado; trate a restrição na moderação' USING ERRCODE='42501';
   END IF;
 
   SELECT id,name,uf INTO v_city FROM public.eut_ibge_municipalities WHERE id=_city_ibge_id;
