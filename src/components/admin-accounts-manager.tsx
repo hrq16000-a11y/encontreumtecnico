@@ -34,8 +34,9 @@ const ACTION_NAMES: Record<Action, string> = {
 /** Read and write only through explicitly admin-guarded RPCs. Never use auth.admin in the browser. */
 export function AdminAccountsManager({ initialFilter = "todos" }: { initialFilter?: Filter }) {
   const [filter, setFilter] = useState<Filter>(initialFilter);
-  const [draftSearch, setDraftSearch] = useState("");
-  const [search, setSearch] = useState("");
+  const [draftSearch, setDraftSearch] = useState(() => typeof window === "undefined" ? "" :
+    new URLSearchParams(window.location.search).get("q")?.slice(0, 80) ?? "");
+  const [search, setSearch] = useState(draftSearch);
   const [page, setPage] = useState(0);
   const [version, setVersion] = useState(0);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);

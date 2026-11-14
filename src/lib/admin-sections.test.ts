@@ -50,13 +50,14 @@ describe("Central administrativa: URLs próprias e RLS intacta", () => {
     for (const source of [
       "<AdminAdvertisingManager />", "<EutAdminManager />",
       "<LegacyReviewQueue", "<LegacyClaimReview />",
-      "<SearchMetrics />", "contact_messages",
+      "<SearchMetrics />", "<AdminMessageQueue />", "<AdminRequestQueue />",
       '<AdminTechnicianUnifiedDirectory adminOwnerId={user.id} />',
     ]) expect(page).toContain(source);
     expect(page).not.toContain("auth.admin.deleteUser");
     expect(page).not.toContain("service_role");
     expect(page).toContain('<AdminAccountsManager initialFilter="clientes" />');
     expect(page).toContain('section === "contas"');
+    expect(read("src/components/admin-message-queue.tsx")).toContain('from("contact_messages")');
   });
   it("oferece atalhos operacionais autenticados sem alterar os guardas de acesso", () => {
     const page = read("src/routes/admin.tsx");

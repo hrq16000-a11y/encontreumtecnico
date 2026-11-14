@@ -49,8 +49,9 @@ export function cleanUnifiedSearch(value: string): string {
 }
 
 export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId: string }) {
-  const [draft, setDraft] = useState("");
-  const [term, setTerm] = useState("");
+  const [draft, setDraft] = useState(() => typeof window === "undefined" ? "" :
+    cleanUnifiedSearch(new URLSearchParams(window.location.search).get("q") ?? ""));
+  const [term, setTerm] = useState(draft);
   const [regionDraft, setRegionDraft] = useState("");
   const [specialtyDraft, setSpecialtyDraft] = useState("");
   const [region, setRegion] = useState("");

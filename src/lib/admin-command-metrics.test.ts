@@ -52,6 +52,8 @@ describe("Rodada 1 — comando administrativo", () => {
     expect(admin).toContain("<AdminCommandOverview />");
     expect(admin).toContain("<AdminControlHub />");
     expect(admin).toContain("<AdminClientInsights />");
-    expect(admin).toContain('const needsRequests = section === "solicitacoes";');
+    expect(admin).toContain("<AdminRequestQueue />");
+    expect(admin).toContain("<AdminMessageQueue />");
+    expect(admin).toContain("<AdminGlobalSearch />");
   });
 });
