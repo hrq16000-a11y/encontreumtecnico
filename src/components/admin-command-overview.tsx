@@ -4,10 +4,17 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { AdminModule } from "@/lib/admin-sections";
 import { adminCount, clientCounters, advertisingCounters } from "@/lib/admin-command-metrics";
+import { readGuiafixStaging } from "@/lib/guiafix-staging-normalizer";
+
+const guiafixCaptures = import.meta.glob("../../data/external-staging/guiafix-*.capture.json", {
+  eager: true, import: "default",
+}) as Record<string, unknown>;
+const guiafixCount = readGuiafixStaging(Object.values(guiafixCaptures)).length;
 
 const db = supabase as unknown as SupabaseClient;
 type Metrics = {
   approved: number | null; pending: number | null;
+  wordpress: number | null;
   requests: number | null; requestsOpen: number | null;
   clients: number | null; unconfirmed: number | null;
   sponsors: number | null; campaigns: number | null; drafts: number | null;
@@ -15,17 +22,20 @@ type Metrics = {
 type SummaryItem = { label: string; value: number | null; module: AdminModule; note?: string };
 
 /** Exact, metadata-only reads: the overview never fetches request texts or contacts. */
-async function count(table: "technicians" | "service_requests", status?: string): Promise<number | null> {
+async function count(table: "technicians" | "service_requests" | "legacy_review_profiles", status?: string): Promise<number | null> {
   try {
-    const query = db.from(table).select("id", { count: "exact", head: true });
-    const result = status === undefined ? await query : await query.eq("status", status);
+    const query = db.from(table).select(table === "legacy_review_profiles" ? "wp_post_id" : "id", { count: "exact", head: true });
+    const result = table === "legacy_review_profiles"
+      ? await query.eq("source_key", "wordpress_20261108")
+      : status === undefined ? await query : await query.eq("status", status);
     return result.error ? null : adminCount(result.count);
   } catch { return null; }
 }
 async function dashboard(): Promise<Metrics> {
-  const [approved, pending, requests, requestsOpen, clientsRaw, adsRaw] = await Promise.all([
+  const [approved, pending, wordpress, requests, requestsOpen, clientsRaw, adsRaw] = await Promise.all([
     count("technicians", "aprovado"),
     count("technicians", "pendente"),
+    count("legacy_review_profiles"),
     count("service_requests"),
     count("service_requests", "aberta"),
     Promise.resolve(db.rpc("eut_admin_client_insights", { _audit_filter: "todos", _page: 0, _subject_user_id: null }))
@@ -33,7 +43,7 @@ async function dashboard(): Promise<Metrics> {
     Promise.resolve(db.rpc("eut_ads_admin_snapshot"))
       .then(({ data, error }) => error ? null : data).catch(() => null),
   ]);
-  return { approved, pending, requests, requestsOpen,
+  return { approved, pending, wordpress, requests, requestsOpen,
     ...clientCounters(clientsRaw), ...advertisingCounters(adsRaw) };
 }
 
@@ -52,7 +62,9 @@ export function AdminCommandOverview() {
   }, [revision]);
 
   const cards: SummaryItem[] = [
-    { label: "Técnicos aprovados", value: metrics?.approved ?? null, module: "tecnicos", note: "Cadastros atuais" },
+    { label: "Técnicos com conta aprovada", value: metrics?.approved ?? null, module: "tecnicos", note: "Contas operacionais, não o total importado" },
+    { label: "Técnicos no acervo WordPress", value: metrics?.wordpress ?? null, module: "tecnicos", note: "Fichas históricas, inclusive classificações antigas" },
+    { label: "Técnicos capturados no Guiafix", value: guiafixCount, module: "tecnicos", note: "Nomes recuperados; vínculo operacional pendente" },
     { label: "Clientes cadastrados", value: metrics?.clients ?? null, module: "clientes", note: "Total do RPC administrativo" },
     { label: "Solicitações registradas", value: metrics?.requests ?? null, module: "solicitacoes", note: "Todas as situações" },
     { label: "Solicitações abertas", value: metrics?.requestsOpen ?? null, module: "solicitacoes", note: "Status: aberta" },

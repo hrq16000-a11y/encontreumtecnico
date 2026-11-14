@@ -76,8 +76,9 @@ describe("Convites administrativos para novos técnicos e clientes", () => {
     expect(manager).not.toContain("sendEmail");
     expect(acceptance).not.toContain("eut_publish_my_technician");
   });
-  it("integra o fluxo nas 3 áreas administrativas e no login existente", () => {
-    expect(admin).toContain('<AdminMemberInvites initialRole="tecnico" />');
+  it("mantém convites para contas e clientes, sem substituir o CRUD de técnicos", () => {
+    expect(admin).not.toContain('<AdminMemberInvites initialRole="tecnico" />');
+    expect(admin).toContain("<AdminTechnicianUnifiedDirectory />");
     expect(admin).toContain('<AdminMemberInvites initialRole="cliente" />');
     expect(admin).toContain("<AdminMemberInvites /><AdminAccountsManager />");
     expect(login).toContain('<MemberInviteAcceptance userId={user.id} termsAccepted={termsAccepted} refreshRoles={refreshRoles} />');
