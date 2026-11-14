@@ -29,10 +29,15 @@ type DirectoryRow = {
   regionKey?: string | undefined;
   specialty: string | null;
   createdAt?: string;
+  updatedAt?: string;
+  status?: string;
   origin: "portal" | "wordpress" | "guiafix" | "manual" | "other_import";
   recordState?: string | undefined;
   demo?: boolean;
 };
+
+type DirectorySort = "name_asc" | "name_desc" | "location" | "specialty";
+type DirectoryView = "cards" | "compact" | "detailed";
 
 // PostgREST `or` filtering is structural syntax: only safe search characters enter it.
 export function cleanUnifiedSearch(value: string): string {
@@ -47,10 +52,12 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
   const [region, setRegion] = useState("");
   const [specialty, setSpecialty] = useState("");
   const [recentOnly, setRecentOnly] = useState(false);
+  const [sort, setSort] = useState<DirectorySort>("name_asc");
+  const [view, setView] = useState<DirectoryView>("cards");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [bulkReason, setBulkReason] = useState("");
+  const [bulkBusy, setBulkBusy] = useState(false);
   const [page, setPage] = useState(0);
-  const [viewMode, setViewMode] = useState<"cards" | "rows" | "grid">("rows");
-  const [sortMode, setSortMode] = useState<"name_asc" | "name_desc" | "newest">("name_asc");
-  const [checkedKeys, setCheckedKeys] = useState<string[]>([]);
   const [legacy, setLegacy] = useState<DirectoryRow[]>([]);
   const [operational, setOperational] = useState<DirectoryRow[]>([]);
   const [registry, setRegistry] = useState<AdminTechnicianRegistryRecord[]>([]);
@@ -85,9 +92,9 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       setRegion(cleanUnifiedSearch(regionDraft));
       setSpecialty(cleanUnifiedSearch(specialtyDraft));
       setPage(0);
-      setCheckedKeys([]);
       setSelectedKey(null);
       setImportKey(null);
+      setSelectedIds(new Set());
     }, 320);
     return () => window.clearTimeout(timer);
   }, [draft, regionDraft, specialtyDraft]);
@@ -99,7 +106,9 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     async function load() {
       // The merged page needs only the first N sorted rows from EACH source.
       // Fetch in 200-row chunks to avoid PostgREST's 1,000-row response cap.
-      const needed = (page + 1) * UNIFIED_DIRECTORY_PAGE_SIZE;
+      // Sorting by other fields needs the complete matching set, otherwise a
+      // different ordering would silently omit records beyond the first page.
+      const needed = sort === "name_asc" ? (page + 1) * UNIFIED_DIRECTORY_PAGE_SIZE : 5000;
       let matchedIds: number[] = [];
       if (term) {
         // The historical title is immutable. Searching only that field would lose
@@ -120,7 +129,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
         let total = 0;
         for (let start = 0; start < needed && current; start += FETCH_CHUNK) {
           let query = db.from("technicians")
-            .select("id,display_name,city,state_uf,region,specialties,status,created_at", { count: "exact" });
+            .select("id,display_name,city,state_uf,region,specialties,status,created_at,updated_at", { count: "exact" });
           if (term) query = query.ilike("display_name", `%${term}%`);
           if (region) query = region.length === 2 ? query.eq("state_uf", region.toUpperCase())
             : query.or(["city", "region"].map((field) => `${field}.ilike.%${region}%`).join(","));
@@ -136,7 +145,8 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
             location: [item.city, item.state_uf].filter(Boolean).join("/") || item.region || "Localidade não informada",
             regionKey: item.city || item.state_uf || undefined,
             specialty: item.specialties?.join(", ") || null,
-            createdAt: item.created_at, origin: "portal",
+            createdAt: item.created_at, updatedAt: item.updated_at,
+            status: item.status, origin: "portal",
           })));
           if (!result.data?.length || rows.length >= total) break;
         }
@@ -208,7 +218,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       setOperational([]); setLegacy([]); setFailed(true); setLoading(false);
     } });
     return () => { current = false; };
-  }, [term, region, specialtyTerm, matchedSlugs, page, recentOnly, reload]);
+  }, [term, region, specialtyTerm, matchedSlugs, page, recentOnly, sort, reload]);
 
   useEffect(() => {
     let current = true;
@@ -218,7 +228,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       // The registry RPC has a strict 100-row maximum per call.
       // With locality/specialty filters, read all matching-by-name records so
       // the client does not silently omit later matching category/region rows.
-      const needAll = Boolean(region || specialtyTerm);
+      const needAll = Boolean(region || specialtyTerm || sort !== "name_asc");
       const wanted = needAll ? Number.POSITIVE_INFINITY : (page + 1) * UNIFIED_DIRECTORY_PAGE_SIZE;
       let total = 0;
       for (let offset = 0; offset < wanted && current; offset += 100) {
@@ -252,7 +262,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
         : "Sem conexão com a API administrativa; nenhuma gravação está habilitada.");
     });
     return () => { current = false; };
-  }, [term, region, specialtyTerm, page, reload]);
+  }, [term, region, specialtyTerm, sort, page, reload]);
 
   function refreshAfterSaved() {
     // Requery authoritative server values after an audited write. The selected
@@ -297,12 +307,17 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       ...legacyUnlinked,
       ...guiafixUnlinked,
       ...registryRows];
+    const compareName = (a: DirectoryRow, b: DirectoryRow) =>
+      a.name.localeCompare(b.name, "pt-BR") || a.key.localeCompare(b.key);
     rows.sort((a, b) => recentOnly
       ? (Date.parse(b.createdAt ?? "") || 0) - (Date.parse(a.createdAt ?? "") || 0)
-      : a.name.localeCompare(b.name, "pt-BR") || a.key.localeCompare(b.key));
+      : sort === "name_desc" ? -compareName(a, b)
+      : sort === "location" ? a.location.localeCompare(b.location, "pt-BR") || compareName(a, b)
+      : sort === "specialty" ? (a.specialty ?? "").localeCompare(b.specialty ?? "", "pt-BR") || compareName(a, b)
+      : compareName(a, b));
     return { rows, importedCount: legacy.length - legacyUnlinked.length + guiafixResults.length - guiafixUnlinked.length,
       registryFilteredCount: registryRows.length };
-  }, [operational, legacy, guiafixResults, registry, region, specialtyTerm, recentOnly]);
+  }, [operational, legacy, guiafixResults, registry, region, specialtyTerm, recentOnly, sort]);
   const results = useMemo(() => unifiedPageSlice(merged.rows, page), [merged, page]);
   const registryCount = recentOnly ? 0 : region || specialtyTerm ? merged.registryFilteredCount : registryAvailable ? registryTotal : 0;
   const total = operationalTotal === null || legacyTotal === null ? null
@@ -311,20 +326,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     operational.length >= operationalTotal && legacy.length >= legacyTotal &&
     (!registryAvailable || registry.length >= registryTotal);
   const pages = unifiedPageCount(total ?? 0);
-  // Sorting is explicitly limited to the loaded page. Server pagination remains authoritative.
-  const visibleRows = useMemo(() => [...results].sort((a, b) => {
-    if (sortMode === "newest") {
-      const dateDelta = (b.createdAt ?? "").localeCompare(a.createdAt ?? "");
-      if (dateDelta !== 0) return dateDelta;
-    }
-    return sortMode === "name_desc"
-      ? b.name.localeCompare(a.name, "pt-BR")
-      : a.name.localeCompare(b.name, "pt-BR");
-  }), [results, sortMode]);
-  const checkedVisible = visibleRows.filter((row) => checkedKeys.includes(row.key));
-  function toggleChecked(key: string) {
-    setCheckedKeys((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key]);
-  }
+  const checkedVisible = results.filter((row) => selectedIds.has(row.key));
   async function copyCheckedNames() {
     if (checkedVisible.length === 0) return;
     try {
@@ -386,6 +388,74 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     setWpAction("corrigir_nome");
     setReason("");
     setFeedback(null);
+  }
+
+  function toggleSelected(key: string) {
+    setSelectedIds((before) => {
+      const next = new Set(before);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  async function submitBulk(action: "archive" | "restore") {
+    if (bulkBusy) return;
+    const targets = merged.rows.filter((row) => selectedIds.has(row.key));
+    if (!targets.length) return;
+    if (bulkReason.trim().length < 8 || bulkReason.trim().length > 400 ||
+      publicTextProblem(bulkReason, "identity")) {
+      setFeedback("Para ações em massa, informe um motivo administrativo válido (8 a 400 caracteres, sem contatos).");
+      return;
+    }
+    if (targets.some((row) => row.demo ||
+      (!row.registry && row.wpPostId === undefined && !row.portalId))) {
+      setFeedback("A seleção contém uma ficha sem cadastro editável. Abra essa ficha e conclua seu cadastro antes da ação em massa.");
+      return;
+    }
+    if (!window.confirm(`${action === "archive" ? "Arquivar" : "Restaurar"} ${targets.length} técnicos selecionados? Cada operação será auditada, sem apagar contas ou contatos.`)) return;
+    setBulkBusy(true);
+    setFeedback(null);
+    let completed = 0;
+    try {
+      for (const row of targets) {
+        if (row.registry) {
+          const { data, error } = await db.rpc("eut_admin_technician_record_archive", {
+            _technician_id: row.registry.technician_id,
+            _expected_updated_at: row.registry.updated_at,
+            _action: action, _reason: bulkReason.trim(),
+          });
+          if (error || data?.ok !== true || data?.archived !== (action === "archive"))
+            throw new Error("registro");
+        } else if (row.wpPostId !== undefined) {
+          const { data, error } = await db.rpc("eut_admin_legacy_action", {
+            p_ids: [row.wpPostId], p_action: action === "archive" ? "arquivar" : "restaurar",
+            p_value: "", p_reason: bulkReason.trim(),
+          });
+          if (error || data?.updated !== 1 || data?.published !== false)
+            throw new Error("histórico");
+        } else if (row.portalId && row.updatedAt) {
+          const { data, error } = await db.rpc("eut_admin_technician_archive", {
+            _technician_id: row.portalId, _expected_updated_at: row.updatedAt,
+            _action: action, _reason: bulkReason.trim(),
+          });
+          if (error || data?.ok !== true || data?.archived !== (action === "archive"))
+            throw new Error("portal");
+        } else throw new Error("cadastro");
+        completed += 1;
+      }
+      setSelectedIds(new Set());
+      setBulkReason("");
+      refreshAfterSaved();
+      setFeedback(`${completed} de ${targets.length} técnicos: operação confirmada no banco, com auditoria individual.`);
+    } catch {
+      // A partial batch is explicit: never claim atomic success or replay writes.
+      setFeedback(`Operação interrompida: ${completed} de ${targets.length} técnicos confirmados. Atualize os dados antes de tentar novamente; nenhuma exclusão definitiva foi feita.`);
+      setSelectedIds(new Set());
+      setReload((version) => version + 1);
+    } finally {
+      setBulkBusy(false);
+    }
   }
 
   async function submitWordPress(event: FormEvent, row: DirectoryRow) {
@@ -479,28 +549,23 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
           maxLength={80} placeholder="Ex.: informática" className="min-h-12 w-full rounded-xl border border-input bg-background px-4 font-normal text-foreground" />
       </label>
     </div>
-    <div className="mt-4 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-muted/30 p-3" aria-label="Organizar visualização">
-      <label className="grid gap-1 text-xs font-semibold text-foreground">Exibição
-        <select value={viewMode} onChange={(event) => setViewMode(event.target.value as typeof viewMode)}
-          className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm">
-          <option value="rows">Linhas compactas</option><option value="cards">Cartões</option><option value="grid">Grade</option>
+    <div className="mt-3 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-muted/30 p-3">
+      <label className="grid min-w-40 flex-1 gap-1 text-sm font-semibold text-foreground">Ordenar por
+        <select aria-label="Ordenar técnicos" value={sort} onChange={(event) => {
+          setSort(event.target.value as DirectorySort); setPage(0); setSelectedIds(new Set());
+        }} className="min-h-11 rounded-lg border border-input bg-background px-3 font-normal">
+          <option value="name_asc">Nome (A–Z)</option>
+          <option value="name_desc">Nome (Z–A)</option>
+          <option value="location">Cidade ou região</option>
+          <option value="specialty">Categoria ou especialidade</option>
         </select>
       </label>
-      <label className="grid gap-1 text-xs font-semibold text-foreground">Ordenar esta página
-        <select value={sortMode} onChange={(event) => setSortMode(event.target.value as typeof sortMode)}
-          className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm">
-          <option value="name_asc">Nome A–Z</option><option value="name_desc">Nome Z–A</option><option value="newest">Cadastro recente (quando informado)</option>
-        </select>
-      </label>
-      <button type="button" onClick={() => setCheckedKeys(visibleRows.map((row) => row.key))}
-        className="min-h-11 rounded-lg border border-input px-3 text-sm">Selecionar página</button>
-      <button type="button" onClick={() => setCheckedKeys([])} disabled={checkedKeys.length === 0}
-        className="min-h-11 rounded-lg border border-input px-3 text-sm disabled:opacity-50">Limpar seleção</button>
-      <button type="button" onClick={() => void copyCheckedNames()} disabled={checkedVisible.length === 0}
-        className="min-h-11 rounded-lg border border-primary/40 px-3 text-sm font-semibold text-primary disabled:opacity-50">
-        Copiar nomes ({checkedVisible.length})
-      </button>
-      <span className="w-full text-xs text-muted-foreground">A seleção e a ordenação se aplicam à página atual. Nenhuma ação em lote altera cadastros ou contatos.</span>
+      <div role="group" aria-label="Forma de exibição" className="flex flex-wrap gap-1">
+        {([ ["cards", "Cartões"], ["compact", "Compacto"], ["detailed", "Detalhado"] ] as const).map(([mode, label]) =>
+          <button key={mode} type="button" aria-pressed={view === mode} onClick={() => setView(mode)}
+            className={"min-h-11 rounded-lg border px-3 text-sm font-semibold " +
+              (view === mode ? "border-primary bg-primary text-primary-foreground" : "border-input bg-background text-foreground")}>{label}</button>)}
+      </div>
     </div>
     {(region || specialty) && <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
       <span>Filtros ativos:</span>
@@ -512,12 +577,47 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
         `${total === null ? "Total indisponível" : (exactTotal ? "" : "cerca de ") + total.toLocaleString("pt-BR") + " referências"} · página ${page + 1} de ${pages} · até ${UNIFIED_DIRECTORY_PAGE_SIZE} registros por página`}
     </p>
     {feedback && <p role="status" className="mt-3 rounded-lg border border-border bg-muted/50 p-3 text-sm text-foreground">{feedback}</p>}
-    {!loading && !registryLoading && !failed && <ul className={"mt-4 grid min-w-0 gap-3 " + (viewMode === "cards" ? "sm:grid-cols-2" : viewMode === "grid" ? "sm:grid-cols-2 xl:grid-cols-3" : "")}>
-      {visibleRows.map((row) => <li key={row.key} className={"min-w-0 rounded-xl border border-border bg-background " + (viewMode === "rows" ? "p-2 sm:p-3" : "p-3 sm:p-4")}>
+    {!loading && !registryLoading && !failed && results.length > 0 && <div className="mt-3 rounded-xl border border-border p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" onClick={() => setSelectedIds((before) => {
+          const next = new Set(before);
+          const eligible = results.filter((row) => !row.demo);
+          if (eligible.every((row) => next.has(row.key))) eligible.forEach((row) => next.delete(row.key));
+          else eligible.forEach((row) => next.add(row.key));
+          return next;
+        })} className="min-h-11 rounded-lg border border-input px-3 text-sm font-semibold text-foreground">
+          {results.filter((row) => !row.demo).every((row) => selectedIds.has(row.key)) ? "Desmarcar página" : "Selecionar página"}
+        </button>
+        <span className="text-sm text-muted-foreground">{selectedIds.size} selecionados</span>
+        <button type="button" onClick={() => void copyCheckedNames()} disabled={checkedVisible.length === 0}
+          className="min-h-11 rounded-lg border border-primary/40 px-3 text-sm font-semibold text-primary disabled:opacity-50">
+          Copiar nomes ({checkedVisible.length})
+        </button>
+        {selectedIds.size > 0 && <button type="button" onClick={() => setSelectedIds(new Set())}
+          className="min-h-11 rounded-lg border border-input px-3 text-sm text-foreground">Limpar seleção</button>}
+      </div>
+      {selectedIds.size > 0 && <div className="mt-3 grid gap-2 border-t border-border pt-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+        <label className="grid gap-1 text-sm font-semibold text-foreground">Motivo para auditoria em massa
+          <input value={bulkReason} onChange={(event) => setBulkReason(event.target.value)} minLength={8} maxLength={400}
+            placeholder="Ex.: revisão administrativa solicitada" className="min-h-11 min-w-0 rounded-lg border border-input bg-background px-3 font-normal" />
+        </label>
+        <button type="button" disabled={bulkBusy} onClick={() => void submitBulk("archive")}
+          className="min-h-11 rounded-lg border border-amber-600 px-3 text-sm font-semibold text-foreground disabled:opacity-50">Arquivar selecionados</button>
+        <button type="button" disabled={bulkBusy} onClick={() => void submitBulk("restore")}
+          className="min-h-11 rounded-lg border border-input px-3 text-sm font-semibold text-foreground disabled:opacity-50">Restaurar selecionados</button>
+      </div>}
+    </div>}
+    {!loading && !registryLoading && !failed && <ul className={"mt-4 grid min-w-0 gap-3 " +
+      (view === "compact" ? "sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" :
+        view === "cards" ? "sm:grid-cols-2 xl:grid-cols-3" : "grid-cols-1")}>
+      {results.map((row) => <li key={row.key} className={"min-w-0 rounded-xl border border-border bg-background p-3 " +
+        (view === "compact" ? "text-sm" : "sm:p-4") +
+        (selectedKey === row.key && view !== "detailed" ?
+          (view === "compact" ? " sm:col-span-2 xl:col-span-3 2xl:col-span-4" : " sm:col-span-2 xl:col-span-3") : "")}>
         <div className="flex min-w-0 flex-col justify-between gap-3 sm:flex-row sm:items-start">
           <div className="flex min-w-0 items-start gap-3">
-            <input type="checkbox" aria-label={`Selecionar ${row.name}`} checked={checkedKeys.includes(row.key)}
-              onChange={() => toggleChecked(row.key)} className="mt-1 h-5 w-5 shrink-0 accent-primary" />
+            {!row.demo && <input type="checkbox" aria-label={`Selecionar ${row.name}`} checked={selectedIds.has(row.key)}
+              onChange={() => toggleSelected(row.key)} className="mt-1 size-5 shrink-0 accent-primary" />}
             <div className="min-w-0">
             <strong className="break-words text-foreground">{row.name}</strong>
             {row.regionKey ? <button type="button" onClick={() => filterRegion(row.regionKey ?? "")}
@@ -528,6 +628,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
               className="mt-1 min-h-9 break-words text-left text-xs text-primary underline-offset-2 hover:underline"
               title="Encontrar especialidades semelhantes">{row.specialty}</button>}
             {row.demo && <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">Demonstração protegida: indisponível para ativação.</p>}
+            {view === "detailed" && <p className="mt-1 text-xs text-muted-foreground">{row.createdAt ? `Cadastrado em ${new Date(row.createdAt).toLocaleDateString("pt-BR")}` : "Data de cadastro não informada"}</p>}
             </div>
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
@@ -610,15 +711,15 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     {!loading && !registryLoading && !failed && results.length === 0 && <p className="mt-4 text-sm text-muted-foreground">Nenhum registro corresponde à busca.</p>}
     {!loading && !registryLoading && !failed && total !== null && total > 0 && <nav aria-label="Paginação do diretório unificado"
       className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
-      <button type="button" disabled={page === 0} onClick={() => { setPage((current) => Math.max(0, current - 1)); setSelectedKey(null); setImportKey(null); setCheckedKeys([]); }}
+      <button type="button" disabled={page === 0} onClick={() => { setPage((current) => Math.max(0, current - 1)); setSelectedKey(null); setImportKey(null); setSelectedIds(new Set()); }}
         className="min-h-11 rounded-lg border border-input px-4 text-sm font-semibold text-foreground disabled:opacity-40">Anterior</button>
       <label className="flex items-center gap-2 text-sm text-foreground">Página
-        <select aria-label="Ir para a página" value={page} onChange={(event) => { setPage(Number(event.target.value)); setSelectedKey(null); setImportKey(null); setCheckedKeys([]); }}
+        <select aria-label="Ir para a página" value={page} onChange={(event) => { setPage(Number(event.target.value)); setSelectedKey(null); setImportKey(null); setSelectedIds(new Set()); }}
           className="min-h-11 rounded-lg border border-input bg-background px-3">
           {Array.from({ length: pages }, (_, index) => <option key={index} value={index}>{index + 1} de {pages}</option>)}
         </select>
       </label>
-      <button type="button" disabled={page + 1 >= pages} onClick={() => { setPage((current) => Math.min(pages - 1, current + 1)); setSelectedKey(null); setImportKey(null); setCheckedKeys([]); }}
+      <button type="button" disabled={page + 1 >= pages} onClick={() => { setPage((current) => Math.min(pages - 1, current + 1)); setSelectedKey(null); setImportKey(null); setSelectedIds(new Set()); }}
         className="min-h-11 rounded-lg border border-input px-4 text-sm font-semibold text-foreground disabled:opacity-40">Próxima</button>
     </nav>}
     <p className="mt-4 text-xs text-muted-foreground">
