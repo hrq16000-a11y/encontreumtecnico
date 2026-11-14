@@ -419,6 +419,23 @@ BEGIN
   IF NOT EXISTS(SELECT 1 FROM public.eut_admin_technician_registry_list('',50,0) x
     WHERE x.technician_id=v_id AND x.contact_last4='8800' AND x.city_ibge_id IS NULL)
   THEN RAISE EXCEPTION 'Admin registry listing incomplete'; END IF;
+  v_version:=(SELECT r.updated_at FROM eut_moderation.admin_technician_records r
+    WHERE r.id=v_id);
+  v_next:=public.eut_admin_technician_record_archive(v_id,v_version,'archive',
+    'Homologação sintética de arquivamento ativo');
+  IF v_next->>'archived'<>'true' OR v_next->>'admin_active'<>'false'
+  THEN RAISE EXCEPTION 'Archive did not deactivate active record'; END IF;
+  v_version:=(v_next->>'updated_at')::timestamptz;
+  v_next:=public.eut_admin_technician_record_archive(v_id,v_version,'restore',
+    'Homologação sintética de restauração ativa');
+  IF v_next->>'archived'<>'false' OR v_next->>'admin_active'<>'true' OR
+    NOT EXISTS(SELECT 1 FROM eut_moderation.admin_technician_records r
+      WHERE r.id=v_id AND r.archived_at IS NULL AND r.admin_active=true) OR
+    NOT EXISTS(SELECT 1 FROM public.eut_admin_management_log l
+      WHERE l.target_key=v_id::text AND l.action='registry_technician_restored'
+        AND l.after_state->>'admin_active'='true'
+        AND length(coalesce(l.reason,''))>=8)
+  THEN RAISE EXCEPTION 'Restore lost prior active state or audit'; END IF;
 END $assert_registry$;
 
 \echo 'QA: imported evidence, protected demos and contact suspension'

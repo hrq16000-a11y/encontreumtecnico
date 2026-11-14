@@ -593,6 +593,7 @@ DECLARE
   v_reason text:=btrim(coalesce(_reason,''));
   v_before eut_moderation.admin_technician_records%ROWTYPE;
   v_after eut_moderation.admin_technician_records%ROWTYPE;
+  v_restore_active boolean;
 BEGIN
   IF v_actor IS NULL OR NOT public.has_role(v_actor,'admin'::public.app_role)
     OR NOT EXISTS(SELECT 1 FROM auth.users u WHERE u.id=v_actor
@@ -613,9 +614,22 @@ BEGIN
     RAISE EXCEPTION 'Cadastro já arquivado' USING ERRCODE='22023'; END IF;
   IF _action='restore' AND v_before.archived_at IS NULL THEN
     RAISE EXCEPTION 'Cadastro não arquivado' USING ERRCODE='22023'; END IF;
+  IF _action='restore' THEN
+    SELECT CASE WHEN pg_catalog.jsonb_typeof(l.before_state->'admin_active')='boolean'
+           THEN (l.before_state->>'admin_active')::boolean ELSE NULL END
+      INTO v_restore_active
+      FROM public.eut_admin_management_log l
+      WHERE l.target_type='technician' AND l.target_key=_technician_id::text
+        AND l.action='registry_technician_archived'
+      ORDER BY l.id DESC LIMIT 1;
+    IF v_restore_active IS NULL THEN
+      RAISE EXCEPTION 'Estado anterior não disponível na auditoria' USING ERRCODE='23514';
+    END IF;
+  END IF;
   UPDATE eut_moderation.admin_technician_records SET
     archived_at=CASE WHEN _action='archive' THEN pg_catalog.clock_timestamp() ELSE NULL END,
-    admin_active=false,updated_at=pg_catalog.clock_timestamp()
+    admin_active=CASE WHEN _action='archive' THEN false ELSE v_restore_active END,
+    updated_at=pg_catalog.clock_timestamp()
     WHERE id=_technician_id RETURNING * INTO v_after;
   INSERT INTO public.eut_admin_management_log
     (actor_id,target_type,target_key,action,reason,before_state,after_state)
@@ -626,7 +640,7 @@ BEGIN
     pg_catalog.jsonb_build_object('archived',v_after.archived_at IS NOT NULL,
        'admin_active',v_after.admin_active,'contact_authorization_changed',false));
   RETURN pg_catalog.jsonb_build_object('ok',true,'technician_id',v_after.id,
-    'archived',v_after.archived_at IS NOT NULL,'admin_active',false,
+    'archived',v_after.archived_at IS NOT NULL,'admin_active',v_after.admin_active,
     'updated_at',v_after.updated_at);
 END;
 $rpc$;
