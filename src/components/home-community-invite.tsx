@@ -1,13 +1,43 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, ExternalLink, Handshake, ShieldCheck, UsersRound, X } from "lucide-react";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
+import { asApprovedSponsoredCard } from "@/components/sponsored-public-slot";
 
 export const COMMUNITY_INVITE_URL = "https://chat.whatsapp.com/DVfSXlJR5YG16VtNtYcf5p";
 const SEEN_KEY = "eut-community-invite-home-v1";
+const db = supabase as unknown as SupabaseClient;
+type ApprovedCard = NonNullable<ReturnType<typeof asApprovedSponsoredCard>>;
+
+function advertisingConsent(): boolean {
+  try { return JSON.parse(localStorage.getItem("eut-cookie-consent") || "{}").advertising === true; }
+  catch { return false; }
+}
 
 /** Marketing invitation only; service leads still stay inside the protected funnel. */
 export function HomeCommunityInvite() {
   const [showPopup, setShowPopup] = useState(false);
+  const [approvedCard, setApprovedCard] = useState<ApprovedCard | null>(null);
+  const [popupCard, setPopupCard] = useState<ApprovedCard | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const load = () => {
+      if (!advertisingConsent()) {
+        setApprovedCard(null);
+        setPopupCard(null);
+        return;
+      }
+      void Promise.resolve(db.rpc("eut_ads_public_slot", { _slot_key: "home.content_1", _route_path: "/" }))
+        .then(({ data, error }) => {
+          if (active) setApprovedCard(error || !advertisingConsent() ? null : asApprovedSponsoredCard(data, "home.content_1"));
+        }).catch(() => { if (active) setApprovedCard(null); });
+    };
+    load();
+    window.addEventListener("eut-consent-changed", load);
+    return () => { active = false; window.removeEventListener("eut-consent-changed", load); };
+  }, []);
 
   useEffect(() => {
     // The persistent, accessible banner is always available, including mobile.
@@ -24,10 +54,11 @@ export function HomeCommunityInvite() {
       if (focused instanceof HTMLElement &&
         (focused.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(focused.tagName))) return;
       try { sessionStorage.setItem(SEEN_KEY, "1"); } catch { return; }
+      setPopupCard(advertisingConsent() ? approvedCard : null);
       setShowPopup(true);
     }, 11000);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [approvedCard]);
 
   return (
     <>
@@ -68,31 +99,43 @@ export function HomeCommunityInvite() {
       </section>
 
       {showPopup && (
-        <aside aria-label="Convite para profissionais participarem da comunidade"
+        <aside aria-label={popupCard ? "Campanha publicitária aprovada" : "Convite para profissionais participarem da comunidade"}
           className="fixed bottom-24 left-3 right-3 z-40 mx-auto w-auto max-w-[342px] rounded-2xl border border-primary/20 bg-card p-4 text-card-foreground shadow-2xl lg:bottom-44 lg:left-auto lg:right-6 lg:mx-0 lg:p-5">
-          <button type="button" aria-label="Dispensar convite da comunidade"
+          <button type="button" aria-label={popupCard ? "Dispensar campanha" : "Dispensar convite da comunidade"}
             onClick={() => setShowPopup(false)}
             className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary">
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
-          <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-primary">
-            <UsersRound className="h-4 w-4" aria-hidden="true" /> Comunidade nacional
-          </span>
-          <h3 className="mt-2 pr-6 text-lg font-extrabold leading-snug text-foreground lg:mt-3 lg:text-xl">
-            Trabalha com tecnologia?
-          </h3>
-          <p className="mt-2 hidden text-sm leading-6 text-muted-foreground lg:block">
-            Conheça a comunidade de técnicos e troque experiências com outros profissionais.
-          </p>
-          <a href={COMMUNITY_INVITE_URL} target="_blank" rel="noopener noreferrer"
-            onClick={() => setShowPopup(false)}
-            className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground hover:bg-primary/90">
-            Participar da comunidade <ExternalLink className="h-4 w-4" aria-hidden="true" />
-          </a>
-          <Link to="/cadastro" onClick={() => setShowPopup(false)}
-            className="mt-2 hidden min-h-11 w-full items-center justify-center rounded-xl border border-border text-sm font-semibold text-foreground hover:bg-accent lg:inline-flex">
-            Quero me cadastrar no portal
-          </Link>
+          {popupCard ? <>
+            <span className="text-xs font-bold uppercase tracking-wide text-primary">Publicidade · {popupCard.brand_name}</span>
+            <h3 className="mt-2 pr-6 text-lg font-extrabold text-foreground">{popupCard.headline}</h3>
+            {popupCard.description && <p className="mt-2 text-sm leading-6 text-muted-foreground">{popupCard.description}</p>}
+            <a href={popupCard.destination_url} target="_blank" rel="sponsored noopener noreferrer"
+              onClick={() => setShowPopup(false)}
+              className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground hover:bg-primary/90">
+              Conhecer anunciante <ExternalLink className="h-4 w-4" aria-hidden="true" />
+            </a>
+            <p className="mt-2 text-xs text-muted-foreground">Anúncio aprovado. Não representa certificação técnica.</p>
+          </> : <>
+            <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-primary">
+              <UsersRound className="h-4 w-4" aria-hidden="true" /> Comunidade nacional
+            </span>
+            <h3 className="mt-2 pr-6 text-lg font-extrabold leading-snug text-foreground lg:mt-3 lg:text-xl">
+              Trabalha com tecnologia?
+            </h3>
+            <p className="mt-2 hidden text-sm leading-6 text-muted-foreground lg:block">
+              Conheça a comunidade de técnicos e troque experiências com outros profissionais.
+            </p>
+            <a href={COMMUNITY_INVITE_URL} target="_blank" rel="noopener noreferrer"
+              onClick={() => setShowPopup(false)}
+              className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground hover:bg-primary/90">
+              Participar da comunidade <ExternalLink className="h-4 w-4" aria-hidden="true" />
+            </a>
+            <Link to="/cadastro" onClick={() => setShowPopup(false)}
+              className="mt-2 hidden min-h-11 w-full items-center justify-center rounded-xl border border-border text-sm font-semibold text-foreground hover:bg-accent lg:inline-flex">
+              Quero me cadastrar no portal
+            </Link>
+          </>}
         </aside>
       )}
     </>
