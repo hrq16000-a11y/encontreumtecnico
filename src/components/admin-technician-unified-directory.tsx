@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { normalizeGuiafixSearch, readGuiafixStaging } from "@/lib/guiafix-staging-normalizer";
 import { publicTextProblem } from "@/lib/public-profile-text";
 import { AdminTechnicianManager } from "@/components/admin-technician-manager";
+import { AdminTechnicianIntakeManager } from "@/components/admin-technician-intake-manager";
 
 // The three imports are independent sources, NOT additional approved accounts.
 // Admin-only public fields; never query telephone, e-mail or private contacts here.
@@ -322,5 +323,6 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       A criação de fichas com contatos e a importação de lotes dependem da API administrativa em homologação.
       Nenhuma ficha de origem ou demonstração é ativada automaticamente.
     </p>
+    <AdminTechnicianIntakeManager />
   </section>;
 }
