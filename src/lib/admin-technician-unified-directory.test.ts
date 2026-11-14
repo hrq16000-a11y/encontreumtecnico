@@ -35,6 +35,15 @@ describe("busca administrativa unificada", () => {
     expect(directory).toContain('data?.updated !== 1 || data?.published !== false');
     expect(directory).toContain('row.origin === "guiafix"');
     expect(directory).toContain("sm:w-auto");
+    expect(directory).toContain('aria-label="Forma de exibição"');
+    expect(directory).toContain('aria-label="Ordenar técnicos"');
+    expect(directory).toContain('"sm:grid-cols-2 xl:grid-cols-3"');
+    expect(directory).toContain('"Selecionar página"');
+    expect(directory).toContain('"Arquivar selecionados"');
+    expect(directory).toContain('"Restaurar selecionados"');
+    expect(directory).toContain('db.rpc("eut_admin_technician_record_archive"');
+    expect(directory).toContain('db.rpc("eut_admin_technician_archive"');
+    expect(directory).toContain('setSelectedIds(new Set())');
     expect(directory).not.toMatch(/private_contacts|auth\.admin|service_role|\.from\("eut_technician_private_contacts"\)/);
   });
 });
