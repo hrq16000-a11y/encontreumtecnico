@@ -25,7 +25,7 @@ describe("busca administrativa unificada", () => {
     expect(directory).not.toContain("Carregar mais técnicos");
     expect(directory).toContain("unifiedPageSlice(");
     expect(directory).toContain("Paginação do diretório unificado");
-    expect(directory).toContain("Últimos cadastros do portal");
+    expect(directory).toContain("Últimos cadastros");
     expect(directory).toContain("Cidade, região ou UF");
     expect(directory).toContain("Categoria ou especialidade");
     expect(directory).toContain("filterRegion(row.regionKey");

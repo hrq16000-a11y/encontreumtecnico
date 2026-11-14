@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { guiafixAdminSourceId, normalizeGuiafixSearch, readGuiafixStaging } from "@/lib/guiafix-staging-normalizer";
+import { technicianDisplayName } from "@/lib/admin-technician-display-name";
 import { publicTextProblem } from "@/lib/public-profile-text";
 import { AdminTechnicianManager } from "@/components/admin-technician-manager";
 import { AdminTechnicianRecordEditor, type AdminTechnicianRegistryRecord } from "@/components/admin-technician-record-editor";
@@ -164,7 +165,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
             const specific = locations.find((loc) => loc.toLowerCase() !== "brasil");
             return {
               key: `wp:${item.kind}:${item.wp_post_id}`, wpPostId: item.wp_post_id,
-              name: item.title || "Técnico sem nome recuperado",
+              name: technicianDisplayName(item.title || "Técnico sem nome recuperado", specific?.split("/")[0]?.trim()),
               location: locations.join(" · ") || "Localidade não confirmada",
               regionKey: specific?.split("/")[0]?.trim(),
               specialty: item.specialty_title || null,
@@ -267,7 +268,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       .includes(normalizeGuiafixSearch(region))) &&
     (!specialtyTerm || normalizeGuiafixSearch(row.category).includes(specialtyTerm))
   ).map((row): DirectoryRow => ({
-    key: guiafixAdminSourceId(row.key), name: row.name, location: `${row.city}/${row.uf}`,
+    key: guiafixAdminSourceId(row.key), name: technicianDisplayName(row.name, row.city), location: `${row.city}/${row.uf}`,
     regionKey: row.city, specialty: row.category, origin: "guiafix",
   })), [term, region, specialtyTerm, recentOnly]);
   const merged = useMemo(() => {
@@ -279,7 +280,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       (!specialtyTerm || item.category_slugs.some((slug) => normalizeGuiafixSearch(slug).includes(specialtyTerm)))
     ).map((item) => ({
       key: `registry:${item.technician_id}`, registry: item,
-      name: item.display_name, origin: item.origin,
+      name: technicianDisplayName(item.display_name, item.region_approx), origin: item.origin,
       location: [item.region_approx, item.ddd ? `DDD ${item.ddd}` : null,
         item.city_ibge_id ? `IBGE ${item.city_ibge_id}` : null].filter(Boolean).join(" · ") || "Localidade não informada",
       regionKey: item.region_approx || undefined,
@@ -429,14 +430,14 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       </button>
       <button type="button" aria-pressed={recentOnly} onClick={() => { setRecentOnly(true); setPage(0); setSelectedKey(null); setImportKey(null); }}
         className={"min-h-11 rounded-lg border px-4 text-sm font-semibold " + (recentOnly ? "bg-primary text-primary-foreground" : "border-input text-foreground")}>
-        Últimos cadastros do portal
+        Últimos cadastros
       </button>
       <Link to="/admin/$secao" params={{ secao: "catalogo" }}
         className="inline-flex min-h-11 items-center rounded-lg border border-input px-4 text-sm font-semibold text-primary">
         Categorias e serviços
       </Link>
     </div>
-    {recentOnly && <p className="mt-2 text-xs text-muted-foreground">Somente contas do portal têm data de cadastro confiável. A ordem dos arquivos históricos não é inventada.</p>}
+    {recentOnly && <p className="mt-2 text-xs text-muted-foreground">Exibindo técnicos com data de cadastro confirmada. Registros sem data não são ordenados artificialmente.</p>}
     <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       <label className="grid gap-1 text-sm font-semibold text-foreground">Nome
         <input id="admin-unified-technician-search" value={draft} onChange={(event) => setDraft(event.target.value)}
