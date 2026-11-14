@@ -1,4 +1,6 @@
 import { ADMIN_SECTIONS, adminModulePath, type AdminSection } from "@/lib/admin-sections";
+import { technicianDisplayName } from "@/lib/admin-technician-display-name";
+import type { GuiafixAdminRow } from "@/lib/guiafix-staging-normalizer";
 
 export type AdminSearchResult = {
   key: string;
@@ -24,6 +26,19 @@ export function adminSearchUrl(section: AdminSection, search?: string, recordId?
   if (recordId && /^[a-zA-Z0-9_-]{1,80}$/.test(recordId)) params.set("registro", recordId);
   const suffix = params.toString();
   return adminModulePath(section) + (suffix ? `?${suffix}` : "");
+}
+
+/** Keep the captured name as the search key; clean only the visible title. */
+export function importedTechnicianSearchResult(
+  row: Pick<GuiafixAdminRow, "key" | "name" | "city" | "uf">,
+): AdminSearchResult {
+  return {
+    key: `technician-import:${row.key}`,
+    title: technicianDisplayName(row.name, row.city),
+    description: `Técnico · ${row.city}/${row.uf}`,
+    section: "tecnicos",
+    url: adminSearchUrl("tecnicos", row.name),
+  };
 }
 
 function fold(value: string): string {
