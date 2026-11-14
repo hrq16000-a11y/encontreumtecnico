@@ -131,10 +131,14 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             {section === "clientes" && <section aria-labelledby="admin-clientes-titulo">
               <h2 id="admin-clientes-titulo" className="text-xl font-bold text-foreground">Clientes e solicitações</h2>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">Gerencie os clientes por identidade confirmada, convite, nome e bloqueios auditados. Os dados de solicitações privadas são consultados somente no módulo Solicitações. Exclusões definitivas exigem procedimento próprio de privacidade.</p>
+              <nav aria-label="Navegação entre cadastros de clientes" className="mt-4 flex flex-wrap gap-2">
+                <a href="#admin-clientes-contas" className="inline-flex min-h-11 items-center rounded-lg border border-input px-4 text-sm font-semibold">Contas e ações em massa</a>
+                <a href="#admin-clientes-historicos" className="inline-flex min-h-11 items-center rounded-lg border border-input px-4 text-sm font-semibold">Cadastros anteriores</a>
+              </nav>
               <AdminMemberInvites initialRole="cliente" />
               <AdminClientInsights />
-              <AdminAccountsManager initialFilter="clientes" />
-              <div className="mt-6" aria-label="Gestão dos cadastros antigos de clientes">
+              <div id="admin-clientes-contas" className="scroll-mt-24"><AdminAccountsManager initialFilter="clientes" /></div>
+              <div id="admin-clientes-historicos" className="mt-6 scroll-mt-24" aria-label="Gestão dos cadastros antigos de clientes">
                 <LegacyReviewQueue onlyClients />
               </div>
               <div className="mt-5 rounded-xl border border-border bg-muted/20 p-5">
