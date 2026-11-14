@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Search, RefreshCw, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { REQUEST_STATUS, type Req } from "@/components/request-list";
-import { cleanAdminQuery } from "@/lib/admin-search";
+import { cleanAdminQuery, clearAdminFocusedRecordQuery } from "@/lib/admin-search";
 
 const PAGE_SIZE = 20;
 const REQUEST_FILTERS = ["todas", "aberta", "aceita", "recusada", "concluida", "cancelada"] as const;
@@ -53,6 +53,12 @@ export function AdminRequestQueue() {
     return () => { active = false; };
   }, [status, term, focusedId, page, revision]);
 
+  function leaveFocusedRecord() {
+    clearAdminFocusedRecordQuery();
+    setFocusedId(null);
+    setPage(0);
+  }
+
   const pages = total === null ? 1 : Math.max(1, Math.ceil(total / PAGE_SIZE));
   function toggle(id: string) {
     setExpanded((current) => {
@@ -75,20 +81,20 @@ export function AdminRequestQueue() {
       <label className="min-w-0 text-sm font-semibold">Buscar solicitações
         <span className="mt-1 flex items-center rounded-xl border border-input bg-background px-3">
           <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <input value={draft} onChange={(event) => { setDraft(event.target.value); setFocusedId(null); }}
+          <input value={draft} onChange={(event) => { setDraft(event.target.value); leaveFocusedRecord(); }}
             maxLength={70} placeholder="Título, cidade ou categoria" className="min-h-12 min-w-0 flex-1 bg-transparent px-2 text-sm outline-none" />
         </span>
       </label>
       <label className="text-sm font-semibold">Situação
         <select className="mt-1 min-h-12 w-full rounded-xl border border-input bg-background px-3 text-sm"
-          value={status} onChange={(event) => { setStatus(event.target.value as StatusFilter); setFocusedId(null); setPage(0); }}>
+          value={status} onChange={(event) => { setStatus(event.target.value as StatusFilter); leaveFocusedRecord(); }}>
           {REQUEST_FILTERS.map((value) => <option value={value} key={value}>{value === "todas" ? "Todas" : REQUEST_STATUS[value]}</option>)}
         </select>
       </label>
     </div>
     {focusedId && <div className="flex flex-wrap items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm">
       Registro localizado pela pesquisa global.
-      <button type="button" onClick={() => { setFocusedId(null); setPage(0); }}
+      <button type="button" onClick={leaveFocusedRecord}
         className="min-h-11 rounded-lg border border-input bg-background px-3 font-semibold">Voltar à lista</button>
     </div>}
     <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground" role="status">
@@ -98,8 +104,8 @@ export function AdminRequestQueue() {
     </div>
     {error && <p role="alert" className="rounded-lg border border-destructive/30 p-3 text-sm text-destructive">Não foi possível consultar as solicitações. Nenhum resultado foi considerado vazio; tente atualizar.</p>}
     {!loading && !error && rows.length === 0 && <p className="rounded-lg border border-border p-4 text-sm text-muted-foreground">Nenhum pedido corresponde aos filtros.</p>}
-    <ul className="grid gap-2">
-      {rows.map((row) => <li key={row.id} id={`admin-registro-${row.id}`}
+    <ul className="grid gap-2" aria-busy={loading}>
+      {!loading && !error && rows.map((row) => <li key={row.id} id={`admin-registro-${row.id}`}
         className={"min-w-0 rounded-xl border bg-background p-3 sm:p-4 " +
           (focusedId === row.id ? "border-primary ring-2 ring-primary/30" : "border-border")}>
         <div className="flex flex-wrap items-start justify-between gap-2">
