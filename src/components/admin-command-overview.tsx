@@ -152,8 +152,9 @@ export function AdminCommandOverview() {
     </div>
     </div>
     <div className="grid gap-2 sm:grid-cols-3" aria-label="Ações rápidas da operação">
-      <a href="#admin-global-search" className="flex min-h-12 items-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-bold hover:border-primary">
-        <Search className="h-4 w-4 text-primary" /> Buscar um registro</a>
+      <button type="button" onClick={() => document.getElementById("admin-global-search")?.click()}
+        className="flex min-h-12 items-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-bold hover:border-primary">
+        <Search className="h-4 w-4 text-primary" /> Buscar um registro</button>
       <Link to="/admin/$secao" params={{ secao: "tecnicos" }} className="flex min-h-12 items-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-bold hover:border-primary">
         <UsersRound className="h-4 w-4 text-primary" /> Gerenciar técnicos</Link>
       <Link to="/admin/$secao" params={{ secao: "mensagens" }} className="flex min-h-12 items-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-bold hover:border-primary">

@@ -214,6 +214,7 @@ export function AdminGlobalSearch() {
   return (
     <>
       <button
+        id="admin-global-search"
         type="button"
         onClick={() => setOpen(true)}
         className="mt-3 flex min-h-12 w-full items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 text-left text-sm font-semibold text-foreground hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

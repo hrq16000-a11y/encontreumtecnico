@@ -9,7 +9,6 @@ import { LegacyClaimReview } from "@/components/legacy-claim-review";
 import { EutAdminManager } from "@/components/eut-admin-manager";
 import { AdminControlHub } from "@/components/admin-control-hub";
 import { AdminCommandOverview } from "@/components/admin-command-overview";
-import { AdminGlobalSearch } from "@/components/admin-global-search";
 import { AdminRequestQueue } from "@/components/admin-request-queue";
 import { AdminMessageQueue } from "@/components/admin-message-queue";
 import { AdminAdvertisingManager } from "@/components/admin-advertising-manager";
@@ -90,7 +89,6 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             <main className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6"
               aria-label={"Módulo administrativo: " + adminModuleTitle(section)}>
             <ConnectedGoogleIdentity user={user} />
-            <AdminGlobalSearch />
             <nav aria-label="Atalhos rápidos da administração"
               className="mt-4 rounded-xl border border-border bg-muted/20 p-3 sm:p-4">
               <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Acesso rápido</p>
