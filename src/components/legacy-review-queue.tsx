@@ -28,10 +28,13 @@ const FIELDS = "source_key,wp_post_id,wp_user_id,kind,slug,title,specialty_title
 const db = supabase as unknown as SupabaseClient;
 
 /** WordPress source remains immutable; only an audited, admin-owned review overlay is edited. */
-export function LegacyReviewQueue({ onlyTechnicians = false }: { onlyTechnicians?: boolean } = {}) {
-  const [kind, setKind] = useState<LegacyKind>("candidate");
-  const [draft, setDraft] = useState("");
-  const [term, setTerm] = useState("");
+export function LegacyReviewQueue({ onlyTechnicians = false, onlyClients = false }:
+  { onlyTechnicians?: boolean; onlyClients?: boolean } = {}) {
+  const [kind, setKind] = useState<LegacyKind>(onlyClients ? "employer" : "candidate");
+  const [draft, setDraft] = useState(() => typeof window === "undefined" ? "" :
+    new URLSearchParams(window.location.search).get("busca")?.slice(0, 100) ?? "");
+  const [term, setTerm] = useState(() => normalizeLegacyReviewSearch(draft));
+  const [order, setOrder] = useState<"recent" | "oldest" | "name">("recent");
   const [page, setPage] = useState(0);
   const [version, setVersion] = useState(0);
   const [rows, setRows] = useState<LegacyProfile[]>([]);
@@ -56,7 +59,8 @@ export function LegacyReviewQueue({ onlyTechnicians = false }: { onlyTechnicians
         .select(FIELDS, { count: "exact" }).eq("source_key", "wordpress_20261108").eq("kind", kind);
       if (term) query = query.ilike("title", `%${term}%`);
       const { data, error: readError, count } = await query
-        .order("wp_post_id", { ascending: true })
+        .order(order === "name" ? "title" : "imported_at", { ascending: order === "oldest" })
+        .order("wp_post_id", { ascending: order === "oldest" })
         .range(page * LEGACY_REVIEW_PAGE_SIZE, (page + 1) * LEGACY_REVIEW_PAGE_SIZE - 1);
       if (!current) return;
       if (readError) {
@@ -85,7 +89,7 @@ export function LegacyReviewQueue({ onlyTechnicians = false }: { onlyTechnicians
     }
     void load();
     return () => { current = false; };
-  }, [kind, page, term, version]);
+  }, [kind, page, term, order, version]);
 
   function submitSearch(event: FormEvent) {
     event.preventDefault();
@@ -153,24 +157,24 @@ export function LegacyReviewQueue({ onlyTechnicians = false }: { onlyTechnicians
   const canArchiveSelection = chosenRows.length > 0 && chosenRows.every((row) => stateOf(row.wp_post_id) !== "excluido");
   const canRestoreSelection = chosenRows.length > 0 && !hasDemoSelection &&
     chosenRows.every((row) => stateOf(row.wp_post_id) === "excluido");
-  return <section className="mt-2 rounded-2xl border border-border bg-card p-4 sm:p-6" aria-label="Cadastros históricos WordPress">
+  return <section className="mt-2 rounded-2xl border border-border bg-card p-4 sm:p-6" aria-label={onlyClients ? "Clientes antigos" : "Cadastros históricos"}>
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h2 className="text-xl font-bold text-card-foreground">{onlyTechnicians ? "Técnicos importados — gestão auditada" : "Acervo WordPress — gestão auditada"}</h2>
+        <h2 className="text-xl font-bold text-card-foreground">{onlyClients ? "Clientes antigos" : onlyTechnicians ? "Técnicos antigos — gestão auditada" : "Acervo histórico — gestão auditada"}</h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
           Fichas do portal antigo são arquivos históricos: podem ser revisadas, anotadas,
           corrigidas ou arquivadas individualmente ou em lote, sem alterar os dados originais.
-          Nenhuma ação nesta tela publica um técnico ou concede acesso a uma conta.
+          Nenhuma ação nesta tela ativa contas ou libera contatos privados.
         </p>
-        <p className="mt-2 text-sm text-muted-foreground">
+        {!onlyClients && <p className="mt-2 text-sm text-muted-foreground">
           Para editar perfis cadastrados, use a <Link to="/admin/$secao" params={{ secao: "tecnicos" }}
             className="font-bold text-primary underline underline-offset-2">gestão de técnicos</Link>.
           Este acervo preserva os originais para auditoria: arquivar não apaga definitivamente.
-        </p>
+        </p>}
       </div>
       <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary">Até 20 por lote</span>
     </div>
-    {!onlyTechnicians && <div role="group" aria-label="Tipo de cadastro histórico" className="mt-5 flex flex-wrap gap-2">
+    {!onlyTechnicians && !onlyClients && <div role="group" aria-label="Tipo de cadastro histórico" className="mt-5 flex flex-wrap gap-2">
       {([{value:"candidate",label:"Técnicos"},{value:"employer",label:"Contratantes"}] as const).map((item) =>
         <button key={item.value} type="button" aria-pressed={kind===item.value}
           onClick={() => { setKind(item.value); setPage(0); setSelected([]); setExpanded([]); setAction(null); }}
@@ -180,9 +184,18 @@ export function LegacyReviewQueue({ onlyTechnicians = false }: { onlyTechnicians
     <form onSubmit={submitSearch} className="mt-4 flex flex-col gap-2 sm:flex-row">
       <label className="sr-only" htmlFor="legacy-review-search">Buscar nome histórico</label>
       <input id="legacy-review-search" value={draft} maxLength={100} onChange={(e)=>setDraft(e.target.value)}
-        placeholder="Buscar por nome do WordPress" className="min-h-12 flex-1 rounded-xl border border-input bg-background px-4 text-foreground" />
+        placeholder="Buscar pelo nome" className="min-h-12 flex-1 rounded-xl border border-input bg-background px-4 text-foreground" />
       <button type="submit" className="min-h-12 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground">Buscar</button>
     </form>
+    <label className="mt-3 flex max-w-xs flex-col gap-1 text-sm font-semibold">Ordenar entradas históricas
+      <select value={order} onChange={(event) => { setOrder(event.target.value as typeof order); setPage(0); setSelected([]); }}
+        className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm">
+        <option value="recent">Importações recentes primeiro</option>
+        <option value="oldest">Importações antigas primeiro</option>
+        <option value="name">Nome A–Z</option>
+      </select>
+    </label>
+    <p className="mt-1 text-xs text-muted-foreground">A data de importação não representa a data de cadastro original.</p>
     {error && <p role="alert" className="mt-4 rounded-xl border border-destructive/30 p-4 text-sm text-destructive">{error}</p>}
     {feedback && <p role="status" className="mt-4 rounded-xl border border-border bg-muted p-4 text-sm text-foreground">{feedback}</p>}
     <p role="status" className="mt-4 text-sm text-muted-foreground">

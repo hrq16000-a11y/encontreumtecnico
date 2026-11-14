@@ -27,6 +27,9 @@ describe("busca administrativa unificada", () => {
     expect(directory).toContain("unifiedPageSlice(");
     expect(directory).toContain("Paginação do diretório unificado");
     expect(directory).toContain("Últimos cadastros");
+    expect(directory).toContain("A importação não indica quando a pessoa se cadastrou originalmente.");
+    expect(directory).toContain('importedAt: item.imported_at');
+    expect(directory).not.toContain('if (recentOnly) return { rows: [] as DirectoryRow[], total: 0 }');
     expect(directory).toContain("Cidade, região ou UF");
     expect(directory).toContain("Categoria ou especialidade");
     expect(directory).toContain("filterRegion(row.regionKey");
@@ -37,10 +40,19 @@ describe("busca administrativa unificada", () => {
     expect(directory).toContain('row.origin === "guiafix"');
     expect(directory).toContain('aria-label="Forma de exibição"');
     expect(directory).toContain('aria-label="Ações em massa"');
+    expect(directory).toContain("Copiar nomes (");
+    expect(directory).toContain('selectedRows.map((row) => row.name).join("\\n")');
     expect(directory).toContain("Ver ficha");
     expect(directory).toContain("Selecionar página");
     expect(directory).toContain('value="name-desc"');
     expect(directory).toContain('value="updated"');
     expect(directory).not.toMatch(/private_contacts|auth\.admin|service_role|\.from\("eut_technician_private_contacts"\)/);
+  });
+  it("permite gerir clientes antigos na própria área de clientes", () => {
+    const page = readFileSync("src/routes/admin.tsx", "utf8");
+    const queue = readFileSync("src/components/legacy-review-queue.tsx", "utf8");
+    expect(page).toContain("<LegacyReviewQueue onlyClients />");
+    expect(queue).toContain('useState<LegacyKind>(onlyClients ? "employer" : "candidate")');
+    expect(queue).toContain('Ordenar entradas históricas');
   });
 });

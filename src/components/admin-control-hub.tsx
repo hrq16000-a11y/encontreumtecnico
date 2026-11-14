@@ -33,8 +33,8 @@ export function AdminControlHub() {
         <div>
           <h2 className="text-xl font-semibold text-card-foreground">Central de gestão</h2>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Acesse cada área de trabalho do portal. Registros do WordPress em revisão
-            são diferentes dos técnicos com conta ativa.
+            Gerencie técnicos, clientes, solicitações, mensagens e serviços em áreas conectadas.
+            A origem histórica dos registros não cria outra categoria de profissional.
           </p>
         </div>
         <span className="rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground">
