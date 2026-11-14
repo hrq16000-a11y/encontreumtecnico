@@ -164,9 +164,9 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
   useEffect(() => {
     let current = true;
     setRegistryLoading(true);
-    void db.rpc("eut_admin_technician_registry_list", {
+    void Promise.resolve(db.rpc("eut_admin_technician_registry_list", {
       _search: term, _limit: PAGE_SIZE, _offset: registryPage * PAGE_SIZE,
-    }).then(({ data, error }) => {
+    })).then(({ data, error }) => {
       if (!current) return;
       setRegistryLoading(false);
       if (error) {

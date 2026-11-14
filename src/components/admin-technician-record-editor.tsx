@@ -80,8 +80,8 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
 
   useEffect(() => {
     let current = true;
-    void db.from("eut_service_types")
-      .select("slug,label,category_slug").eq("active", true).order("label").limit(300)
+    void Promise.resolve(db.from("eut_service_types")
+      .select("slug,label,category_slug").eq("active", true).order("label").limit(300))
       .then(({ data, error }) => {
         if (!current) return;
         setCatalogError(Boolean(error));
@@ -94,9 +94,9 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
     if (citySearch.trim().length < 3) { setCities([]); return; }
     let current = true;
     const timer = window.setTimeout(() => {
-      void db.from("eut_ibge_municipalities").select("id,name,uf")
+      void Promise.resolve(db.from("eut_ibge_municipalities").select("id,name,uf")
         .ilike("name", `%${citySearch.trim().replace(/[%_*,()\\]/g, " ")}%`)
-        .order("name").limit(12)
+        .order("name").limit(12))
         .then(({ data, error }) => { if (current) setCities(error ? [] : (data ?? []) as City[]); })
         .catch(() => { if (current) setCities([]); });
     }, 250);
@@ -143,8 +143,8 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
       phone_action: importedCreation ? "keep" : phoneAction,
     };
     if (!importedCreation && phoneAction === "replace") {
-      payload.phone_e164 = normalizedPhone;
-      payload.contact_suspended = contactSuspended;
+      payload["phone_e164"] = normalizedPhone;
+      payload["contact_suspended"] = contactSuspended;
     }
     setBusy(true);
     try {
