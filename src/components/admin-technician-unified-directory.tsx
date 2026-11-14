@@ -10,6 +10,9 @@ import { TechnicianAvatar } from "@/components/technician-avatar";
 import { Link } from "@tanstack/react-router";
 import { useActiveCategories } from "@/hooks/use-active-categories";
 import { categoryKeyword, UNIFIED_DIRECTORY_PAGE_SIZE, unifiedPageCount, unifiedPageSlice } from "@/lib/admin-unified-pagination";
+import { canBulkAct, orderTechnicians, technicianState, type TechnicianBulkAction,
+  type TechnicianSortMode, type TechnicianStateFilter, type TechnicianViewMode } from "@/lib/admin-technician-directory-view";
+import { Grid2X2, LayoutGrid, List, SlidersHorizontal } from "lucide-react";
 import { csvImportErrorText, prepareTechnicianCsv, type TechnicianImportRow } from "@/lib/admin-technician-csv-import";
 
 // The three imports are independent sources, NOT additional approved accounts.
@@ -24,9 +27,6 @@ const FETCH_CHUNK = 200;
 type DirectoryRow = {
   key: string;
   portalId?: string;
-  portalUpdatedAt?: string;
-  avatarPath?: string | null;
-  cityIbgeId?: number;
   wpPostId?: number;
   registry?: AdminTechnicianRegistryRecord;
   name: string;
@@ -34,12 +34,14 @@ type DirectoryRow = {
   regionKey?: string | undefined;
   specialty: string | null;
   createdAt?: string;
+  updatedAt?: string;
+  avatarPath?: string | null;
+  portalStatus?: "pendente" | "aprovado" | "suspenso" | "rejeitado";
+  cityIbgeId?: number;
   origin: "portal" | "wordpress" | "guiafix" | "manual" | "other_import";
   recordState?: string | undefined;
   demo?: boolean;
 };
-type ViewMode = "linhas" | "cartoes" | "avatares";
-type SortMode = "nome" | "localidade" | "especialidade" | "cadastro";
 
 // PostgREST `or` filtering is structural syntax: only safe search characters enter it.
 export function cleanUnifiedSearch(value: string): string {
@@ -54,9 +56,12 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
   const [region, setRegion] = useState("");
   const [specialty, setSpecialty] = useState("");
   const [recentOnly, setRecentOnly] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>("linhas");
-  const [sortMode, setSortMode] = useState<SortMode>("nome");
-  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
+  const [sort, setSort] = useState<TechnicianSortMode>("name-asc");
+  const [stateFilter, setStateFilter] = useState<TechnicianStateFilter>("all");
+  const [view, setView] = useState<TechnicianViewMode>("rows");
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const [detailKey, setDetailKey] = useState<string | null>(null);
+  const [bulkAction, setBulkAction] = useState<TechnicianBulkAction | null>(null);
   const [bulkReason, setBulkReason] = useState("");
   const [bulkBusy, setBulkBusy] = useState(false);
   const [page, setPage] = useState(0);
@@ -101,7 +106,8 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       setPage(0);
       setSelectedKey(null);
       setImportKey(null);
-      setSelectedKeys([]);
+      setSelected(new Set());
+      setDetailKey(null);
     }, 320);
     return () => window.clearTimeout(timer);
   }, [draft, regionDraft, specialtyDraft]);
@@ -111,9 +117,12 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     setLoading(true);
     setFailed(false);
     async function load() {
-      // Query each source in bounded chunks until its count is satisfied.
-      // Cross-source sorting and arbitrary page jumps require the complete
-      // filtered set; partial per-source prefixes gave misleading page order.
+      // The merged page needs only the first N sorted rows from EACH source.
+      // Fetch in 200-row chunks to avoid PostgREST's 1,000-row response cap.
+      // Alternate sorts and status filters require the whole matching candidate set;
+      // otherwise a name-sorted prefix would give false ordering/empty pages.
+      const needed = sort === "name-asc" && stateFilter === "all" && !region && !specialtyTerm
+        ? (page + 1) * UNIFIED_DIRECTORY_PAGE_SIZE : 10000;
       let matchedIds: number[] = [];
       if (term) {
         // The historical title is immutable. Searching only that field would lose
@@ -132,23 +141,26 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       async function loadPortal() {
         const rows: DirectoryRow[] = [];
         let total = 0;
-        for (let start = 0; current; start += FETCH_CHUNK) {
+        for (let start = 0; start < needed && current; start += FETCH_CHUNK) {
           let query = db.from("technicians")
             .select("id,display_name,city,state_uf,region,specialties,status,created_at,updated_at,avatar_path", { count: "exact" });
           if (term) query = query.ilike("display_name", `%${term}%`);
           if (region) query = region.length === 2 ? query.eq("state_uf", region.toUpperCase())
             : query.or(["city", "region"].map((field) => `${field}.ilike.%${region}%`).join(","));
           if (specialtyTerm) query = query.overlaps("specialties", matchedSlugs);
-          const result = await query.order("display_name").order("id").range(start, start + FETCH_CHUNK - 1);
+          const result = await query
+            .order(recentOnly ? "created_at" : "display_name", { ascending: !recentOnly })
+            .order("id").range(start, Math.min(start + FETCH_CHUNK, needed) - 1);
           if (result.error) throw new Error("portal directory unavailable");
           total = result.count ?? 0;
           rows.push(...(result.data ?? []).map((item): DirectoryRow => ({
-            key: `portal:${item.id}`, portalId: item.id, portalUpdatedAt: item.updated_at, avatarPath: item.avatar_path,
+            key: `portal:${item.id}`, portalId: item.id,
             name: item.display_name || "Técnico sem nome de exibição",
             location: [item.city, item.state_uf].filter(Boolean).join("/") || item.region || "Localidade não informada",
             regionKey: item.city || item.state_uf || undefined,
             specialty: item.specialties?.join(", ") || null,
-            createdAt: item.created_at, origin: "portal",
+            createdAt: item.created_at, updatedAt: item.updated_at,
+            avatarPath: item.avatar_path, portalStatus: item.status, origin: "portal",
           })));
           if (!result.data?.length || rows.length >= total) break;
         }
@@ -159,7 +171,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
         if (recentOnly) return { rows: [] as DirectoryRow[], total: 0 };
         const rows: DirectoryRow[] = [];
         let total = 0;
-        for (let start = 0; current; start += FETCH_CHUNK) {
+        for (let start = 0; start < needed && current; start += FETCH_CHUNK) {
           let query = db.from("legacy_review_profiles")
             .select("source_key,wp_post_id,kind,title,specialty_title,location1,location2,location3,demo_candidate", { count: "exact" })
             .eq("source_key", "wordpress_20261108").eq("kind", "candidate");
@@ -173,7 +185,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
             .map((field) => `${field}.ilike.%${region}%`).join(","));
           if (specialtyTerm) query = query.ilike("specialty_title", `%${specialtyTerm}%`);
           const result = await query.order("title").order("wp_post_id")
-            .range(start, start + FETCH_CHUNK - 1);
+            .range(start, Math.min(start + FETCH_CHUNK, needed) - 1);
           if (result.error) throw new Error("WordPress directory unavailable");
           total = result.count ?? 0;
           rows.push(...(result.data ?? []).map((item): DirectoryRow => {
@@ -222,7 +234,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       setOperational([]); setLegacy([]); setFailed(true); setLoading(false);
     } });
     return () => { current = false; };
-  }, [term, region, specialtyTerm, matchedSlugs, recentOnly, reload]);
+  }, [term, region, specialtyTerm, matchedSlugs, page, recentOnly, sort, stateFilter, reload]);
 
   useEffect(() => {
     let current = true;
@@ -232,10 +244,12 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       // The registry RPC has a strict 100-row maximum per call.
       // With locality/specialty filters, read all matching-by-name records so
       // the client does not silently omit later matching category/region rows.
+      const needAll = Boolean(region || specialtyTerm || sort !== "name-asc" || stateFilter !== "all");
+      const wanted = needAll ? Number.POSITIVE_INFINITY : (page + 1) * UNIFIED_DIRECTORY_PAGE_SIZE;
       let total = 0;
-      for (let offset = 0; current; offset += 100) {
+      for (let offset = 0; offset < wanted && current; offset += 100) {
         const { data, error } = await db.rpc("eut_admin_technician_registry_list", {
-          _search: term, _limit: 100, _offset: offset,
+          _search: term, _limit: Math.min(100, wanted - offset), _offset: offset,
         });
         if (error) throw error;
         const rows = (data ?? []) as AdminTechnicianRegistryRecord[];
@@ -264,7 +278,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
         : "Sem conexão com a API administrativa; nenhuma gravação está habilitada.");
     });
     return () => { current = false; };
-  }, [term, region, specialtyTerm, reload]);
+  }, [term, region, specialtyTerm, page, sort, stateFilter, reload]);
 
   useEffect(() => {
     const ids = [...new Set(registry.map((item) => item.city_ibge_id).filter((id): id is number => id !== null))];
@@ -285,7 +299,6 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     setSelectedKey(null);
     setImportKey(null);
     setManualSourceId(null);
-    setSelectedKeys([]);
     setPage(0);
     setReload((version) => version + 1);
     setFeedback("Alteração confirmada. Atualizando a listagem de técnicos…");
@@ -315,6 +328,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
         item.ddd ? `DDD ${item.ddd}` : null].filter(Boolean))].join(" · ") || "Localidade não informada",
       regionKey: municipalityNames[item.city_ibge_id ?? -1]?.split("/")[0] || item.region_approx || undefined,
       specialty: item.category_slugs.join(" · ") || null,
+      updatedAt: item.updated_at,
       demo: item.is_demo,
     }));
     const legacyUnlinked = legacy.filter((item) => !importedWp.has(`wordpress_20261108:${item.wpPostId}`));
@@ -323,36 +337,118 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       ...legacyUnlinked,
       ...guiafixUnlinked,
       ...registryRows];
-    const compare = (a: string, b: string) => a.localeCompare(b, "pt-BR");
-    rows.sort((a, b) => {
-      if (recentOnly || sortMode === "cadastro")
-        return (Date.parse(b.createdAt ?? "") || 0) - (Date.parse(a.createdAt ?? "") || 0)
-          || compare(a.name, b.name) || compare(a.key, b.key);
-      if (sortMode === "localidade")
-        return compare(a.regionKey ?? "zzzz", b.regionKey ?? "zzzz") || compare(a.name, b.name);
-      if (sortMode === "especialidade")
-        return compare(a.specialty ?? "zzzz", b.specialty ?? "zzzz") || compare(a.name, b.name);
-      return compare(a.name, b.name) || compare(a.key, b.key);
-    });
-    return { rows, importedCount: legacy.length - legacyUnlinked.length + guiafixResults.length - guiafixUnlinked.length,
+    const ordered = orderTechnicians(rows.filter((row) => stateFilter === "all" || technicianState(row) === stateFilter),
+      recentOnly ? "newest" : sort);
+    return { rows: ordered, importedCount: legacy.length - legacyUnlinked.length + guiafixResults.length - guiafixUnlinked.length,
       registryFilteredCount: registryRows.length };
-  }, [operational, legacy, guiafixResults, registry, municipalityNames, region, specialtyTerm, recentOnly, sortMode]);
+  }, [operational, legacy, guiafixResults, registry, municipalityNames, region, specialtyTerm, recentOnly, sort, stateFilter]);
   const results = useMemo(() => unifiedPageSlice(merged.rows, page), [merged, page]);
   const registryCount = recentOnly ? 0 : region || specialtyTerm ? merged.registryFilteredCount : registryAvailable ? registryTotal : 0;
-  const total = operationalTotal === null || legacyTotal === null ? null
+  const sourceTotal = operationalTotal === null || legacyTotal === null ? null
     : Math.max(0, operationalTotal + legacyTotal + guiafixResults.length + registryCount - (recentOnly ? 0 : merged.importedCount));
   const exactTotal = operationalTotal !== null && legacyTotal !== null &&
     operational.length >= operationalTotal && legacy.length >= legacyTotal &&
     (!registryAvailable || registry.length >= registryTotal);
+  const allLoaded = exactTotal && !loading && !registryLoading;
+  const total = stateFilter !== "all" || allLoaded ? (allLoaded ? merged.rows.length : null) : sourceTotal;
   const pages = unifiedPageCount(total ?? 0);
-  const selectablePage = results.filter((row) => !row.demo);
-  const selectedRows = merged.rows.filter((row) => selectedKeys.includes(row.key) && !row.demo);
+  const selectedRows = results.filter((row) => selected.has(row.key));
+  const selectableRows = results.filter((row) => !row.demo);
+  const selectedAll = selectableRows.length > 0 && selectableRows.every((row) => selected.has(row.key));
+
+  useEffect(() => {
+    setSelected(new Set());
+    setBulkAction(null);
+    setDetailKey(null);
+  }, [page, sort, stateFilter, recentOnly, region, specialty]);
+
+  function toggleSelected(key: string) {
+    setSelected((before) => {
+      const next = new Set(before);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
+
+  function togglePageSelection() {
+    setSelected(selectedAll ? new Set() : new Set(selectableRows.map((row) => row.key)));
+  }
+
+  async function runBulk(event: FormEvent) {
+    event.preventDefault();
+    if (!bulkAction || bulkBusy || bulkReason.trim().length < 8 || bulkReason.trim().length > 400) return;
+    const actionable = selectedRows.filter((row) => canBulkAct(row, bulkAction));
+    if (!actionable.length) return;
+    const skipped = selectedRows.length - actionable.length;
+    const operation = bulkAction === "import" ? "cadastrar para edição" : bulkAction === "archive"
+      ? "arquivar ou suspender" : "restaurar ou reativar";
+    if (!window.confirm(`Confirmar ${operation} em ${actionable.length} técnico(s) desta página? ${skipped ? `${skipped} ficha(s) sem ação compatível serão ignoradas. ` : ""}Cada alteração será auditada e poderá resultar em êxito ou falha individual.`)) return;
+    setBulkBusy(true);
+    setFeedback(null);
+    let done = 0;
+    let failures = 0;
+    for (const row of actionable) {
+      try {
+        if (bulkAction === "import") {
+          const origin = row.origin as "wordpress" | "guiafix";
+          const sourceId = origin === "wordpress" ? `wordpress_20261108:${row.wpPostId}` : row.key;
+          const { data, error } = await db.rpc("eut_admin_technician_record_save", {
+            _origin: origin, _source_id: sourceId, _expected_updated_at: null,
+            _payload: {
+              display_name: row.name, city_ibge_id: row.cityIbgeId ?? null, ddd: null,
+              region_approx: row.regionKey?.slice(0, 120) || null,
+              category_slugs: [], service_slugs: [], admin_active: false,
+              is_demo: false, phone_action: "keep",
+            }, _reason: bulkReason.trim(),
+          });
+          if (error || data?.ok !== true) throw new Error("not_confirmed");
+        } else if (row.registry) {
+          const { data, error } = await db.rpc("eut_admin_technician_record_archive", {
+            _technician_id: row.registry.technician_id,
+            _expected_updated_at: row.registry.updated_at,
+            _action: bulkAction === "archive" ? "archive" : "restore",
+            _reason: bulkReason.trim(),
+          });
+          if (error || data?.ok !== true) throw new Error("not_confirmed");
+        } else if (row.portalId) {
+          const intendedStatus = bulkAction === "archive" ? "suspenso" : "aprovado";
+          const { data, error } = await db.rpc("eut_admin_technician_action", {
+            p_id: row.portalId, p_action: bulkAction === "archive" ? "suspender" : "reativar",
+            p_value: {}, p_reason: bulkReason.trim(),
+          });
+          if (error || data?.id !== row.portalId || data?.status !== intendedStatus)
+            throw new Error("not_confirmed");
+        } else if (row.wpPostId !== undefined) {
+          const { data, error } = await db.rpc("eut_admin_legacy_action", {
+            p_ids: [row.wpPostId], p_action: bulkAction === "archive" ? "arquivar" : "restaurar",
+            p_value: "", p_reason: bulkReason.trim(),
+          });
+          if (error || data?.updated !== 1 || data?.published !== false)
+            throw new Error("not_confirmed");
+        } else throw new Error("unsupported");
+        done += 1;
+      } catch {
+        failures += 1;
+      }
+    }
+    setBulkBusy(false);
+    setBulkAction(null);
+    setBulkReason("");
+    setSelected(new Set());
+    if (done) refreshAfterSaved();
+    setFeedback(`${done} alteração(ões) confirmada(s) no banco. ${failures ? `${failures} não concluída(s); nenhuma delas foi presumida como salva. ` : ""}${skipped ? `${skipped} ficha(s) sem ação compatível foram ignoradas.` : ""}`);
+  }
+
+  function formatDate(value?: string): string {
+    if (!value || !Number.isFinite(Date.parse(value))) return "Não informado";
+    return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(new Date(value));
+  }
 
   function filterRegion(value: string) {
-    setRegionDraft(value); setRegion(cleanUnifiedSearch(value)); setPage(0); setSelectedKey(null); setImportKey(null); setSelectedKeys([]);
+    setRegionDraft(value); setRegion(cleanUnifiedSearch(value)); setPage(0); setSelectedKey(null); setImportKey(null);
   }
   function filterSpecialty(value: string) {
-    setSpecialtyDraft(value); setSpecialty(cleanUnifiedSearch(value)); setPage(0); setSelectedKey(null); setImportKey(null); setSelectedKeys([]);
+    setSpecialtyDraft(value); setSpecialty(cleanUnifiedSearch(value)); setPage(0); setSelectedKey(null); setImportKey(null);
   }
 
   function openManualForm() {
@@ -411,7 +507,6 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     }
     setCsvBusy(false);
     if (failedAt) {
-      // Keep the exact same file keys: retrying cannot overwrite prior imports.
       setCsvInfo(`${saved} fichas confirmadas. Falha na linha ${failedAt + 1}; revise seus dados e tente novamente com o mesmo arquivo.`);
     } else {
       setCsvRows([]);
@@ -419,73 +514,6 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       setCsvInfo(`${saved} técnicos importados e auditados no banco; nenhum contato foi publicado.`);
     }
     if (saved) setReload((value) => value + 1);
-  }
-
-  function toggleSelected(key: string, checked: boolean) {
-    setSelectedKeys((before) => checked
-      ? before.includes(key) ? before : before.length < 50 ? [...before, key] : before
-      : before.filter((value) => value !== key));
-  }
-
-  async function executeBulk(action: "importar" | "arquivar") {
-    const auditReason = bulkReason.trim();
-    if (bulkBusy || !registryAvailable || !selectedRows.length ||
-      auditReason.length < 8 || auditReason.length > 400 || publicTextProblem(auditReason, "identity")) {
-      setFeedback("Selecione técnicos e informe uma justificativa administrativa de 8 a 400 caracteres.");
-      return;
-    }
-    const candidates = selectedRows.filter((row) => action === "importar"
-      ? !row.registry && (row.origin === "wordpress" || row.origin === "guiafix")
-      : Boolean(row.registry && !row.registry.archived) ||
-        Boolean(row.wpPostId !== undefined && row.recordState !== "excluido") ||
-        Boolean(row.portalId && row.portalUpdatedAt));
-    if (!candidates.length) {
-      setFeedback("Nenhum dos selecionados permite esta operação. Abra o técnico para editar individualmente.");
-      return;
-    }
-    const label = action === "importar" ? "Importar" : "Arquivar";
-    if (!window.confirm(`${label} ${candidates.length} técnicos com registro de auditoria? Operações não eliminam dados nem liberam contatos.`)) return;
-    setBulkBusy(true);
-    setFeedback(null);
-    let done = 0;
-    for (const row of candidates) {
-      let data: { ok?: boolean; updated?: number } | null = null;
-      let error: unknown = null;
-      if (action === "importar") {
-        const sourceId = row.origin === "wordpress"
-          ? `wordpress_20261108:${row.wpPostId}` : row.key;
-        ({ data, error } = await db.rpc("eut_admin_technician_record_save", {
-          _origin: row.origin, _source_id: sourceId,
-          _expected_updated_at: null, _reason: auditReason,
-          _payload: { display_name: row.name, city_ibge_id: row.cityIbgeId ?? null, ddd: null,
-            region_approx: row.regionKey || null, category_slugs: [], service_slugs: [],
-            admin_active: false, is_demo: false, phone_action: "keep" },
-        }));
-      } else if (row.registry) {
-        ({ data, error } = await db.rpc("eut_admin_technician_record_archive", {
-          _technician_id: row.registry.technician_id,
-          _expected_updated_at: row.registry.updated_at,
-          _action: "archive", _reason: auditReason,
-        }));
-      } else if (row.wpPostId !== undefined) {
-        ({ data, error } = await db.rpc("eut_admin_legacy_action", {
-          p_ids: [row.wpPostId], p_action: "arquivar",
-          p_value: "", p_reason: auditReason,
-        }));
-      } else if (row.portalId && row.portalUpdatedAt) {
-        ({ data, error } = await db.rpc("eut_admin_technician_archive", {
-          _technician_id: row.portalId, _expected_updated_at: row.portalUpdatedAt,
-          _action: "archive", _reason: auditReason,
-        }));
-      }
-      if (error || (!data?.ok && data?.updated !== 1)) break;
-      done += 1;
-    }
-    setBulkBusy(false);
-    setSelectedKeys([]);
-    setFeedback(`${done} de ${candidates.length} técnicos ${action === "importar" ? "importados" : "arquivados"} com confirmação no banco.` +
-      (done < candidates.length ? " A operação foi interrompida na primeira falha; revise a ficha antes de repetir." : ""));
-    if (done) setReload((value) => value + 1);
   }
 
   function selectRow(row: DirectoryRow) {
@@ -551,7 +579,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
   }
 
   return <section id="admin-unified-directory" className="mt-6 min-w-0 scroll-mt-24 rounded-2xl border border-primary/20 bg-card p-3 sm:p-6" aria-label="Busca unificada de técnicos">
-    <h2 className="text-xl font-bold text-foreground">Todos os técnicos</h2>
+    <h2 className="text-xl font-bold text-foreground">Gestão de técnicos</h2>
     <p className="mt-2 text-sm leading-6 text-muted-foreground">
       Encontre o profissional pelo nome, região ou categoria. Toque em Editar técnico para atualizar
       nome, cidade, especialidades e contato privado no celular ou computador.
@@ -567,11 +595,11 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       available={registryAvailable} onCancel={() => setManualSourceId(null)}
       onSaved={(message) => { refreshAfterSaved(); setFeedback(message); }} />}
     <div role="group" aria-label="Navegação entre técnicos" className="mt-4 flex flex-wrap gap-2">
-      <button type="button" aria-pressed={!recentOnly} onClick={() => { setRecentOnly(false); setPage(0); setSelectedKey(null); setImportKey(null); setSelectedKeys([]); }}
+      <button type="button" aria-pressed={!recentOnly} onClick={() => { setRecentOnly(false); setSort("name-asc"); setPage(0); setSelectedKey(null); setImportKey(null); }}
         className={"min-h-11 rounded-lg border px-4 text-sm font-semibold " + (!recentOnly ? "bg-primary text-primary-foreground" : "border-input text-foreground")}>
         Todos os técnicos
       </button>
-      <button type="button" aria-pressed={recentOnly} onClick={() => { setRecentOnly(true); setPage(0); setSelectedKey(null); setImportKey(null); setSelectedKeys([]); }}
+      <button type="button" aria-pressed={recentOnly} onClick={() => { setRecentOnly(true); setSort("newest"); setPage(0); setSelectedKey(null); setImportKey(null); }}
         className={"min-h-11 rounded-lg border px-4 text-sm font-semibold " + (recentOnly ? "bg-primary text-primary-foreground" : "border-input text-foreground")}>
         Últimos cadastros
       </button>
@@ -595,104 +623,139 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
           maxLength={80} placeholder="Ex.: informática" className="min-h-12 w-full rounded-xl border border-input bg-background px-4 font-normal text-foreground" />
       </label>
     </div>
-    <div className="mt-4 flex flex-wrap items-end justify-between gap-3 rounded-xl border border-border bg-background p-3">
-      <label className="grid min-w-[170px] gap-1 text-xs font-semibold text-foreground">
-        Ordenar listagem
-        <select value={recentOnly ? "cadastro" : sortMode}
-          onChange={(event) => { setSortMode(event.target.value as SortMode); setRecentOnly(false); setPage(0); setSelectedKey(null); setSelectedKeys([]); }}
-          className="min-h-11 rounded-lg border border-input bg-card px-3 text-sm text-foreground">
-          <option value="nome">Nome (A–Z)</option>
-          <option value="cadastro">Cadastro mais recente</option>
-          <option value="localidade">Cidade / região</option>
-          <option value="especialidade">Categoria / especialidade</option>
-        </select>
-      </label>
-      <div role="group" aria-label="Modo de visualização dos técnicos" className="flex flex-wrap gap-1">
-        {(["linhas", "cartoes", "avatares"] as const).map((mode) =>
-          <button key={mode} type="button" aria-pressed={viewMode === mode}
-            onClick={() => { setViewMode(mode); setSelectedKey(null); }}
-            className={"min-h-11 rounded-lg border px-3 text-sm font-semibold " +
-              (viewMode === mode ? "border-primary bg-primary text-primary-foreground" : "border-input text-foreground")}>
-            {mode === "linhas" ? "Linhas" : mode === "cartoes" ? "Detalhado" : "Avatares"}
+    <div className="mt-4 flex flex-wrap items-end justify-between gap-3 rounded-xl border border-border bg-muted/20 p-3">
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="grid gap-1 text-xs font-semibold text-foreground"><span className="flex items-center gap-1"><SlidersHorizontal className="h-4 w-4" /> Situação</span>
+          <select value={stateFilter} onChange={(event) => { setStateFilter(event.target.value as TechnicianStateFilter); setPage(0); }}
+            className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm">
+            <option value="all">Todas as situações</option>
+            <option value="active">Ativos</option>
+            <option value="inactive">Suspensos e arquivados</option>
+            <option value="review">Sem ativação / em análise</option>
+          </select>
+        </label>
+        <label className="grid gap-1 text-xs font-semibold text-foreground">Ordenar por
+          <select value={sort} onChange={(event) => { setSort(event.target.value as TechnicianSortMode); setRecentOnly(false); setPage(0); }}
+            className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm">
+            <option value="name-asc">Nome A–Z</option>
+            <option value="name-desc">Nome Z–A</option>
+            <option value="newest">Cadastro mais recente (quando conhecido)</option>
+            <option value="updated">Última atualização (quando conhecida)</option>
+          </select>
+        </label>
+      </div>
+      <div role="group" aria-label="Forma de exibição" className="flex items-center gap-1 rounded-xl border border-input bg-background p-1">
+        {([{"value":"rows","label":"Linhas","icon":List},{"value":"cards","label":"Cartões","icon":Grid2X2},{"value":"avatars","label":"Avatares","icon":LayoutGrid}] as const)
+          .map(({ value, label, icon: Icon }) => <button key={value} type="button" title={label}
+            aria-label={`Exibir em ${label.toLowerCase()}`} aria-pressed={view === value} onClick={() => setView(value)}
+            className={"flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold " + (view === value ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted")}>
+            <Icon className="h-4 w-4" /> <span className="hidden sm:inline">{label}</span>
           </button>)}
       </div>
     </div>
-    {(region || specialty) && <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+    {(region || specialty || stateFilter !== "all") && <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
       <span>Filtros ativos:</span>
       {region && <button type="button" onClick={() => filterRegion("")} className="min-h-9 rounded-full border border-input px-3">Região: {region} ×</button>}
       {specialty && <button type="button" onClick={() => filterSpecialty("")} className="min-h-9 rounded-full border border-input px-3">Especialidade: {specialty} ×</button>}
+      {stateFilter !== "all" && <button type="button" onClick={() => { setStateFilter("all"); setPage(0); }} className="min-h-9 rounded-full border border-input px-3">Situação ×</button>}
     </div>}
     <p role="status" className="mt-3 text-sm text-muted-foreground">
       {loading || registryLoading ? "Consultando registros…" : failed ? "Consulta incompleta: verifique a permissão ou conexão." :
-        `${total === null ? "Total indisponível" : (exactTotal ? "" : "cerca de ") + total.toLocaleString("pt-BR") + " técnicos"} · página ${page + 1} de ${pages} · até ${UNIFIED_DIRECTORY_PAGE_SIZE} por página`}
+        `${total === null ? "Total em apuração" : (exactTotal ? "" : "cerca de ") + total.toLocaleString("pt-BR") + " técnicos"} · página ${page + 1} de ${pages} · ${UNIFIED_DIRECTORY_PAGE_SIZE} por página`}
     </p>
-    {feedback && <p role="status" className="mt-3 rounded-lg border border-border bg-muted/50 p-3 text-sm text-foreground">{feedback}</p>}
-    {!loading && !registryLoading && !failed && results.length > 0 && <div className="mt-3 rounded-xl border border-border p-3">
-      <label className="flex min-h-10 items-center gap-2 text-sm font-semibold text-foreground">
-        <input type="checkbox" aria-label="Selecionar técnicos desta página"
-          checked={selectablePage.length > 0 && selectablePage.every((row) => selectedKeys.includes(row.key))}
-          onChange={(event) => setSelectedKeys((before) => event.target.checked
-            ? [...new Set([...before, ...selectablePage.map((row) => row.key)])].slice(0, 50)
-            : before.filter((key) => !selectablePage.some((row) => row.key === key)))} />
-        Selecionar página · {selectedRows.length} selecionados (máximo 50)
-      </label>
-      {selectedRows.length > 0 && <div className="mt-2 grid gap-2 md:grid-cols-[1fr_auto_auto] md:items-end">
-        <label className="grid gap-1 text-xs font-semibold text-foreground">Justificativa para ação em massa
-          <input value={bulkReason} onChange={(event) => setBulkReason(event.target.value)}
-            minLength={8} maxLength={400} placeholder="Motivo administrativo (mínimo 8 caracteres)"
-            className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm font-normal" />
+    {!loading && !registryLoading && !failed && <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold text-foreground">
+          <input type="checkbox" checked={selectedAll} disabled={!selectableRows.length || bulkBusy}
+            onChange={togglePageSelection} className="h-5 w-5 accent-primary" /> Selecionar página ({selectableRows.length})
         </label>
-        <button type="button" disabled={bulkBusy || !registryAvailable}
-          onClick={() => void executeBulk("importar")}
-          className="min-h-11 rounded-lg border border-primary/40 px-3 text-sm font-semibold text-primary disabled:opacity-50">
-          {bulkBusy ? "Aguarde…" : "Importar selecionados"}
-        </button>
-        <button type="button" disabled={bulkBusy || !registryAvailable}
-          onClick={() => void executeBulk("arquivar")}
-          className="min-h-11 rounded-lg border border-amber-500/50 px-3 text-sm font-semibold text-foreground disabled:opacity-50">
-          {bulkBusy ? "Aguarde…" : "Arquivar selecionados"}
-        </button>
-      </div>}
+        <span role="status" className="text-sm text-muted-foreground">{selectedRows.length} selecionado(s)</span>
+      </div>
+      {selectedRows.length > 0 && <>
+        <div role="group" aria-label="Ações em massa" className="mt-2 flex flex-wrap gap-2">
+          {([{"value":"import","label":"Cadastrar selecionados"},{"value":"archive","label":"Arquivar / suspender"},{"value":"restore","label":"Restaurar / reativar"}] as const)
+            .map((action) => <button type="button" key={action.value} disabled={bulkBusy}
+              aria-pressed={bulkAction === action.value} onClick={() => { setBulkAction(action.value); setBulkReason(""); }}
+              className={"min-h-11 rounded-lg border px-3 text-sm font-semibold " + (bulkAction === action.value ? "border-primary bg-primary text-primary-foreground" : "border-input bg-background text-foreground")}>
+              {action.label} ({selectedRows.filter((row) => canBulkAct(row, action.value)).length})
+            </button>)}
+          <button type="button" disabled={bulkBusy} onClick={() => { setSelected(new Set()); setBulkAction(null); }}
+            className="min-h-11 rounded-lg border border-input px-3 text-sm">Limpar seleção</button>
+        </div>
+        {bulkAction && <form onSubmit={(event) => void runBulk(event)} className="mt-3 grid gap-2 rounded-lg border border-border bg-background p-3">
+          <p className="text-sm text-foreground">{selectedRows.filter((row) => canBulkAct(row, bulkAction)).length} de {selectedRows.length} fichas permitem esta ação. As demais não serão modificadas.</p>
+          <label className="grid gap-1 text-sm font-medium">Motivo administrativo (obrigatório para cada alteração)
+            <textarea value={bulkReason} onChange={(event) => setBulkReason(event.target.value)}
+              minLength={8} maxLength={400} required rows={2} className="min-w-0 rounded-lg border border-input bg-background p-3" />
+          </label>
+          <button type="submit" disabled={bulkBusy || bulkReason.trim().length < 8 || !selectedRows.some((row) => canBulkAct(row, bulkAction))}
+            className="min-h-11 rounded-lg bg-primary px-4 font-semibold text-primary-foreground disabled:opacity-50">
+            {bulkBusy ? "Executando e conferindo respostas…" : "Confirmar ação em lote"}
+          </button>
+          <p className="text-xs text-muted-foreground">Somente esta página (até 18). Importações ficam sem contato e sem ativação automática; arquivamentos preservam histórico e podem ser restaurados.</p>
+        </form>}
+      </>}
     </div>}
-    {!loading && !registryLoading && !failed && <ul className={"mt-4 grid min-w-0 " +
-      (viewMode === "avatares" ? "grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5" :
-        viewMode === "cartoes" ? "gap-3 sm:grid-cols-2" : "gap-1 lg:grid-cols-2")}>
-      {results.map((row) => <li key={row.key} className={"min-w-0 rounded-xl border border-border bg-background " +
-        (selectedKey === row.key ? "col-span-full " : "") +
-        (viewMode === "linhas" ? "px-3 py-2" : "p-3 sm:p-4")}>
-        <div className={"flex min-w-0 justify-between gap-2 " +
-          (viewMode === "avatares" ? "flex-col items-center text-center" :
-            viewMode === "cartoes" ? "flex-col sm:flex-row sm:items-start" : "items-start")}>
-          <div className={"flex min-w-0 gap-2 " +
-            (viewMode === "avatares" ? "flex-col items-center" : "items-start")}>
-            <label className="flex shrink-0 items-center" title="Selecionar para ação em massa">
-              <input type="checkbox" aria-label={`Selecionar ${row.name}`}
-                checked={selectedKeys.includes(row.key)} disabled={Boolean(row.demo)}
-                onChange={(event) => toggleSelected(row.key, event.target.checked)} />
+    {feedback && <p role="status" className="mt-3 rounded-lg border border-border bg-muted/50 p-3 text-sm text-foreground">{feedback}</p>}
+    {!loading && !registryLoading && !failed && <ul className={"mt-4 grid min-w-0 gap-3 " +
+      (view === "rows" ? "grid-cols-1" : view === "cards" ? "grid-cols-1 md:grid-cols-2" : "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4")}>
+      {results.map((row) => <li key={row.key}
+        className={"min-w-0 rounded-xl border bg-background p-3 transition-colors " +
+          (selected.has(row.key) ? "border-primary/70 bg-primary/5" : "border-border") +
+          (selectedKey === row.key ? " col-span-full" : "")}>
+        <div className={"flex min-w-0 gap-3 " + (view === "avatars" && selectedKey !== row.key
+          ? "flex-col items-center text-center" : view === "rows" || selectedKey === row.key
+            ? "flex-col lg:flex-row lg:items-center" : "flex-col")}>
+          <div className="flex items-center gap-3">
+            <label className="flex min-h-11 min-w-8 shrink-0 cursor-pointer items-center justify-center"
+              title={row.demo ? "Demonstração protegida" : `Selecionar ${row.name}`}>
+              <input type="checkbox" aria-label={`Selecionar ${row.name}`} checked={selected.has(row.key)}
+                disabled={Boolean(row.demo) || bulkBusy} onChange={() => toggleSelected(row.key)}
+                className="h-5 w-5 accent-primary" />
             </label>
-            {viewMode === "avatares" && <TechnicianAvatar name={row.name} avatarPath={row.avatarPath}
-              className="h-16 w-16" />}
-            <div className="min-w-0">
-            <strong className="break-words text-foreground">{row.name}</strong>
-            {row.regionKey ? <button type="button" onClick={() => filterRegion(row.regionKey ?? "")}
-              className="mt-1 min-h-9 break-words text-left text-sm text-primary underline-offset-2 hover:underline"
-              title="Encontrar outros técnicos nesta região">{row.location}</button>
-              : <p className="mt-1 text-sm text-muted-foreground">{row.location}</p>}
-            {row.specialty && viewMode !== "avatares" && <button type="button" onClick={() => filterSpecialty(categoryKeyword(row.specialty ?? ""))}
-              className="mt-1 min-h-9 break-words text-left text-xs text-primary underline-offset-2 hover:underline"
-              title="Encontrar especialidades semelhantes">{row.specialty}</button>}
-            {row.demo && <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">Demonstração protegida: indisponível para ativação.</p>}
-            </div>
+            <TechnicianAvatar name={row.name} avatarPath={row.avatarPath ?? null}
+              className={view === "avatars" && selectedKey !== row.key ? "h-16 w-16 shrink-0" : "h-12 w-12 shrink-0"} />
           </div>
-          <div className={"flex shrink-0 flex-wrap gap-2 " + (viewMode === "avatares" ? "w-full" : "")}>
-            {!row.demo &&
-              <button type="button" onClick={() => selectRow(row)} aria-expanded={selectedKey === row.key}
-                className="min-h-10 w-full shrink-0 rounded-lg border border-primary/40 bg-primary/10 px-3 text-sm font-semibold text-primary hover:bg-primary/20 sm:w-auto">
-                {selectedKey === row.key ? "Fechar" : "Abrir / editar"}
-              </button>}
+          <div className="min-w-0 flex-1">
+            <strong className="block break-words leading-snug text-foreground">{row.name}</strong>
+            <span className={"mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold " +
+              (technicianState(row) === "active" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" :
+                technicianState(row) === "inactive" ? "bg-amber-500/10 text-amber-700 dark:text-amber-300" : "bg-muted text-muted-foreground")}>
+              {technicianState(row) === "active" ? "Ativo" : technicianState(row) === "inactive" ? "Suspenso / arquivado" : "A revisar"}
+            </span>
+            {row.regionKey ? <button type="button" onClick={() => filterRegion(row.regionKey ?? "")}
+              className="mt-1 block min-h-8 max-w-full break-words text-left text-xs text-primary underline-offset-2 hover:underline"
+              title="Filtrar pela região">{row.location}</button>
+              : <p className="mt-1 text-xs text-muted-foreground">{row.location}</p>}
+            {row.specialty && <button type="button" onClick={() => filterSpecialty(categoryKeyword(row.specialty ?? ""))}
+              className="mt-1 block min-h-8 max-w-full break-words text-left text-xs text-primary underline-offset-2 hover:underline"
+              title="Filtrar pela categoria">{row.specialty}</button>}
+            {row.demo && <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">Demonstração protegida</p>}
+          </div>
+          <div className={"flex shrink-0 flex-wrap items-center gap-2 " + (view === "avatars" ? "justify-center" : "sm:justify-end")}>
+            <button type="button" onClick={() => setDetailKey((key) => key === row.key ? null : row.key)}
+              aria-expanded={detailKey === row.key} className="min-h-10 rounded-lg border border-input px-3 text-xs font-semibold text-foreground hover:bg-muted">
+              {detailKey === row.key ? "Fechar ficha" : "Ver ficha"}
+            </button>
+            {!row.demo && <button type="button" onClick={() => selectRow(row)} aria-expanded={selectedKey === row.key}
+              className="min-h-10 rounded-lg border border-primary/40 bg-primary/10 px-3 text-xs font-semibold text-primary hover:bg-primary/20">
+              {selectedKey === row.key ? "Fechar edição" : "Editar"}
+            </button>}
           </div>
         </div>
-        {row.registry && viewMode === "cartoes" && <p className="mt-2 text-xs text-muted-foreground">
+        {detailKey === row.key && <section aria-label={`Ficha de ${row.name}`}
+          className="mt-3 grid gap-3 rounded-lg border border-border bg-muted/30 p-3 text-sm sm:grid-cols-2">
+          <div><span className="block text-xs text-muted-foreground">Nome profissional</span><strong className="break-words">{row.name}</strong></div>
+          <div><span className="block text-xs text-muted-foreground">Localidade</span><span className="break-words">{row.location}</span></div>
+          <div><span className="block text-xs text-muted-foreground">Categoria / especialidade</span>{row.specialty || "Não informada"}</div>
+          <div><span className="block text-xs text-muted-foreground">Situação</span>{technicianState(row) === "active" ? "Ativo" : technicianState(row) === "inactive" ? "Suspenso / arquivado" : "A revisar"}</div>
+          <div><span className="block text-xs text-muted-foreground">Cadastro</span>{formatDate(row.createdAt)}</div>
+          <div><span className="block text-xs text-muted-foreground">Última atualização</span>{formatDate(row.updatedAt)}</div>
+          <div className="sm:col-span-2"><span className="block text-xs text-muted-foreground">Contato</span>
+            {row.registry?.contact_last4 ? `Privado · final ${row.registry.contact_last4}` : "Privado / não informado"}
+          </div>
+        </section>}
+        {row.registry && <p className="mt-2 text-xs text-muted-foreground">
           {row.registry.archived ? "Registro arquivado" : row.registry.admin_active ? "Registro administrativo ativo" : "Registro administrativo não ativo"}
           {row.registry.contact_last4 ? ` · Contato privado final ${row.registry.contact_last4}` : ""}
         </p>}
@@ -777,8 +840,8 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
         className="min-h-11 rounded-lg border border-input px-4 text-sm font-semibold text-foreground disabled:opacity-40">Próxima</button>
     </nav>}
     <p className="mt-4 text-xs text-muted-foreground">
-      Toda edição é confirmada e auditada no banco. Contatos privados, demonstrações protegidas e restrições
-      permanecem preservados. Técnico histórico pode ser editado diretamente após salvar sua ficha administrativa.
+      Edições e ações em massa exigem sessão administrativa autorizada e motivo auditável.
+      O cadastro CSV é confirmado diretamente pela função auditada e não ativa contatos automaticamente.
     </p>
     <fieldset className="mt-4 space-y-2 rounded-xl border border-dashed border-border p-3">
       <legend className="text-sm font-semibold">Preparar importação CSV</legend>

@@ -6,6 +6,10 @@ on:
       - "src/components/admin-contacts-dashboard.tsx"
       - "src/lib/admin-contact-controls.ts"
       - "src/lib/admin-technician-crud-intent.ts"
+      - "src/components/admin-technician-unified-directory.tsx"
+      - "src/lib/admin-technician-unified-directory.test.ts"
+      - "src/lib/admin-technician-directory-view.ts"
+      - "src/lib/admin-technician-directory-view.test.ts"
       - "src/routes/admin.tsx"
       - "src/lib/admin-sections.ts"
       - "docs/sql/eut-admin-technician-crud-staging-proposal-20261111.sql"
@@ -30,7 +34,7 @@ jobs:
       - name: Install locked dependencies
         run: bun install --frozen-lockfile
       - name: Admin and privacy contract regression
-        run: bunx vitest run src/lib/admin-contact-controls.test.ts src/lib/admin-technician-crud-intent.test.ts src/lib/admin-sections.test.ts
+        run: bunx vitest run src/lib/admin-contact-controls.test.ts src/lib/admin-technician-crud-intent.test.ts src/lib/admin-sections.test.ts src/lib/admin-technician-directory-view.test.ts src/lib/admin-technician-unified-directory.test.ts src/lib/admin-technician-registry-contract.test.ts
       - name: Build TanStack / generate route types
         run: bun run build
       - name: TypeScript gate
