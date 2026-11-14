@@ -35,9 +35,9 @@ jobs:
           for(const required of [
             'TechnicianAvatar','t.avatar_path',
             't.referral_highlight','t.online_now','t.public_slug',
-            'Contato privado protegido','t.coverage_cities'
+            'Ver perfil completo','t.coverage_cities'
           ]) if(!card.includes(required))throw Error('Public card safeguard missing: '+required);
-          for(const forbidden of ['service_role','contact_phone','contact_email','wa.me/','5 estrelas','avaliação verificada','t.pioneer_bronze','Pioneiro Bronze']) {
+          for(const forbidden of ['service_role','contact_phone','contact_email','tel:','mailto:','wa.me/','5 estrelas','avaliação verificada','t.pioneer_bronze','Pioneiro Bronze']) {
             if(card.includes(forbidden))throw Error('Private or unproven card content: '+forbidden);
           }
           if(!route.includes('listApprovedTechnicians')||!route.includes('TechnicianSearchCard')||
