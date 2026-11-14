@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { normalizeGuiafixSearch, readGuiafixStaging } from "@/lib/guiafix-staging-normalizer";
+import { guiafixAdminSourceId, normalizeGuiafixSearch, readGuiafixStaging } from "@/lib/guiafix-staging-normalizer";
 import { publicTextProblem } from "@/lib/public-profile-text";
 import { AdminTechnicianManager } from "@/components/admin-technician-manager";
 import { AdminTechnicianRecordEditor, type AdminTechnicianRegistryRecord } from "@/components/admin-technician-record-editor";
@@ -62,7 +62,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
   const [loading, setLoading] = useState(true);
   const [reload, setReload] = useState(0);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [wpImportKey, setWpImportKey] = useState<string | null>(null);
+  const [importKey, setImportKey] = useState<string | null>(null);
   const [correctedName, setCorrectedName] = useState("");
   const [reason, setReason] = useState("");
   const [wpAction, setWpAction] = useState<"corrigir_nome" | "arquivar" | "restaurar">("corrigir_nome");
@@ -82,7 +82,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       setSpecialty(cleanUnifiedSearch(specialtyDraft));
       setPage(0);
       setSelectedKey(null);
-      setWpImportKey(null);
+      setImportKey(null);
     }, 320);
     return () => window.clearTimeout(timer);
   }, [draft, regionDraft, specialtyDraft]);
@@ -253,7 +253,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     // Requery authoritative server values after an audited write. The selected
     // card may have changed its sort position or name and must not stay stale.
     setSelectedKey(null);
-    setWpImportKey(null);
+    setImportKey(null);
     setManualSourceId(null);
     setPage(0);
     setReload((version) => version + 1);
@@ -267,7 +267,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       .includes(normalizeGuiafixSearch(region))) &&
     (!specialtyTerm || normalizeGuiafixSearch(row.category).includes(specialtyTerm))
   ).map((row): DirectoryRow => ({
-    key: `guiafix:${row.key}`, name: row.name, location: `${row.city}/${row.uf} (local da fonte)`,
+    key: guiafixAdminSourceId(row.key), name: row.name, location: `${row.city}/${row.uf}`,
     regionKey: row.city, specialty: row.category, origin: "guiafix",
   })), [term, region, specialtyTerm, recentOnly]);
   const merged = useMemo(() => {
@@ -287,8 +287,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       demo: item.is_demo,
     }));
     const legacyUnlinked = legacy.filter((item) => !importedWp.has(`wordpress_20261108:${item.wpPostId}`));
-    const guiafixUnlinked = guiafixResults.filter((item) =>
-      !importedGuiafix.has(item.key) && !importedGuiafix.has(item.key.slice("guiafix:".length)));
+    const guiafixUnlinked = guiafixResults.filter((item) => !importedGuiafix.has(item.key));
     const rows = [...operational,
       ...legacyUnlinked,
       ...guiafixUnlinked,
@@ -309,10 +308,10 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
   const pages = unifiedPageCount(total ?? 0);
 
   function filterRegion(value: string) {
-    setRegionDraft(value); setRegion(cleanUnifiedSearch(value)); setPage(0); setSelectedKey(null); setWpImportKey(null);
+    setRegionDraft(value); setRegion(cleanUnifiedSearch(value)); setPage(0); setSelectedKey(null); setImportKey(null);
   }
   function filterSpecialty(value: string) {
-    setSpecialtyDraft(value); setSpecialty(cleanUnifiedSearch(value)); setPage(0); setSelectedKey(null); setWpImportKey(null);
+    setSpecialtyDraft(value); setSpecialty(cleanUnifiedSearch(value)); setPage(0); setSelectedKey(null); setImportKey(null);
   }
 
   function openManualForm() {
@@ -346,23 +345,18 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
   }
 
   function selectRow(row: DirectoryRow) {
-    if (row.demo || (row.origin === "guiafix" && !row.registry)) return;
-    if (selectedKey === row.key && wpImportKey === null) {
+    if (row.demo) return;
+    if (selectedKey === row.key) {
       setSelectedKey(null);
+      setImportKey(null);
       return;
     }
     setSelectedKey(row.key);
-    setWpImportKey(null);
+    setImportKey(!row.registry && (row.origin === "wordpress" || row.origin === "guiafix") && registryAvailable
+      ? row.key : null);
     setCorrectedName(row.name);
     setWpAction("corrigir_nome");
     setReason("");
-    setFeedback(null);
-  }
-
-  function openWordPressImport(row: DirectoryRow) {
-    if (row.demo || row.origin !== "wordpress" || row.wpPostId === undefined || row.registry) return;
-    setSelectedKey(row.key);
-    setWpImportKey(row.key);
     setFeedback(null);
   }
 
@@ -413,10 +407,10 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
   }
 
   return <section id="admin-unified-directory" className="mt-6 min-w-0 scroll-mt-24 rounded-2xl border border-primary/20 bg-card p-3 sm:p-6" aria-label="Busca unificada de técnicos">
-    <h2 className="text-xl font-bold text-foreground">Gestão de técnicos</h2>
+    <h2 className="text-xl font-bold text-foreground">Todos os técnicos</h2>
     <p className="mt-2 text-sm leading-6 text-muted-foreground">
-      Uma lista e uma pesquisa para todos os técnicos encontrados. A origem é apenas um dado de auditoria.
-      Fichas recuperadas não recebem automaticamente login nem liberação de contatos.
+      Encontre o profissional pelo nome, região ou categoria. Toque em Editar técnico para atualizar
+      nome, cidade, especialidades e contato privado no celular ou computador.
     </p>
     <div className="mt-4 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <button type="button" onClick={openManualForm} aria-expanded={Boolean(manualSourceId)}
@@ -429,11 +423,11 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       available={registryAvailable} onCancel={() => setManualSourceId(null)}
       onSaved={(message) => { refreshAfterSaved(); setFeedback(message); }} />}
     <div role="group" aria-label="Navegação entre técnicos" className="mt-4 flex flex-wrap gap-2">
-      <button type="button" aria-pressed={!recentOnly} onClick={() => { setRecentOnly(false); setPage(0); setSelectedKey(null); setWpImportKey(null); }}
+      <button type="button" aria-pressed={!recentOnly} onClick={() => { setRecentOnly(false); setPage(0); setSelectedKey(null); setImportKey(null); }}
         className={"min-h-11 rounded-lg border px-4 text-sm font-semibold " + (!recentOnly ? "bg-primary text-primary-foreground" : "border-input text-foreground")}>
         Todos os técnicos
       </button>
-      <button type="button" aria-pressed={recentOnly} onClick={() => { setRecentOnly(true); setPage(0); setSelectedKey(null); setWpImportKey(null); }}
+      <button type="button" aria-pressed={recentOnly} onClick={() => { setRecentOnly(true); setPage(0); setSelectedKey(null); setImportKey(null); }}
         className={"min-h-11 rounded-lg border px-4 text-sm font-semibold " + (recentOnly ? "bg-primary text-primary-foreground" : "border-input text-foreground")}>
         Últimos cadastros do portal
       </button>
@@ -482,27 +476,13 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
             {row.demo && <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">Demonstração protegida: indisponível para ativação.</p>}
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
-            {(row.registry || row.origin !== "guiafix") && !row.demo &&
-              <button type="button" onClick={() => selectRow(row)} aria-expanded={selectedKey === row.key && wpImportKey === null}
+            {!row.demo &&
+              <button type="button" onClick={() => selectRow(row)} aria-expanded={selectedKey === row.key}
                 className="min-h-11 w-full shrink-0 rounded-xl border border-primary/40 bg-primary/10 px-4 text-sm font-semibold text-primary hover:bg-primary/20 sm:w-auto">
-                {selectedKey === row.key && wpImportKey === null ? "Fechar gestão" : "Gerenciar técnico"}
-              </button>}
-            {row.origin === "wordpress" && row.wpPostId !== undefined && !row.demo && !row.registry &&
-              <button type="button" onClick={() => openWordPressImport(row)} aria-expanded={wpImportKey === row.key}
-                className="min-h-11 w-full shrink-0 rounded-xl border border-input px-4 text-sm font-semibold text-foreground sm:w-auto">
-                {wpImportKey === row.key ? "Preparando importação" : "Importar ficha para gestão"}
+                {selectedKey === row.key ? "Fechar edição" : "Editar técnico"}
               </button>}
           </div>
         </div>
-        <details className="mt-3 text-xs text-muted-foreground">
-          <summary className="w-fit cursor-pointer py-1">Rastreabilidade</summary>
-          <p className="mt-1">Origem: {row.origin === "portal" ? "cadastro próprio" :
-            row.origin === "wordpress" ? "acervo WordPress" : row.origin === "guiafix" ? "captura Guiafix" :
-            row.origin === "manual" ? "inclusão administrativa" : "importação identificada"}.</p>
-        </details>
-        {row.origin === "guiafix" && !row.registry && <p className="mt-2 text-xs text-muted-foreground">
-          Ficha de referência sem vínculo persistido. A edição requer importação administrativa homologada.
-        </p>}
         {row.registry && <p className="mt-2 text-xs text-muted-foreground">
           {row.registry.archived ? "Registro arquivado" : row.registry.admin_active ? "Registro administrativo ativo" : "Registro administrativo não ativo"}
           {row.registry.contact_last4 ? ` · Contato privado final ${row.registry.contact_last4}` : ""}
@@ -512,18 +492,23 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
             sourceId={row.registry.source_id} existing={row.registry} available={registryAvailable}
             onCancel={() => setSelectedKey(null)}
             onSaved={(message) => { refreshAfterSaved(); setFeedback(message); }} />}
-        {selectedKey === row.key && wpImportKey === row.key && row.wpPostId !== undefined && !row.demo && !row.registry &&
+        {selectedKey === row.key && importKey === row.key && row.wpPostId !== undefined && !row.demo && !row.registry &&
           <AdminTechnicianRecordEditor key={`wp-import:${row.wpPostId}`}
             sourceId={`wordpress_20261108:${row.wpPostId}`} createOrigin="wordpress"
             importedName={row.name} importedDemo={Boolean(row.demo)} available={registryAvailable}
-            onCancel={() => { setWpImportKey(null); setSelectedKey(null); }}
+            onCancel={() => { setImportKey(null); setSelectedKey(null); }}
+            onSaved={(message) => { refreshAfterSaved(); setDraft(row.name); setFeedback(message); }} />}
+        {selectedKey === row.key && importKey === row.key && !row.demo && !row.registry && row.origin === "guiafix" &&
+          <AdminTechnicianRecordEditor key={row.key} sourceId={row.key} createOrigin="guiafix"
+            importedName={row.name} available={registryAvailable}
+            onCancel={() => { setImportKey(null); setSelectedKey(null); }}
             onSaved={(message) => { refreshAfterSaved(); setDraft(row.name); setFeedback(message); }} />}
         {selectedKey === row.key && row.portalId && !row.registry &&
           <div className="mt-4 border-t border-border pt-4">
             <AdminTechnicianManager adminOwnerId={adminOwnerId} selectedTechnicianId={row.portalId}
               onUpdated={refreshAfterSaved} />
           </div>}
-        {selectedKey === row.key && wpImportKey !== row.key && row.wpPostId !== undefined && !row.registry && !row.demo &&
+        {selectedKey === row.key && importKey !== row.key && row.wpPostId !== undefined && !row.registry && !row.demo &&
           <form onSubmit={(event) => void submitWordPress(event, row)}
             className="mt-4 grid min-w-0 gap-3 border-t border-border pt-4" aria-label={`Gerenciar técnico ${row.name}`}>
             <h3 className="text-base font-semibold text-foreground">Alteração administrativa auditada</h3>
@@ -552,8 +537,8 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
                 className="min-w-0 rounded-lg border border-input bg-background p-3 text-foreground" />
             </label>
             <p className="text-xs text-muted-foreground">
-              Esta ação corrige apenas a ficha WordPress, sem alterar a origem. A importação para o registro
-              administrativo completo exige vínculo de origem comprovado; este formulário não simula outras gravações.
+              Se a edição completa estiver temporariamente indisponível, esta ação salva a correção
+              do nome com auditoria. Os demais dados permanecem preservados.
             </p>
             <button type="submit" disabled={saving}
               className="min-h-12 rounded-xl bg-primary px-4 font-bold text-primary-foreground disabled:opacity-50">
@@ -561,20 +546,24 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
                 wpAction === "arquivar" ? "Confirmar arquivamento" : "Confirmar restauração"}
             </button>
           </form>}
+        {selectedKey === row.key && row.origin === "guiafix" && !registryAvailable && !row.registry &&
+          <p role="alert" className="mt-3 rounded-lg border border-amber-500/40 p-3 text-sm text-foreground">
+            A edição desta ficha depende da ativação da API administrativa no banco. Nenhuma alteração foi simulada.
+          </p>}
       </li>)}
     </ul>}
     {!loading && !registryLoading && !failed && results.length === 0 && <p className="mt-4 text-sm text-muted-foreground">Nenhum registro corresponde à busca.</p>}
     {!loading && !registryLoading && !failed && total !== null && total > 0 && <nav aria-label="Paginação do diretório unificado"
       className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
-      <button type="button" disabled={page === 0} onClick={() => { setPage((current) => Math.max(0, current - 1)); setSelectedKey(null); setWpImportKey(null); }}
+      <button type="button" disabled={page === 0} onClick={() => { setPage((current) => Math.max(0, current - 1)); setSelectedKey(null); setImportKey(null); }}
         className="min-h-11 rounded-lg border border-input px-4 text-sm font-semibold text-foreground disabled:opacity-40">Anterior</button>
       <label className="flex items-center gap-2 text-sm text-foreground">Página
-        <select aria-label="Ir para a página" value={page} onChange={(event) => { setPage(Number(event.target.value)); setSelectedKey(null); setWpImportKey(null); }}
+        <select aria-label="Ir para a página" value={page} onChange={(event) => { setPage(Number(event.target.value)); setSelectedKey(null); setImportKey(null); }}
           className="min-h-11 rounded-lg border border-input bg-background px-3">
           {Array.from({ length: pages }, (_, index) => <option key={index} value={index}>{index + 1} de {pages}</option>)}
         </select>
       </label>
-      <button type="button" disabled={page + 1 >= pages} onClick={() => { setPage((current) => Math.min(pages - 1, current + 1)); setSelectedKey(null); setWpImportKey(null); }}
+      <button type="button" disabled={page + 1 >= pages} onClick={() => { setPage((current) => Math.min(pages - 1, current + 1)); setSelectedKey(null); setImportKey(null); }}
         className="min-h-11 rounded-lg border border-input px-4 text-sm font-semibold text-foreground disabled:opacity-40">Próxima</button>
     </nav>}
     <p className="mt-4 text-xs text-muted-foreground">

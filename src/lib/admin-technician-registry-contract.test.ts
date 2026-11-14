@@ -27,10 +27,15 @@ describe("cadastro administrativo sem conta artificial", () => {
 
   it("mantém uma única gestão e não expõe contato integral na listagem", () => {
     const directory = read("src/components/admin-technician-unified-directory.tsx");
+    const editor = read("src/components/admin-technician-record-editor.tsx");
     const sql = read("docs/sql/eut-admin-technician-crud-staging-proposal-20261111.sql");
     expect(directory).toContain("AdminTechnicianRecordEditor");
     expect(directory).toContain("eut_admin_technician_registry_list");
     expect(directory).toContain('createOrigin="wordpress"');
+    expect(directory).toContain('createOrigin="guiafix"');
+    expect(directory).toContain('guiafixAdminSourceId(row.key)');
+    expect(directory).toContain('Editar técnico');
+    expect(directory).toContain('unifiedPageSlice(');
     expect(directory).toContain("wordpress_20261108:${row.wpPostId}");
     expect(directory).toContain("Preparar importação CSV");
     expect(directory).toContain('eq("kind", "candidate")');
@@ -38,5 +43,8 @@ describe("cadastro administrativo sem conta artificial", () => {
     expect(sql).toContain("contact_last4 text");
     expect(directory).not.toMatch(/eut_technician_private_contacts|auth\.admin/);
     expect(directory).not.toContain("error.message");
+    expect(directory).not.toMatch(/Rastreabilidade|Origem:|Vínculo operacional não comprovado|Ficha de referência sem vínculo/);
+    expect(editor).not.toContain("readOnly={importedCreation}");
+    expect(editor).toContain('createOrigin?: "manual" | "wordpress" | "guiafix"');
   });
 });

@@ -4,12 +4,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { AdminModule } from "@/lib/admin-sections";
 import { adminCount, clientCounters, advertisingCounters } from "@/lib/admin-command-metrics";
-import { readGuiafixStaging } from "@/lib/guiafix-staging-normalizer";
-
-const guiafixCaptures = import.meta.glob("../../data/external-staging/guiafix-*.capture.json", {
-  eager: true, import: "default",
-}) as Record<string, unknown>;
-const guiafixCount = readGuiafixStaging(Object.values(guiafixCaptures)).length;
 
 const db = supabase as unknown as SupabaseClient;
 type Metrics = {
@@ -62,9 +56,7 @@ export function AdminCommandOverview() {
   }, [revision]);
 
   const cards: SummaryItem[] = [
-    { label: "Técnicos com conta aprovada", value: metrics?.approved ?? null, module: "tecnicos", note: "Contas operacionais, não o total importado" },
-    { label: "Técnicos no acervo WordPress", value: metrics?.wordpress ?? null, module: "tecnicos", note: "Fichas históricas, inclusive classificações antigas" },
-    { label: "Técnicos capturados no Guiafix", value: guiafixCount, module: "tecnicos", note: "Nomes recuperados; vínculo operacional pendente" },
+    { label: "Técnicos", value: null, module: "tecnicos", note: "Lista única de gestão e edição" },
     { label: "Clientes cadastrados", value: metrics?.clients ?? null, module: "clientes", note: "Total do RPC administrativo" },
     { label: "Solicitações registradas", value: metrics?.requests ?? null, module: "solicitacoes", note: "Todas as situações" },
     { label: "Solicitações abertas", value: metrics?.requestsOpen ?? null, module: "solicitacoes", note: "Status: aberta" },
@@ -78,7 +70,7 @@ export function AdminCommandOverview() {
     { label: "Revisar campanhas em rascunho", value: metrics?.drafts ?? null, module: "patrocinadores" },
   ];
   const availableAlerts = alerts.filter((item) => item.value !== null && item.value > 0);
-  const incomplete = !loading && [...cards, ...alerts].some((item) => item.value === null);
+  const incomplete = !loading && [...cards, ...alerts].some((item) => item.value === null && item.label !== "Técnicos");
 
   return <section className="mt-6 space-y-5" aria-label="Central de comando operacional">
     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -101,7 +93,7 @@ export function AdminCommandOverview() {
         className="block min-w-0 rounded-xl border border-border bg-background p-4 hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <span className="block text-sm font-semibold text-muted-foreground">{item.label}</span>
         <strong aria-live="polite" className="mt-1 block text-2xl font-bold tabular-nums text-foreground">
-          {loading ? "…" : item.value === null ? "Indisponível" : item.value.toLocaleString("pt-BR")}
+          {item.module === "tecnicos" ? "Abrir gestão" : loading ? "…" : item.value === null ? "Indisponível" : item.value.toLocaleString("pt-BR")}
         </strong>
         <span className="mt-2 block text-xs text-muted-foreground">{item.note} · Abrir módulo</span>
       </Link>)}

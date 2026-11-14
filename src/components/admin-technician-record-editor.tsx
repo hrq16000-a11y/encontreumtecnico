@@ -48,14 +48,14 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
   importedName = "", importedDemo = false, available, onSaved, onCancel }: {
   sourceId: string;
   existing?: AdminTechnicianRegistryRecord;
-  createOrigin?: "manual" | "wordpress";
+  createOrigin?: "manual" | "wordpress" | "guiafix";
   importedName?: string;
   importedDemo?: boolean;
   available: boolean;
   onSaved: (message: string) => void;
   onCancel: () => void;
 }) {
-  const importedCreation = !existing && createOrigin === "wordpress";
+  const importedCreation = !existing && createOrigin !== "manual";
   const [name, setName] = useState(existing?.display_name ?? importedName);
   const [ddd, setDdd] = useState(existing?.ddd ?? "");
   const [region, setRegion] = useState(existing?.region_approx ?? "");
@@ -114,8 +114,11 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
     event.preventDefault();
     if (busy || !available || !acknowledged || existing?.archived || importedDemo) return;
     setError(null);
-    if (importedCreation && !/^wordpress_20261108:[0-9]{1,9}$/.test(sourceId)) {
-      setError("Identificador histórico não comprovado. Importação bloqueada."); return;
+    if (importedCreation && (
+      (createOrigin === "wordpress" && !/^wordpress_20261108:[0-9]{1,9}$/.test(sourceId)) ||
+      (createOrigin === "guiafix" && !/^guiafix:[A-Za-z-]{3,71}-[a-f0-9]{8}-[a-f0-9]{8}$/.test(sourceId))
+    )) {
+      setError("Identificador do cadastro inválido. Nenhum dado foi alterado."); return;
     }
     const cleanedName = name.trim();
     if (cleanedName.length < 3 || cleanedName.length > 120 || publicTextProblem(cleanedName, "identity")) {
@@ -133,16 +136,16 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
       setError("Informe um telefone brasileiro válido com DDD."); return;
     }
     const payload: Record<string, unknown> = {
-      display_name: cleanedName, city_ibge_id: importedCreation ? null : cityId,
-      ddd: importedCreation ? null : ddd || null,
-      region_approx: importedCreation ? null : region.trim() || null,
-      category_slugs: importedCreation ? [] : categories,
-      service_slugs: importedCreation ? [] : services,
+      display_name: cleanedName, city_ibge_id: cityId,
+      ddd: ddd || null,
+      region_approx: region.trim() || null,
+      category_slugs: categories,
+      service_slugs: services,
       admin_active: importedCreation ? false : active && !existing?.is_demo,
       is_demo: existing?.is_demo ?? importedDemo,
-      phone_action: importedCreation ? "keep" : phoneAction,
+      phone_action: phoneAction,
     };
-    if (!importedCreation && phoneAction === "replace") {
+    if (phoneAction === "replace") {
       payload["phone_e164"] = normalizedPhone;
       payload["contact_suspended"] = contactSuspended;
     }
@@ -199,9 +202,8 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
     aria-label={existing ? `Editar técnico ${existing.display_name}` : importedCreation ? "Importar técnico histórico" : "Adicionar técnico manualmente"}>
     <h3 className="text-lg font-bold text-foreground">{existing ? "Editar ficha do técnico" : importedCreation ? "Importar técnico para gestão" : "Adicionar técnico"}</h3>
     <p className="text-xs leading-5 text-muted-foreground">
-      {importedCreation ? "Ficha WordPress comprovada, vinculada pelo ID exato da fonte. Primeiro importe sem ativar; depois abra esta mesma ficha na lista para editar DDD, cidade, categorias e contato privado com comprovação." :
-        "Cadastro administrativo direto, sem convite ou criação de conta de login. A origem fica guardada para auditoria."}
-      {" "}Nenhum contato será publicado ou comercializado por esta operação.
+      Informe os dados deste técnico e salve com auditoria. O contato é privado; esta operação não publica
+      telefone, não cria conta de login e não libera acesso pago ao número.
     </p>
     {!available && <p role="alert" className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-foreground">
       O banco ainda não possui as novas RPCs de cadastro. O formulário está disponível para conferência,
@@ -209,10 +211,9 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
     </p>}
     <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">Nome profissional
       <input className={field} required minLength={3} maxLength={120} value={name}
-        readOnly={importedCreation}
         onChange={(event) => setName(event.target.value)} />
     </label>
-    {!importedCreation && <>
+    <>
     <div className="grid min-w-0 gap-3 sm:grid-cols-[90px_minmax(0,1fr)]">
       <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">DDD
         <input className={field} inputMode="numeric" maxLength={2} value={ddd}
@@ -264,25 +265,22 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
           </label>)}
       </div>
     </fieldset>}
-    </>}
+    </>
     <label className="flex min-h-11 items-center gap-2 text-sm text-foreground">
       <input type="checkbox" checked={active} disabled={existing?.is_demo || importedCreation}
         onChange={(event) => setActive(event.target.checked)} />
       {importedCreation ? "Ficha importada não ativa até revisão individual (bloqueado nesta importação)" :
         "Ativo na gestão administrativa (não libera contato público ou pago)"}
     </label>
-    {!importedCreation && <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">Contato privado
+    <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">Contato privado
       <select className={field} value={phoneAction}
         onChange={(event) => { setPhoneAction(event.target.value as typeof phoneAction); setPhone(""); }}>
         <option value="keep">Manter como está / sem contato</option>
         <option value="replace">{existing ? "Substituir" : "Cadastrar"} telefone</option>
         {existing && <option value="remove">Remover telefone (se permitido pelo banco)</option>}
       </select>
-    </label>}
-    {importedCreation && <p className="text-xs text-muted-foreground">
-      Nenhum telefone é inferido da origem. Após importar, a inclusão de contato requer comprovação e operação auditada separada.
-    </p>}
-    {!importedCreation && phoneAction === "replace" && <div className="grid min-w-0 gap-2">
+    </label>
+    {phoneAction === "replace" && <div className="grid min-w-0 gap-2">
       <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">Número com DDD (privado)
         <input className={field} inputMode="tel" autoComplete="off" value={phone}
           onChange={(event) => setPhone(event.target.value)} placeholder="(41) 99999-9999" />
@@ -300,8 +298,8 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
     </label>
     <label className="flex min-h-11 items-start gap-2 text-xs leading-5 text-foreground">
       <input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} />
-      {importedCreation ? "Confirmo o vínculo exato desta ficha WordPress e a importação apenas deste profissional, sem ativar contato ou login." :
-        "Confirmo que posso cadastrar/corrigir estes dados e que a operação não autoriza divulgação de contatos, criação de login ou importação de outros perfis."}
+      Confirmo que posso cadastrar ou corrigir os dados deste técnico e que a operação não autoriza
+      divulgação do telefone nem criação de login.
     </label>
     {error && <p role="alert" className="rounded-lg border border-destructive/30 p-3 text-sm text-destructive">{error}</p>}
     {existing?.archived && <p className="rounded-lg border border-amber-500/40 p-3 text-xs text-foreground">
@@ -317,7 +315,7 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
       </button>}
       <button type="submit" disabled={!available || busy || !acknowledged || Boolean(existing?.archived) || importedDemo}
         className="min-h-12 rounded-lg bg-primary px-5 text-sm font-bold text-primary-foreground disabled:opacity-50">
-        {busy ? "Gravando no banco…" : existing ? "Salvar edição" : importedCreation ? "Importar técnico" : "Adicionar técnico"}
+        {busy ? "Gravando no banco…" : existing ? "Salvar edição" : importedCreation ? "Salvar técnico" : "Adicionar técnico"}
       </button>
     </div>
   </form>;
