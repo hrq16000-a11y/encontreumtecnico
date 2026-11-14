@@ -58,6 +58,7 @@ async function findRecords(term: string): Promise<SearchResponse> {
     db.from("legacy_review_profiles").select("wp_post_id,title,location1")
       .eq("source_key", "wordpress_20261108").eq("kind", "employer")
       .eq("demo_candidate", false).ilike("title", like).order("title").limit(6),
+    db.rpc("eut_ads_admin_snapshot"),
   ]);
   const items: AdminSearchResult[] = [];
   let unavailable = false;
@@ -169,6 +170,35 @@ async function findRecords(term: string): Promise<SearchResponse> {
       description: `Cliente · ${row.location1 || "Localidade não informada"}`,
       section: "clientes", url: adminSearchUrl("clientes", row.title),
     });
+  }
+  const advertising = data[9] as Record<string, unknown> | null;
+  if (advertising) {
+    const fields = [
+      { area: "sponsors", label: "brand_name", type: "Patrocinador" },
+      { area: "campaigns", label: "title", type: "Campanha" },
+      { area: "creatives", label: "title", type: "Criativo" },
+      { area: "placements", label: "position_label", type: "Espaço publicitário" },
+    ];
+    const foldedTerm = term.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    let added = 0;
+    for (const field of fields) {
+      const rows = advertising[field.area];
+      if (!Array.isArray(rows)) { unavailable = true; continue; }
+      for (const row of rows as Array<Record<string, unknown>>) {
+        const label = String(row[field.label] ?? "");
+        const foldedLabel = label.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+        if (!foldedLabel.includes(foldedTerm)) continue;
+        items.push({
+          key: `advertising:${field.area}:${String(row["id"] ?? "")}`,
+          title: label,
+          description: field.type,
+          section: "patrocinadores",
+          url: `${adminSearchUrl("patrocinadores", label)}&area=${field.area}`,
+        });
+        if (++added >= 8) break;
+      }
+      if (added >= 8) break;
+    }
   }
   for (const row of importedTechnicians.filter((entry) =>
     normalizeGuiafixSearch(`${entry.name} ${entry.city} ${entry.uf}`)
