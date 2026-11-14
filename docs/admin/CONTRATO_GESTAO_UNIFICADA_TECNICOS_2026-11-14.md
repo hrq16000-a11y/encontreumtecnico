@@ -41,7 +41,7 @@ Não somar as quatro tabelas WordPress; não alegar 900 técnicos únicos, nem 7
 | --- | --- | --- |
 | `eut_admin_technician_record_save(text,text,timestamptz,jsonb,text)` | origem, ID estável da fonte, versão ou `NULL`, objeto de campos e justificativa | Cria (versão `NULL`), edita (versão exata), reimportação idempotente sem sobrescrever; registra auditoria; retorna `technician_id`, `updated_at`, `created`, `idempotent` |
 | `eut_admin_technician_registry_list(text,integer,integer)` | busca, limite 1–100, deslocamento até 100 mil | Página de nomes/DDD/região/IBGE/categorias e últimos 4 dígitos; **nunca** retorna telefone integral |
-| `eut_admin_technician_record_archive(uuid,timestamptz,text,text)` | ID, revisão exata, `archive`/`restore` e justificativa | Arquivamento reversível e auditado; restauração não ativa contato ou ficha automaticamente |
+| `eut_admin_technician_record_archive(uuid,timestamptz,text,text)` | ID, revisão exata, `archive`/`restore` e justificativa | Arquivamento reversível e auditado; restauração recupera `admin_active` anterior do evento de arquivamento, sem ativar contatos privados |
 
 - `origin` = `manual`, `wordpress`, `guiafix` ou `other_import`; é a **origem**, não uma classe de técnico. `source_id` identifica o registro na fonte e não contém telefone/nome privado. Fonte WordPress exige `wordpress_20261108:<wp_post_id>` e consulta `legacy_review_profiles` para aceitar exclusivamente `kind=candidate` e manter os 20 demos inativos.
 - `city_ibge_id` pode ser `NULL` quando cidade real não estiver comprovada; `ddd` e `region_approx` são fatos separados. `category_slugs` e `service_slugs` podem estar vazios quando não houver comprovação, mas valores fornecidos devem existir e estar ativos no catálogo.

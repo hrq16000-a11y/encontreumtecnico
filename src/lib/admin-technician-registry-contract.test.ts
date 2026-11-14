@@ -25,6 +25,18 @@ describe("cadastro administrativo sem conta artificial", () => {
     expect(sql).toContain("REVOKE ALL ON TABLE eut_moderation.admin_technician_records");
   });
 
+  it("restaura a condição administrativa anterior sem reativar contato", () => {
+    const sql = read("docs/sql/eut-admin-technician-crud-staging-proposal-20261111.sql");
+    const fixture = read("docs/sql/tests/eut-admin-crud-ephemeral-assertions-20261111.sql");
+    const archive = sql.slice(sql.indexOf("CREATE OR REPLACE FUNCTION public.eut_admin_technician_record_archive"));
+    expect(archive).toContain("l.action='registry_technician_archived'");
+    expect(archive).toContain("l.before_state->>'admin_active'");
+    expect(archive).toContain("admin_active=CASE WHEN _action='archive' THEN false ELSE v_restore_active END");
+    expect(archive).toContain("'contact_authorization_changed',false");
+    expect(fixture).toContain("Restore lost prior active state or audit");
+    expect(fixture).toContain("c.contact_suspended=true");
+  });
+
   it("mantém uma única gestão e não expõe contato integral na listagem", () => {
     const directory = read("src/components/admin-technician-unified-directory.tsx");
     const editor = read("src/components/admin-technician-record-editor.tsx");
