@@ -147,7 +147,9 @@ export type ArchiveDraft = {
   expectedUpdatedAt: string;
   reason: string;
   action: "archive" | "restore";
-  isArchived: boolean;
+  // The archive marker is private; clients may not know its state.
+  // The server RPC remains the authority when the value is null.
+  isArchived: boolean | null;
   accountBlocked: boolean;
   phoneBlocked: boolean;
 };
@@ -162,9 +164,9 @@ export function prepareReversibleArchive(draft: ArchiveDraft):
   if (draft.reason.trim().length < 8 || draft.reason.trim().length > 400 ||
       DANGEROUS_CONTACT.test(draft.reason))
     return { ok: false, issue: "Justificativa administrativa inválida." };
-  if (draft.action === "archive" && draft.isArchived)
+  if (draft.action === "archive" && draft.isArchived === true)
     return { ok: false, issue: "Registro já arquivado." };
-  if (draft.action === "restore" && !draft.isArchived)
+  if (draft.action === "restore" && draft.isArchived === false)
     return { ok: false, issue: "Registro não está arquivado." };
   // Restoring an archive is NOT approval, unban, contact authorization or publication.
   return {

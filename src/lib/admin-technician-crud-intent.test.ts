@@ -114,5 +114,10 @@ describe("P0 administração: validação local não substitui RBAC/RLS/SQL audi
       technicianId: UUID, expectedUpdatedAt: REV, reason: "Arquivamento repetido",
       action: "archive", isArchived: true, accountBlocked: false, phoneBlocked: false,
     }).ok).toBe(false);
+    // The archive marker is intentionally unreadable by the browser; server checks it.
+    expect(prepareReversibleArchive({
+      technicianId: UUID, expectedUpdatedAt: REV, reason: "Revisão administrativa",
+      action: "restore", isArchived: null, accountBlocked: true, phoneBlocked: true,
+    })).toMatchObject({ ok: true, willPublish: false, preservesBan: true });
   });
 });

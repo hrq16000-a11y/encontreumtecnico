@@ -1,5 +1,14 @@
 import type { PreparedEdit } from "./admin-technician-crud-intent";
 
+export type AdminArchiveAction = "archive" | "restore";
+
+export type AdminArchiveRequest = {
+  technicianId: string;
+  expectedUpdatedAt: string;
+  action: AdminArchiveAction;
+  reason: string;
+};
+
 type RpcReply = {
   data: unknown;
   error: { code?: string; message?: string } | null;
@@ -57,6 +66,45 @@ export async function persistAdminTechnicianEdit(
     const result = data as Record<string, unknown> | null;
     if (result?.["ok"] !== true || result["technician_id"] !== prepared.technicianId ||
         typeof result["updated_at"] !== "string" || !Number.isFinite(Date.parse(result["updated_at"]))) {
+      return { ok: false, reason: "unavailable" };
+    }
+    return { ok: true, updatedAt: result["updated_at"] };
+  } catch {
+    return { ok: false, reason: "unavailable" };
+  }
+}
+
+export function technicianArchiveRpcArgs(request: AdminArchiveRequest): Record<string, unknown> {
+  return {
+    _technician_id: request.technicianId,
+    _expected_updated_at: request.expectedUpdatedAt,
+    _action: request.action,
+    _reason: request.reason.trim(),
+  };
+}
+
+/** Archive and restore never delete an account, a private number or audit history. */
+export async function persistAdminTechnicianArchive(
+  rpc: AdminCrudRpc,
+  request: AdminArchiveRequest,
+): Promise<AdminSaveResult> {
+  try {
+    const { data, error } = await rpc(
+      "eut_admin_technician_archive",
+      technicianArchiveRpcArgs(request),
+    );
+    if (error) {
+      if (error.code === "40001") return { ok: false, reason: "conflict" };
+      if (error.code === "42501") return { ok: false, reason: "denied" };
+      return { ok: false, reason: "unavailable" };
+    }
+    const result = data as Record<string, unknown> | null;
+    const shouldBeArchived = request.action === "archive";
+    if (result?.["ok"] !== true || result["technician_id"] !== request.technicianId ||
+        result["archived"] !== shouldBeArchived || result["contact_enabled"] !== false ||
+        result["status"] !== (shouldBeArchived ? "suspenso" : "pendente") ||
+        typeof result["updated_at"] !== "string" ||
+        !Number.isFinite(Date.parse(result["updated_at"]))) {
       return { ok: false, reason: "unavailable" };
     }
     return { ok: true, updatedAt: result["updated_at"] };

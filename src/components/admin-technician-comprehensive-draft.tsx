@@ -3,12 +3,18 @@ import type { Tables } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import {
   prepareAdminTechnicianEdit,
+  prepareReversibleArchive,
   type AdminCatalog,
   type AdminCity,
   type PhoneChange,
   type PreparedEdit,
 } from "@/lib/admin-technician-crud-intent";
-import { persistAdminTechnicianEdit, type AdminCrudRpc } from "@/lib/admin-technician-crud-rpc";
+import {
+  persistAdminTechnicianArchive,
+  persistAdminTechnicianEdit,
+  type AdminArchiveAction,
+  type AdminCrudRpc,
+} from "@/lib/admin-technician-crud-rpc";
 import { dddFromBrazilPhone, verifiedBaseCity } from "@/lib/admin-technician-geo";
 import { BRAZIL_STATES } from "@/lib/service-taxonomy";
 
@@ -80,6 +86,11 @@ export function AdminTechnicianComprehensiveDraft({
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [archiveAction, setArchiveAction] = useState<AdminArchiveAction>("archive");
+  const [archiveReason, setArchiveReason] = useState("");
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+  const [archiving, setArchiving] = useState(false);
+  const archivingRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -240,7 +251,7 @@ export function AdminTechnicianComprehensiveDraft({
 
   async function saveValidatedPreview() {
     const prepared = preparedRef.current;
-    if (!prepared || !preview || savingRef.current) return;
+    if (!prepared || !preview || savingRef.current || archivingRef.current) return;
     if (!window.confirm("Confirmar esta alteração administrativa auditada? A ação será gravada no banco e poderá modificar dados privados.")) return;
     savingRef.current = true;
     setSaving(true);
@@ -265,6 +276,51 @@ export function AdminTechnicianComprehensiveDraft({
         : "A gravação não foi confirmada pelo servidor. Nenhuma alteração será considerada concluída; recarregue e confira antes de tentar novamente.");
   }
 
+  async function submitArchive(event: FormEvent) {
+    event.preventDefault();
+    if (savingRef.current || archivingRef.current) return;
+    setArchiveError(null);
+    const validation = prepareReversibleArchive({
+      technicianId: technician.id,
+      expectedUpdatedAt: technician.updated_at,
+      action: archiveAction,
+      reason: archiveReason,
+      // The private archive marker is server-only. The RPC verifies its real state.
+      isArchived: null,
+      accountBlocked: true,
+      phoneBlocked: true,
+    });
+    if (!validation.ok) {
+      setArchiveError(validation.issue);
+      return;
+    }
+    const message = archiveAction === "archive"
+      ? "Arquivar este técnico? O perfil será suspenso, sairá da cobertura ativa e o contato pago será desabilitado. Nome, telefone privado, histórico e bloqueios serão preservados."
+      : "Solicitar restauração do arquivo? Só cadastros realmente arquivados podem ser restaurados. O registro voltará para PENDENTE, sem aprovação ou reativação do contato pago.";
+    if (!window.confirm(message)) return;
+    archivingRef.current = true;
+    setArchiving(true);
+    const rpc = (supabase as unknown as { rpc: AdminCrudRpc }).rpc.bind(supabase);
+    const result = await persistAdminTechnicianArchive(rpc, {
+      technicianId: technician.id,
+      expectedUpdatedAt: technician.updated_at,
+      action: archiveAction,
+      reason: archiveReason.trim(),
+    });
+    archivingRef.current = false;
+    setArchiving(false);
+    if (result.ok) {
+      setArchiveReason("");
+      onSaved();
+      return;
+    }
+    setArchiveError(result.reason === "conflict"
+      ? "O técnico foi atualizado em outra sessão. Recarregue antes de tentar novamente."
+      : result.reason === "denied"
+        ? "Sua sessão não possui autorização administrativa para esta operação."
+        : "A ação não foi confirmada. Verifique se o técnico já está arquivado (ou se é apenas um suspenso comum) e recarregue antes de tentar novamente.");
+  }
+
   return (
     <section
       aria-label="Revisão completa de cadastro de técnico"
@@ -278,7 +334,7 @@ export function AdminTechnicianComprehensiveDraft({
             antes de salvar; a gravação exige a função administrativa homologada no servidor.
           </p>
         </div>
-        <button type="button" onClick={onClose} disabled={saving} className={button}>
+        <button type="button" onClick={onClose} disabled={saving || archiving} className={button}>
           Fechar
         </button>
       </div>
@@ -613,20 +669,55 @@ export function AdminTechnicianComprehensiveDraft({
               </p>
             </div>
           )}
-          <button
-            type="submit"
-            disabled={loading || Boolean(loadError)}
-            className="min-h-11 rounded-lg bg-primary px-5 text-sm font-bold text-primary-foreground disabled:opacity-40"
-          >
-            Validar prévia sem gravar
-          </button>
-          {preview && <button type="button" disabled={saving}
-            onClick={() => void saveValidatedPreview()}
-            className="ml-2 min-h-11 rounded-lg bg-primary px-5 text-sm font-bold text-primary-foreground disabled:opacity-40">
-            {saving ? "Aguardando confirmação…" : "Salvar alteração auditada"}
-          </button>}
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <button
+              type="submit"
+              disabled={loading || Boolean(loadError) || saving || archiving}
+              className="min-h-11 w-full rounded-lg bg-primary px-5 text-sm font-bold text-primary-foreground disabled:opacity-40 sm:w-auto"
+            >
+              Validar prévia sem gravar
+            </button>
+            {preview && <button type="button" disabled={saving || archiving}
+              onClick={() => void saveValidatedPreview()}
+              className="min-h-11 w-full rounded-lg bg-primary px-5 text-sm font-bold text-primary-foreground disabled:opacity-40 sm:w-auto">
+              {saving ? "Aguardando confirmação…" : "Salvar alteração auditada"}
+            </button>}
+          </div>
         </form>
       )}
+      <form onSubmit={(event) => void submitArchive(event)} className="mt-6 space-y-3 rounded-xl border border-amber-500/40 p-4" aria-label="Arquivamento administrativo reversível">
+        <h4 className="font-semibold text-foreground">Arquivar ou restaurar cadastro</h4>
+        <p className="text-sm text-muted-foreground">
+          Ações auditadas e sem exclusão definitiva. Arquivar suspende o perfil e desativa contato pago;
+          restaurar exige um arquivo existente e retorna apenas à análise pendente. Contatos privados,
+          bloqueios e histórico permanecem preservados.
+        </p>
+        <label className="grid gap-1 text-sm">
+          Operação
+          <select className={input} value={archiveAction} disabled={archiving || saving}
+            onChange={(event) => {
+              setArchiveAction(event.target.value as AdminArchiveAction);
+              setArchiveError(null);
+            }}>
+            <option value="archive">Arquivar este cadastro</option>
+            {technician.status === "suspenso" && <option value="restore">Restaurar do arquivo (se realmente arquivado)</option>}
+          </select>
+        </label>
+        <label className="grid gap-1 text-sm">
+          Justificativa administrativa para esta operação
+          <textarea className={input} value={archiveReason} required minLength={8} maxLength={400}
+            rows={2} disabled={archiving || saving} placeholder="Motivo da ação; não inclua contatos privados"
+            onChange={(event) => {
+              setArchiveReason(event.target.value);
+              setArchiveError(null);
+            }} />
+        </label>
+        {archiveError && <p role="alert" className="text-sm text-destructive">{archiveError}</p>}
+        <button type="submit" disabled={archiving || saving || loading}
+          className="min-h-11 w-full rounded-lg border border-amber-500 bg-background px-5 text-sm font-semibold text-foreground disabled:opacity-40 sm:w-auto">
+          {archiving ? "Aguardando confirmação…" : archiveAction === "archive" ? "Confirmar arquivamento auditado" : "Confirmar restauração para pendente"}
+        </button>
+      </form>
     </section>
   );
 }

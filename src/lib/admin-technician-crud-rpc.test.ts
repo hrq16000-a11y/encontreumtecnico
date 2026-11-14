@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PreparedEdit } from "./admin-technician-crud-intent";
-import { persistAdminTechnicianEdit, technicianEditRpcArgs } from "./admin-technician-crud-rpc";
+import { persistAdminTechnicianArchive, persistAdminTechnicianEdit, technicianArchiveRpcArgs, technicianEditRpcArgs } from "./admin-technician-crud-rpc";
 
 const input: PreparedEdit = {
   kind: "preview_only",
@@ -65,6 +65,58 @@ describe("RPC administrativo de técnicos", () => {
     const rpc = vi.fn().mockResolvedValue({ data: null, error: { code: "40001" } });
     await expect(persistAdminTechnicianEdit(rpc, input)).resolves.toEqual({
       ok: false, reason: "conflict",
+    });
+  });
+});
+
+describe("arquivamento reversível auditado", () => {
+  const archive = {
+    technicianId: input.technicianId,
+    expectedUpdatedAt: input.expectedUpdatedAt,
+    reason: "Arquivamento solicitado pela administração",
+    action: "archive" as const,
+  };
+
+  it("envia somente ID, versão, operação e motivo; não inclui contatos privados", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: {
+      ok: true, technician_id: archive.technicianId,
+      archived: true, status: "suspenso", contact_enabled: false,
+      updated_at: "2026-11-14T02:20:00Z",
+    }, error: null });
+    await expect(persistAdminTechnicianArchive(rpc, archive)).resolves.toEqual({
+      ok: true, updatedAt: "2026-11-14T02:20:00Z",
+    });
+    expect(rpc).toHaveBeenCalledWith("eut_admin_technician_archive", technicianArchiveRpcArgs(archive));
+    expect(JSON.stringify(technicianArchiveRpcArgs(archive))).not.toContain("phone");
+  });
+
+  it("restaura apenas para pendente e sem contato habilitado", async () => {
+    const request = { ...archive, action: "restore" as const };
+    const rpc = vi.fn().mockResolvedValue({ data: {
+      ok: true, technician_id: archive.technicianId,
+      archived: false, status: "pendente", contact_enabled: false,
+      updated_at: "2026-11-14T02:21:00Z",
+    }, error: null });
+    await expect(persistAdminTechnicianArchive(rpc, request)).resolves.toMatchObject({ ok: true });
+    rpc.mockResolvedValueOnce({ data: {
+      ok: true, technician_id: archive.technicianId,
+      archived: false, status: "aprovado", contact_enabled: true,
+      updated_at: "2026-11-14T02:21:00Z",
+    }, error: null });
+    await expect(persistAdminTechnicianArchive(rpc, request)).resolves.toEqual({
+      ok: false, reason: "unavailable",
+    });
+  });
+
+  it("trata conflitos e negações sem expor respostas privadas", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: null,
+      error: { code: "40001", message: "contato privado +5541999999999" } });
+    const result = await persistAdminTechnicianArchive(rpc, archive);
+    expect(result).toEqual({ ok: false, reason: "conflict" });
+    expect(JSON.stringify(result)).not.toContain("+5541");
+    rpc.mockResolvedValueOnce({ data: null, error: { code: "42501" } });
+    await expect(persistAdminTechnicianArchive(rpc, archive)).resolves.toEqual({
+      ok: false, reason: "denied",
     });
   });
 });

@@ -25,6 +25,10 @@ describe("Paginação administrativa para milhares de técnicos", () => {
     expect(advanced).not.toContain("sessionStorage");
     expect(advanced).toContain("persistAdminTechnicianEdit");
     expect(advanced).toContain("Salvar alteração auditada");
+    expect(advanced).toContain("persistAdminTechnicianArchive");
+    expect(advanced).toContain("Arquivamento administrativo reversível");
+    expect(advanced).toContain("sm:w-auto");
+    expect(advanced).not.toContain('className="ml-2 min-h-11');
     expect(advanced).not.toContain(".from(\"eut_technician_private_contacts\")");
     expect(advanced).not.toContain(".update(");
     expect(advanced).not.toContain(".delete(");
