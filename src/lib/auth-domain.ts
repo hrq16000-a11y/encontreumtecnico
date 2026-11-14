@@ -4,6 +4,7 @@
  */
 export const EUT_CANONICAL_ORIGIN = "https://www.encontreumtecnico.com.br";
 // A single branch-preview alias is allowed for administrative QA, not arbitrary Vercel hosts.
+// Its exact /entrar callback must also be present in Supabase Auth's URL allowlist.
 export const EUT_ADMIN_QA_ORIGIN = "https://encontreumtecnico-git-fix-admin-unified-list-cont-34e9f5-msolus.vercel.app";
 
 export function authReturnOrigin(origin: string): string {
