@@ -345,3 +345,211 @@ BEGIN
 END $assert$;
 
 \echo 'QA passed: keep/remove phone, private audit and ban preservation'
+
+\echo 'QA: independent technician registry (no synthetic Auth users)'
+SET request.jwt.claim.sub = '00000000-0000-4000-8000-000000000001';
+DO $assert_registry$
+DECLARE
+  v_payload jsonb:=pg_catalog.jsonb_build_object(
+    'display_name','Técnico Manual QA',
+    'city_ibge_id',NULL,'ddd','41','region_approx','Região aproximada PR',
+    'category_slugs',pg_catalog.jsonb_build_array('computadores'),
+    'service_slugs',pg_catalog.jsonb_build_array('manutencao-pc'),
+    'admin_active',true,'is_demo',false,
+    'phone_action','replace','phone_e164','+5541999988800',
+    'contact_suspended',false);
+  v_id uuid;
+  v_version timestamptz;
+  v_created jsonb;
+  v_next jsonb;
+  v_rejected boolean;
+  v_accounts integer;
+  v_portal integer;
+  v_audits integer;
+BEGIN
+  SELECT count(*) INTO v_accounts FROM auth.users;
+  SELECT count(*) INTO v_portal FROM public.technicians;
+  v_created:=public.eut_admin_technician_record_save('manual','qa-manual-0001',NULL,
+    v_payload,'Cadastro manual sintético com DDD aproximado');
+  v_id:=(v_created->>'technician_id')::uuid;
+  v_version:=(v_created->>'updated_at')::timestamptz;
+  IF v_created->>'created'<>'true' OR v_id IS NULL OR
+     EXISTS(SELECT 1 FROM eut_moderation.admin_technician_records r
+       WHERE r.id=v_id AND r.city_ibge_id IS NOT NULL) OR
+     (SELECT count(*) FROM auth.users)<>v_accounts OR
+     (SELECT count(*) FROM public.technicians)<>v_portal THEN
+    RAISE EXCEPTION 'Manual creation mutated Auth/portal or fabricated city'; END IF;
+  SELECT count(*) INTO v_audits FROM public.eut_admin_management_log
+    WHERE target_key=v_id::text;
+  v_next:=public.eut_admin_technician_record_save('manual','qa-manual-0001',NULL,
+    v_payload || '{"display_name":"Tentativa de sobrescrita"}'::jsonb,
+    'Reimportação idempotente de mesmo identificador');
+  IF v_next->>'idempotent'<>'true' OR v_next->>'created'<>'false' OR
+    (SELECT count(*) FROM public.eut_admin_management_log
+       WHERE target_key=v_id::text)<>v_audits OR
+    NOT EXISTS (SELECT 1 FROM eut_moderation.admin_technician_records r
+      WHERE r.id=v_id AND r.display_name='Técnico Manual QA') THEN
+    RAISE EXCEPTION 'Import retry overwrote existing record'; END IF;
+  v_next:=public.eut_admin_technician_record_save('manual','qa-manual-0001',v_version,
+    v_payload || '{"display_name":"Técnico Manual Atualizado"}'::jsonb,
+    'Correção sintética de nome com revisão otimista');
+  IF v_next->>'created'<>'false' OR NOT EXISTS(
+    SELECT 1 FROM eut_moderation.admin_technician_records r
+      WHERE r.id=v_id AND r.display_name='Técnico Manual Atualizado') THEN
+    RAISE EXCEPTION 'Name edit failed'; END IF;
+  v_rejected:=false;
+  BEGIN
+    PERFORM public.eut_admin_technician_record_save('manual','qa-manual-0001',
+      v_version,v_payload,'Atualização concorrente sintética recusada');
+  EXCEPTION WHEN SQLSTATE '40001' THEN v_rejected:=true; END;
+  IF NOT v_rejected THEN RAISE EXCEPTION 'Stale registry version accepted'; END IF;
+  v_rejected:=false;
+  BEGIN
+    PERFORM public.eut_admin_technician_record_save('manual','qa-block-0001',NULL,
+      v_payload || '{"phone_e164":"+5541999997777"}'::jsonb,
+      'Número bloqueado sintético recusado');
+  EXCEPTION WHEN SQLSTATE '23505' THEN v_rejected:=true; END;
+  IF NOT v_rejected OR EXISTS(SELECT 1 FROM eut_moderation.admin_technician_records
+    WHERE source_id='qa-block-0001') THEN RAISE EXCEPTION 'Banned phone accepted'; END IF;
+  IF EXISTS(SELECT 1 FROM public.eut_admin_management_log l
+    WHERE l.target_key=v_id::text AND
+      (l.before_state::text LIKE '%+5541999988800%'
+       OR l.after_state::text LIKE '%+5541999988800%')) THEN
+    RAISE EXCEPTION 'Full contact leaked to audit'; END IF;
+  IF NOT EXISTS(SELECT 1 FROM public.eut_admin_technician_registry_list('',50,0) x
+    WHERE x.technician_id=v_id AND x.contact_last4='8800' AND x.city_ibge_id IS NULL)
+  THEN RAISE EXCEPTION 'Admin registry listing incomplete'; END IF;
+END $assert_registry$;
+
+\echo 'QA: imported evidence, protected demos and contact suspension'
+DO $assert_registry$
+DECLARE
+  v_payload jsonb:=pg_catalog.jsonb_build_object(
+    'display_name','Técnico Histórico QA','city_ibge_id',NULL,
+    'ddd',NULL,'region_approx',NULL,
+    'category_slugs',pg_catalog.jsonb_build_array(),
+    'service_slugs',pg_catalog.jsonb_build_array(),
+    'admin_active',false,'is_demo',false,'phone_action','keep');
+  v_id uuid;
+  v_version timestamptz;
+  v_result jsonb;
+  v_rejected boolean;
+BEGIN
+  v_result:=public.eut_admin_technician_record_save('wordpress',
+    'wordpress_20261108:1001',NULL,v_payload,
+    'Importação sintética de candidato comprovado');
+  IF v_result->>'created'<>'true' THEN RAISE EXCEPTION 'Verified legacy record failed'; END IF;
+  v_rejected:=false;
+  BEGIN
+    PERFORM public.eut_admin_technician_record_save('wordpress',
+      'wordpress_20261108:1001',NULL,
+      v_payload || '{"admin_active":true}'::jsonb,
+      'Importação não deve ativar em lote');
+  EXCEPTION WHEN SQLSTATE '22023' THEN v_rejected:=true; END;
+  IF NOT v_rejected THEN RAISE EXCEPTION 'Import activated imported record'; END IF;
+  v_rejected:=false;
+  BEGIN
+    PERFORM public.eut_admin_technician_record_save('wordpress',
+      'wordpress_20261108:1002',NULL,v_payload,
+      'Demonstração não pode ser ativada pela importação');
+  EXCEPTION WHEN SQLSTATE '22023' THEN v_rejected:=true; END;
+  IF NOT v_rejected THEN RAISE EXCEPTION 'Demo import bypassed source evidence'; END IF;
+  v_rejected:=false;
+  BEGIN
+    PERFORM public.eut_admin_technician_record_save('wordpress',
+      'wordpress_20261108:1003',NULL,v_payload,
+      'Empregador não deve ser técnico por inferência');
+  EXCEPTION WHEN SQLSTATE '22023' THEN v_rejected:=true; END;
+  IF NOT v_rejected THEN RAISE EXCEPTION 'Employer silently converted'; END IF;
+  v_result:=public.eut_admin_technician_record_save('wordpress',
+    'wordpress_20261108:1002',NULL,
+    v_payload || '{"is_demo":true,"admin_active":false}'::jsonb,
+    'Preservação de demonstração sintética arquivável');
+  IF v_result->>'created'<>'true' THEN RAISE EXCEPTION 'Protected demo not retained'; END IF;
+
+  v_result:=public.eut_admin_technician_record_save('manual','qa-hold-0001',NULL,
+    v_payload || pg_catalog.jsonb_build_object(
+      'phone_action','replace','phone_e164','+5541999988811',
+      'contact_suspended',true),
+    'Contato sintético explicitamente suspenso');
+  v_id:=(v_result->>'technician_id')::uuid;
+  v_version:=(v_result->>'updated_at')::timestamptz;
+  FOR v_result IN SELECT jsonb_build_object('phone_action','replace',
+      'phone_e164','+5541999988812','contact_suspended',false)
+    UNION ALL SELECT jsonb_build_object('phone_action','remove') LOOP
+    v_rejected:=false;
+    BEGIN
+      PERFORM public.eut_admin_technician_record_save('manual','qa-hold-0001',v_version,
+        v_payload || v_result,
+        'Suspensão de contato não pode ser contornada');
+    EXCEPTION WHEN SQLSTATE '42501' THEN v_rejected:=true; END;
+    IF NOT v_rejected THEN RAISE EXCEPTION 'Suspended contact bypassed'; END IF;
+  END LOOP;
+  v_result:=public.eut_admin_technician_record_archive(v_id,v_version,'archive',
+    'Arquivar técnico sintético sem liberar contato');
+  IF v_result->>'archived'<>'true' THEN RAISE EXCEPTION 'Archive failed'; END IF;
+  v_version:=(v_result->>'updated_at')::timestamptz;
+  v_result:=public.eut_admin_technician_record_archive(v_id,v_version,'restore',
+    'Restaurar técnico sintético sem reativar contato');
+  IF v_result->>'admin_active'<>'false' OR NOT EXISTS (
+    SELECT 1 FROM eut_moderation.admin_technician_record_contacts c
+      WHERE c.record_id=v_id AND c.contact_suspended=true
+        AND c.phone_e164='+5541999988811')
+  THEN RAISE EXCEPTION 'Restore bypassed contact restriction'; END IF;
+END $assert_registry$;
+
+\echo 'QA: RLS and rollback for private registry'
+DO $assert_registry$
+BEGIN
+  IF pg_catalog.has_function_privilege('anon',
+     'public.eut_admin_technician_record_save(text,text,timestamptz,jsonb,text)','EXECUTE')
+    OR pg_catalog.has_function_privilege('anon',
+      'public.eut_admin_technician_registry_list(text,integer,integer)','EXECUTE')
+    OR pg_catalog.has_table_privilege('authenticated',
+      'eut_moderation.admin_technician_record_contacts','SELECT')
+  THEN RAISE EXCEPTION 'Private registry exposed via grants'; END IF;
+END $assert_registry$;
+SET request.jwt.claim.sub = '00000000-0000-4000-8000-000000000002';
+DO $assert_registry$
+DECLARE v_denied boolean:=false;
+BEGIN
+  BEGIN
+    PERFORM public.eut_admin_technician_registry_list();
+  EXCEPTION WHEN SQLSTATE '42501' THEN v_denied:=true; END;
+  IF NOT v_denied THEN RAISE EXCEPTION 'Client listed admin registry'; END IF;
+END $assert_registry$;
+SET request.jwt.claim.sub = '00000000-0000-4000-8000-000000000001';
+
+CREATE OR REPLACE FUNCTION public.fixture_deny_registry_audit()
+RETURNS trigger LANGUAGE plpgsql AS $fixture$
+BEGIN
+  IF NEW.reason='Rollback sintético exige transação integral' THEN
+    RAISE EXCEPTION 'Synthetic audit failure'; END IF;
+  RETURN NEW;
+END $fixture$;
+CREATE TRIGGER fixture_registry_audit_failure BEFORE INSERT
+  ON public.eut_admin_management_log FOR EACH ROW
+  EXECUTE FUNCTION public.fixture_deny_registry_audit();
+DO $assert_registry$
+DECLARE v_failed boolean:=false;
+BEGIN
+  BEGIN
+    PERFORM public.eut_admin_technician_record_save('manual','qa-rollback-0001',NULL,
+      pg_catalog.jsonb_build_object(
+        'display_name','Técnico Falha QA','city_ibge_id',NULL,'ddd','41',
+        'region_approx',NULL,'category_slugs',pg_catalog.jsonb_build_array(),
+        'service_slugs',pg_catalog.jsonb_build_array(),'admin_active',true,
+        'is_demo',false,'phone_action','replace',
+        'phone_e164','+5541999988899','contact_suspended',false),
+      'Rollback sintético exige transação integral');
+  EXCEPTION WHEN OTHERS THEN v_failed:=true; END;
+  IF NOT v_failed OR EXISTS (
+    SELECT 1 FROM eut_moderation.admin_technician_records
+      WHERE source_id='qa-rollback-0001') OR EXISTS (
+    SELECT 1 FROM eut_moderation.admin_technician_record_contacts
+      WHERE phone_e164='+5541999988899') THEN
+    RAISE EXCEPTION 'Audit failure failed to roll back registry and contact'; END IF;
+END $assert_registry$;
+DROP TRIGGER fixture_registry_audit_failure ON public.eut_admin_management_log;
+DROP FUNCTION public.fixture_deny_registry_audit();
+\echo 'QA passed: registry create/edit/import, RBAC, contact protection and rollback'

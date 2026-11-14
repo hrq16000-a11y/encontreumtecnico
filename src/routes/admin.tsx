@@ -14,7 +14,6 @@ import { AdminControlHub } from "@/components/admin-control-hub";
 import { AdminCommandOverview } from "@/components/admin-command-overview";
 import { AdminAdvertisingManager } from "@/components/admin-advertising-manager";
 import { AdminNavigation } from "@/components/admin-navigation";
-import { AdminTechnicianManager } from "@/components/admin-technician-manager";
 import { AdminTechnicianUnifiedDirectory } from "@/components/admin-technician-unified-directory";
 import { AdminOwnTechnicianRole } from "@/components/admin-own-technician-role";
 import { AdminMemberInvites } from "@/components/admin-member-invites";
@@ -153,14 +152,10 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             {section === "contas" && <section aria-label="Contas e bloqueios"><AdminMemberInvites /><AdminAccountsManager /></section>}
             {section === "contatos" && <section aria-label="Contatos administrativos"><AdminContactsDashboard adminId={user.id} /></section>}
             {section === "tecnicos" && <section aria-label="Gestão de técnicos">
-              <AdminTechnicianUnifiedDirectory />
-              <details className="mt-6 rounded-xl border border-border p-4" open>
-                <summary className="cursor-pointer text-lg font-bold text-foreground">Gerenciar dados e situação dos técnicos do portal</summary>
-                <div className="mt-5"><AdminTechnicianManager adminOwnerId={user.id} /></div>
-              </details>
-              <details className="mt-4 rounded-xl border border-border p-4">
-                <summary className="cursor-pointer text-lg font-bold text-foreground">Gerenciar fichas importadas do WordPress</summary>
-                <div className="mt-5"><LegacyReviewQueue /></div>
+              <AdminTechnicianUnifiedDirectory adminOwnerId={user.id} />
+              <details className="mt-4 min-w-0 rounded-xl border border-border p-4">
+                <summary className="cursor-pointer text-sm font-semibold text-foreground">Operações complementares e ações em lote</summary>
+                <div className="mt-5 min-w-0"><LegacyReviewQueue onlyTechnicians /></div>
               </details>
             </section>}
             {section === "mensagens" && <section aria-label="Mensagens administrativas">

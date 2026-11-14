@@ -294,4 +294,353 @@ GRANT EXECUTE ON FUNCTION public.eut_admin_technician_change(uuid,timestamptz,js
   TO authenticated;
 GRANT EXECUTE ON FUNCTION public.eut_admin_technician_archive(uuid,timestamptz,text,text)
   TO authenticated;
+
+-- ADDITIVE PROPOSAL: a technician is a technician, whether the record came
+-- from a portal account, WordPress, Guiafix or an admin's manual entry.
+-- Existing public.technicians.user_id is NOT NULL and references
+-- public.profiles(id), with the identity linked onward to auth.users:
+-- do not mint artificial Auth users to make historical entries fit it.
+-- This private registry stores non-login technicians until independently
+-- reconciled with portal accounts. It is not a public directory and does not
+-- authorize paid contact, logins or publication.
+CREATE TABLE IF NOT EXISTS eut_moderation.admin_technician_records (
+  id uuid PRIMARY KEY DEFAULT pg_catalog.gen_random_uuid(),
+  origin text NOT NULL CHECK (origin IN ('manual','wordpress','guiafix','other_import')),
+  source_id text NOT NULL CHECK (length(source_id) BETWEEN 3 AND 120),
+  portal_technician_id uuid UNIQUE REFERENCES public.technicians(id) ON DELETE RESTRICT,
+  display_name text NOT NULL CHECK (length(display_name) BETWEEN 3 AND 120),
+  city_ibge_id integer REFERENCES public.eut_ibge_municipalities(id),
+  ddd text CHECK (ddd IS NULL OR ddd ~ '^[1-9][0-9]$'),
+  region_approx text,
+  category_slugs text[] NOT NULL DEFAULT '{}',
+  service_slugs text[] NOT NULL DEFAULT '{}',
+  admin_active boolean NOT NULL DEFAULT true,
+  is_demo boolean NOT NULL DEFAULT false,
+  archived_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT pg_catalog.clock_timestamp(),
+  updated_at timestamptz NOT NULL DEFAULT pg_catalog.clock_timestamp(),
+  UNIQUE(origin,source_id),
+  CONSTRAINT demo_not_active CHECK (NOT is_demo OR NOT admin_active)
+);
+CREATE TABLE IF NOT EXISTS eut_moderation.admin_technician_record_contacts (
+  record_id uuid PRIMARY KEY REFERENCES eut_moderation.admin_technician_records(id)
+    ON DELETE RESTRICT,
+  phone_e164 text NOT NULL UNIQUE CHECK (phone_e164 ~ '^[+]55[1-9]{2}[2-9][0-9]{7,8}$'),
+  contact_suspended boolean NOT NULL DEFAULT false,
+  updated_at timestamptz NOT NULL DEFAULT pg_catalog.clock_timestamp()
+);
+ALTER TABLE eut_moderation.admin_technician_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE eut_moderation.admin_technician_record_contacts ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE eut_moderation.admin_technician_records,
+  eut_moderation.admin_technician_record_contacts FROM PUBLIC,anon,authenticated;
+
+-- Insert and edit use the SAME audited operation. Source key is a stable
+-- provenance key (e.g. WordPress post id), not a person category. On CREATE,
+-- _expected_updated_at IS NULL. Retrying a CREATE for the same key returns
+-- an idempotent no-op; editing it requires the exact timestamp received.
+CREATE OR REPLACE FUNCTION public.eut_admin_technician_record_save(
+  _origin text, _source_id text, _expected_updated_at timestamptz,
+  _payload jsonb, _reason text
+) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path='pg_catalog' AS $rpc$
+DECLARE
+  v_actor uuid:=auth.uid();
+  v_reason text:=btrim(coalesce(_reason,''));
+  v_existing eut_moderation.admin_technician_records%ROWTYPE;
+  v_after eut_moderation.admin_technician_records%ROWTYPE;
+  v_name text;
+  v_region text;
+  v_ddd text;
+  v_city integer;
+  v_categories text[];
+  v_services text[];
+  v_active boolean;
+  v_demo boolean;
+  v_phone_action text;
+  v_phone text;
+  v_old_phone text;
+  v_new_phone text;
+  v_suspended boolean;
+  v_old_suspended boolean:=false;
+  v_source_kind text;
+  v_source_demo boolean;
+  v_created boolean:=false;
+BEGIN
+  IF v_actor IS NULL OR NOT public.has_role(v_actor,'admin'::public.app_role)
+    OR NOT EXISTS (SELECT 1 FROM auth.users u
+       WHERE u.id=v_actor AND u.email_confirmed_at IS NOT NULL)
+  THEN RAISE EXCEPTION 'Admin verificado obrigatório' USING ERRCODE='42501'; END IF;
+  IF length(v_reason) NOT BETWEEN 8 AND 400 OR
+    v_reason ~* '(https?://|www[.]|wa[.]me|@|[+]?[0-9][0-9 ()-]{8,}[0-9])'
+  THEN RAISE EXCEPTION 'Justificativa administrativa inválida' USING ERRCODE='22023'; END IF;
+  IF _origin IS NULL OR _origin NOT IN ('manual','wordpress','guiafix','other_import')
+    OR _source_id !~ '^[A-Za-z0-9][A-Za-z0-9_:.-]{2,119}$' OR _source_id IS NULL
+    OR _source_id ~ '[0-9]{10,}'
+  THEN RAISE EXCEPTION 'Origem ou identificador de fonte inválido' USING ERRCODE='22023'; END IF;
+  IF _payload IS NULL OR pg_catalog.jsonb_typeof(_payload)<>'object'
+    OR EXISTS (SELECT 1 FROM pg_catalog.jsonb_object_keys(_payload) k
+       WHERE k NOT IN ('display_name','city_ibge_id','ddd','region_approx',
+         'category_slugs','service_slugs','admin_active','is_demo',
+         'phone_action','phone_e164','contact_suspended'))
+    OR NOT (_payload ?& ARRAY['display_name','city_ibge_id','ddd',
+      'region_approx','category_slugs','service_slugs','admin_active',
+      'is_demo','phone_action'])
+  THEN RAISE EXCEPTION 'Campos administrativos incompletos' USING ERRCODE='22023'; END IF;
+
+  v_name:=btrim(_payload->>'display_name');
+  v_region:=nullif(btrim(coalesce(_payload->>'region_approx','')),'');
+  v_ddd:=nullif(btrim(coalesce(_payload->>'ddd','')),'');
+  IF pg_catalog.jsonb_typeof(_payload->'display_name')<>'string' OR
+    length(v_name) NOT BETWEEN 3 AND 120 OR
+    v_name ~* '(https?://|www[.]|wa[.]me|@|[+]?[0-9][0-9 ()-]{8,}[0-9])' OR
+    pg_catalog.jsonb_typeof(_payload->'region_approx') NOT IN ('string','null') OR
+    (v_region IS NOT NULL AND (length(v_region)>120 OR
+      v_region ~* '(https?://|www[.]|wa[.]me|@|[+]?[0-9][0-9 ()-]{8,}[0-9])')) OR
+    pg_catalog.jsonb_typeof(_payload->'ddd') NOT IN ('string','null') OR
+    (v_ddd IS NOT NULL AND v_ddd !~ '^[1-9][0-9]$')
+  THEN RAISE EXCEPTION 'Nome, DDD ou região inválidos' USING ERRCODE='22023'; END IF;
+  IF pg_catalog.jsonb_typeof(_payload->'city_ibge_id') NOT IN ('null','number') OR
+    (_payload->>'city_ibge_id') IS NOT NULL AND
+      (_payload->>'city_ibge_id') !~ '^[0-9]{7}$'
+  THEN RAISE EXCEPTION 'Município IBGE inválido' USING ERRCODE='22023'; END IF;
+  v_city:=(_payload->>'city_ibge_id')::integer;
+  IF v_city IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM public.eut_ibge_municipalities m WHERE m.id=v_city)
+  THEN RAISE EXCEPTION 'Município não confirmado no catálogo' USING ERRCODE='22023'; END IF;
+  IF pg_catalog.jsonb_typeof(_payload->'category_slugs')<>'array'
+    OR pg_catalog.jsonb_typeof(_payload->'service_slugs')<>'array'
+    OR EXISTS (SELECT 1 FROM pg_catalog.jsonb_array_elements(_payload->'category_slugs') x
+        WHERE pg_catalog.jsonb_typeof(x)<>'string')
+    OR EXISTS (SELECT 1 FROM pg_catalog.jsonb_array_elements(_payload->'service_slugs') x
+        WHERE pg_catalog.jsonb_typeof(x)<>'string')
+  THEN RAISE EXCEPTION 'Listas de categorias ou serviços inválidas' USING ERRCODE='22023'; END IF;
+  v_categories:=ARRAY(SELECT x FROM pg_catalog.jsonb_array_elements_text(_payload->'category_slugs') x);
+  v_services:=ARRAY(SELECT x FROM pg_catalog.jsonb_array_elements_text(_payload->'service_slugs') x);
+  IF cardinality(v_categories)>30 OR
+     cardinality(v_categories)<>(SELECT count(DISTINCT x) FROM pg_catalog.unnest(v_categories) x) OR
+     EXISTS (SELECT 1 FROM pg_catalog.unnest(v_categories) x
+       LEFT JOIN public.eut_service_categories c ON c.slug=x AND c.active WHERE c.slug IS NULL) OR
+     cardinality(v_services)>64 OR
+     cardinality(v_services)<>(SELECT count(DISTINCT x) FROM pg_catalog.unnest(v_services) x) OR
+     EXISTS (SELECT 1 FROM pg_catalog.unnest(v_services) x
+       LEFT JOIN public.eut_service_types s ON s.slug=x AND s.active
+       LEFT JOIN public.eut_service_categories c ON c.slug=s.category_slug AND c.active
+       WHERE s.slug IS NULL OR c.slug IS NULL OR NOT s.category_slug=ANY(v_categories))
+  THEN RAISE EXCEPTION 'Categorias e serviços inválidos, repetidos ou não ativos' USING ERRCODE='22023'; END IF;
+  IF pg_catalog.jsonb_typeof(_payload->'admin_active')<>'boolean'
+    OR pg_catalog.jsonb_typeof(_payload->'is_demo')<>'boolean' THEN
+    RAISE EXCEPTION 'Status inválido' USING ERRCODE='22023'; END IF;
+  v_active:=(_payload->>'admin_active')::boolean;
+  v_demo:=(_payload->>'is_demo')::boolean;
+  IF v_demo AND v_active THEN
+    RAISE EXCEPTION 'Demonstração nunca pode estar ativa' USING ERRCODE='22023'; END IF;
+  IF _expected_updated_at IS NULL AND _origin<>'manual' AND v_active THEN
+    -- No mass activation during import; existing suspensions may be unknown.
+    RAISE EXCEPTION 'Importação não pode ativar ficha automaticamente'
+      USING ERRCODE='22023'; END IF;
+  -- WordPress source evidence, including 20 protected demos, is authoritative.
+  -- A legacy employer is not silently converted into a technician.
+  IF _origin='wordpress' THEN
+    IF _source_id !~ '^wordpress_20261108:[0-9]{1,9}$' THEN
+      RAISE EXCEPTION 'Fonte WordPress sem ID exato' USING ERRCODE='22023'; END IF;
+    SELECT p.kind,p.demo_candidate INTO v_source_kind,v_source_demo
+      FROM public.legacy_review_profiles p
+      WHERE p.source_key='wordpress_20261108'
+        AND p.wp_post_id=pg_catalog.split_part(_source_id,':',2)::integer;
+    IF NOT FOUND OR v_source_kind<>'candidate' OR v_demo IS DISTINCT FROM v_source_demo THEN
+      RAISE EXCEPTION 'Perfil histórico ou proteção de demonstração não comprovados'
+        USING ERRCODE='22023'; END IF;
+  END IF;
+  v_phone_action:=_payload->>'phone_action';
+  IF v_phone_action IS NULL OR v_phone_action NOT IN ('keep','replace','remove') THEN
+    RAISE EXCEPTION 'Ação de contato inválida' USING ERRCODE='22023'; END IF;
+  IF v_phone_action='replace' THEN
+    IF pg_catalog.jsonb_typeof(_payload->'phone_e164')<>'string' OR
+       (_payload->>'phone_e164') !~ '^[+]55[1-9]{2}[2-9][0-9]{7,8}$' OR
+       pg_catalog.jsonb_typeof(_payload->'contact_suspended')<>'boolean' THEN
+      RAISE EXCEPTION 'Contato privado inválido' USING ERRCODE='22023'; END IF;
+    v_phone:=_payload->>'phone_e164';
+    v_suspended:=(_payload->>'contact_suspended')::boolean;
+    IF EXISTS (SELECT 1 FROM eut_moderation.blocked_phones b
+      WHERE b.phone_digits=pg_catalog.regexp_replace(v_phone,'[^0-9]','','g')) OR
+      EXISTS (SELECT 1 FROM public.eut_technician_private_contacts c WHERE c.phone_e164=v_phone)
+    THEN RAISE EXCEPTION 'Contato privado já ocupado ou bloqueado' USING ERRCODE='23505'; END IF;
+  ELSIF _payload ? 'phone_e164' OR _payload ? 'contact_suspended' THEN
+    RAISE EXCEPTION 'Contato não solicitado' USING ERRCODE='22023';
+  END IF;
+
+  SELECT * INTO v_existing FROM eut_moderation.admin_technician_records
+    WHERE origin=_origin AND source_id=_source_id FOR UPDATE;
+  IF FOUND THEN
+    IF _expected_updated_at IS NULL THEN
+      -- Retried imports are no-op; never silently overwrite administrator edits.
+      RETURN pg_catalog.jsonb_build_object('ok',true,'created',false,'idempotent',true,
+        'technician_id',v_existing.id,'updated_at',v_existing.updated_at);
+    END IF;
+    IF v_existing.updated_at IS DISTINCT FROM _expected_updated_at THEN
+      RAISE EXCEPTION 'Ficha alterada por outro administrador' USING ERRCODE='40001'; END IF;
+    IF v_existing.archived_at IS NOT NULL THEN
+      RAISE EXCEPTION 'Restaure a ficha antes da edição' USING ERRCODE='P0001'; END IF;
+    IF v_existing.is_demo IS DISTINCT FROM v_demo THEN
+      RAISE EXCEPTION 'Classificação de demonstração imutável' USING ERRCODE='42501'; END IF;
+  ELSIF _expected_updated_at IS NOT NULL THEN
+    RAISE EXCEPTION 'Ficha inexistente para edição' USING ERRCODE='P0002';
+  END IF;
+  IF v_existing.id IS NOT NULL THEN
+    SELECT phone_e164,contact_suspended INTO v_old_phone,v_old_suspended
+      FROM eut_moderation.admin_technician_record_contacts
+      WHERE record_id=v_existing.id FOR UPDATE;
+    IF v_phone_action='keep' THEN
+      v_suspended:=coalesce(v_old_suspended,false);
+    END IF;
+    -- Suspended contacts cannot be changed/removed to bypass a hold.
+    -- Reinstatement requires a separate, explicitly audited moderation RPC.
+    IF v_phone_action<>'keep' AND coalesce(v_old_suspended,false) THEN
+      RAISE EXCEPTION 'Contato suspenso: trate a restrição antes da troca ou remoção'
+        USING ERRCODE='42501';
+    END IF;
+  END IF;
+
+  IF v_existing.id IS NULL THEN
+    INSERT INTO eut_moderation.admin_technician_records
+      (origin,source_id,display_name,city_ibge_id,ddd,region_approx,
+       category_slugs,service_slugs,admin_active,is_demo)
+    VALUES (_origin,_source_id,v_name,v_city,v_ddd,v_region,
+      v_categories,v_services,v_active,v_demo) RETURNING * INTO v_after;
+    v_created:=true;
+  ELSE
+    UPDATE eut_moderation.admin_technician_records SET
+      display_name=v_name,city_ibge_id=v_city,ddd=v_ddd,region_approx=v_region,
+      category_slugs=v_categories,service_slugs=v_services,
+      admin_active=v_active,updated_at=pg_catalog.clock_timestamp()
+      WHERE id=v_existing.id RETURNING * INTO v_after;
+  END IF;
+  IF v_phone_action='replace' THEN
+    INSERT INTO eut_moderation.admin_technician_record_contacts
+      (record_id,phone_e164,contact_suspended)
+    VALUES(v_after.id,v_phone,v_suspended)
+    ON CONFLICT(record_id) DO UPDATE SET phone_e164=excluded.phone_e164,
+      contact_suspended=excluded.contact_suspended,
+      updated_at=pg_catalog.clock_timestamp();
+  ELSIF v_phone_action='remove' THEN
+    DELETE FROM eut_moderation.admin_technician_record_contacts
+      WHERE record_id=v_after.id;
+  END IF;
+  SELECT phone_e164 INTO v_new_phone FROM eut_moderation.admin_technician_record_contacts
+    WHERE record_id=v_after.id;
+  INSERT INTO public.eut_admin_management_log
+    (actor_id,target_type,target_key,action,reason,before_state,after_state)
+  VALUES (v_actor,'technician',v_after.id::text,
+    CASE WHEN v_created THEN 'manual_or_import_technician_created'
+      ELSE 'manual_or_import_technician_updated' END,v_reason,
+    pg_catalog.jsonb_build_object('origin',v_existing.origin,'source_id',v_existing.source_id,
+      'display_name',v_existing.display_name,'city_ibge_id',v_existing.city_ibge_id,
+      'ddd',v_existing.ddd,'active',v_existing.admin_active,
+      'phone_last4',right(v_old_phone,4)),
+    pg_catalog.jsonb_build_object('origin',v_after.origin,'source_id',v_after.source_id,
+      'display_name',v_after.display_name,'city_ibge_id',v_after.city_ibge_id,
+      'ddd',v_after.ddd,'active',v_after.admin_active,
+      'phone_changed',v_phone_action<>'keep','phone_last4',right(v_new_phone,4)));
+  RETURN pg_catalog.jsonb_build_object('ok',true,'created',v_created,'idempotent',false,
+    'technician_id',v_after.id,'updated_at',v_after.updated_at,
+    'admin_active',v_after.admin_active,'contact_suspended',coalesce(v_suspended,false));
+END;
+$rpc$;
+
+-- Restricted admin read; no full phone number is returned, even to admin.
+-- Detailed contact reveal must continue through its existing audited flow.
+CREATE OR REPLACE FUNCTION public.eut_admin_technician_registry_list(
+  _search text DEFAULT '', _limit integer DEFAULT 50, _offset integer DEFAULT 0
+) RETURNS TABLE (
+  technician_id uuid, display_name text, origin text, source_id text,
+  city_ibge_id integer, ddd text, region_approx text,
+  category_slugs text[], service_slugs text[], admin_active boolean,
+  is_demo boolean, archived boolean, contact_last4 text,
+  updated_at timestamptz, total_count bigint
+)
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path='pg_catalog' AS $rpc$
+DECLARE v_actor uuid:=auth.uid(); v_search text:=btrim(coalesce(_search,''));
+BEGIN
+  IF v_actor IS NULL OR NOT public.has_role(v_actor,'admin'::public.app_role)
+    OR NOT EXISTS(SELECT 1 FROM auth.users u WHERE u.id=v_actor
+      AND u.email_confirmed_at IS NOT NULL) THEN
+    RAISE EXCEPTION 'Admin verificado obrigatório' USING ERRCODE='42501'; END IF;
+  IF _limit IS NULL OR _limit NOT BETWEEN 1 AND 100 OR
+     _offset IS NULL OR _offset NOT BETWEEN 0 AND 100000 OR length(v_search)>80
+  THEN RAISE EXCEPTION 'Paginação ou busca inválidas' USING ERRCODE='22023'; END IF;
+  RETURN QUERY
+  SELECT r.id,r.display_name,r.origin,r.source_id,
+    r.city_ibge_id,r.ddd,r.region_approx,r.category_slugs,r.service_slugs,
+    r.admin_active,r.is_demo,(r.archived_at IS NOT NULL),right(c.phone_e164,4),
+    r.updated_at,count(*) OVER()
+  FROM eut_moderation.admin_technician_records r
+  LEFT JOIN eut_moderation.admin_technician_record_contacts c ON c.record_id=r.id
+  WHERE v_search='' OR position(lower(v_search) in lower(r.display_name))>0
+    OR position(lower(v_search) in lower(coalesce(r.region_approx,'')))>0
+    OR position(v_search in coalesce(r.ddd,''))>0
+  ORDER BY r.display_name,r.id LIMIT _limit OFFSET _offset;
+END;
+$rpc$;
+
+-- Archive is reversible; restore does not silently activate contacts.
+CREATE OR REPLACE FUNCTION public.eut_admin_technician_record_archive(
+  _technician_id uuid, _expected_updated_at timestamptz,
+  _action text, _reason text
+) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path='pg_catalog' AS $rpc$
+DECLARE
+  v_actor uuid:=auth.uid();
+  v_reason text:=btrim(coalesce(_reason,''));
+  v_before eut_moderation.admin_technician_records%ROWTYPE;
+  v_after eut_moderation.admin_technician_records%ROWTYPE;
+BEGIN
+  IF v_actor IS NULL OR NOT public.has_role(v_actor,'admin'::public.app_role)
+    OR NOT EXISTS(SELECT 1 FROM auth.users u WHERE u.id=v_actor
+      AND u.email_confirmed_at IS NOT NULL) THEN
+    RAISE EXCEPTION 'Admin verificado obrigatório' USING ERRCODE='42501'; END IF;
+  IF length(v_reason) NOT BETWEEN 8 AND 400 OR
+     v_reason ~* '(https?://|www[.]|wa[.]me|@|[+]?[0-9][0-9 ()-]{8,}[0-9])'
+  THEN RAISE EXCEPTION 'Justificativa inválida' USING ERRCODE='22023'; END IF;
+  IF _action IS NULL OR _action NOT IN ('archive','restore') OR
+     _technician_id IS NULL OR _expected_updated_at IS NULL THEN
+    RAISE EXCEPTION 'Ação inválida' USING ERRCODE='22023'; END IF;
+  SELECT * INTO v_before FROM eut_moderation.admin_technician_records
+    WHERE id=_technician_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Técnico não encontrado' USING ERRCODE='P0002'; END IF;
+  IF v_before.updated_at IS DISTINCT FROM _expected_updated_at THEN
+    RAISE EXCEPTION 'Revisão desatualizada' USING ERRCODE='40001'; END IF;
+  IF _action='archive' AND v_before.archived_at IS NOT NULL THEN
+    RAISE EXCEPTION 'Cadastro já arquivado' USING ERRCODE='22023'; END IF;
+  IF _action='restore' AND v_before.archived_at IS NULL THEN
+    RAISE EXCEPTION 'Cadastro não arquivado' USING ERRCODE='22023'; END IF;
+  UPDATE eut_moderation.admin_technician_records SET
+    archived_at=CASE WHEN _action='archive' THEN pg_catalog.clock_timestamp() ELSE NULL END,
+    admin_active=false,updated_at=pg_catalog.clock_timestamp()
+    WHERE id=_technician_id RETURNING * INTO v_after;
+  INSERT INTO public.eut_admin_management_log
+    (actor_id,target_type,target_key,action,reason,before_state,after_state)
+  VALUES(v_actor,'technician',_technician_id::text,
+    CASE WHEN _action='archive' THEN 'registry_technician_archived' ELSE 'registry_technician_restored' END,
+    v_reason,pg_catalog.jsonb_build_object('archived',v_before.archived_at IS NOT NULL,
+       'admin_active',v_before.admin_active),
+    pg_catalog.jsonb_build_object('archived',v_after.archived_at IS NOT NULL,
+       'admin_active',v_after.admin_active,'contact_authorization_changed',false));
+  RETURN pg_catalog.jsonb_build_object('ok',true,'technician_id',v_after.id,
+    'archived',v_after.archived_at IS NOT NULL,'admin_active',false,
+    'updated_at',v_after.updated_at);
+END;
+$rpc$;
+
+REVOKE ALL ON FUNCTION public.eut_admin_technician_record_save(text,text,timestamptz,jsonb,text)
+  FROM PUBLIC,anon,authenticated;
+REVOKE ALL ON FUNCTION public.eut_admin_technician_registry_list(text,integer,integer)
+  FROM PUBLIC,anon,authenticated;
+REVOKE ALL ON FUNCTION public.eut_admin_technician_record_archive(uuid,timestamptz,text,text)
+  FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.eut_admin_technician_record_save(text,text,timestamptz,jsonb,text)
+  TO authenticated;
+GRANT EXECUTE ON FUNCTION public.eut_admin_technician_registry_list(text,integer,integer)
+  TO authenticated;
+GRANT EXECUTE ON FUNCTION public.eut_admin_technician_record_archive(uuid,timestamptz,text,text)
+  TO authenticated;
 COMMIT;

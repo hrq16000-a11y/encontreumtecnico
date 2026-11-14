@@ -24,6 +24,21 @@ export function normalizeGuiafixSearch(input: string): string {
     .toLocaleLowerCase("pt-BR").replace(/\s+/g, " ").trim();
 }
 
+/** Stable admin import key. The original capture key stays private and unchanged. */
+export function guiafixAdminSourceId(key: string): string {
+  const normalized = normalizeGuiafixSearch(key);
+  const slug = normalized.replace(/[^a-z]+/g, "-").replace(/^-|-$/g, "").slice(0, 70).replace(/-$/g, "") || "tecnico";
+  let first = 2166136261;
+  let second = 2166136261;
+  for (let index = 0; index < key.length; index += 1) {
+    const code = key.charCodeAt(index);
+    first = Math.imul(first ^ code, 16777619) >>> 0;
+    second = Math.imul(second ^ (code + index), 16777619) >>> 0;
+  }
+  const suffix = [first, second].map((value) => value.toString(16).padStart(8, "0")).join("-");
+  return `guiafix:${slug}-${suffix}`;
+}
+
 export function readGuiafixStaging(captures: readonly unknown[]): GuiafixAdminRow[] {
   const seen = new Set<string>();
   const result: GuiafixAdminRow[] = [];

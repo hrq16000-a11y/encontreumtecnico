@@ -1,13 +1,18 @@
 import { useEffect, useState, type FormEvent } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Tables } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import {
   prepareAdminTechnicianEdit,
+  prepareReversibleArchive,
   type AdminCatalog,
   type AdminCity,
+  type AdminEditDraft,
   type PhoneChange,
+  type PreparedEdit,
 } from "@/lib/admin-technician-crud-intent";
 import { dddFromBrazilPhone, verifiedBaseCity } from "@/lib/admin-technician-geo";
+import { unchangedSinceValidatedPreview } from "@/lib/admin-technician-rpc-payload";
 import { BRAZIL_STATES } from "@/lib/service-taxonomy";
 
 export type AdminTechnicianAdvancedRecord = Pick<
@@ -39,13 +44,19 @@ const input =
   "min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground";
 const button =
   "min-h-11 rounded-lg border border-input px-3 text-sm text-foreground disabled:opacity-50";
+const adminDb = supabase as unknown as SupabaseClient;
 
 export function AdminTechnicianComprehensiveDraft({
   technician,
   onClose,
+  onSave,
+  onArchived,
 }: {
   technician: AdminTechnicianAdvancedRecord;
   onClose: () => void;
+  /** The parent owns the authenticated RPC and verifies the server response. */
+  onSave: (edit: PreparedEdit) => Promise<void>;
+  onArchived: (message: string) => void;
 }) {
   const [catalog, setCatalog] = useState<AdminCatalog>({
     cities: [],
@@ -72,6 +83,23 @@ export function AdminTechnicianComprehensiveDraft({
   const [phoneInput, setPhoneInput] = useState("");
   const [issues, setIssues] = useState<string[]>([]);
   const [preview, setPreview] = useState<Preview | null>(null);
+  const [prepared, setPrepared] = useState<PreparedEdit | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isArchived, setIsArchived] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    // The audit exposes only the archive state, never the private contact.
+    void adminDb.from("eut_admin_management_log").select("action")
+      .eq("target_type", "technician").eq("target_key", technician.id)
+      .in("action", ["technician_archived", "technician_restored_pending"])
+      .order("created_at", { ascending: false }).limit(1).maybeSingle()
+      .then(({ data, error }) => {
+        if (active) setIsArchived(error ? null : data?.action === "technician_archived");
+      });
+    return () => { active = false; };
+  }, [technician.id]);
 
   useEffect(() => {
     let active = true;
@@ -179,26 +207,28 @@ export function AdminTechnicianComprehensiveDraft({
     setPreview(null);
   }
 
-  function previewChanges(event: FormEvent) {
-    event.preventDefault();
-    if (loading || loadError) return;
+  function currentDraft(): AdminEditDraft {
     const phone: PhoneChange =
       phoneMode === "replace"
         ? { kind: "replace", input: phoneInput, allowPaidContact: false }
         : { kind: phoneMode };
-    const result = prepareAdminTechnicianEdit(
-      {
-        technicianId: technician.id,
-        expectedUpdatedAt: technician.updated_at,
-        reason,
-        baseCityId,
-        coverageCityIds: approved ? coverage : [],
-        radiusKm: approved ? radius : null,
-        neighborhood,
-        categorySlugs: categories,
-        serviceSlugs: services,
-        phone,
-      },
+    return {
+      technicianId: technician.id,
+      expectedUpdatedAt: technician.updated_at,
+      reason,
+      baseCityId,
+      coverageCityIds: approved ? coverage : [],
+      radiusKm: approved ? radius : null,
+      neighborhood,
+      categorySlugs: categories,
+      serviceSlugs: services,
+      phone,
+    };
+  }
+
+  function validatedDraft() {
+    return prepareAdminTechnicianEdit(
+      currentDraft(),
       catalog,
       {
         technicianStatus: technician.status,
@@ -207,12 +237,21 @@ export function AdminTechnicianComprehensiveDraft({
         phoneBlocked: true,
       },
     );
+  }
+
+  function previewChanges(event: FormEvent) {
+    event.preventDefault();
+    if (loading || loadError) return;
+    setPrepared(null);
+    setSaveError(null);
+    const result = validatedDraft();
     if (!result.ok) {
       setIssues(result.issues);
       setPreview(null);
       return;
     }
     setIssues([]);
+    setPrepared(result.value);
     setPreview({
       city: result.value.changes.city,
       uf: result.value.changes.uf,
@@ -222,9 +261,83 @@ export function AdminTechnicianComprehensiveDraft({
       phoneChanged: result.value.auditPreview.phoneChanged,
       phoneLast4: result.value.auditPreview.phoneLast4,
     });
-    // The raw phone never enters a persisted draft, browser storage or preview.
-    setPhoneInput("");
-    setPhoneMode("keep");
+    // Phone is held only in this transient form state until save/cancel.
+    // It never enters browser storage, logs, page URLs, SSR, or the audit preview.
+  }
+
+  async function savePrepared() {
+    if (!prepared || !preview || saving) return;
+    // Every field is revalidated and compared with the exact preview before a
+    // sensitive RPC, even if a future UI control forgets to reset the preview.
+    const latest = validatedDraft();
+    if (!latest.ok || !unchangedSinceValidatedPreview(prepared, latest.value)) {
+      setPrepared(null);
+      setPreview(null);
+      setIssues(["O formulário mudou desde a prévia. Valide novamente antes de salvar."]);
+      return;
+    }
+    if (!window.confirm(`Gravar as alterações de ${technician.display_name}? O banco registrará o motivo e exigirá a versão atual da ficha.`)) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await onSave(prepared);
+      // onSave closes the editor only after the server confirms the transaction.
+      setPhoneInput("");
+      setPhoneMode("keep");
+      setPrepared(null);
+    } catch (error) {
+      // Do not echo raw PostgREST errors: they can contain private payload fields.
+      setSaveError(error instanceof Error && error.message === "conflito"
+        ? "O cadastro mudou em outra sessão. Feche e reabra a ficha antes de tentar novamente."
+        : "Não foi possível salvar. Nenhuma conclusão foi confirmada; confira permissões e tente novamente.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function archiveOrRestore() {
+    if (saving || isArchived === null) return;
+    const action = isArchived ? "restore" : "archive";
+    const gate = prepareReversibleArchive({
+      technicianId: technician.id,
+      expectedUpdatedAt: technician.updated_at,
+      reason,
+      action,
+      isArchived,
+      accountBlocked: true,
+      phoneBlocked: true,
+    });
+    if (!gate.ok) { setSaveError(gate.issue); return; }
+    if (!window.confirm(isArchived
+      ? "Restaurar para revisão, sem liberar contatos ou retirar bloqueios?"
+      : "Arquivar este técnico com auditoria, sem apagar seus dados?")) return;
+    setSaving(true); setSaveError(null);
+    try {
+      const { data, error } = await adminDb.rpc("eut_admin_technician_archive", {
+        _technician_id: technician.id,
+        _expected_updated_at: technician.updated_at,
+        _action: action,
+        _reason: reason.trim(),
+      });
+      if (error) {
+        setSaveError(error.code === "40001"
+          ? "O técnico foi modificado em outra sessão. Atualize a ficha."
+          : "O servidor recusou o arquivamento. Confira a permissão e o estado do técnico.");
+        return;
+      }
+      if (data?.ok !== true || data?.technician_id !== technician.id ||
+          data?.archived !== !isArchived || data?.contact_enabled !== false ||
+          !Number.isFinite(Date.parse(data?.updated_at ?? ""))) {
+        setSaveError("A resposta do servidor não confirmou a operação. Atualize a listagem.");
+        return;
+      }
+      setPhoneInput(""); setPhoneMode("keep"); setPrepared(null);
+      onArchived(isArchived
+        ? "Ficha restaurada para revisão, sem liberar contatos ou bloqueios."
+        : "Ficha arquivada com auditoria, sem apagar contatos privados.");
+    } catch {
+      setSaveError("Falha na conexão; confira o estado da ficha antes de repetir.");
+    } finally { setSaving(false); }
   }
 
   return (
@@ -236,9 +349,8 @@ export function AdminTechnicianComprehensiveDraft({
         <div>
           <h3 className="font-bold text-foreground">Revisão avançada: {technician.display_name}</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Município IBGE, cobertura, categorias, serviços e contato privado. Esta tela valida uma
-            prévia; a gravação transacional aguarda homologação da função administrativa no
-            servidor.
+            Município IBGE, cobertura, categorias, serviços e contato privado. Primeiro valide
+            a prévia; depois confirme a gravação auditada no banco.
           </p>
         </div>
         <button type="button" onClick={onClose} className={button}>
@@ -559,7 +671,7 @@ export function AdminTechnicianComprehensiveDraft({
               role="status"
               className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm"
             >
-              <strong>Prévia validada — nenhuma alteração gravada</strong>
+              <strong>Prévia validada — ainda não gravada</strong>
               <p>
                 {preview.city}/{preview.uf} · {preview.coverage} cidades · {preview.categories}{" "}
                 categorias · {preview.services} serviços.
@@ -569,19 +681,31 @@ export function AdminTechnicianComprehensiveDraft({
                   ? `Contato proposto para alteração${preview.phoneLast4 ? ` (final ${preview.phoneLast4})` : ""}.`
                   : "Contato preservado."}
               </p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                O envio só será disponibilizado após homologação da operação transacional,
-                permissões e auditoria no servidor.
-              </p>
+              <p className="mt-2 text-xs text-muted-foreground">A gravação exige confirmação, sessão administrativa e autorização no servidor. Nenhum número privado é exibido.</p>
             </div>
           )}
+          {saveError && <p role="alert" className="rounded-lg border border-destructive/30 p-3 text-sm text-destructive">{saveError}</p>}
           <button
             type="submit"
-            disabled={loading || Boolean(loadError)}
-            className="min-h-11 rounded-lg bg-primary px-5 text-sm font-bold text-primary-foreground disabled:opacity-40"
+            disabled={loading || Boolean(loadError) || saving}
+            className="min-h-12 w-full rounded-lg border border-input px-5 text-sm font-bold text-foreground disabled:opacity-40 sm:w-auto"
           >
-            Validar prévia sem gravar
+            Validar alterações
           </button>
+          {prepared && preview && <button
+            type="button"
+            disabled={saving}
+            className="min-h-12 w-full rounded-lg bg-primary px-5 text-sm font-bold text-primary-foreground disabled:opacity-40 sm:ml-2 sm:w-auto"
+            onClick={() => void savePrepared()}
+          >{saving ? "Gravando…" : "Confirmar e salvar no banco"}</button>}
+          {isArchived !== null && !prepared && <button type="button"
+            disabled={saving || reason.trim().length < 8}
+            className="mt-3 min-h-12 w-full rounded-lg border border-amber-500/40 px-5 text-sm font-bold text-foreground disabled:opacity-40 sm:ml-2 sm:mt-0 sm:w-auto"
+            onClick={() => void archiveOrRestore()}
+          >{saving ? "Registrando…" : isArchived ? "Restaurar para revisão" : "Arquivar técnico"}</button>}
+          {isArchived && <p className="mt-2 text-xs text-muted-foreground">
+            Restaurar não aprova o técnico, não retira bloqueios nem libera contato pago.
+          </p>}
         </form>
       )}
     </section>

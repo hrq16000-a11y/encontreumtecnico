@@ -39,6 +39,14 @@ AS $$ SELECT EXISTS (SELECT 1 FROM public.user_roles r WHERE r.user_id=_uid AND 
 CREATE TABLE public.eut_ibge_municipalities (id integer PRIMARY KEY,name text NOT NULL,uf text NOT NULL);
 CREATE TABLE public.eut_service_categories (slug text PRIMARY KEY,active boolean NOT NULL);
 CREATE TABLE public.eut_service_types (slug text PRIMARY KEY,category_slug text NOT NULL REFERENCES public.eut_service_categories(slug),active boolean NOT NULL);
+-- WordPress migration provenance is a review source, not a login account.
+CREATE TABLE public.legacy_review_profiles (
+  source_key text NOT NULL,
+  wp_post_id integer NOT NULL,
+  kind text NOT NULL,
+  demo_candidate boolean NOT NULL DEFAULT false,
+  PRIMARY KEY(source_key,wp_post_id)
+);
 CREATE TABLE public.technicians (
   id uuid PRIMARY KEY,
   user_id uuid NOT NULL UNIQUE REFERENCES auth.users(id),
@@ -166,6 +174,10 @@ INSERT INTO public.eut_service_types VALUES
  ('manutencao-pc','computadores',true),
  ('wifi','redes',true),
  ('inativo','computadores',false);
+INSERT INTO public.legacy_review_profiles VALUES
+ ('wordpress_20261108',1001,'candidate',false),
+ ('wordpress_20261108',1002,'candidate',true),
+ ('wordpress_20261108',1003,'employer',false);
 INSERT INTO public.technicians(id,user_id,display_name,city,state_uf,specialties,
  service_slugs,coverage_city_ids,service_radius_km,status) VALUES
  ('10000000-0000-4000-8000-000000000001',

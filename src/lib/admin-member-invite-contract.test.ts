@@ -78,7 +78,7 @@ describe("Convites administrativos para novos técnicos e clientes", () => {
   });
   it("mantém convites para contas e clientes, sem substituir o CRUD de técnicos", () => {
     expect(admin).not.toContain('<AdminMemberInvites initialRole="tecnico" />');
-    expect(admin).toContain("<AdminTechnicianUnifiedDirectory />");
+    expect(admin).toContain("<AdminTechnicianUnifiedDirectory adminOwnerId={user.id} />");
     expect(admin).toContain('<AdminMemberInvites initialRole="cliente" />');
     expect(admin).toContain("<AdminMemberInvites /><AdminAccountsManager />");
     expect(login).toContain('<MemberInviteAcceptance userId={user.id} termsAccepted={termsAccepted} refreshRoles={refreshRoles} />');
