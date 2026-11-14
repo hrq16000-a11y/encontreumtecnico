@@ -509,7 +509,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     </div>}
     <p role="status" className="mt-3 text-sm text-muted-foreground">
       {loading || registryLoading ? "Consultando registros…" : failed ? "Consulta incompleta: verifique a permissão ou conexão." :
-        `${total === null ? "Total indisponível" : (exactTotal ? "" : "cerca de ") + total.toLocaleString("pt-BR") + " referências"} · página ${page + 1} de ${pages} · até ${UNIFIED_DIRECTORY_PAGE_SIZE} cartões por página`}
+        `${total === null ? "Total indisponível" : (exactTotal ? "" : "cerca de ") + total.toLocaleString("pt-BR") + " referências"} · página ${page + 1} de ${pages} · até ${UNIFIED_DIRECTORY_PAGE_SIZE} registros por página`}
     </p>
     {feedback && <p role="status" className="mt-3 rounded-lg border border-border bg-muted/50 p-3 text-sm text-foreground">{feedback}</p>}
     {!loading && !registryLoading && !failed && <ul className={"mt-4 grid min-w-0 gap-3 " + (viewMode === "cards" ? "sm:grid-cols-2" : viewMode === "grid" ? "sm:grid-cols-2 xl:grid-cols-3" : "")}>
@@ -622,7 +622,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
         className="min-h-11 rounded-lg border border-input px-4 text-sm font-semibold text-foreground disabled:opacity-40">Próxima</button>
     </nav>}
     <p className="mt-4 text-xs text-muted-foreground">
-      Cadastro manual e edição avançada funcionam somente após instalar as RPCs homologadas.
+      Cadastro manual e edição avançada usam a API administrativa protegida; quando indisponível, o formulário bloqueia a gravação.
       Importação de lotes ainda não está disponível; nenhuma ficha de origem ou demonstração é ativada automaticamente.
     </p>
     <fieldset className="mt-4 space-y-2 rounded-xl border border-dashed border-border p-3">
