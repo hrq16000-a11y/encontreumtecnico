@@ -5,6 +5,7 @@ import {
   MailOpen, Tags, Archive, UserCheck, ChartNoAxesCombined, Menu, X, ShieldBan, PhoneCall,
 } from "lucide-react";
 import { ADMIN_SECTIONS, type AdminSection } from "@/lib/admin-sections";
+import { AdminGlobalSearch } from "@/components/admin-global-search";
 
 const ICONS = {
   inicio: LayoutDashboard,
@@ -54,6 +55,7 @@ export function AdminNavigation({ active }: { active: AdminSection }) {
             Menu administrativo</span>
           <span className="text-xs text-primary-foreground/90">{active === "inicio" ? "Início" : ADMIN_SECTIONS.find((item) => item.key === active)?.label}</span>
         </button>
+        <AdminGlobalSearch />
         <nav id="eut-admin-navigation" aria-label="Menu administrativo"
           className={"mt-3 gap-1 pb-2 lg:flex lg:flex-col lg:overflow-visible " +
             (mobileOpen ? "flex max-h-[65vh] flex-col overflow-y-auto" : "hidden")}>

@@ -10,9 +10,9 @@ export const REQUEST_STATUS: Record<Req["status"], string> = {
   cancelada: "Cancelada",
 };
 
-export function RequestCard({ r, children, shared = false }: { r: Req; children?: React.ReactNode; shared?: boolean }) {
+export function RequestCard({ r, children, shared = false, id }: { r: Req; children?: React.ReactNode; shared?: boolean; id?: string }) {
   return (
-    <li className="rounded-lg border border-border bg-card p-4">
+    <li id={id} className="scroll-mt-24 rounded-lg border border-border bg-card p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="font-semibold text-card-foreground">{r.title}</p>
