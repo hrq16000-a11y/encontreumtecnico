@@ -22,7 +22,14 @@ describe("busca administrativa unificada", () => {
     expect(directory).toContain('.ilike("corrected_name", `%${term}%`)');
     expect(directory).not.toContain('Carregar mais técnicos WordPress');
     expect(directory).not.toContain('Carregar mais técnicos do portal');
-    expect(directory).toContain("Carregar mais técnicos");
+    expect(directory).not.toContain("Carregar mais técnicos");
+    expect(directory).toContain("unifiedPageSlice(");
+    expect(directory).toContain("Paginação do diretório unificado");
+    expect(directory).toContain("Últimos cadastros do portal");
+    expect(directory).toContain("Cidade, região ou UF");
+    expect(directory).toContain("Categoria ou especialidade");
+    expect(directory).toContain("filterRegion(row.regionKey");
+    expect(directory).toContain("filterSpecialty(categoryKeyword(");
     expect(directory).toContain("selectedTechnicianId={row.portalId}");
     expect(directory).toContain('db.rpc("eut_admin_legacy_action"');
     expect(directory).toContain('data?.updated !== 1 || data?.published !== false');
