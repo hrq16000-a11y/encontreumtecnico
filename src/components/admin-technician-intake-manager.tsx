@@ -36,6 +36,7 @@ export function AdminTechnicianIntakeManager() {
   const [services, setServices] = useState<Service[]>([]);
   const [chosenCategories, setChosenCategories] = useState<string[]>([]);
   const [chosenServices, setChosenServices] = useState<string[]>([]);
+  const [adminActive, setAdminActive] = useState(true);
   const [phoneAction, setPhoneAction] = useState<"keep" | "replace" | "remove">("keep");
   const [phone, setPhone] = useState("");
   const [reason, setReason] = useState("");
@@ -95,6 +96,7 @@ export function AdminTechnicianIntakeManager() {
     setSourceId(entry?.source_id ?? `manual:${chunks.join(":")}`);
     setChosenCategories(entry?.category_slugs ?? []);
     setChosenServices(entry?.service_slugs ?? []);
+    setAdminActive(entry?.admin_active ?? true);
     setPhoneAction("keep"); setPhone(""); setReason(""); setMessage("");
     if (entry?.city_ibge_id) {
       void supabase.from("eut_ibge_municipalities").select("id,name,uf")
@@ -142,7 +144,8 @@ export function AdminTechnicianIntakeManager() {
           ddd: e164 ? e164.slice(3,5) : (ddd.trim() || null),
           region_approx: region.trim() || null,
           category_slugs: chosenCategories, service_slugs: chosenServices,
-          admin_active: editing?.admin_active ?? true,
+          // This is the private registry flag, never a paid-contact entitlement.
+          admin_active: editing?.is_demo ? false : adminActive,
           is_demo: editing?.is_demo ?? false,
           phone_action: phoneAction,
           ...(e164 ? { phone_e164: e164, contact_suspended: false } : {}),
@@ -229,6 +232,11 @@ export function AdminTechnicianIntakeManager() {
       <fieldset className="space-y-2"><legend className="font-semibold">Categorias</legend><div className="grid gap-2 sm:grid-cols-2">{categories.filter((c) => c.active).map((c) => <label key={c.slug} className="flex min-h-10 items-center gap-2 text-sm"><input type="checkbox" checked={chosenCategories.includes(c.slug)} onChange={(e) => { setChosenCategories((old) => e.target.checked ? [...old,c.slug] : old.filter((s) => s!==c.slug)); if (!e.target.checked) setChosenServices((old) => old.filter((s) => services.find((x) => x.slug===s)?.category_slug!==c.slug)); }} />{c.label ?? c.slug}</label>)}</div></fieldset>
       {visibleServices.length > 0 && <fieldset className="space-y-2"><legend className="font-semibold">Especialidades e serviços</legend><div className="grid gap-2 sm:grid-cols-2">{visibleServices.map((s) => <label key={s.slug} className="flex min-h-10 items-center gap-2 text-sm"><input type="checkbox" checked={chosenServices.includes(s.slug)} onChange={(e) => setChosenServices((old) => e.target.checked ? [...old,s.slug] : old.filter((value) => value!==s.slug))} />{s.label ?? s.slug}</label>)}</div></fieldset>}
       <fieldset className="space-y-2"><legend className="font-semibold">Contato privado</legend><p className="text-xs text-muted-foreground">O contato anterior nunca é exibido. Não libera contato pago ou reativa suspensos.</p><select className={input} value={phoneAction} onChange={(e) => { setPhoneAction(e.target.value as typeof phoneAction); setPhone(""); }}><option value="keep">Manter contato existente</option><option value="replace">Cadastrar/substituir número</option><option value="remove">Remover contato</option></select>{phoneAction==="replace" && <input className={input} type="tel" autoComplete="off" value={phone} maxLength={25} placeholder="DDD e número" onChange={(e) => setPhone(e.target.value)} />}</fieldset>
+      <label className="flex min-h-12 items-center gap-3 rounded-lg border border-input p-3 text-sm">
+        <input type="checkbox" checked={editing?.is_demo ? false : adminActive}
+          disabled={Boolean(editing?.is_demo)} onChange={(e) => setAdminActive(e.target.checked)} />
+        <span>Ficha ativa na gestão interna <span className="block text-xs text-muted-foreground">Não publica o técnico, não libera contato e não altera bloqueios privados.</span></span>
+      </label>
       <label className="grid gap-1 text-sm">Motivo obrigatório<textarea className={input} required minLength={8} maxLength={400} rows={2} value={reason} placeholder="Justificativa sem dados privados" onChange={(e) => setReason(e.target.value)} /></label>
       <div className="flex flex-wrap gap-2"><button type="submit" disabled={busy || Boolean(editing?.archived)} className={button + " bg-primary text-primary-foreground"}>{busy ? "Gravando…" : "Salvar com auditoria"}</button>{editing && <button type="button" disabled={busy} className={button + " border-amber-500/40"} onClick={() => void archiveEntry(editing)}>{editing.archived ? "Restaurar ficha" : "Arquivar ficha"}</button>}</div>
     </form>}
