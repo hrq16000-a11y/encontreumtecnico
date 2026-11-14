@@ -27,6 +27,11 @@ export function cleanUnifiedSearch(value: string): string {
   return value.trim().replace(/[^\p{L}\p{N}\s'-]/gu, " ").replace(/\s+/g, " ").slice(0, 80).trim();
 }
 
+function appendUnique(current: DirectoryRow[], next: DirectoryRow[]): DirectoryRow[] {
+  const seen = new Set(current.map((row) => row.key));
+  return [...current, ...next.filter((row) => !seen.has(row.key))];
+}
+
 export function AdminTechnicianUnifiedDirectory() {
   const [draft, setDraft] = useState("");
   const [term, setTerm] = useState("");
@@ -44,8 +49,6 @@ export function AdminTechnicianUnifiedDirectory() {
       setTerm(cleanUnifiedSearch(draft));
       setOperationalPage(0);
       setLegacyPage(0);
-      setLegacy([]);
-      setOperational([]);
     }, 300);
     return () => window.clearTimeout(timer);
   }, [draft]);
@@ -89,9 +92,9 @@ export function AdminTechnicianUnifiedDirectory() {
         specialty: item.specialty_title || null,
         origin: "wordpress", operational: false, demo: item.demo_candidate,
       }));
-      setOperational((prev) => operationalPage === 0 ? operationalRows : [...prev, ...operationalRows]);
+      setOperational((prev) => operationalPage === 0 ? operationalRows : appendUnique(prev, operationalRows));
       setOperationalTotal(tech.count);
-      setLegacy((prev) => legacyPage === 0 ? wpRows : [...prev, ...wpRows]);
+      setLegacy((prev) => legacyPage === 0 ? wpRows : appendUnique(prev, wpRows));
       setLegacyTotal(wp.count);
       setLoading(false);
     }
