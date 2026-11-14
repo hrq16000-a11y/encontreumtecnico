@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { Tables } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -6,7 +6,9 @@ import {
   type AdminCatalog,
   type AdminCity,
   type PhoneChange,
+  type PreparedEdit,
 } from "@/lib/admin-technician-crud-intent";
+import { persistAdminTechnicianEdit, type AdminCrudRpc } from "@/lib/admin-technician-crud-rpc";
 import { dddFromBrazilPhone, verifiedBaseCity } from "@/lib/admin-technician-geo";
 import { BRAZIL_STATES } from "@/lib/service-taxonomy";
 
@@ -43,9 +45,11 @@ const button =
 export function AdminTechnicianComprehensiveDraft({
   technician,
   onClose,
+  onSaved,
 }: {
   technician: AdminTechnicianAdvancedRecord;
   onClose: () => void;
+  onSaved: () => void;
 }) {
   const [catalog, setCatalog] = useState<AdminCatalog>({
     cities: [],
@@ -72,6 +76,10 @@ export function AdminTechnicianComprehensiveDraft({
   const [phoneInput, setPhoneInput] = useState("");
   const [issues, setIssues] = useState<string[]>([]);
   const [preview, setPreview] = useState<Preview | null>(null);
+  const preparedRef = useRef<PreparedEdit | null>(null);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -182,6 +190,8 @@ export function AdminTechnicianComprehensiveDraft({
   function previewChanges(event: FormEvent) {
     event.preventDefault();
     if (loading || loadError) return;
+    preparedRef.current = null;
+    setSaveError(null);
     const phone: PhoneChange =
       phoneMode === "replace"
         ? { kind: "replace", input: phoneInput, allowPaidContact: false }
@@ -213,6 +223,7 @@ export function AdminTechnicianComprehensiveDraft({
       return;
     }
     setIssues([]);
+    preparedRef.current = result.value;
     setPreview({
       city: result.value.changes.city,
       uf: result.value.changes.uf,
@@ -227,6 +238,33 @@ export function AdminTechnicianComprehensiveDraft({
     setPhoneMode("keep");
   }
 
+  async function saveValidatedPreview() {
+    const prepared = preparedRef.current;
+    if (!prepared || !preview || savingRef.current) return;
+    if (!window.confirm("Confirmar esta alteração administrativa auditada? A ação será gravada no banco e poderá modificar dados privados.")) return;
+    savingRef.current = true;
+    setSaving(true);
+    setSaveError(null);
+    const rpc = (supabase as unknown as { rpc: AdminCrudRpc }).rpc.bind(supabase);
+    const result = await persistAdminTechnicianEdit(rpc, prepared);
+    // A contact number may exist only in short-lived component memory.
+    preparedRef.current = null;
+    setPreview(null);
+    setPhoneInput("");
+    setPhoneMode("keep");
+    savingRef.current = false;
+    setSaving(false);
+    if (result.ok) {
+      onSaved();
+      return;
+    }
+    setSaveError(result.reason === "conflict"
+      ? "Este cadastro foi alterado em outra sessão. Recarregue os dados antes de tentar novamente."
+      : result.reason === "denied"
+        ? "A sessão atual não possui permissão administrativa para esta alteração."
+        : "A gravação não foi confirmada pelo servidor. Nenhuma alteração será considerada concluída; recarregue e confira antes de tentar novamente.");
+  }
+
   return (
     <section
       aria-label="Revisão completa de cadastro de técnico"
@@ -236,12 +274,11 @@ export function AdminTechnicianComprehensiveDraft({
         <div>
           <h3 className="font-bold text-foreground">Revisão avançada: {technician.display_name}</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Município IBGE, cobertura, categorias, serviços e contato privado. Esta tela valida uma
-            prévia; a gravação transacional aguarda homologação da função administrativa no
-            servidor.
+            Município IBGE, cobertura, categorias, serviços e contato privado. Confira a prévia
+            antes de salvar; a gravação exige a função administrativa homologada no servidor.
           </p>
         </div>
-        <button type="button" onClick={onClose} className={button}>
+        <button type="button" onClick={onClose} disabled={saving} className={button}>
           Fechar
         </button>
       </div>
@@ -554,12 +591,13 @@ export function AdminTechnicianComprehensiveDraft({
               ))}
             </ul>
           )}
+          {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
           {preview && (
             <div
               role="status"
               className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm"
             >
-              <strong>Prévia validada — nenhuma alteração gravada</strong>
+              <strong>Prévia validada — ainda não gravada</strong>
               <p>
                 {preview.city}/{preview.uf} · {preview.coverage} cidades · {preview.categories}{" "}
                 categorias · {preview.services} serviços.
@@ -570,8 +608,8 @@ export function AdminTechnicianComprehensiveDraft({
                   : "Contato preservado."}
               </p>
               <p className="mt-2 text-xs text-muted-foreground">
-                O envio só será disponibilizado após homologação da operação transacional,
-                permissões e auditoria no servidor.
+                O servidor deve confirmar a alteração e registrar a auditoria. Se a RPC ainda não
+                estiver instalada, a gravação será recusada; a prévia não altera o banco.
               </p>
             </div>
           )}
@@ -582,6 +620,11 @@ export function AdminTechnicianComprehensiveDraft({
           >
             Validar prévia sem gravar
           </button>
+          {preview && <button type="button" disabled={saving}
+            onClick={() => void saveValidatedPreview()}
+            className="ml-2 min-h-11 rounded-lg bg-primary px-5 text-sm font-bold text-primary-foreground disabled:opacity-40">
+            {saving ? "Aguardando confirmação…" : "Salvar alteração auditada"}
+          </button>}
         </form>
       )}
     </section>

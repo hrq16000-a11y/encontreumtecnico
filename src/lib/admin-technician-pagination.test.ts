@@ -23,7 +23,9 @@ describe("Paginação administrativa para milhares de técnicos", () => {
     expect(advanced).toContain("dddFromBrazilPhone");
     expect(advanced).not.toContain("localStorage");
     expect(advanced).not.toContain("sessionStorage");
-    expect(advanced).not.toContain(".rpc(");
+    expect(advanced).toContain("persistAdminTechnicianEdit");
+    expect(advanced).toContain("Salvar alteração auditada");
+    expect(advanced).not.toContain(".from(\"eut_technician_private_contacts\")");
     expect(advanced).not.toContain(".update(");
     expect(advanced).not.toContain(".delete(");
     expect(manager).toContain('.eq("status", status)');

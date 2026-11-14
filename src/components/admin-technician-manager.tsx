@@ -285,7 +285,13 @@ export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string 
         <Check className="h-4 w-4" /> {busy ? "Gravando no banco…" : "Confirmar e registrar"}
       </button>
     </form>}
-    {advanced && <AdminTechnicianComprehensiveDraft key={advanced.id} technician={advanced} onClose={() => setAdvanced(null)} />}
+    {advanced && <AdminTechnicianComprehensiveDraft key={advanced.id} technician={advanced}
+      onClose={() => setAdvanced(null)}
+      onSaved={() => {
+        setAdvanced(null);
+        setReload((value) => value + 1);
+        setFeedback("Alteração administrativa confirmada pelo banco e registrada para auditoria.");
+      }} />}
     {readError && <p role="alert" className="mt-4 rounded-lg border border-destructive/30 p-3 text-sm text-destructive">{readError}</p>}
     {loadingRows || rows === null ? <p role="status" className="mt-5 text-sm text-muted-foreground">Carregando página de técnicos…</p>
       : filtered.length === 0 ? <p className="mt-5 rounded-xl border border-border p-6 text-sm text-muted-foreground">Nenhum técnico encontrado neste filtro.</p>
