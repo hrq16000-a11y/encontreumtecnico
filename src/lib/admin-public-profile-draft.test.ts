@@ -10,7 +10,9 @@ describe("administrative public profile draft: owner and record isolation", () =
   it("restores only on explicit edit and clears only after confirmed save or cancel", () => {
     const component = readFileSync("src/components/admin-technician-manager.tsx", "utf8");
     const page = readFileSync("src/routes/admin.tsx", "utf8");
-    expect(page).toContain("<AdminTechnicianManager adminOwnerId={user.id} />");
+    const directory = readFileSync("src/components/admin-technician-unified-directory.tsx", "utf8");
+    expect(page).toContain("<AdminTechnicianUnifiedDirectory adminOwnerId={user.id} />");
+    expect(directory).toContain("<AdminTechnicianManager");
     expect(component).toContain("readAdminPublicDraft(adminOwnerId, technician.id, baseline)");
     expect(component).toContain("saveAdminPublicDraft(adminOwnerId, target.technician.id, baseline, next)");
     expect(component).toContain('if (target.action === "editar") clearAdminPublicDraft(adminOwnerId, target.technician.id)');

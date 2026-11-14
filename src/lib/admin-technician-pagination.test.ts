@@ -16,6 +16,7 @@ describe("Paginação administrativa para milhares de técnicos", () => {
   it("filtra no banco com RLS, contagem e ordenação estável; não busca todos", () => {
     const manager=readFileSync("src/components/admin-technician-manager.tsx","utf8");
     const admin=readFileSync("src/routes/admin.tsx","utf8");
+    const directory=readFileSync("src/components/admin-technician-unified-directory.tsx","utf8");
     expect(manager).toContain('select("id,status,display_name,bio,region,city,state_uf,specialties,avatar_path,created_at,updated_at,neighborhood,coverage_city_ids,service_slugs,service_radius_km", { count: "exact" })');
     expect(manager).toContain("<AdminTechnicianComprehensiveDraft");
     const advanced = readFileSync("src/components/admin-technician-comprehensive-draft.tsx", "utf8");
@@ -41,7 +42,11 @@ describe("Paginação administrativa para milhares de técnicos", () => {
     expect(overview).toContain('count: "exact", head: true');
     expect(overview).not.toContain('.select("*")');
     expect(admin).not.toContain('supabase.from("technicians").select("*")');
-    expect(admin).toContain("<AdminTechnicianManager adminOwnerId={user.id} />");
+    expect(admin).toContain("<AdminTechnicianUnifiedDirectory adminOwnerId={user.id} />");
+    expect(directory).toContain("<AdminTechnicianManager");
+    expect(directory).toContain("selectedTechnicianId={");
+    expect(manager).toContain('query = query.eq("id", selectedTechnicianId)');
+    expect(manager).toContain("!selectedTechnicianId && <>");
     expect(manager).not.toContain("service_role");
     expect(manager).not.toContain(".delete()");
   });

@@ -37,7 +37,9 @@ describe("Admin management hardening", () => {
     expect(technicians).toContain("setReload((value) => value + 1)");
     expect(technicians).toContain("window.confirm");
     expect(technicians).toContain("Dessuspender");
-    expect(admin).toContain("<AdminTechnicianManager adminOwnerId={user.id} />");
+    const directory = readFileSync("src/components/admin-technician-unified-directory.tsx", "utf8");
+    expect(admin).toContain("<AdminTechnicianUnifiedDirectory adminOwnerId={user.id} />");
+    expect(directory).toContain("<AdminTechnicianManager");
   });
   it("protects WordPress source and 20 demo candidates, with at most 20 records per batch", () => {
     for (const term of [

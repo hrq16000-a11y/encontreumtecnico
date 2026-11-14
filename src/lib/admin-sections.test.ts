@@ -49,9 +49,9 @@ describe("Central administrativa: URLs próprias e RLS intacta", () => {
     const page = read("src/routes/admin.tsx");
     for (const source of [
       "<AdminAdvertisingManager />", "<EutAdminManager />",
-      "<LegacyReviewQueue />", "<LegacyClaimReview />",
+      "<LegacyReviewQueue", "<LegacyClaimReview />",
       "<SearchMetrics />", "contact_messages",
-      '<AdminTechnicianManager adminOwnerId={user.id} />',
+      '<AdminTechnicianUnifiedDirectory adminOwnerId={user.id} />',
     ]) expect(page).toContain(source);
     expect(page).not.toContain("auth.admin.deleteUser");
     expect(page).not.toContain("service_role");

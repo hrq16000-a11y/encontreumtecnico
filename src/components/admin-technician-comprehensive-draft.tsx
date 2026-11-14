@@ -5,9 +5,12 @@ import {
   prepareAdminTechnicianEdit,
   type AdminCatalog,
   type AdminCity,
+  type AdminEditDraft,
   type PhoneChange,
+  type PreparedEdit,
 } from "@/lib/admin-technician-crud-intent";
 import { dddFromBrazilPhone, verifiedBaseCity } from "@/lib/admin-technician-geo";
+import { unchangedSinceValidatedPreview } from "@/lib/admin-technician-rpc-payload";
 import { BRAZIL_STATES } from "@/lib/service-taxonomy";
 
 export type AdminTechnicianAdvancedRecord = Pick<
@@ -43,9 +46,12 @@ const button =
 export function AdminTechnicianComprehensiveDraft({
   technician,
   onClose,
+  onSave,
 }: {
   technician: AdminTechnicianAdvancedRecord;
   onClose: () => void;
+  /** The parent owns the authenticated RPC and verifies the server response. */
+  onSave: (edit: PreparedEdit) => Promise<void>;
 }) {
   const [catalog, setCatalog] = useState<AdminCatalog>({
     cities: [],
@@ -72,6 +78,9 @@ export function AdminTechnicianComprehensiveDraft({
   const [phoneInput, setPhoneInput] = useState("");
   const [issues, setIssues] = useState<string[]>([]);
   const [preview, setPreview] = useState<Preview | null>(null);
+  const [prepared, setPrepared] = useState<PreparedEdit | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -179,26 +188,28 @@ export function AdminTechnicianComprehensiveDraft({
     setPreview(null);
   }
 
-  function previewChanges(event: FormEvent) {
-    event.preventDefault();
-    if (loading || loadError) return;
+  function currentDraft(): AdminEditDraft {
     const phone: PhoneChange =
       phoneMode === "replace"
         ? { kind: "replace", input: phoneInput, allowPaidContact: false }
         : { kind: phoneMode };
-    const result = prepareAdminTechnicianEdit(
-      {
-        technicianId: technician.id,
-        expectedUpdatedAt: technician.updated_at,
-        reason,
-        baseCityId,
-        coverageCityIds: approved ? coverage : [],
-        radiusKm: approved ? radius : null,
-        neighborhood,
-        categorySlugs: categories,
-        serviceSlugs: services,
-        phone,
-      },
+    return {
+      technicianId: technician.id,
+      expectedUpdatedAt: technician.updated_at,
+      reason,
+      baseCityId,
+      coverageCityIds: approved ? coverage : [],
+      radiusKm: approved ? radius : null,
+      neighborhood,
+      categorySlugs: categories,
+      serviceSlugs: services,
+      phone,
+    };
+  }
+
+  function validatedDraft() {
+    return prepareAdminTechnicianEdit(
+      currentDraft(),
       catalog,
       {
         technicianStatus: technician.status,
@@ -207,12 +218,21 @@ export function AdminTechnicianComprehensiveDraft({
         phoneBlocked: true,
       },
     );
+  }
+
+  function previewChanges(event: FormEvent) {
+    event.preventDefault();
+    if (loading || loadError) return;
+    setPrepared(null);
+    setSaveError(null);
+    const result = validatedDraft();
     if (!result.ok) {
       setIssues(result.issues);
       setPreview(null);
       return;
     }
     setIssues([]);
+    setPrepared(result.value);
     setPreview({
       city: result.value.changes.city,
       uf: result.value.changes.uf,
@@ -222,9 +242,38 @@ export function AdminTechnicianComprehensiveDraft({
       phoneChanged: result.value.auditPreview.phoneChanged,
       phoneLast4: result.value.auditPreview.phoneLast4,
     });
-    // The raw phone never enters a persisted draft, browser storage or preview.
-    setPhoneInput("");
-    setPhoneMode("keep");
+    // Phone is held only in this transient form state until save/cancel.
+    // It never enters browser storage, logs, page URLs, SSR, or the audit preview.
+  }
+
+  async function savePrepared() {
+    if (!prepared || !preview || saving) return;
+    // Every field is revalidated and compared with the exact preview before a
+    // sensitive RPC, even if a future UI control forgets to reset the preview.
+    const latest = validatedDraft();
+    if (!latest.ok || !unchangedSinceValidatedPreview(prepared, latest.value)) {
+      setPrepared(null);
+      setPreview(null);
+      setIssues(["O formulário mudou desde a prévia. Valide novamente antes de salvar."]);
+      return;
+    }
+    if (!window.confirm(`Gravar as alterações de ${technician.display_name}? O banco registrará o motivo e exigirá a versão atual da ficha.`)) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await onSave(prepared);
+      // onSave closes the editor only after the server confirms the transaction.
+      setPhoneInput("");
+      setPhoneMode("keep");
+      setPrepared(null);
+    } catch (error) {
+      // Do not echo raw PostgREST errors: they can contain private payload fields.
+      setSaveError(error instanceof Error && error.message === "conflito"
+        ? "O cadastro mudou em outra sessão. Feche e reabra a ficha antes de tentar novamente."
+        : "Não foi possível salvar. Nenhuma conclusão foi confirmada; confira permissões e tente novamente.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -236,9 +285,8 @@ export function AdminTechnicianComprehensiveDraft({
         <div>
           <h3 className="font-bold text-foreground">Revisão avançada: {technician.display_name}</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Município IBGE, cobertura, categorias, serviços e contato privado. Esta tela valida uma
-            prévia; a gravação transacional aguarda homologação da função administrativa no
-            servidor.
+            Município IBGE, cobertura, categorias, serviços e contato privado. Primeiro valide
+            a prévia; depois confirme a gravação auditada no banco.
           </p>
         </div>
         <button type="button" onClick={onClose} className={button}>
@@ -559,7 +607,7 @@ export function AdminTechnicianComprehensiveDraft({
               role="status"
               className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm"
             >
-              <strong>Prévia validada — nenhuma alteração gravada</strong>
+              <strong>Prévia validada — ainda não gravada</strong>
               <p>
                 {preview.city}/{preview.uf} · {preview.coverage} cidades · {preview.categories}{" "}
                 categorias · {preview.services} serviços.
@@ -569,19 +617,23 @@ export function AdminTechnicianComprehensiveDraft({
                   ? `Contato proposto para alteração${preview.phoneLast4 ? ` (final ${preview.phoneLast4})` : ""}.`
                   : "Contato preservado."}
               </p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                O envio só será disponibilizado após homologação da operação transacional,
-                permissões e auditoria no servidor.
-              </p>
+              <p className="mt-2 text-xs text-muted-foreground">A gravação exige confirmação, sessão administrativa e autorização no servidor. Nenhum número privado é exibido.</p>
             </div>
           )}
+          {saveError && <p role="alert" className="rounded-lg border border-destructive/30 p-3 text-sm text-destructive">{saveError}</p>}
           <button
             type="submit"
-            disabled={loading || Boolean(loadError)}
-            className="min-h-11 rounded-lg bg-primary px-5 text-sm font-bold text-primary-foreground disabled:opacity-40"
+            disabled={loading || Boolean(loadError) || saving}
+            className="min-h-12 w-full rounded-lg border border-input px-5 text-sm font-bold text-foreground disabled:opacity-40 sm:w-auto"
           >
-            Validar prévia sem gravar
+            Validar alterações
           </button>
+          {prepared && preview && <button
+            type="button"
+            disabled={saving}
+            className="min-h-12 w-full rounded-lg bg-primary px-5 text-sm font-bold text-primary-foreground disabled:opacity-40 sm:ml-2 sm:w-auto"
+            onClick={() => void savePrepared()}
+          >{saving ? "Gravando…" : "Confirmar e salvar no banco"}</button>}
         </form>
       )}
     </section>
