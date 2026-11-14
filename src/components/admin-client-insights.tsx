@@ -36,6 +36,7 @@ export function AdminClientInsights() {
   const [page, setPage] = useState(0);
   const [version, setVersion] = useState(0);
   const [snapshot, setSnapshot] = useState<ClientOverview | null>(null);
+  const [importedClients, setImportedClients] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,18 +45,24 @@ export function AdminClientInsights() {
     setLoading(true);
     setError(null);
     setSnapshot(null);
+    setImportedClients(null);
     void (async () => {
       try {
-        const { data, error: rpcError } = await db.rpc("eut_admin_client_insights", {
-          _audit_filter: filter, _page: page, _subject_user_id: null,
-        });
+        const [{ data, error: rpcError }, imported] = await Promise.all([
+          db.rpc("eut_admin_client_insights", {
+            _audit_filter: filter, _page: page, _subject_user_id: null,
+          }),
+          db.from("legacy_review_profiles").select("wp_post_id", { count: "exact", head: true })
+            .eq("source_key", "wordpress_20261108").eq("kind", "employer"),
+        ]);
         if (!active) return;
-        if (rpcError || !data || !Array.isArray(data.audit) ||
+        if (rpcError || imported.error || imported.count === null || !data || !Array.isArray(data.audit) ||
             !Number.isInteger(data.clients_total) ||
             !Number.isInteger(data.audit_total) || data.audit_page !== page) {
           throw new Error("Resposta administrativa inválida");
         }
         setSnapshot(data as ClientOverview);
+        setImportedClients(imported.count);
       } catch {
         if (active) setError("Não foi possível confirmar os indicadores e o histórico. Tente atualizar.");
       } finally {
@@ -65,8 +72,10 @@ export function AdminClientInsights() {
     return () => { active = false; };
   }, [filter, page, version]);
 
-  const totals = snapshot ? [
-    { label: "Clientes cadastrados", value: snapshot.clients_total },
+  const totals = snapshot && importedClients !== null ? [
+    { label: "Registros de clientes sob gestão", value: snapshot.clients_total + importedClients },
+    { label: "Contas de clientes vinculadas", value: snapshot.clients_total },
+    { label: "Fichas importadas gerenciáveis", value: importedClients },
     { label: "E-mails confirmados", value: snapshot.clients_confirmed },
     { label: "Aguardando confirmação", value: snapshot.clients_unconfirmed },
     { label: "Contas restritas", value: snapshot.clients_restricted },
@@ -81,7 +90,8 @@ export function AdminClientInsights() {
       <div>
         <h2 className="text-lg font-bold text-foreground">Indicadores reais de clientes</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Contagens completas calculadas no banco; não são estimativas da página atual.
+          Contagens completas calculadas no banco, incluindo as fichas importadas gerenciáveis.
+          O total representa registros, não pessoas únicas ou contas já vinculadas.
           Nenhum e-mail, telefone ou atendimento privado é carregado neste resumo.
         </p>
       </div>

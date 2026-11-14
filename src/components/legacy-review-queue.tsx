@@ -157,14 +157,14 @@ export function LegacyReviewQueue({ onlyTechnicians = false, onlyClients = false
   const canArchiveSelection = chosenRows.length > 0 && chosenRows.every((row) => stateOf(row.wp_post_id) !== "excluido");
   const canRestoreSelection = chosenRows.length > 0 && !hasDemoSelection &&
     chosenRows.every((row) => stateOf(row.wp_post_id) === "excluido");
-  return <section className="mt-2 rounded-2xl border border-border bg-card p-4 sm:p-6" aria-label={onlyClients ? "Clientes antigos" : "Cadastros históricos"}>
+  return <section className="mt-2 rounded-2xl border border-border bg-card p-4 sm:p-6" aria-label={onlyClients ? "Fichas de clientes" : "Cadastros históricos"}>
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h2 className="text-xl font-bold text-card-foreground">{onlyClients ? "Clientes antigos" : onlyTechnicians ? "Técnicos antigos — gestão auditada" : "Acervo histórico — gestão auditada"}</h2>
+        <h2 className="text-xl font-bold text-card-foreground">{onlyClients ? "Fichas de clientes" : onlyTechnicians ? "Técnicos antigos — gestão auditada" : "Acervo histórico — gestão auditada"}</h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-          Fichas do portal antigo são arquivos históricos: podem ser revisadas, anotadas,
-          corrigidas ou arquivadas individualmente ou em lote, sem alterar os dados originais.
-          Nenhuma ação nesta tela ativa contas ou libera contatos privados.
+          {onlyClients
+            ? "Pesquise, revise, corrija, anote ou arquive fichas individualmente ou em lote. As contas vinculadas também são administradas nesta página. Nenhuma ação revela contatos privados."
+            : "Fichas do portal antigo podem ser revisadas, anotadas, corrigidas ou arquivadas individualmente ou em lote, sem alterar os dados originais. Nenhuma ação ativa contas ou libera contatos privados."}
         </p>
         {!onlyClients && <p className="mt-2 text-sm text-muted-foreground">
           Para editar perfis cadastrados, use a <Link to="/admin/$secao" params={{ secao: "tecnicos" }}
