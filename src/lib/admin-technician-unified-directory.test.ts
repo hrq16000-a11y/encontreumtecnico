@@ -34,7 +34,12 @@ describe("busca administrativa unificada", () => {
     expect(directory).toContain('db.rpc("eut_admin_legacy_action"');
     expect(directory).toContain('data?.updated !== 1 || data?.published !== false');
     expect(directory).toContain('row.origin === "guiafix"');
-    expect(directory).toContain("sm:w-auto");
+    expect(directory).toContain('aria-label="Forma de exibição"');
+    expect(directory).toContain('aria-label="Ações em massa"');
+    expect(directory).toContain("Ver ficha");
+    expect(directory).toContain("Selecionar página");
+    expect(directory).toContain('value="name-desc"');
+    expect(directory).toContain('value="updated"');
     expect(directory).not.toMatch(/private_contacts|auth\.admin|service_role|\.from\("eut_technician_private_contacts"\)/);
   });
 });
