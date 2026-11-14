@@ -1,183 +1,341 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { Search, ArrowUpRight, X, LoaderCircle } from "lucide-react";
+import { Search, ArrowUpRight, LoaderCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { ADMIN_SECTIONS, type AdminModule } from "@/lib/admin-sections";
-import { adminResultHref, cleanAdminQuery } from "@/lib/admin-search";
-import { normalizeGuiafixSearch, readGuiafixStaging } from "@/lib/guiafix-staging-normalizer";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import {
+  adminSearchUrl,
+  cleanAdminSearch,
+  matchingAdminModules,
+  type AdminSearchResult,
+} from "@/lib/admin-global-search";
 
 const db = supabase as unknown as SupabaseClient;
-const captures = import.meta.glob("../../data/external-staging/guiafix-*.capture.json", {
-  eager: true, import: "default",
-}) as Record<string, unknown>;
-const importedTechnicians = readGuiafixStaging(Object.values(captures));
 
-type SearchHit = {
-  key: string;
-  label: string;
-  detail: string;
-  module: AdminModule;
-  filter: string;
-};
+type SearchResponse = { items: AdminSearchResult[]; unavailable: boolean };
 
-async function searchRecords(term: string): Promise<{ hits: SearchHit[]; failed: number }> {
-  const jobs: Array<Promise<SearchHit[]>> = [
-    Promise.resolve(db.rpc("eut_admin_technician_registry_list", { _search: term, _limit: 8, _offset: 0 }))
-      .then(({ data, error }) => {
-        if (error) throw error;
-        return ((data ?? []) as Array<{ source_id: string; display_name: string; city?: string; uf?: string }>).map((row) => ({
-          key: `technician:${row.source_id}`, label: row.display_name,
-          detail: [row.city, row.uf].filter(Boolean).join("/") || "Técnico",
-          module: "tecnicos" as const, filter: row.display_name,
-        }));
-      }),
-    Promise.resolve(db.from("technicians").select("id,display_name,city,state_uf")
-      .ilike("display_name", `%${term}%`).order("display_name").limit(8))
-      .then(({ data, error }) => {
-        if (error) throw error;
-        return ((data ?? []) as Array<{ id: string; display_name: string; city: string; state_uf: string | null }>).map((row) => ({
-          key: `technician:portal:${row.id}`, label: row.display_name,
-          detail: [row.city, row.state_uf].filter(Boolean).join("/") || "Técnico",
-          module: "tecnicos" as const, filter: row.display_name,
-        }));
-      }),
-    Promise.resolve(db.from("legacy_review_profiles").select("wp_post_id,title,location1")
-      .eq("source_key", "wordpress_20261108").eq("kind", "candidate")
-      .ilike("title", `%${term}%`).order("title").limit(8))
-      .then(({ data, error }) => {
-        if (error) throw error;
-        return ((data ?? []) as Array<{ wp_post_id: number; title: string; location1: string | null }>).map((row) => ({
-          key: `technician:wp:${row.wp_post_id}`, label: row.title,
-          detail: row.location1 || "Técnico",
-          module: "tecnicos" as const, filter: row.title,
-        }));
-      }),
-    Promise.resolve(db.from("service_requests").select("id,title,city,category,status")
-      .or(["title", "city", "category"].map((field) => `${field}.ilike.%${term}%`).join(","))
-      .order("created_at", { ascending: false }).limit(8))
-      .then(({ data, error }) => {
-        if (error) throw error;
-        return ((data ?? []) as Array<{ id: string; title: string; city: string; category: string; status: string }>).map((row) => ({
-          key: `request:${row.id}`, label: row.title,
-          detail: `${row.city} · ${row.category} · ${row.status}`,
-          module: "solicitacoes" as const, filter: row.title,
-        }));
-      }),
-    Promise.resolve(db.from("contact_messages").select("id,subject,name,status")
-      .or(["subject", "name"].map((field) => `${field}.ilike.%${term}%`).join(","))
-      .order("created_at", { ascending: false }).limit(8))
-      .then(({ data, error }) => {
-        if (error) throw error;
-        return ((data ?? []) as Array<{ id: string; subject: string; name: string; status: string }>).map((row) => ({
-          key: `message:${row.id}`, label: row.subject,
-          detail: `${row.name} · ${row.status}`,
-          module: "mensagens" as const, filter: row.subject,
-        }));
-      }),
-    Promise.resolve(db.rpc("eut_admin_accounts_snapshot", { _search: term, _filter: "todos", _page: 0 }))
-      .then(({ data, error }) => {
-        if (error || !Array.isArray(data?.accounts)) throw error ?? Error("accounts unavailable");
-        return (data.accounts as Array<{ id: string; full_name: string; is_client: boolean }>).slice(0, 8).map((row) => ({
-          key: `account:${row.id}`, label: row.full_name || "Conta sem nome",
-          detail: row.is_client ? "Cliente" : "Conta cadastrada",
-          module: "contas" as const, filter: row.full_name,
-        }));
-      }),
-  ];
-  const settled = await Promise.allSettled(jobs);
-  const dedup = new Map<string, SearchHit>();
-  for (const row of importedTechnicians.filter((item) =>
-    normalizeGuiafixSearch(`${item.name} ${item.city} ${item.uf}`)
-      .includes(normalizeGuiafixSearch(term))).slice(0, 8)) {
-    const hit: SearchHit = { key: `technician:capture:${row.key}`, label: row.name,
-      detail: [row.city, row.uf].filter(Boolean).join("/") || "Técnico",
-      module: "tecnicos", filter: row.name };
-    dedup.set(`${hit.module}:${hit.label.toLocaleLowerCase("pt-BR")}:${hit.detail}`, hit);
-  }
-  for (const result of settled) if (result.status === "fulfilled") {
-    for (const hit of result.value) if (hit.label) {
-      const identity = `${hit.module}:${hit.label.toLocaleLowerCase("pt-BR")}:${hit.detail}`;
-      if (!dedup.has(identity)) dedup.set(identity, hit);
+/** Searches only metadata and bounded admin-authorized rows. No emails, phones or message bodies. */
+async function findRecords(term: string): Promise<SearchResponse> {
+  const like = `%${term}%`;
+  const jobs = await Promise.allSettled([
+    db
+      .from("technicians")
+      .select("id,display_name,city,state_uf")
+      .ilike("display_name", like)
+      .order("display_name")
+      .limit(6),
+    db.rpc("eut_admin_technician_registry_list", { _search: term, _limit: 6, _offset: 0 }),
+    db
+      .from("legacy_review_profiles")
+      .select("wp_post_id,title,location1")
+      .eq("source_key", "wordpress_20261108")
+      .eq("kind", "candidate")
+      .eq("demo_candidate", false)
+      .ilike("title", like)
+      .order("title")
+      .limit(5),
+    db.rpc("eut_admin_accounts_snapshot", { _search: term, _filter: "todos", _page: 0 }),
+    db
+      .from("service_requests")
+      .select("id,title,category,city,status")
+      .ilike("title", like)
+      .order("created_at", { ascending: false })
+      .limit(5),
+    db
+      .from("contact_messages")
+      .select("id,subject,status")
+      .neq("status", "arquivada")
+      .ilike("subject", like)
+      .order("created_at", { ascending: false })
+      .limit(5),
+    db.from("eut_service_categories").select("slug,label,active").ilike("label", like).limit(5),
+    db.from("eut_service_types").select("slug,label,active").ilike("label", like).limit(5),
+  ]);
+  const items: AdminSearchResult[] = [];
+  let unavailable = false;
+  const data = jobs.map((job) => {
+    if (job.status === "rejected" || job.value.error) {
+      unavailable = true;
+      return null;
     }
+    return job.value.data;
+  });
+  for (const row of (data[0] ?? []) as Array<{
+    id: string;
+    display_name: string;
+    city: string | null;
+    state_uf: string | null;
+  }>) {
+    items.push({
+      key: `technician:${row.id}`,
+      title: row.display_name,
+      description: `Técnico · ${[row.city, row.state_uf].filter(Boolean).join("/") || "Localidade não informada"}`,
+      section: "tecnicos",
+      url: adminSearchUrl("tecnicos", row.display_name),
+    });
   }
-  return { hits: [...dedup.values()].slice(0, 30), failed: settled.filter((result) => result.status === "rejected").length };
+  for (const row of (data[1] ?? []) as Array<{
+    technician_id: string;
+    display_name: string;
+    region_approx: string | null;
+  }>) {
+    items.push({
+      key: `registry:${row.technician_id}`,
+      title: row.display_name,
+      description: `Técnico · ${row.region_approx || "Localidade não informada"}`,
+      section: "tecnicos",
+      url: adminSearchUrl("tecnicos", row.display_name),
+    });
+  }
+  for (const row of (data[2] ?? []) as Array<{
+    wp_post_id: number;
+    title: string;
+    location1: string | null;
+  }>) {
+    items.push({
+      key: `historic:${row.wp_post_id}`,
+      title: row.title,
+      description: `Técnico · ${row.location1 || "Histórico"}`,
+      section: "tecnicos",
+      url: adminSearchUrl("tecnicos", row.title),
+    });
+  }
+  const accounts = (
+    data[3] as { accounts?: Array<{ id: string; full_name: string; roles: string }> } | null
+  )?.accounts;
+  if (data[3] && !Array.isArray(accounts)) unavailable = true;
+  for (const account of (accounts ?? []).slice(0, 6)) {
+    items.push({
+      key: `account:${account.id}`,
+      title: account.full_name || "Conta sem nome",
+      description: `Conta · ${account.roles || "Sem papel"}`,
+      section: "contas",
+      url: adminSearchUrl("contas", undefined, account.id),
+    });
+  }
+  for (const row of (data[4] ?? []) as Array<{
+    id: string;
+    title: string;
+    category: string;
+    city: string;
+    status: string;
+  }>) {
+    items.push({
+      key: `request:${row.id}`,
+      title: row.title,
+      description: `Solicitação · ${row.category} · ${row.city} · ${row.status}`,
+      section: "solicitacoes",
+      url: adminSearchUrl("solicitacoes", undefined, row.id),
+    });
+  }
+  for (const row of (data[5] ?? []) as Array<{ id: string; subject: string; status: string }>) {
+    items.push({
+      key: `message:${row.id}`,
+      title: row.subject,
+      description: `Mensagem · ${row.status}`,
+      section: "mensagens",
+      url: adminSearchUrl("mensagens", undefined, row.id),
+    });
+  }
+  for (const row of (data[6] ?? []) as Array<{ slug: string; label: string; active: boolean }>) {
+    items.push({
+      key: `category:${row.slug}`,
+      title: row.label,
+      description: `Categoria · ${row.active ? "Ativa" : "Oculta"}`,
+      section: "catalogo",
+      url: adminSearchUrl("catalogo", row.label),
+    });
+  }
+  for (const row of (data[7] ?? []) as Array<{ slug: string; label: string; active: boolean }>) {
+    items.push({
+      key: `service:${row.slug}`,
+      title: row.label,
+      description: `Serviço · ${row.active ? "Ativo" : "Oculto"}`,
+      section: "catalogo",
+      url: adminSearchUrl("catalogo", row.label),
+    });
+  }
+  return { items, unavailable };
 }
 
-/** Mounted only after admin role confirmation; data access is still guarded by RLS/RPCs. */
 export function AdminGlobalSearch() {
-  const [draft, setDraft] = useState("");
-  const [term, setTerm] = useState("");
-  const [hits, setHits] = useState<SearchHit[]>([]);
-  const [failed, setFailed] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const input = useRef<HTMLInputElement>(null);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [records, setRecords] = useState<AdminSearchResult[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [unavailable, setUnavailable] = useState(false);
+  const modules = useMemo(() => matchingAdminModules(query), [query]);
+  const term = cleanAdminSearch(query);
 
   useEffect(() => {
-    const keydown = (event: KeyboardEvent) => {
+    function shortcuts(event: KeyboardEvent) {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault(); input.current?.focus();
+        event.preventDefault();
+        setOpen((value) => !value);
       }
-    };
-    window.addEventListener("keydown", keydown);
-    return () => window.removeEventListener("keydown", keydown);
+    }
+    document.addEventListener("keydown", shortcuts);
+    return () => document.removeEventListener("keydown", shortcuts);
   }, []);
-  useEffect(() => {
-    const timer = window.setTimeout(() => setTerm(cleanAdminQuery(draft)), 300);
-    return () => window.clearTimeout(timer);
-  }, [draft]);
-  useEffect(() => {
-    let active = true;
-    if (term.length < 2) { setHits([]); setFailed(0); setLoading(false); return; }
-    setLoading(true);
-    void searchRecords(term).then((result) => {
-      if (active) { setHits(result.hits); setFailed(result.failed); }
-      }).catch(() => { if (active) { setHits([]); setFailed(6); } })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [term]);
 
-  const modules = ADMIN_SECTIONS.filter((section) => section.key !== "inicio" &&
-    (term.length < 2 || `${section.label} ${section.description}`.toLocaleLowerCase("pt-BR")
-      .includes(term.toLocaleLowerCase("pt-BR"))));
+  useEffect(() => {
+    if (!open || term.length < 2) {
+      setRecords([]);
+      setUnavailable(false);
+      setBusy(false);
+      return;
+    }
+    let current = true;
+    setBusy(true);
+    const timer = window.setTimeout(() => {
+      void findRecords(term)
+        .then((response) => {
+          if (current) {
+            setRecords(response.items);
+            setUnavailable(response.unavailable);
+          }
+        })
+        .catch(() => {
+          if (current) {
+            setRecords([]);
+            setUnavailable(true);
+          }
+        })
+        .finally(() => {
+          if (current) setBusy(false);
+        });
+    }, 350);
+    return () => {
+      current = false;
+      window.clearTimeout(timer);
+    };
+  }, [open, term]);
 
-  return <section className="mt-5 rounded-2xl border border-primary/25 bg-background p-4 shadow-sm sm:p-5"
-    aria-label="Pesquisa global da administração">
-    <div className="flex items-center gap-2">
-      <Search className="h-5 w-5 text-primary" aria-hidden="true" />
-      <h2 className="text-base font-bold">Pesquisar todo o painel</h2>
-      <kbd className="ml-auto hidden rounded border border-border px-2 py-1 text-xs text-muted-foreground sm:inline">Ctrl K</kbd>
-    </div>
-    <div className="mt-3 flex min-w-0 items-center rounded-xl border border-input bg-card focus-within:ring-2 focus-within:ring-primary/40">
-      <label htmlFor="admin-global-search" className="sr-only">Buscar técnicos, contas, solicitações, mensagens ou módulos</label>
-      <input id="admin-global-search" ref={input} value={draft} onChange={(event) => setDraft(event.target.value)}
-        placeholder="Técnico, cliente, pedido, mensagem ou módulo…" maxLength={70}
-        className="min-h-12 min-w-0 flex-1 bg-transparent px-3 text-sm outline-none sm:text-base" />
-      {draft && <button type="button" onClick={() => { setDraft(""); input.current?.focus(); }}
-        className="flex min-h-11 min-w-11 items-center justify-center rounded-lg" aria-label="Limpar pesquisa"><X className="h-4 w-4" /></button>}
-    </div>
-    {term.length >= 2 && <div className="mt-4 space-y-3" aria-live="polite">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        {loading ? <><LoaderCircle className="h-4 w-4 animate-spin" /> Pesquisando registros autorizados…</>
-          : `${hits.length} resultado(s) encontrado(s) nos módulos consultados`}
-      </div>
-      {failed > 0 && !loading && <p role="status" className="text-xs text-amber-700 dark:text-amber-300">
-        {failed} fonte(s) indisponível(is). A pesquisa pode estar incompleta; nenhuma ausência foi considerada definitiva.
-      </p>}
-      {hits.length > 0 && <ul className="grid gap-2 sm:grid-cols-2" aria-label="Resultados da pesquisa global">
-        {hits.map((hit) => <li key={hit.key}>
-          <a href={adminResultHref(hit.module, hit.filter)}
-            className="flex min-h-14 items-center justify-between gap-2 rounded-xl border border-border px-3 py-2 hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-            <span className="min-w-0"><strong className="block truncate text-sm">{hit.label}</strong>
-              <span className="block truncate text-xs text-muted-foreground">{hit.detail} · {ADMIN_SECTIONS.find((item) => item.key === hit.module)?.label}</span></span>
-            <ArrowUpRight className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-          </a>
-        </li>)}</ul>}
-    </div>}
-    <div className="mt-4 flex flex-wrap gap-2" aria-label="Módulos pesquisáveis">
-      {modules.slice(0, term.length < 2 ? 5 : 10).map((module) => <a key={module.key} href={`/admin/${module.key}`}
-        className="inline-flex min-h-10 items-center rounded-full border border-border px-3 text-xs font-semibold hover:border-primary hover:text-primary">
-        {module.label}
-      </a>)}
-    </div>
-  </section>;
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mt-3 flex min-h-12 w-full items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 text-left text-sm font-semibold text-foreground hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <Search className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+        <span className="min-w-0 flex-1">Localizar no painel</span>
+        <kbd className="hidden rounded border border-border px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground sm:inline">
+          Ctrl K
+        </kbd>
+      </button>
+      <Dialog
+        open={open}
+        onOpenChange={(value) => {
+          setOpen(value);
+          if (!value) {
+            setQuery("");
+            setRecords([]);
+          }
+        }}
+      >
+        <DialogContent className="max-h-[88dvh] w-[calc(100%-1rem)] max-w-2xl gap-3 overflow-hidden p-4 sm:p-6">
+          <DialogTitle>Localizar no painel administrativo</DialogTitle>
+          <DialogDescription>
+            Pesquise módulos, técnicos, contas, solicitações, mensagens e catálogo. Apenas dados
+            autorizados são consultados.
+          </DialogDescription>
+          <label className="flex min-h-12 items-center gap-2 rounded-xl border border-input bg-background px-3">
+            <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <span className="sr-only">Buscar na administração</span>
+            <input
+              autoFocus
+              aria-label="Buscar na administração"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              maxLength={80}
+              placeholder="Nome, categoria, solicitação ou módulo…"
+              className="min-w-0 w-full bg-transparent text-base text-foreground outline-none"
+            />
+          </label>
+          <div role="status" aria-live="polite" className="text-xs text-muted-foreground">
+            {term.length < 2
+              ? "Digite 2 caracteres para procurar registros. Os módulos já estão disponíveis."
+              : busy
+                ? "Consultando registros autorizados…"
+                : unavailable
+                  ? "Algumas fontes estão indisponíveis; os demais resultados continuam acessíveis."
+                  : `${records.length} registro(s) localizado(s) nesta consulta limitada.`}
+          </div>
+          <div className="max-h-[57dvh] space-y-4 overflow-y-auto overscroll-contain pr-1">
+            {modules.length > 0 && (
+              <section aria-label="Módulos encontrados">
+                <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Módulos
+                </h3>
+                <ul className="grid gap-1 sm:grid-cols-2">
+                  {modules.map((item) => (
+                    <li key={item.key}>
+                      <a
+                        href={item.url}
+                        className="flex min-h-12 items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <span className="min-w-0">
+                          <span className="block text-sm font-semibold text-foreground">
+                            {item.title}
+                          </span>
+                          <span className="block text-xs text-muted-foreground">
+                            {item.description}
+                          </span>
+                        </span>
+                        <ArrowUpRight
+                          className="h-4 w-4 shrink-0 text-primary"
+                          aria-hidden="true"
+                        />
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+            {term.length >= 2 && (
+              <section aria-label="Registros encontrados">
+                <h3 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Registros{" "}
+                  {busy && <LoaderCircle className="h-3 w-3 animate-spin" aria-hidden="true" />}
+                </h3>
+                {records.length > 0 ? (
+                  <ul className="grid gap-1">
+                    {records.map((item) => (
+                      <li key={item.key}>
+                        <a
+                          href={item.url}
+                          className="flex min-h-12 items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-semibold text-foreground">
+                              {item.title}
+                            </span>
+                            <span className="block text-xs text-muted-foreground">
+                              {item.description}
+                            </span>
+                          </span>
+                          <ArrowUpRight
+                            className="h-4 w-4 shrink-0 text-primary"
+                            aria-hidden="true"
+                          />
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  !busy && (
+                    <p className="text-sm text-muted-foreground">
+                      Nenhum registro encontrado nas fontes disponíveis. Use um termo mais
+                      específico ou abra o módulo.
+                    </p>
+                  )
+                )}
+              </section>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 }

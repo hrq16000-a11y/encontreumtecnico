@@ -51,6 +51,17 @@ export function AdminAccountsManager({ initialFilter = "todos" }: { initialFilte
   const [showPhones, setShowPhones] = useState(false);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const recordId = params.get("registro");
+    const deepLinkedSearch = recordId && /^[a-f0-9-]{36}$/i.test(recordId) ? recordId : params.get("busca");
+    if (!deepLinkedSearch) return;
+    const cleaned = deepLinkedSearch.trim().replace(/[\p{C}]/gu, "").slice(0, 80);
+    setDraftSearch(cleaned);
+    setSearch(cleaned);
+    setPage(0);
+  }, []);
+
+  useEffect(() => {
     let active = true;
     setLoading(true);
     void (async () => {

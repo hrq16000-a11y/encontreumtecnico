@@ -10,7 +10,13 @@ type StatusFilter = typeof REQUEST_FILTERS[number];
 
 export function AdminRequestQueue() {
   const [draft, setDraft] = useState(() => typeof window === "undefined" ? "" :
-    new URLSearchParams(window.location.search).get("q")?.slice(0, 70) ?? "");
+    (new URLSearchParams(window.location.search).get("busca") ??
+      new URLSearchParams(window.location.search).get("q") ?? "").slice(0, 70));
+  const [focusedId, setFocusedId] = useState(() => {
+    if (typeof window === "undefined") return null;
+    const id = new URLSearchParams(window.location.search).get("registro");
+    return id && /^[a-f0-9-]{36}$/i.test(id) ? id : null;
+  });
   const [term, setTerm] = useState(cleanAdminQuery(draft));
   const [status, setStatus] = useState<StatusFilter>("todas");
   const [page, setPage] = useState(0);
@@ -30,9 +36,12 @@ export function AdminRequestQueue() {
     setLoading(true); setError(false);
     let query = supabase.from("service_requests")
       .select("*", { count: "exact" });
-    if (status !== "todas") query = query.eq("status", status);
-    if (term) query = query.or(["title", "city", "category"]
-      .map((field) => `${field}.ilike.%${term}%`).join(","));
+    if (focusedId) query = query.eq("id", focusedId);
+    else {
+      if (status !== "todas") query = query.eq("status", status);
+      if (term) query = query.or(["title", "city", "category"]
+        .map((field) => `${field}.ilike.%${term}%`).join(","));
+    }
     void Promise.resolve(query.order("created_at", { ascending: false }).order("id")
       .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1))
       .then(({ data, count, error: queryError }) => {
@@ -41,7 +50,7 @@ export function AdminRequestQueue() {
         else { setRows(data ?? []); setTotal(count ?? null); }
       }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [status, term, page, revision]);
+  }, [status, term, focusedId, page, revision]);
 
   const pages = total === null ? 1 : Math.max(1, Math.ceil(total / PAGE_SIZE));
   function toggle(id: string) {
@@ -65,17 +74,22 @@ export function AdminRequestQueue() {
       <label className="min-w-0 text-sm font-semibold">Buscar solicitações
         <span className="mt-1 flex items-center rounded-xl border border-input bg-background px-3">
           <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <input value={draft} onChange={(event) => setDraft(event.target.value)}
+          <input value={draft} onChange={(event) => { setDraft(event.target.value); setFocusedId(null); }}
             maxLength={70} placeholder="Título, cidade ou categoria" className="min-h-12 min-w-0 flex-1 bg-transparent px-2 text-sm outline-none" />
         </span>
       </label>
       <label className="text-sm font-semibold">Situação
         <select className="mt-1 min-h-12 w-full rounded-xl border border-input bg-background px-3 text-sm"
-          value={status} onChange={(event) => { setStatus(event.target.value as StatusFilter); setPage(0); }}>
+          value={status} onChange={(event) => { setStatus(event.target.value as StatusFilter); setFocusedId(null); setPage(0); }}>
           {REQUEST_FILTERS.map((value) => <option value={value} key={value}>{value === "todas" ? "Todas" : REQUEST_STATUS[value]}</option>)}
         </select>
       </label>
     </div>
+    {focusedId && <div className="flex flex-wrap items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm">
+      Registro localizado pela pesquisa global.
+      <button type="button" onClick={() => { setFocusedId(null); setPage(0); }}
+        className="min-h-11 rounded-lg border border-input bg-background px-3 font-semibold">Voltar à lista</button>
+    </div>}
     <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground" role="status">
       <span>{loading ? "Carregando…" : error ? "Consulta indisponível" : total === null ? "Total indisponível" :
         `${total.toLocaleString("pt-BR")} solicitação(ões) · ${rows.length} nesta página`}</span>
@@ -84,7 +98,9 @@ export function AdminRequestQueue() {
     {error && <p role="alert" className="rounded-lg border border-destructive/30 p-3 text-sm text-destructive">Não foi possível consultar as solicitações. Nenhum resultado foi considerado vazio; tente atualizar.</p>}
     {!loading && !error && rows.length === 0 && <p className="rounded-lg border border-border p-4 text-sm text-muted-foreground">Nenhum pedido corresponde aos filtros.</p>}
     <ul className="grid gap-2">
-      {rows.map((row) => <li key={row.id} className="min-w-0 rounded-xl border border-border bg-background p-3 sm:p-4">
+      {rows.map((row) => <li key={row.id} id={`admin-registro-${row.id}`}
+        className={"min-w-0 rounded-xl border bg-background p-3 sm:p-4 " +
+          (focusedId === row.id ? "border-primary ring-2 ring-primary/30" : "border-border")}>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0"><h3 className="break-words text-sm font-bold sm:text-base">{row.title}</h3>
             <p className="mt-1 text-xs text-muted-foreground">{row.category} · {row.city}{row.region ? ` · ${row.region}` : ""} · {new Date(row.created_at).toLocaleString("pt-BR")}</p></div>
