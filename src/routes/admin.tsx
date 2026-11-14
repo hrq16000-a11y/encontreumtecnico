@@ -15,7 +15,7 @@ import { AdminCommandOverview } from "@/components/admin-command-overview";
 import { AdminAdvertisingManager } from "@/components/admin-advertising-manager";
 import { AdminNavigation } from "@/components/admin-navigation";
 import { AdminTechnicianManager } from "@/components/admin-technician-manager";
-import { AdminGuiafixStaging } from "@/components/admin-guiafix-staging";
+import { AdminTechnicianUnifiedDirectory } from "@/components/admin-technician-unified-directory";
 import { AdminOwnTechnicianRole } from "@/components/admin-own-technician-role";
 import { AdminMemberInvites } from "@/components/admin-member-invites";
 import { AdminAccountsManager } from "@/components/admin-accounts-manager";
@@ -138,7 +138,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
                 ))}
               </div>
             </nav>
-            {(section === "inicio" || section === "tecnicos") &&
+            {section === "inicio" &&
               <AdminOwnTechnicianRole isTechnician={roles.includes("tecnico")} refreshRoles={refreshRoles} />}
             {error && <p role="alert" className="mt-2 text-sm text-destructive">{error}</p>}
                         {section === "inicio" && (<section aria-label="Resumo administrativo">
@@ -153,9 +153,15 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             {section === "contas" && <section aria-label="Contas e bloqueios"><AdminMemberInvites /><AdminAccountsManager /></section>}
             {section === "contatos" && <section aria-label="Contatos administrativos"><AdminContactsDashboard adminId={user.id} /></section>}
             {section === "tecnicos" && <section aria-label="Gestão de técnicos">
-              <AdminMemberInvites initialRole="tecnico" />
-              <AdminGuiafixStaging />
-              <AdminTechnicianManager adminOwnerId={user.id} />
+              <AdminTechnicianUnifiedDirectory />
+              <details className="mt-6 rounded-xl border border-border p-4" open>
+                <summary className="cursor-pointer text-lg font-bold text-foreground">Gerenciar dados e situação dos técnicos do portal</summary>
+                <div className="mt-5"><AdminTechnicianManager adminOwnerId={user.id} /></div>
+              </details>
+              <details className="mt-4 rounded-xl border border-border p-4">
+                <summary className="cursor-pointer text-lg font-bold text-foreground">Gerenciar fichas importadas do WordPress</summary>
+                <div className="mt-5"><LegacyReviewQueue /></div>
+              </details>
             </section>}
             {section === "mensagens" && <section aria-label="Mensagens administrativas">
               <h2 id="admin-mensagens" className="mt-10 scroll-mt-20 text-lg font-semibold text-foreground">Mensagens de contato</h2>
