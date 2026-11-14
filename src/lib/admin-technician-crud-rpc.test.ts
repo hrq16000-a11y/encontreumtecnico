@@ -25,14 +25,14 @@ describe("RPC administrativo de técnicos", () => {
     const args = technicianEditRpcArgs({ ...input, changes: {
       ...input.changes, phone: { kind: "replace", e164: "+5541999999999", allowPaidContact: true },
     } });
-    expect(args._technician_id).toBe(input.technicianId);
-    expect(args._expected_updated_at).toBe(input.expectedUpdatedAt);
-    expect(args._payload).toEqual({
+    expect(args["_technician_id"]).toBe(input.technicianId);
+    expect(args["_expected_updated_at"]).toBe(input.expectedUpdatedAt);
+    expect(args["_payload"]).toEqual({
       base_city_ibge_id: 4106902, coverage_city_ids: [4106902], radius_km: 20,
       neighborhood: "Centro", category_slugs: ["informatica"], service_slugs: [],
       phone_action: "replace", phone_e164: "+5541999999999", allow_paid_contact: false,
     });
-    expect(technicianEditRpcArgs(input)._payload).not.toHaveProperty("phone_e164");
+    expect(technicianEditRpcArgs(input)["_payload"]).not.toHaveProperty("phone_e164");
   });
 
   it("não considera sucesso sem confirmação explícita, ID e versão", async () => {

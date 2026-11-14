@@ -55,11 +55,11 @@ export async function persistAdminTechnicianEdit(
       return { ok: false, reason: "unavailable" };
     }
     const result = data as Record<string, unknown> | null;
-    if (result?.ok !== true || result.technician_id !== prepared.technicianId ||
-        typeof result.updated_at !== "string" || !Number.isFinite(Date.parse(result.updated_at))) {
+    if (result?.["ok"] !== true || result["technician_id"] !== prepared.technicianId ||
+        typeof result["updated_at"] !== "string" || !Number.isFinite(Date.parse(result["updated_at"]))) {
       return { ok: false, reason: "unavailable" };
     }
-    return { ok: true, updatedAt: result.updated_at };
+    return { ok: true, updatedAt: result["updated_at"] };
   } catch {
     return { ok: false, reason: "unavailable" };
   }
