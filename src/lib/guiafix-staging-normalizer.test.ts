@@ -13,7 +13,7 @@ describe("guiafix administrator-only quarantined index", () => {
     expect(normalizeGuiafixSearch("Paranaguá  PR")).toBe("paranagua pr");
     expect(readGuiafixStaging([source])).toEqual([{
       key: "PR:paranagua:maria de souza", name: "Maria de Souza",
-      city: "Paranaguá", uf: "PR", category: "Técnico de Informática",
+      city: "Paranaguá", uf: "PR", cityIbgeId: 4118204, category: "Técnico de Informática",
     }]);
   });
 

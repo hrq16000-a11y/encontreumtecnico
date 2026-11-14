@@ -6,6 +6,8 @@ describe("nome do técnico no diretório único", () => {
     expect(technicianDisplayName("TN4 Técnico de Informática Cruzeiro do Sul", "Cruzeiro do Sul")).toBe("TN4");
     expect(technicianDisplayName("Usadão 2000 Técnico de Informática Cruzeiro do Sul", "Cruzeiro do Sul"))
       .toBe("Usadão 2000");
+    expect(technicianDisplayName("4E Informática Redes e Sistemas de Segurança Cruzeiro do Sul", "Cruzeiro do Sul"))
+      .toBe("4E Informática Redes e Sistemas de Segurança");
   });
 
   it("não retira o nome de estabelecimentos legítimos", () => {

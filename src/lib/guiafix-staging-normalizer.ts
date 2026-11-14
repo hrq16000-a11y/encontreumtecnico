@@ -6,6 +6,7 @@ export type GuiafixAdminRow = {
   name: string;
   city: string;
   uf: string;
+  cityIbgeId: number;
   category: "Técnico de Informática";
 };
 
@@ -70,7 +71,8 @@ export function readGuiafixStaging(captures: readonly unknown[]): GuiafixAdminRo
       const key = `${capture.uf}:${normalizeGuiafixSearch(capture.city)}:${normalizeGuiafixSearch(name)}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      result.push({ key, name, city: capture.city, uf: capture.uf, category: "Técnico de Informática" });
+      result.push({ key, name, city: capture.city, uf: capture.uf,
+        cityIbgeId: capture.city_ibge, category: "Técnico de Informática" });
     }
   }
   return result.sort((a,b)=> a.name.localeCompare(b.name,"pt-BR") || a.city.localeCompare(b.city,"pt-BR"));
