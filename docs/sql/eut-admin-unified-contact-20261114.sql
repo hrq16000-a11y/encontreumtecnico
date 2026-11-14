@@ -64,7 +64,7 @@ begin
 
   insert into eut_moderation.contact_audit
     (actor_id, action, reference_id, phone_last4, reason)
-  values (v_actor, 'admin_unified_reveal', v_key, right(v_phone, 4), v_reason);
+  values (v_actor, 'reveal_phone', v_key, right(v_phone, 4), v_reason);
 
   return jsonb_build_object('ok', true, 'available', true, 'phone', v_phone);
 end;
