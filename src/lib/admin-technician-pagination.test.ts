@@ -23,7 +23,9 @@ describe("Paginação administrativa para milhares de técnicos", () => {
     expect(advanced).toContain("dddFromBrazilPhone");
     expect(advanced).not.toContain("localStorage");
     expect(advanced).not.toContain("sessionStorage");
-    expect(advanced).not.toContain(".rpc(");
+    // Advanced writes now require the dedicated audited, versioned SQL RPC.
+    expect(advanced).toContain('db.rpc("eut_admin_technician_change"');
+    expect(advanced).toContain("buildProposedTechnicianChangeArgs");
     expect(advanced).not.toContain(".update(");
     expect(advanced).not.toContain(".delete(");
     expect(manager).toContain('.eq("status", status)');
