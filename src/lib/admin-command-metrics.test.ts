@@ -42,6 +42,7 @@ describe("Rodada 1 — comando administrativo", () => {
   it("consulta apenas contagens e RPCs existentes sob o gate administrativo", () => {
     const view = readFileSync("src/components/admin-command-overview.tsx", "utf8");
     const admin = readFileSync("src/routes/admin.tsx", "utf8");
+    const nav = readFileSync("src/components/admin-navigation.tsx", "utf8");
     for (const mark of ['count: "exact", head: true', '"eut_admin_client_insights"', '"eut_ads_admin_snapshot"',
       '"Indisponível"', 'to="/admin/$secao"']) expect(view).toContain(mark);
     expect(view).not.toContain('.select("*")');
@@ -54,6 +55,7 @@ describe("Rodada 1 — comando administrativo", () => {
     expect(admin).toContain("<AdminClientInsights />");
     expect(admin).toContain("<AdminRequestQueue />");
     expect(admin).toContain("<AdminMessageQueue />");
-    expect(admin).toContain("<AdminGlobalSearch />");
+    expect(admin).toContain("<AdminNavigation active={section} />");
+    expect(nav).toContain("<AdminGlobalSearch />");
   });
 });
