@@ -15,6 +15,7 @@ import { AdminCommandOverview } from "@/components/admin-command-overview";
 import { AdminAdvertisingManager } from "@/components/admin-advertising-manager";
 import { AdminNavigation } from "@/components/admin-navigation";
 import { AdminTechnicianManager } from "@/components/admin-technician-manager";
+import { AdminGuiafixStaging } from "@/components/admin-guiafix-staging";
 import { AdminOwnTechnicianRole } from "@/components/admin-own-technician-role";
 import { AdminMemberInvites } from "@/components/admin-member-invites";
 import { AdminAccountsManager } from "@/components/admin-accounts-manager";
@@ -153,6 +154,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             {section === "contatos" && <section aria-label="Contatos administrativos"><AdminContactsDashboard adminId={user.id} /></section>}
             {section === "tecnicos" && <section aria-label="Gestão de técnicos">
               <AdminMemberInvites initialRole="tecnico" />
+              <AdminGuiafixStaging />
               <AdminTechnicianManager adminOwnerId={user.id} />
             </section>}
             {section === "mensagens" && <section aria-label="Mensagens administrativas">
