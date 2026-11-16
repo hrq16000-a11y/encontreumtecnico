@@ -7,6 +7,8 @@ const mockDb = vi.hoisted(() => ({
   messages: [] as Array<Record<string, unknown>>,
   ranges: [] as Array<{ table: string; start: number; end: number }>,
   updates: 0,
+  directUpdates: 0,
+  audits: [] as Array<{ id: string; status: string; reason: string }>,
   delayNextMessageQuery: null as Promise<void> | null,
 }));
 
@@ -43,13 +45,25 @@ vi.mock("@/integrations/supabase/client", () => ({
         },
         async single() {
           const row = records().find((r) => r["id"] === idFilter);
-          if (!row || !change) return { data: null, error: { message: "No row" } };
-          Object.assign(row, change);
-          mockDb.updates++;
+          if (!row) return { data: null, error: { message: "No row" } };
+          if (change) { Object.assign(row, change); mockDb.directUpdates++; }
           return { data: { id: row["id"], status: row["status"] }, error: null };
         },
       };
       return builder;
+    },
+    async rpc(functionName: string, params: Record<string, unknown>) {
+      if (functionName !== "eut_admin_contact_action" || params["_action"] !== "mark_message")
+        return { data: null, error: { message: "RPC não autorizada" } };
+      const row = mockDb.messages.find((message) => message["id"] === params["_message_id"]);
+      const reason = params["_reason"];
+      if (!row || typeof reason !== "string" || reason.trim().length < 8)
+        return { data: null, error: { message: "Registro ou motivo inválido" } };
+      const status = String(params["_message_status"]);
+      row["status"] = status;
+      mockDb.updates++;
+      mockDb.audits.push({ id: String(row["id"]), status, reason });
+      return { data: { ok: true, action: "mark_message" }, error: null };
     },
   },
 }));
@@ -62,6 +76,8 @@ beforeEach(() => {
   mockDb.messages = [];
   mockDb.ranges = [];
   mockDb.updates = 0;
+  mockDb.directUpdates = 0;
+  mockDb.audits = [];
   mockDb.delayNextMessageQuery = null;
   window.history.replaceState({}, "", "/admin");
 });
@@ -89,15 +105,22 @@ describe("filas administrativas em interação real de React", () => {
     expect(await screen.findByText("Pedido 21")).toBeTruthy();
   });
 
-  it("só confirma atualização de mensagem após retorno persistente do banco", async () => {
-    mockDb.messages = [{ id: "msg-1", name: "Cliente", subject: "Preciso de atendimento",
+  it("só confirma mensagem após RPC auditada e releitura do estado persistido", async () => {
+    const id = "a8d48d0f-a011-4a1c-a6a7-3ebd210dc258";
+    mockDb.messages = [{ id, name: "Cliente", subject: "Preciso de atendimento",
       status: "nova", email: "cliente@example.test", message: "Mensagem", created_at: "2026-11-14T00:00:00Z" }];
     render(<AdminMessageQueue />);
     expect(await screen.findByText("Preciso de atendimento")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Marcar respondida/ }));
-    expect(await screen.findByText("Situação da mensagem atualizada e confirmada no banco.")).toBeTruthy();
+    expect(mockDb.messages[0]?.["status"]).toBe("nova");
+    fireEvent.change(screen.getByRole("textbox", { name: /Justificativa de auditoria/ }),
+      { target: { value: "Resposta encaminhada pela equipe" } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar e auditar" }));
+    expect(await screen.findByText("Situação persistida e registrada na auditoria administrativa.")).toBeTruthy();
     expect(mockDb.messages[0]?.["status"]).toBe("respondida");
     expect(mockDb.updates).toBe(1);
+    expect(mockDb.directUpdates).toBe(0);
+    expect(mockDb.audits).toEqual([{ id, status: "respondida", reason: "Resposta encaminhada pela equipe" }]);
   });
 
   it("não mantém ações antigas clicáveis enquanto o filtro de mensagens carrega", async () => {
