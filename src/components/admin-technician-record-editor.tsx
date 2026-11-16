@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveCategories } from "@/hooks/use-active-categories";
 import { normalizeBrazilPhoneE164 } from "@/lib/admin-technician-crud-intent";
+import { confirmedTechnicianArchiveResult } from "@/lib/admin-technician-archive-confirmation";
 import { publicTextProblem } from "@/lib/public-profile-text";
 
 const db = supabase as unknown as SupabaseClient;
@@ -189,7 +190,7 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
     }
     const action = existing.archived ? "restore" : "archive";
     const prompt = existing.archived
-      ? "Restaurar a ficha à gestão sem ativar contato ou perfil público?"
+      ? "Restaurar a condição administrativa anterior? Os contatos privados continuarão protegidos."
       : "Arquivar esta ficha de forma reversível, preservando histórico e contatos privados?";
     if (!window.confirm(prompt)) return;
     setBusy(true);
@@ -201,11 +202,10 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
         _action: action, _reason: reason.trim(),
       });
       if (actionError) throw actionError;
-      if (data?.ok !== true || data.technician_id !== existing.technician_id ||
-          data.archived !== (action === "archive") || data.admin_active !== false)
+      if (!confirmedTechnicianArchiveResult(data, existing.technician_id, action))
         throw new Error("Banco não confirmou a transação de arquivamento.");
       onSaved(action === "archive" ? "Técnico arquivado com histórico preservado." :
-        "Técnico restaurado à gestão, sem reativar contato ou publicação.");
+        "Técnico restaurado à condição administrativa anterior; contatos privados preservados.");
     } catch (error) { setError(safeRegistryError(error)); }
     finally { setBusy(false); }
   }
@@ -317,7 +317,7 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
     {error && <p role="alert" className="rounded-lg border border-destructive/30 p-3 text-sm text-destructive">{error}</p>}
     {existing?.archived && <p className="rounded-lg border border-amber-500/40 p-3 text-xs text-foreground">
       Esta ficha está arquivada. Restaure primeiro para voltar a editá-la;
-      a restauração não ativa a ficha, o telefone nem o acesso pago.
+      a restauração recupera a condição administrativa anterior sem alterar contatos privados ou acesso pago.
     </p>}
     <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
       <button type="button" className="min-h-11 rounded-lg border border-input px-4 text-foreground" onClick={onCancel}>Cancelar</button>
