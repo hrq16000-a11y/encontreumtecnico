@@ -64,7 +64,7 @@ jobs:
           let stagehand;
           try {
             browser = await localBrowser.launch({
-              executablePath: chromium.executablePath(),
+              executablePath: '/usr/bin/google-chrome',
               headless: true,
               chromiumSandbox: false,
             });
