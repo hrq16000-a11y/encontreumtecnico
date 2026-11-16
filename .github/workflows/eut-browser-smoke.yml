@@ -36,6 +36,55 @@ jobs:
           npm init -y >/dev/null
           npm install --no-audit --no-fund playwright@1.56.1
           npx playwright install chromium
+      - name: TEMP Stagehand synthetic Chromium QA (remove after evidence)
+        env:
+          OPENAI_API_KEY: ""
+          BROWSERBASE_API_KEY: ""
+          ANTHROPIC_API_KEY: ""
+        run: |
+          mkdir -p "$RUNNER_TEMP/eut-stagehand"
+          cd "$RUNNER_TEMP/eut-stagehand"
+          npm init -y >/dev/null
+          npm install --ignore-scripts --no-audit --no-fund --save-exact @browserbasehq/stagehand@4.4.0 playwright@1.56.1
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { createServer } from 'node:http';
+          import { once } from 'node:events';
+          import { chromium } from 'playwright';
+          import { localBrowser, Stagehand } from '@browserbasehq/stagehand';
+
+          const html = '<!doctype html><html lang="pt-BR"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Piloto sintético</title><main><h1>Diretório sintético</h1><label>Busca <input id="busca" aria-label="Busca"></label><button id="cartoes">Cartões</button><output id="estado">Linhas</output></main><script>document.querySelector("#cartoes").onclick=()=>document.querySelector("#estado").textContent="Cartões"</script></html>';
+          const server = createServer((_req, res) => {
+            res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+            res.end(html);
+          });
+          server.listen(0, '127.0.0.1');
+          await once(server, 'listening');
+          let browser;
+          let stagehand;
+          try {
+            browser = await localBrowser.launch({
+              executablePath: chromium.executablePath(),
+              headless: true,
+              chromiumSandbox: false,
+            });
+            stagehand = await Stagehand.create({ browser });
+            const [page] = await browser.context.pages();
+            assert.ok(page, 'Stagehand launched without an active page');
+            await page.goto('http://127.0.0.1:' + server.address().port);
+            assert.equal(await page.locator('h1').innerText(), 'Diretório sintético');
+            await page.locator('#busca').fill('Técnico de exemplo');
+            assert.equal(await page.locator('#busca').inputValue(), 'Técnico de exemplo');
+            await page.locator('#cartoes').click();
+            assert.equal(await page.locator('#estado').innerText(), 'Cartões');
+            console.log('STAGEHAND_RUNNER_PASS synthetic=1 loopback=1 credentials=0 paid_api=0 production=0');
+          } finally {
+            if (stagehand) await stagehand.close().catch(() => {});
+            if (browser) await browser.close().catch(() => {});
+            server.close();
+          }
+          NODE
+
       - name: Real public navigation in Chromium and mobile emulation
         env:
           EUT_BASE_URL: https://www.encontreumtecnico.com.br
