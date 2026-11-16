@@ -29,6 +29,14 @@ async function eventuallyValue(field, expected, label) {
   assert.equal(await field.inputValue(), expected, label);
 }
 
+async function expandAdvancedFilters(page) {
+  // Bairro is intentionally inside a collapsed, but mounted, advanced region.
+  const toggle = page.getByRole("button", { name: /Mais filtros/i });
+  await toggle.waitFor({ state: "visible", timeout: 20000 });
+  if (await toggle.getAttribute("aria-expanded") !== "true") await toggle.click();
+  await page.locator("#filtro-bairro").waitFor({ state: "visible", timeout: 20000 });
+}
+
 async function preserveHome2(page, context) {
   await visit(page, "/home2");
   const field = page.locator('input[placeholder="Em qual cidade?"]');
@@ -68,6 +76,7 @@ async function preserveGallery(page) {
 
 async function preserveSearch(page) {
   await visit(page, "/tecnicos");
+  await expandAdvancedFilters(page);
   const field = page.locator("#filtro-bairro");
   await field.waitFor({ state: "visible", timeout: 30000 });
   await field.fill("Boqueirão");
@@ -75,6 +84,7 @@ async function preserveSearch(page) {
     sessionStorage.getItem("eut-filter-pending-v1:filtro-bairro")));
   await visit(page, "/como-funciona");
   await page.goBack({ waitUntil: "domcontentloaded" });
+  await expandAdvancedFilters(page);
   await field.waitFor({ state: "visible", timeout: 20000 });
   await eventuallyValue(field, "Boqueirão", "Search loses pending neighborhood on history");
 }
@@ -134,6 +144,7 @@ async function publicMobileNeighborhoods(page) {
   }
   await page.setViewportSize({ width: 375, height: 812 });
   await visit(page, "/tecnicos");
+  await expandAdvancedFilters(page);
   const state = page.locator("#filtro-uf");
   const city = page.locator("#filtro-cidade");
   const neighborhood = page.locator("#filtro-bairro");
@@ -151,6 +162,7 @@ async function publicMobileNeighborhoods(page) {
   }
   await state.selectOption("PR");
   await city.fill("São José dos Pinhais");
+  await expandAdvancedFilters(page);
   const suggestions = page.locator("#eut-bairro-diretorio");
   await suggestions.waitFor({ state: "attached", timeout: 20000 });
   const labels = await suggestions.locator("option").evaluateAll(options => options.map(option => option.value));

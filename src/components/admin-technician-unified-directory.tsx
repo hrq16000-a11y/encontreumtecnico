@@ -719,16 +719,22 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       </>}
     </div>}
     {feedback && <p role="status" className="mt-3 rounded-lg border border-border bg-muted/50 p-3 text-sm text-foreground">{feedback}</p>}
-    {!loading && !registryLoading && !failed && <ul className={"mt-4 grid min-w-0 gap-3 " +
-      (view === "rows" ? "grid-cols-1" : view === "cards" ? "grid-cols-1 md:grid-cols-2" : "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4")}>
+    {!loading && !registryLoading && !failed && view === "rows" && results.length > 0 &&
+      <div aria-hidden="true" className="mt-4 hidden grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-3 rounded-t-xl border border-b-0 border-border bg-muted/60 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:grid">
+        <span>Profissional</span><span>Localidade</span><span>Especialidade</span><span>Origem / situação</span><span>Ações</span>
+      </div>}
+    {!loading && !registryLoading && !failed && <ul aria-label="Diretório operacional de técnicos" className={"grid min-w-0 gap-3 " +
+      (view === "rows" ? "grid-cols-1 gap-0 rounded-b-xl border border-border lg:border-t-0" : view === "cards" ? "mt-4 grid-cols-1 md:grid-cols-2" : "mt-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4")}>
       {results.map((row) => <li key={row.key}
-        className={"min-w-0 rounded-xl border bg-background p-3 transition-colors " +
+        className={"min-w-0 bg-background p-3 transition-colors " + (view === "rows" ? "border-b border-border last:border-b-0 lg:px-4" : "rounded-xl border") + " " +
           (selected.has(row.key) ? "border-primary/70 bg-primary/5" : "border-border") +
           (selectedKey === row.key ? " col-span-full" : "")}>
-        <div className={"flex min-w-0 gap-3 " + (view === "avatars" && selectedKey !== row.key
-          ? "flex-col items-center text-center" : view === "rows" || selectedKey === row.key
-            ? "flex-col lg:flex-row lg:items-center" : "flex-col")}>
-          <div className="flex items-center gap-3">
+        <div className={view === "rows"
+          ? "grid min-w-0 grid-cols-1 items-center gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]"
+          : "flex min-w-0 gap-3 " + (view === "avatars" && selectedKey !== row.key
+            ? "flex-col items-center text-center" : selectedKey === row.key
+              ? "flex-col lg:flex-row lg:items-center" : "flex-col")}>
+          <div className="flex min-w-0 items-center gap-3">
             <label className="flex min-h-11 min-w-8 shrink-0 cursor-pointer items-center justify-center"
               title={row.demo ? "Demonstração protegida" : `Selecionar ${row.name}`}>
               <input type="checkbox" aria-label={`Selecionar ${row.name}`} checked={selected.has(row.key)}
@@ -736,25 +742,39 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
                 className="h-5 w-5 accent-primary" />
             </label>
             <TechnicianAvatar name={row.name} avatarPath={row.avatarPath ?? null}
-              className={view === "avatars" && selectedKey !== row.key ? "h-16 w-16 shrink-0" : "h-12 w-12 shrink-0"} />
+              className={view === "avatars" && selectedKey !== row.key ? "h-16 w-16 shrink-0" : "h-10 w-10 shrink-0"} />
+            {view === "rows" && <div className="min-w-0">
+              <strong className="block break-words text-sm leading-snug text-foreground">{row.name}</strong>
+              <span className="mt-1 block text-xs text-muted-foreground lg:hidden">
+                {row.location} · {technicianState(row) === "active" ? "Ativo" : technicianState(row) === "inactive" ? "Suspenso / arquivado" : "A revisar"}
+              </span>
+            </div>}
           </div>
-          <div className="min-w-0 flex-1">
-            <strong className="block break-words leading-snug text-foreground">{row.name}</strong>
-            <span className={"mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold " +
+          <div className={"min-w-0 flex-1 " + (view === "rows" ? "hidden lg:block" : "")}>
+            {view !== "rows" && <strong className="block break-words leading-snug text-foreground">{row.name}</strong>}
+            {view !== "rows" && <span className={"mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold " +
               (technicianState(row) === "active" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" :
                 technicianState(row) === "inactive" ? "bg-amber-500/10 text-amber-700 dark:text-amber-300" : "bg-muted text-muted-foreground")}>
               {technicianState(row) === "active" ? "Ativo" : technicianState(row) === "inactive" ? "Suspenso / arquivado" : "A revisar"}
-            </span>
+            </span>}
             {row.regionKey ? <button type="button" onClick={() => filterRegion(row.regionKey ?? "")}
               className="mt-1 block min-h-8 max-w-full break-words text-left text-xs text-primary underline-offset-2 hover:underline"
               title="Filtrar pela região">{row.location}</button>
               : <p className="mt-1 text-xs text-muted-foreground">{row.location}</p>}
-            {row.specialty && <button type="button" onClick={() => filterSpecialty(categoryKeyword(row.specialty ?? ""))}
+            {view !== "rows" && row.specialty && <button type="button" onClick={() => filterSpecialty(categoryKeyword(row.specialty ?? ""))}
               className="mt-1 block min-h-8 max-w-full break-words text-left text-xs text-primary underline-offset-2 hover:underline"
               title="Filtrar pela categoria">{row.specialty}</button>}
             {row.demo && <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">Demonstração protegida</p>}
           </div>
-          <div className={"flex shrink-0 flex-wrap items-center gap-2 " + (view === "avatars" ? "justify-center" : "sm:justify-end")}>
+          {view === "rows" && <div className="hidden min-w-0 text-xs text-muted-foreground lg:block">
+            {row.specialty ? <button type="button" onClick={() => filterSpecialty(categoryKeyword(row.specialty ?? ""))}
+              className="min-h-9 break-words text-left text-primary hover:underline">{row.specialty}</button> : "Não informada"}
+          </div>}
+          {view === "rows" && <div className="hidden min-w-0 text-xs text-muted-foreground lg:block">
+            <span className="block">{row.origin === "portal" ? "Cadastro no portal" : row.origin === "wordpress" ? "Acervo WordPress" : row.origin === "guiafix" ? "Importação Guiafix" : row.origin === "manual" ? "Cadastro administrativo" : "Outra importação"}</span>
+            <span>{technicianState(row) === "active" ? "Ativo" : technicianState(row) === "inactive" ? "Suspenso / arquivado" : "A revisar"}</span>
+          </div>}
+          <div className={"flex shrink-0 flex-wrap items-center gap-2 " + (view === "rows" ? "lg:justify-end" : view === "avatars" ? "justify-center" : "sm:justify-end")}>
             <button type="button" onClick={() => setDetailKey((key) => key === row.key ? null : row.key)}
               aria-expanded={detailKey === row.key} className="min-h-10 rounded-lg border border-input px-3 text-xs font-semibold text-foreground hover:bg-muted">
               {detailKey === row.key ? "Fechar ficha" : "Ver ficha"}
