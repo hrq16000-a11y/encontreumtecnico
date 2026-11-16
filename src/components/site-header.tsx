@@ -69,7 +69,7 @@ export function SiteHeader() {
           onClick={() => setOpen(false)}
         >
           <img src={logo} alt="Encontre um Técnico" width={324} height={60}
-            className="h-9 w-auto max-w-[185px] object-contain transition-transform duration-200 group-hover:scale-[1.025] sm:h-10 sm:max-w-[218px] motion-reduce:transform-none" />
+            className="h-9 w-auto max-w-[142px] object-contain transition-transform duration-200 group-hover:scale-[1.025] sm:h-10 sm:max-w-[218px] motion-reduce:transform-none" />
         </Link>
 
         <nav className="hidden items-center gap-1 lg:flex" aria-label="Navegação principal">
@@ -98,7 +98,7 @@ export function SiteHeader() {
                 className={"inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-sm font-semibold text-foreground transition-colors hover:bg-accent " + FOCUS}>
                 <LogIn className="h-4 w-4" aria-hidden="true" /> Entrar
               </Link>
-              <Link to="/area-tecnico"
+              <Link to="/cadastro"
                 className={"inline-flex min-h-11 items-center gap-2 rounded-full border border-primary/25 bg-card px-4 text-sm font-semibold text-primary shadow-sm transition-colors hover:border-primary hover:bg-accent " + FOCUS}>
                 <Wrench className="h-4 w-4" aria-hidden="true" /> Sou técnico
               </Link>
@@ -111,6 +111,12 @@ export function SiteHeader() {
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
         </div>
+
+        <Link to={signedIn ? accountPath : "/cadastro"}
+          className={"ml-auto hidden min-h-11 shrink-0 items-center justify-center rounded-xl bg-primary px-3 text-xs font-bold text-primary-foreground min-[370px]:inline-flex lg:hidden " + FOCUS}>
+          {signedIn ? "Minha conta" : "Cadastre-se"}
+          <ArrowRight className="ml-1.5 h-4 w-4" aria-hidden="true" />
+        </Link>
 
         <button type="button" aria-expanded={open} aria-controls="eut-mobile-menu"
           aria-label={open ? "Fechar menu" : "Abrir menu"}
@@ -145,7 +151,7 @@ export function SiteHeader() {
                 className={"inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-input bg-card px-3 text-center text-sm font-semibold text-foreground " + FOCUS}>
                 <UsersRound className="h-4 w-4 text-primary" aria-hidden="true" /> Sou cliente
               </Link>
-              <Link to="/area-tecnico" onClick={() => setOpen(false)}
+              <Link to="/cadastro" onClick={() => setOpen(false)}
                 className={"inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-primary/30 bg-accent px-3 text-center text-sm font-semibold text-primary " + FOCUS}>
                 <Wrench className="h-4 w-4" aria-hidden="true" /> Sou técnico
               </Link>
