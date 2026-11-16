@@ -50,11 +50,14 @@ export function ConsentedVisitorPresence({ pathname }: { pathname: string }) {
     window.addEventListener("eut-consent-changed", visibility);
     document.addEventListener("visibilitychange", visibility);
     window.addEventListener("pagehide", detach);
+    // BFCache restores the mounted page without rerunning this effect.
+    window.addEventListener("pageshow", visibility);
     sync();
     return () => {
       window.removeEventListener("eut-consent-changed", visibility);
       document.removeEventListener("visibilitychange", visibility);
       window.removeEventListener("pagehide", detach);
+      window.removeEventListener("pageshow", visibility);
       detach();
     };
   }, [pathname]);
