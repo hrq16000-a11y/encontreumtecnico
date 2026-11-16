@@ -118,7 +118,7 @@ describe("convite factual para comunidade", () => {
     localStorage.setItem("eut-cookie-consent", '{"advertising":true}');
     ads.card = {
       label: "Publicidade", brand_name: "Marca Real", headline: "Campanha vigente",
-      destination_url: "https://patrocinador.example/oferta",
+      description: "Anúncio de teste aprovado", destination_url: "https://patrocinador.example/oferta",
       creative_type: "sponsored_card", slot_key: "home.content_1",
     };
     render(<HomeCommunityInvite />);
