@@ -59,6 +59,25 @@ describe("publicador de presença temporária", () => {
     expect(fake.connect).toHaveBeenCalledTimes(2);
   });
 
+  it("revoga imediatamente presença aberta em outra aba quando o consentimento muda", () => {
+    localStorage.setItem("eut-cookie-consent", '{"presence":true}');
+    render(<ConsentedVisitorPresence pathname="/" />);
+    const callback = fake.channel.subscribe.mock.calls[0]?.[0] as (status: string) => void;
+    act(() => { callback("SUBSCRIBED"); });
+    expect(fake.channel.track).toHaveBeenCalledTimes(1);
+
+    localStorage.setItem("eut-cookie-consent", '{"presence":false}');
+    act(() => {
+      window.dispatchEvent(new StorageEvent("storage", {
+        key: "eut-cookie-consent",
+        oldValue: '{"presence":true}',
+        newValue: '{"presence":false}',
+      }));
+    });
+    expect(fake.channel.untrack).toHaveBeenCalledTimes(1);
+    expect(fake.remove).toHaveBeenCalledWith(fake.channel);
+  });
+
   it("nunca conecta a área administrativa, mesmo após consentimento", () => {
     localStorage.setItem("eut-cookie-consent", '{"presence":true}');
     render(<ConsentedVisitorPresence pathname="/admin/metricas" />);

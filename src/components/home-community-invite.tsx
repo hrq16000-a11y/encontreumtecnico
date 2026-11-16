@@ -23,20 +23,48 @@ export function HomeCommunityInvite() {
 
   useEffect(() => {
     let active = true;
+    let generation = 0;
+    const invalidate = () => {
+      // The currently displayed snapshot may already be paused or expired.
+      setApprovedCard(null);
+      setPopupCard(null);
+    };
     const load = () => {
-      if (!advertisingConsent()) {
-        setApprovedCard(null);
-        setPopupCard(null);
-        return;
-      }
+      const request = ++generation;
+      invalidate();
+      if (!advertisingConsent() || document.visibilityState !== "visible") return;
       void Promise.resolve(db.rpc("eut_ads_public_slot", { _slot_key: "home.content_1", _route_path: "/" }))
         .then(({ data, error }) => {
-          if (active) setApprovedCard(error || !advertisingConsent() ? null : asApprovedSponsoredCard(data, "home.content_1"));
-        }).catch(() => { if (active) setApprovedCard(null); });
+          if (!active || request !== generation) return;
+          const card = error || !advertisingConsent() ? null : asApprovedSponsoredCard(data, "home.content_1");
+          setApprovedCard(card);
+        }).catch(() => {
+          if (active && request === generation) invalidate();
+        });
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") load();
+      else { generation += 1; invalidate(); }
+    };
+    const onConsentStorage = (event: StorageEvent) => {
+      if (event.key === "eut-cookie-consent" || event.key === null) load();
+    };
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) onVisibility();
     };
     load();
     window.addEventListener("eut-consent-changed", load);
-    return () => { active = false; window.removeEventListener("eut-consent-changed", load); };
+    window.addEventListener("storage", onConsentStorage);
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pageshow", onPageShow);
+    return () => {
+      active = false;
+      generation += 1;
+      window.removeEventListener("eut-consent-changed", load);
+      window.removeEventListener("storage", onConsentStorage);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pageshow", onPageShow);
+    };
   }, []);
 
   useEffect(() => {

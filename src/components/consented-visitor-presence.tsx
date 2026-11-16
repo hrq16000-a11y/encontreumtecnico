@@ -47,7 +47,12 @@ export function ConsentedVisitorPresence({ pathname }: { pathname: string }) {
     };
 
     const visibility = () => sync();
+    // localStorage changes in other tabs do not emit eut-consent-changed here.
+    const onConsentStorage = (event: StorageEvent) => {
+      if (event.key === "eut-cookie-consent" || event.key === null) sync();
+    };
     window.addEventListener("eut-consent-changed", visibility);
+    window.addEventListener("storage", onConsentStorage);
     document.addEventListener("visibilitychange", visibility);
     window.addEventListener("pagehide", detach);
     // BFCache restores the mounted page without rerunning this effect.
@@ -55,6 +60,7 @@ export function ConsentedVisitorPresence({ pathname }: { pathname: string }) {
     sync();
     return () => {
       window.removeEventListener("eut-consent-changed", visibility);
+      window.removeEventListener("storage", onConsentStorage);
       document.removeEventListener("visibilitychange", visibility);
       window.removeEventListener("pagehide", detach);
       window.removeEventListener("pageshow", visibility);

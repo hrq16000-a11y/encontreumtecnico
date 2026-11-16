@@ -114,6 +114,27 @@ describe("convite factual para comunidade", () => {
     expect(ads.rpc).toHaveBeenCalledWith("eut_ads_public_slot", { _slot_key: "home.content_1", _route_path: "/" });
   });
 
+  it("invalida o pop-up se a campanha for pausada ao voltar para a aba", async () => {
+    localStorage.setItem("eut-cookie-consent", '{"advertising":true}');
+    ads.card = {
+      label: "Publicidade", brand_name: "Marca Real", headline: "Campanha vigente",
+      destination_url: "https://patrocinador.example/oferta",
+      creative_type: "sponsored_card", slot_key: "home.content_1",
+    };
+    render(<HomeCommunityInvite />);
+    await act(async () => { await Promise.resolve(); });
+    act(() => { vi.advanceTimersByTime(11000); });
+    expect(screen.getByRole("complementary", { name: /campanha publicitária aprovada/i })).toBeTruthy();
+
+    ads.card = null;
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+      await Promise.resolve();
+    });
+    expect(screen.queryByRole("complementary", { name: /campanha publicitária aprovada/i })).toBeNull();
+    expect(ads.rpc).toHaveBeenCalledTimes(2);
+  });
+
   it("não consulta patrocinadores sem a escolha explícita de publicidade", () => {
     localStorage.setItem("eut-cookie-consent", '{"analytics":true,"advertising":false}');
     render(<HomeCommunityInvite />);
