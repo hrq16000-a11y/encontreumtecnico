@@ -392,12 +392,6 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
               <span aria-hidden="true" className="font-extrabold text-[20px] text-[#4285F4]">G</span> Entrar com Google
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </button>
-            <p className="mt-4 rounded-md border border-border bg-muted/30 p-3 text-left text-sm text-muted-foreground">
-              <strong className="text-foreground">Já tinha conta no WordPress?</strong>{" "}
-              Cadastre-se com o mesmo e-mail ou entre com Google. A senha antiga não foi transferida.
-              Após confirmar o e-mail, o sistema identifica o tipo da sua conta antiga e permite recuperá-la, junto com os perfis da sua autoria, sem digitar IDs.
-            </p>
-            <p className="mt-3 text-xs text-muted-foreground">Responsável pelo portal? Entre com sua conta Google autorizada e confirme a administração na próxima tela.</p>
             <EmailPasswordForm onError={setError} />
             <Link to="/ajuda-acesso" className="mt-4 inline-flex min-h-11 items-center justify-center text-sm font-semibold text-primary underline-offset-4 hover:underline">
               Problemas para entrar ou se cadastrar? Solicite ajuda
