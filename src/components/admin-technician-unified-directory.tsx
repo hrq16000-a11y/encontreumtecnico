@@ -7,7 +7,9 @@ import { publicTextProblem } from "@/lib/public-profile-text";
 import { AdminTechnicianManager } from "@/components/admin-technician-manager";
 import { AdminTechnicianRecordEditor, type AdminTechnicianRegistryRecord } from "@/components/admin-technician-record-editor";
 import { AdminTechnicianContactAccess } from "@/components/admin-technician-contact-access";
+import { AdminTechnician360SheetContent } from "@/components/admin-technician-360-sheet";
 import { TechnicianAvatar } from "@/components/technician-avatar";
+import { Sheet, SheetTrigger } from "@/components/ui/sheet";
 import { Link } from "@tanstack/react-router";
 import { useActiveCategories } from "@/hooks/use-active-categories";
 import { categoryKeyword, UNIFIED_DIRECTORY_PAGE_SIZE, unifiedPageCount, unifiedPageSlice } from "@/lib/admin-unified-pagination";
@@ -457,11 +459,6 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     setFeedback(`${done} alteração(ões) confirmada(s) no banco. ${failures ? `${failures} não concluída(s); nenhuma delas foi presumida como salva. ` : ""}${skipped ? `${skipped} ficha(s) sem ação compatível foram ignoradas.` : ""}`);
   }
 
-  function formatDate(value?: string): string {
-    if (!value || !Number.isFinite(Date.parse(value))) return "Não informado";
-    return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(new Date(value));
-  }
-
   function filterRegion(value: string) {
     setRegionDraft(value); setRegion(cleanUnifiedSearch(value)); setPage(0); setSelectedKey(null); setImportKey(null);
   }
@@ -775,10 +772,19 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
             <span>{technicianState(row) === "active" ? "Ativo" : technicianState(row) === "inactive" ? "Suspenso / arquivado" : "A revisar"}</span>
           </div>}
           <div className={"flex shrink-0 flex-wrap items-center gap-2 " + (view === "rows" ? "lg:justify-end" : view === "avatars" ? "justify-center" : "sm:justify-end")}>
-            <button type="button" onClick={() => setDetailKey((key) => key === row.key ? null : row.key)}
-              aria-expanded={detailKey === row.key} className="min-h-10 rounded-lg border border-input px-3 text-xs font-semibold text-foreground hover:bg-muted">
-              {detailKey === row.key ? "Fechar ficha" : "Ver ficha"}
-            </button>
+            <Sheet open={detailKey === row.key} onOpenChange={(open) => setDetailKey(open ? row.key : null)}>
+              <SheetTrigger asChild>
+                <button type="button" aria-expanded={detailKey === row.key}
+                  className="min-h-10 rounded-lg border border-input px-3 text-xs font-semibold text-foreground hover:bg-muted">
+                  Ver ficha
+                </button>
+              </SheetTrigger>
+              {detailKey === row.key && <AdminTechnician360SheetContent record={row} state={technicianState(row)}
+                onEdit={() => {
+                  setDetailKey(null);
+                  if (selectedKey !== row.key) selectRow(row);
+                }} />}
+            </Sheet>
             {!row.demo && <button type="button" onClick={() => selectRow(row)} aria-expanded={selectedKey === row.key}
               className="min-h-10 rounded-lg border border-primary/40 bg-primary/10 px-3 text-xs font-semibold text-primary hover:bg-primary/20">
               {selectedKey === row.key ? "Fechar edição" : "Editar"}
@@ -786,19 +792,6 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
             {!row.demo && <AdminTechnicianContactAccess recordKey={row.key} />}
           </div>
         </div>
-        {detailKey === row.key && <section aria-label={`Ficha de ${row.name}`}
-          className="mt-3 grid gap-3 rounded-lg border border-border bg-muted/30 p-3 text-sm sm:grid-cols-2">
-          <div><span className="block text-xs text-muted-foreground">Nome profissional</span><strong className="break-words">{row.name}</strong></div>
-          <div><span className="block text-xs text-muted-foreground">Localidade</span><span className="break-words">{row.location}</span></div>
-          <div><span className="block text-xs text-muted-foreground">Categoria / especialidade</span>{row.specialty || "Não informada"}</div>
-          <div><span className="block text-xs text-muted-foreground">Situação</span>{technicianState(row) === "active" ? "Ativo" : technicianState(row) === "inactive" ? "Suspenso / arquivado" : "A revisar"}</div>
-          <div><span className="block text-xs text-muted-foreground">Cadastro</span>{formatDate(row.createdAt)}</div>
-          {row.importedAt && <div><span className="block text-xs text-muted-foreground">Entrada no sistema (importação)</span>{formatDate(row.importedAt)}</div>}
-          <div><span className="block text-xs text-muted-foreground">Última atualização</span>{formatDate(row.updatedAt)}</div>
-          <div className="sm:col-span-2"><span className="block text-xs text-muted-foreground">Contato</span>
-            {row.registry?.contact_last4 ? `Privado · final ${row.registry.contact_last4}` : "Use Consultar contato para verificar disponibilidade"}
-          </div>
-        </section>}
         {row.registry && <p className="mt-2 text-xs text-muted-foreground">
           {row.registry.archived ? "Registro arquivado" : row.registry.admin_active ? "Registro administrativo ativo" : "Registro administrativo não ativo"}
           {row.registry.contact_last4 ? ` · Contato privado final ${row.registry.contact_last4}` : ""}
