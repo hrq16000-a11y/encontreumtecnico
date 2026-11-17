@@ -68,7 +68,7 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
   const [categories, setCategories] = useState<string[]>(existing?.category_slugs ?? []);
   const [services, setServices] = useState<string[]>(existing?.service_slugs ?? []);
   const [availableServices, setAvailableServices] = useState<CatalogService[]>([]);
-  const [active, setActive] = useState(existing?.admin_active ?? !importedCreation);
+  const [active, setActive] = useState(existing?.admin_active ?? !importedDemo);
   const [phoneAction, setPhoneAction] = useState<"keep" | "replace" | "remove">("keep");
   const [phone, setPhone] = useState("");
   // Suspension is exceptional. No paid-contact authorization exists in this registry.
@@ -155,7 +155,7 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
       region_approx: region.trim() || null,
       category_slugs: categories,
       service_slugs: services,
-      admin_active: importedCreation ? false : active && !existing?.is_demo,
+      admin_active: active && !existing?.is_demo && !importedDemo,
       is_demo: existing?.is_demo ?? importedDemo,
       phone_action: phoneAction,
     };
@@ -175,7 +175,7 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
         throw new Error("O banco não confirmou a gravação.");
       setPhone("");
       onSaved(data.idempotent ? "Registro já existente preservado, sem sobrescrever dados." :
-        data.created ? importedCreation ? "Técnico importado para gestão, sem ativar contato ou conta."
+        data.created ? importedCreation ? "Técnico cadastrado e habilitado, com telefone privado e sem criar conta."
           : "Técnico adicionado e auditado no banco."
           : "Ficha do técnico atualizada e auditada no banco.");
     } catch (error) {

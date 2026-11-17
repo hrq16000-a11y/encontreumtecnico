@@ -417,7 +417,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
             _payload: {
               display_name: row.name, city_ibge_id: row.cityIbgeId ?? null, ddd: null,
               region_approx: row.regionKey?.slice(0, 120) || null,
-              category_slugs: [], service_slugs: [], admin_active: false,
+              category_slugs: [], service_slugs: [], admin_active: true,
               is_demo: false, phone_action: "keep",
             }, _reason: bulkReason.trim(),
           });
@@ -495,7 +495,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     const auditReason = csvReason.trim();
     if (csvBusy || !registryAvailable || !csvRows.length || !csvAcknowledged ||
       auditReason.length < 8 || auditReason.length > 400 || publicTextProblem(auditReason, "identity")) return;
-    if (!window.confirm(`Importar ${csvRows.length} técnicos como fichas administrativas editáveis? Contatos permanecerão privados e nenhuma conta será ativada.`)) return;
+    if (!window.confirm(`Cadastrar ${csvRows.length} técnicos já habilitados? Os telefones continuarão privados e não será criada conta de acesso.`)) return;
     setCsvBusy(true);
     let saved = 0;
     let failedAt = 0;
@@ -504,7 +504,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
         display_name: row.displayName, city_ibge_id: row.cityIbgeId,
         ddd: row.ddd, region_approx: row.regionApprox,
         category_slugs: row.categorySlugs, service_slugs: [],
-        admin_active: false, is_demo: false,
+        admin_active: true, is_demo: false,
         phone_action: row.phoneE164 ? "replace" : "keep",
         ...(row.phoneE164 ? { phone_e164: row.phoneE164, contact_suspended: false } : {}),
       };
@@ -526,7 +526,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     } else {
       setCsvRows([]);
       setCsvAcknowledged(false);
-      setCsvInfo(`${saved} técnicos importados e auditados no banco; nenhum contato foi publicado.`);
+      setCsvInfo(`${saved} técnicos habilitados e auditados no banco. O telefone permanece privado; a ficha aparece na busca quando possui contato elegível.`);
     }
     if (saved) setReload((value) => value + 1);
   }
@@ -718,7 +718,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     {feedback && <p role="status" className="mt-3 rounded-lg border border-border bg-muted/50 p-3 text-sm text-foreground">{feedback}</p>}
     {!loading && !registryLoading && !failed && view === "rows" && results.length > 0 &&
       <div aria-hidden="true" className="mt-4 hidden grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-3 rounded-t-xl border border-b-0 border-border bg-muted/60 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:grid">
-        <span>Profissional</span><span>Localidade</span><span>Especialidade</span><span>Origem / situação</span><span>Ações</span>
+        <span>Profissional</span><span>Localidade</span><span>Especialidade</span><span>Situação</span><span>Ações</span>
       </div>}
     {!loading && !registryLoading && !failed && <ul aria-label="Diretório operacional de técnicos" className={"grid min-w-0 gap-3 " +
       (view === "rows" ? "grid-cols-1 gap-0 rounded-b-xl border border-border lg:border-t-0" : view === "cards" ? "mt-4 grid-cols-1 md:grid-cols-2" : "mt-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4")}>
@@ -768,7 +768,6 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
               className="min-h-9 break-words text-left text-primary hover:underline">{row.specialty}</button> : "Não informada"}
           </div>}
           {view === "rows" && <div className="hidden min-w-0 text-xs text-muted-foreground lg:block">
-            <span className="block">{row.origin === "portal" ? "Cadastro no portal" : row.origin === "wordpress" ? "Acervo WordPress" : row.origin === "guiafix" ? "Importação Guiafix" : row.origin === "manual" ? "Cadastro administrativo" : "Outra importação"}</span>
             <span>{technicianState(row) === "active" ? "Ativo" : technicianState(row) === "inactive" ? "Suspenso / arquivado" : "A revisar"}</span>
           </div>}
           <div className={"flex shrink-0 flex-wrap items-center gap-2 " + (view === "rows" ? "lg:justify-end" : view === "avatars" ? "justify-center" : "sm:justify-end")}>
@@ -878,7 +877,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     </nav>}
     <p className="mt-4 text-xs text-muted-foreground">
       Edições e ações em massa exigem sessão administrativa autorizada e motivo auditável.
-      O cadastro CSV é confirmado diretamente pela função auditada e não ativa contatos automaticamente.
+      O cadastro CSV é confirmado diretamente pela função auditada e nasce habilitado, sem revelar contatos.
     </p>
     <fieldset className="mt-4 space-y-2 rounded-xl border border-dashed border-border p-3">
       <legend className="text-sm font-semibold">Preparar importação CSV</legend>
@@ -886,7 +885,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
         Importe até 500 técnicos por arquivo de até 2 MB, com coluna nome obrigatória.
         Campos opcionais: ddd, cidade/regiao, ibge, categoria e telefone. Separe múltiplas categorias por |.
         A prévia fica neste aparelho; ao confirmar, as fichas são gravadas individualmente com auditoria,
-        sem ativar conta nem contato público. Reenviar o mesmo arquivo não duplica técnicos.
+        sem criar conta nem expor telefones. Técnicos habilitados com contato elegível entram na busca. Reenviar o mesmo arquivo não duplica técnicos.
       </p>
       <input type="file" accept=".csv,text/csv" aria-label="Selecionar CSV para análise local"
         className="max-w-full text-sm text-foreground"
