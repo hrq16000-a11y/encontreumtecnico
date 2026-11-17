@@ -163,23 +163,6 @@ function TechniciansPage() {
   const update = (patch: Partial<typeof search>) =>
     navigate({ search: (prev) => ({ ...prev, ...patch }), replace: true });
 
-  const renderCards = (rows: typeof technicians) => (
-    <ul className="grid min-w-0 gap-4 md:grid-cols-2 lg:gap-5">
-      {rows.map((technician) => (
-        <li key={technician.id} className="min-w-0">
-          <TechnicianSearchCard
-            technician={technician}
-            categories={categories}
-            services={services}
-            localMatch={prioritizeRegion ? localMatchLabel(technician, {
-              uf: search.uf, cidade: search.cidade, bairro: search.bairro,
-            }) : null}
-          />
-        </li>
-      ))}
-    </ul>
-  );
-
   return (
     <PageShell>
       <section className="mx-auto max-w-6xl px-4 pb-12 pt-6 sm:pt-8">
@@ -354,7 +337,25 @@ function TechniciansPage() {
           <span className="inline-flex items-center gap-2 text-xs font-semibold text-white/85"><ShieldCheck className="h-4 w-4" aria-hidden="true" /> Contatos protegidos</span>
         </div>
         <div className="mt-4">
-          {technicians.length === 0 ? (
+          {(() => {
+            // Keep actual cards in the results area, before contextual guidance.
+            const renderCards = (rows: typeof technicians) => (
+              <ul className="grid min-w-0 gap-4 md:grid-cols-2 lg:gap-5">
+                {rows.map((t) => (
+                  <li key={t.id} className="min-w-0">
+                    <TechnicianSearchCard
+                      technician={t}
+                      categories={categories}
+                      services={services}
+                      localMatch={prioritizeRegion ? localMatchLabel(t, {
+                        uf: search.uf, cidade: search.cidade, bairro: search.bairro,
+                      }) : null}
+                    />
+                  </li>
+                ))}
+              </ul>
+            );
+            return technicians.length === 0 ? (
             <div className="space-y-4">
               <EmptyState
                 title="Nenhum técnico encontrado com estes filtros"
@@ -444,7 +445,8 @@ function TechniciansPage() {
                 </section>
               )}
             </div>
-          ) : renderCards(technicians)}
+          ) : renderCards(technicians);
+          })()}
         </div>
         {CATEGORY_SEARCH_CONTEXT[search.especialidade] && (
           <aside aria-label="Orientações da especialidade selecionada"
