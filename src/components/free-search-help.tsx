@@ -49,7 +49,11 @@ export function FreeSearchHelp() {
   // Preserve the floating action on pages without tabs and on desktop.
   return (
     <>
-      <button type="button" ref={triggerRef} aria-haspopup="dialog"
+      <button
+        type="button"
+        id="eut-free-help-trigger"
+        ref={triggerRef}
+        aria-haspopup="dialog"
         aria-expanded={open} aria-controls="eut-free-help-dialog"
         onClick={() => { returnFocusRef.current = triggerRef.current; setContext({}); setOpen(true); }}
         className={"fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 z-40 min-h-12 items-center gap-2 rounded-full border border-white/30 bg-brand-navy px-4 py-3 text-sm font-bold text-white shadow-[0_14px_42px_-14px_rgba(7,28,57,.7)] transition-transform hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transform-none md:bottom-24 md:right-6 " + (hasMobileHelpTab ? "hidden md:inline-flex" : "inline-flex")}>

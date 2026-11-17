@@ -1,5 +1,5 @@
-import { Link } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { createLink, Link } from "@tanstack/react-router";
+import { forwardRef, useEffect, useRef, useState, type ComponentPropsWithRef } from "react";
 import {
   LayoutDashboard,
   Wrench,
@@ -46,6 +46,16 @@ const ICONS = {
   reivindicacoes: UserCheck,
   metricas: ChartNoAxesCombined,
 } satisfies Record<AdminSection, typeof LayoutDashboard>;
+
+// TanStack Router sets aria-current on every active Link, including duplicate
+// destinations in favorites, recent history and quick actions. Keep its SPA
+// navigation behavior, but reserve aria-current for the canonical group link.
+const ShortcutAnchor = forwardRef<HTMLAnchorElement, ComponentPropsWithRef<"a">>(
+  function ShortcutAnchor(props, ref) {
+    return <a {...props} aria-current={undefined} ref={ref} />;
+  },
+);
+export const AdminShortcutLink = createLink(ShortcutAnchor);
 
 export function AdminNavigation({ active }: { active: AdminSection }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -163,30 +173,33 @@ export function AdminNavigation({ active }: { active: AdminSection }) {
         <span className="min-w-0 break-words">{item.label}</span>
       </>
     );
+    const NavLink = placement === "group" ? Link : AdminShortcutLink;
     return (
       <div
         key={`${placement}:${key}`}
         className="flex min-w-0 items-center gap-1 rounded-xl border border-transparent hover:border-border"
       >
         {key === "inicio" ? (
-          <Link
+          <NavLink
             to="/admin"
+            activeOptions={{ exact: true }}
             onClick={() => setMobileOpen(false)}
             aria-current={chosen ? "page" : undefined}
             className={linkClass}
           >
             {content}
-          </Link>
+          </NavLink>
         ) : (
-          <Link
+          <NavLink
             to="/admin/$secao"
             params={{ secao: item.key }}
+            activeOptions={{ exact: true }}
             onClick={() => setMobileOpen(false)}
             aria-current={chosen ? "page" : undefined}
             className={linkClass}
           >
             {content}
-          </Link>
+          </NavLink>
         )}
         <button
           type="button"
