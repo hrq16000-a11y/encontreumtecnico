@@ -50,6 +50,25 @@ export function localMatchLabel(technician: AreaTechnician, area: DeclaredArea):
   return null;
 }
 
+/** Keep nationwide fallbacks visibly separate from the requested municipality.
+ * A different municipality in the same UF is never presented as local coverage.
+ */
+export function groupTechniciansByDeclaredArea<T extends AreaTechnician>(
+  technicians: T[], area: DeclaredArea,
+): { local: T[]; sameState: T[]; otherStates: T[] } {
+  const local: T[] = [];
+  const sameState: T[] = [];
+  const otherStates: T[] = [];
+  const hasCity = Boolean(normalized(area.cidade));
+  for (const technician of technicians) {
+    const level = localMatchLevel(technician, area);
+    if (level >= (hasCity ? 2 : 1)) local.push(technician);
+    else if (level === 1) sameState.push(technician);
+    else otherStates.push(technician);
+  }
+  return { local, sameState, otherStates };
+}
+
 export function rankTechniciansByDeclaredArea<T extends AreaTechnician>(
   technicians: T[],
   area: DeclaredArea,
