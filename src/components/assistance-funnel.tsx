@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { buildAssistanceLead, type AssistanceMode } from "@/lib/assistance-intent";
 import { buildSavedLeadWhatsAppUrl, type SavedAssistanceLead } from "@/lib/assistance-whatsapp";
+import { BRAZIL_STATES } from "@/lib/service-taxonomy";
 import type { FreeHelpContext } from "@/lib/free-search-help";
 import { clearAssistanceDraft, readAssistanceDraft, saveAssistanceDraft, type AssistanceDraft } from "@/lib/assistance-draft";
 
@@ -193,12 +194,18 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
       {step === 2 && (
         <div className="mt-5 space-y-4">
           <h3 className="text-xl font-extrabold text-foreground">Onde podemos ajudar e como responder?</h3>
-          <p className="text-xs leading-5 text-muted-foreground">Cidade e bairro são sugestões editáveis. Se a rede não identificar sua cidade, você pode continuar sem informá-la.</p>
+          <p className="text-xs leading-5 text-muted-foreground">Cidade, UF e bairro são sugestões editáveis. Se a rede não identificar sua cidade, você pode continuar sem informá-la.</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block text-sm font-semibold text-foreground">Cidade (opcional)
               <input className={input} value={city} maxLength={80} onChange={e => { cityEdited.current = true; preserve({city:e.target.value,uf:""});setCity(e.target.value);setUf(""); }} placeholder="Cidade aproximada" autoComplete="address-level2" />
             </label>
-            <label className="block text-sm font-semibold text-foreground">Bairro (opcional)
+            <label className="block text-sm font-semibold text-foreground">Estado (UF)
+              <select className={input} value={uf} onChange={e => { cityEdited.current = true; preserve({uf:e.target.value}); setUf(e.target.value); }} autoComplete="address-level1">
+                <option value="">Não informado</option>
+                {BRAZIL_STATES.map(value => <option key={value} value={value}>{value}</option>)}
+              </select>
+            </label>
+            <label className="block text-sm font-semibold text-foreground sm:col-span-2">Bairro (opcional)
               <input className={input} value={neighborhood} maxLength={80} onChange={e => {preserve({neighborhood:e.target.value});setNeighborhood(e.target.value)}} placeholder="Só se souber" autoComplete="address-level3" />
             </label>
           </div>

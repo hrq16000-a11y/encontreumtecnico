@@ -36,7 +36,10 @@ describe("Home editorial P1 — FAQ, jornadas, institucional e rodapé", () => {
     const start = home.indexOf('aria-labelledby="home-journeys-title"');
     const end = home.indexOf("</PageShell>", start);
     const block = home.slice(start, end);
-    expect(block.match(/to="\/entrar"/g)).toHaveLength(2);
+    // Cliente entra na conta; técnico escolhe o fluxo de cadastro, que
+    // recupera a conta existente após autenticação quando necessário.
+    expect(block.match(/to="\/entrar"/g)).toHaveLength(1);
+    expect(block.match(/to="\/cadastro"/g)).toHaveLength(1);
     expect(block).toContain('bg-gradient-to-br from-brand-navy');
     expect(block).toContain("eut-card-lift");
     expect(block).toContain("motion-reduce:transform-none");

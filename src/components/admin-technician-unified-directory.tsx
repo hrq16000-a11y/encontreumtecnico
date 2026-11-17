@@ -639,19 +639,19 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       </label>
     </div>
     <div className="mt-4 flex flex-wrap items-end justify-between gap-3 rounded-xl border border-border bg-muted/20 p-3">
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="grid gap-1 text-xs font-semibold text-foreground"><span className="flex items-center gap-1"><SlidersHorizontal className="h-4 w-4" /> Situação</span>
+      <div className="flex w-full min-w-0 flex-wrap items-end gap-3 sm:w-auto">
+        <label className="grid w-full min-w-0 gap-1 text-xs font-semibold text-foreground sm:w-auto"><span className="flex items-center gap-1"><SlidersHorizontal className="h-4 w-4" /> Situação</span>
           <select value={stateFilter} onChange={(event) => { setStateFilter(event.target.value as TechnicianStateFilter); setPage(0); }}
-            className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm">
+            className="min-h-11 w-full min-w-0 max-w-full rounded-lg border border-input bg-background px-3 text-sm">
             <option value="all">Todas as situações</option>
             <option value="active">Ativos</option>
             <option value="inactive">Suspensos e arquivados</option>
             <option value="review">Sem ativação / em análise</option>
           </select>
         </label>
-        <label className="grid gap-1 text-xs font-semibold text-foreground">Ordenar por
+        <label className="grid w-full min-w-0 gap-1 text-xs font-semibold text-foreground sm:w-auto">Ordenar por
           <select value={sort} onChange={(event) => { setSort(event.target.value as TechnicianSortMode); setRecentOnly(false); setPage(0); }}
-            className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm">
+            className="min-h-11 w-full min-w-0 max-w-full rounded-lg border border-input bg-background px-3 text-sm">
             <option value="name-asc">Nome A–Z</option>
             <option value="name-desc">Nome Z–A</option>
             <option value="newest">Entradas mais recentes (cadastro ou importação)</option>
