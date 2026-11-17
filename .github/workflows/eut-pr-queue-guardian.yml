@@ -1,0 +1,39 @@
+name: EUT PR queue guardian
+
+on:
+  schedule:
+    - cron: "13,43 * * * *"
+  workflow_dispatch:
+  pull_request_target:
+    types: [opened, reopened, ready_for_review, converted_to_draft, synchronize, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  checks: read
+  statuses: read
+  actions: write
+
+concurrency:
+  group: eut-pr-queue-guardian
+  cancel-in-progress: false
+
+jobs:
+  process:
+    if: github.repository == 'hrq16000-a11y/encontreumtecnico'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Contract tests (fail closed)
+        run: node --test scripts/eut-pr-queue-guardian.test.cjs
+      - name: Inspect queue and integrate qualified PRs
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { run } = require(`${process.env.GITHUB_WORKSPACE}/scripts/eut-pr-queue-guardian.cjs`);
+            await run({ github, context, core });
