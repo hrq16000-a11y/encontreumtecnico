@@ -6,7 +6,8 @@ describe("AdminNavigation: rolagem do menu por tamanho de tela", () => {
 
   it("limita a coluna e permite rolagem independente no desktop", () => {
     expect(source).toContain("lg:max-h-[calc(100dvh-7rem)]");
-    expect(source).toContain("lg:flex-1 lg:flex-col lg:overflow-y-scroll");
+    expect(source).toContain("lg:flex lg:flex-col");
+    expect(source).toContain("lg:min-h-0 lg:flex-1 lg:overflow-y-scroll");
     expect(source).not.toContain("lg:overflow-visible");
   });
 

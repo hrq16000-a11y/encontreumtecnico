@@ -253,7 +253,7 @@ export function AdminNavigation({ active }: { active: AdminSection }) {
           aria-label="Menu administrativo"
           tabIndex={0}
           className={
-            "mt-3 min-w-0 gap-3 overscroll-contain pb-2 [scrollbar-gutter:stable] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-y-scroll " +
+            "mt-3 min-w-0 gap-3 overscroll-contain pb-2 [scrollbar-gutter:stable] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:flex lg:flex-col lg:min-h-0 lg:flex-1 lg:overflow-y-scroll " +
             (mobileOpen ? "flex max-h-[65dvh] flex-col overflow-y-auto" : "hidden")
           }
         >

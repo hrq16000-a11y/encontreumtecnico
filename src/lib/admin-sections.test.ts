@@ -84,7 +84,10 @@ describe("Central administrativa: URLs próprias e RLS intacta", () => {
     expect(nav).toContain('activeOptions={{ exact: true }}');
     expect(nav).toContain('const NavLink = placement === "group" ? Link : AdminShortcutLink;');
     expect(nav).toContain('aria-current={undefined}');
-    expect(help).toContain('id="eut-free-help-trigger"');
-    expect(styles).toContain('body:has([aria-controls="eut-admin-navigation"][aria-expanded="true"]) #eut-free-help-trigger');
+    // The current main already removes the floating public help trigger on admin routes.
+    // No duplicate CSS overlay workaround is needed after reconciliation.
+    expect(help).toContain('!inAdmin && <button');
+    expect(help).not.toContain('id="eut-free-help-trigger"');
+    expect(styles).not.toContain('body:has([aria-controls="eut-admin-navigation"]');
   });
 });
