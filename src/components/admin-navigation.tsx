@@ -9,6 +9,7 @@ import { AdminGlobalSearch } from "@/components/admin-global-search";
 
 const ICONS = {
   inicio: LayoutDashboard,
+  usuarios: UsersRound,
   tecnicos: Wrench,
   clientes: UsersRound,
   contas: ShieldBan,
@@ -21,6 +22,11 @@ const ICONS = {
   reivindicacoes: UserCheck,
   metricas: ChartNoAxesCombined,
 } satisfies Record<AdminSection, typeof LayoutDashboard>;
+
+// Keep historic deep links functional; their controls are consolidated under Usuários.
+const SECONDARY_USER_SECTIONS = new Set<AdminSection>([
+  "tecnicos", "clientes", "contas", "contatos", "legado", "reivindicacoes",
+]);
 
 export function AdminNavigation({ active }: { active: AdminSection }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -59,7 +65,7 @@ export function AdminNavigation({ active }: { active: AdminSection }) {
         <nav id="eut-admin-navigation" aria-label="Menu administrativo"
           className={"mt-3 gap-1 pb-2 lg:flex lg:flex-col lg:overflow-visible " +
             (mobileOpen ? "flex max-h-[65vh] flex-col overflow-y-auto" : "hidden")}>
-          {ADMIN_SECTIONS.map((item) => {
+          {ADMIN_SECTIONS.filter((item) => !SECONDARY_USER_SECTIONS.has(item.key)).map((item) => {
             const Icon = ICONS[item.key];
             const chosen = item.key === active;
             const className = "flex min-h-12 shrink-0 items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
