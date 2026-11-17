@@ -6,6 +6,8 @@ import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { buildAssistanceLead, type AssistanceMode } from "@/lib/assistance-intent";
 import { buildSavedLeadWhatsAppUrl, type SavedAssistanceLead } from "@/lib/assistance-whatsapp";
 import { BRAZIL_STATES } from "@/lib/service-taxonomy";
+import { MunicipalityPicker } from "@/components/municipality-picker";
+import { placeKey } from "@/lib/location-labels";
 import type { FreeHelpContext } from "@/lib/free-search-help";
 import { clearAssistanceDraft, readAssistanceDraft, saveAssistanceDraft, type AssistanceDraft } from "@/lib/assistance-draft";
 
@@ -25,6 +27,7 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
   const [problem, setProblem] = useState(restored?.problem || context.initialProblem || "");
   const [city, setCity] = useState(context.city || restored?.city || "");
   const [uf, setUf] = useState(context.uf || restored?.uf || "");
+  const [cityIbgeId, setCityIbgeId] = useState<number | null>(null);
   const [neighborhood, setNeighborhood] = useState(context.neighborhood || restored?.neighborhood || "");
   const [consent, setConsent] = useState(false);
   const [sending, setSending] = useState(false);
@@ -63,7 +66,9 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
       return;
     }
     const lead = buildAssistanceLead({
-      mode, name, email, service, when, problem, city, uf, neighborhood,
+      // Only a catalogue-selected municipality can be recorded as a city.
+      mode, name, email, service, when, problem, city: cityIbgeId ? city : "", uf,
+      neighborhood: cityIbgeId ? neighborhood : "",
       technicianId: context.technicianId, technicianName: context.technicianName,
       sourceGuide: context.guideSlug,
     });
@@ -84,13 +89,13 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
   }
 
   function goToSearch() {
-    const citySearch = city.trim().slice(0, 80);
+    const citySearch = cityIbgeId ? city.trim().slice(0, 80) : "";
     const ufSearch = uf.trim().toUpperCase().slice(0, 2);
     onClose();
     void navigate({
       to: "/tecnicos",
       search: { especialidade: "Todas", cidade: citySearch, uf: ufSearch,
-        bairro: neighborhood.trim().slice(0, 80), regiao: "", servico: "",
+        bairro: cityIbgeId ? neighborhood.trim().slice(0, 80) : "", regiao: "", servico: "",
         prioridade: citySearch && ufSearch ? "regiao" : "" },
     });
   }
@@ -194,17 +199,27 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
       {step === 2 && (
         <div className="mt-5 space-y-4">
           <h3 className="text-xl font-extrabold text-foreground">Onde podemos ajudar e como responder?</h3>
-          <p className="text-xs leading-5 text-muted-foreground">Cidade, UF e bairro são sugestões editáveis. Se a rede não identificar sua cidade, você pode continuar sem informá-la.</p>
+          <p className="text-xs leading-5 text-muted-foreground">UF e município são sugeridos pela região aproximada. Confirme a cidade na lista oficial ou continue sem informar localidade; GPS não é necessário.</p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block text-sm font-semibold text-foreground">Cidade (opcional)
-              <input className={input} value={city} maxLength={80} onChange={e => { cityEdited.current = true; preserve({city:e.target.value,uf:""});setCity(e.target.value);setUf(""); }} placeholder="Cidade aproximada" autoComplete="address-level2" />
-            </label>
             <label className="block text-sm font-semibold text-foreground">Estado (UF)
-              <select className={input} value={uf} onChange={e => { cityEdited.current = true; preserve({uf:e.target.value}); setUf(e.target.value); }} autoComplete="address-level1">
+              <select className={input} value={uf} onChange={e => { cityEdited.current = true; preserve({city:"",uf:e.target.value,neighborhood:""}); setCity(""); setCityIbgeId(null); setNeighborhood(""); setUf(e.target.value); }} autoComplete="address-level1">
                 <option value="">Não informado</option>
                 {BRAZIL_STATES.map(value => <option key={value} value={value}>{value}</option>)}
               </select>
             </label>
+            <div className="min-w-0 sm:col-span-2">
+              <MunicipalityPicker uf={uf} selectedId={cityIbgeId} currentCityName={city}
+                required={false} onSelect={municipality => {
+                  cityEdited.current = true;
+                  setCityIbgeId(municipality.id);
+                  const moved = Boolean(city.trim()) && placeKey(city) !== placeKey(municipality.name);
+                  preserve({city:municipality.name,uf:municipality.uf,
+                    ...(moved ? { neighborhood: "" } : {})});
+                  setCity(municipality.name);
+                  setUf(municipality.uf);
+                  if (moved) setNeighborhood("");
+                }} />
+            </div>
             <label className="block text-sm font-semibold text-foreground sm:col-span-2">Bairro (opcional)
               <input className={input} value={neighborhood} maxLength={80} onChange={e => {preserve({neighborhood:e.target.value});setNeighborhood(e.target.value)}} placeholder="Só se souber" autoComplete="address-level3" />
             </label>
