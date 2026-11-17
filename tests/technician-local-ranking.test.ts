@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { localMatchLabel, localMatchLevel, rankTechniciansByDeclaredArea } from "../src/lib/technician-local-ranking";
+import { groupTechniciansByDeclaredArea, localMatchLabel, localMatchLevel, rankTechniciansByDeclaredArea } from "../src/lib/technician-local-ranking";
 
 type TestTechnician = {
   id: string;
@@ -51,5 +51,38 @@ describe("Declared-area relevance is not a GPS distance or a quality score", () 
   test("does not pretend a city is nearby when only a neighborhood matches", () => {
     const candidate=person("same-bairro-different-city","SP","Campinas","Centro",false);
     expect(localMatchLevel(candidate,{uf:"",cidade:"",bairro:"Centro"})).toBe(0);
+  });
+
+  test("separates city coverage, same-state alternatives and national suggestions", () => {
+    const candidates = [
+      person("remote", "SP", "Campinas", "Centro", true),
+      person("state", "PR", "Curitiba", "Centro", true),
+      person("local", "PR", "São José dos Pinhais", "Afonso Pena", false),
+      { ...person("coverage", "SC", "Florianópolis", "Centro", false), coverage_cities: [{ id: 4106902, name: "São José dos Pinhais", uf: "PR" }] },
+    ];
+    const grouped = groupTechniciansByDeclaredArea(candidates, area);
+    expect(grouped.local.map(t => t.id)).toEqual(["local", "coverage"]);
+    expect(grouped.sameState.map(t => t.id)).toEqual(["state"]);
+    expect(grouped.otherStates.map(t => t.id)).toEqual(["remote"]);
+  });
+
+  test("a UF sem cidade classifica perfis do próprio estado como locais", () => {
+    const grouped = groupTechniciansByDeclaredArea([
+      person("parana", "PR", "Curitiba", "Centro", false),
+      person("outro", "SP", "Campinas", "Centro", false),
+    ], { uf: "PR", cidade: "", bairro: "" });
+    expect(grouped.local.map(t => t.id)).toEqual(["parana"]);
+    expect(grouped.sameState).toHaveLength(0);
+    expect(grouped.otherStates.map(t => t.id)).toEqual(["outro"]);
+  });
+
+  test("nenhum perfil local não transforma alternativas nacionais em atendimento confirmado", () => {
+    const grouped = groupTechniciansByDeclaredArea([
+      person("parana", "PR", "Curitiba", "Centro", false),
+      person("brasil", "PA", "Redenção", "Centro", true),
+    ], area);
+    expect(grouped.local).toHaveLength(0);
+    expect(grouped.sameState.map(t => t.id)).toEqual(["parana"]);
+    expect(grouped.otherStates.map(t => t.id)).toEqual(["brasil"]);
   });
 });

@@ -59,7 +59,7 @@ export function LegacyReviewQueue({ onlyTechnicians = false, onlyClients = false
         .select(FIELDS, { count: "exact" }).eq("source_key", "wordpress_20261108").eq("kind", kind);
       if (term) query = query.ilike("title", `%${term}%`);
       const { data, error: readError, count } = await query
-        .order(order === "name" ? "title" : "imported_at", { ascending: order === "oldest" })
+        .order(order === "name" ? "title" : "imported_at", { ascending: order === "name" || order === "oldest" })
         .order("wp_post_id", { ascending: order === "oldest" })
         .range(page * LEGACY_REVIEW_PAGE_SIZE, (page + 1) * LEGACY_REVIEW_PAGE_SIZE - 1);
       if (!current) return;

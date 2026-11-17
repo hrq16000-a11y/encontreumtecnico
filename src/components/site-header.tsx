@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { showMobileQuickTabs } from "@/lib/navigation-safety";
-import { ArrowRight, CircleHelp, House, LogIn, Menu, Search, Wrench, X, UserRound, UsersRound } from "lucide-react";
+import { ArrowRight, CircleHelp, House, LifeBuoy, LogIn, Menu, Search, Wrench, X, UserRound, UsersRound } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { openFreeHelp } from "@/lib/free-search-help";
 import logo from "@/assets/logo-marinho.png";
 
 const NAV_ITEMS = [
@@ -167,7 +168,7 @@ export function SiteHeader() {
       )}
     </header>
     {showQuickTabs && <nav aria-label="Acesso rápido no celular"
-      className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-3 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-6px_22px_rgba(0,0,0,0.08)] backdrop-blur md:hidden">
+      className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-6px_22px_rgba(0,0,0,0.08)] backdrop-blur md:hidden">
       <Link to="/" activeOptions={{ exact: true }}
         className={"flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg py-2 text-xs font-medium text-muted-foreground " + FOCUS}
         activeProps={{ className: "flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg bg-primary/10 py-2 text-xs font-semibold text-primary" }}>
@@ -183,6 +184,10 @@ export function SiteHeader() {
         activeProps={{ className: "flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg bg-primary/10 py-2 text-xs font-semibold text-primary" }}>
         {signedIn ? <UserRound className="h-5 w-5" aria-hidden="true" /> : <LogIn className="h-5 w-5" aria-hidden="true" />} Minha área
       </Link>
+      <button type="button" onClick={event => { event.currentTarget.focus(); openFreeHelp({}); }}
+        className={"flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg py-2 text-xs font-semibold text-primary " + FOCUS}>
+        <LifeBuoy className="h-5 w-5" aria-hidden="true" /> Ajuda
+      </button>
     </nav>}
     </>
   );
