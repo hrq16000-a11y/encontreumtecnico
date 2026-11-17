@@ -22,8 +22,12 @@ import {
 import { ADMIN_SECTIONS, type AdminSection } from "@/lib/admin-sections";
 import {
   ADMIN_NAV_FAVORITES_KEY,
+  ADMIN_NAV_RECENT_KEY,
+  ADMIN_NAV_COLLAPSED_KEY,
   ADMIN_NAV_GROUPS,
   matchingAdminNavKeys,
+  nextAdminRecent,
+  sanitizeAdminCollapsed,
   sanitizeAdminFavorites,
 } from "@/lib/admin-navigation-preferences";
 import { AdminGlobalSearch } from "@/components/admin-global-search";
@@ -48,10 +52,12 @@ export function AdminNavigation({ active }: { active: AdminSection }) {
   const [moduleQuery, setModuleQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [favorites, setFavorites] = useState<AdminSection[]>([]);
-  const [favoritesLoaded, setFavoritesLoaded] = useState(false);
+  const [recent, setRecent] = useState<AdminSection[]>([]);
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const root = useRef<HTMLElement | null>(null);
   useEffect(() => {
     setMobileOpen(false);
+    setModuleQuery("");
   }, [active]);
   useEffect(() => {
     try {
@@ -63,16 +69,54 @@ export function AdminNavigation({ active }: { active: AdminSection }) {
     } catch {
       setFavorites([]);
     }
-    setFavoritesLoaded(true);
+    try {
+      setRecent(
+        sanitizeAdminFavorites(
+          JSON.parse(window.sessionStorage.getItem(ADMIN_NAV_RECENT_KEY) ?? "[]"),
+        ),
+      );
+    } catch {
+      setRecent([]);
+    }
+    try {
+      setCollapsed(
+        sanitizeAdminCollapsed(
+          JSON.parse(window.sessionStorage.getItem(ADMIN_NAV_COLLAPSED_KEY) ?? "{}"),
+        ),
+      );
+    } catch {
+      setCollapsed({});
+    }
+    setPreferencesLoaded(true);
   }, []);
   useEffect(() => {
-    if (!favoritesLoaded) return;
+    if (!preferencesLoaded) return;
     try {
       window.localStorage.setItem(ADMIN_NAV_FAVORITES_KEY, JSON.stringify(favorites));
     } catch {
       // Local storage may be unavailable in private browsing.
     }
-  }, [favorites, favoritesLoaded]);
+  }, [favorites, preferencesLoaded]);
+  useEffect(() => {
+    if (!preferencesLoaded) return;
+    setRecent((current) => nextAdminRecent(current, active));
+  }, [active, preferencesLoaded]);
+  useEffect(() => {
+    if (!preferencesLoaded) return;
+    try {
+      window.sessionStorage.setItem(ADMIN_NAV_RECENT_KEY, JSON.stringify(recent));
+    } catch {
+      // Navigation remains usable if session storage is unavailable.
+    }
+  }, [recent, preferencesLoaded]);
+  useEffect(() => {
+    if (!preferencesLoaded) return;
+    try {
+      window.sessionStorage.setItem(ADMIN_NAV_COLLAPSED_KEY, JSON.stringify(collapsed));
+    } catch {
+      // Navigation remains usable if session storage is unavailable.
+    }
+  }, [collapsed, preferencesLoaded]);
   useEffect(() => {
     if (!mobileOpen) return;
     function outside(event: PointerEvent) {
@@ -93,6 +137,7 @@ export function AdminNavigation({ active }: { active: AdminSection }) {
   const hasQuery = moduleQuery.trim().length > 0;
   const matches = new Set(matchingAdminNavKeys(moduleQuery));
   const visibleFavorites = favorites.filter((key) => matches.has(key));
+  const visibleRecent = recent.filter((key) => matches.has(key) && !favorites.includes(key));
 
   function toggleFavorite(key: AdminSection) {
     setFavorites((current) =>
@@ -102,11 +147,12 @@ export function AdminNavigation({ active }: { active: AdminSection }) {
     );
   }
 
-  function moduleLink(key: AdminSection, shortcut = false) {
+  function moduleLink(key: AdminSection, placement: "group" | "favorite" | "recent" = "group") {
     const item = ADMIN_SECTIONS.find((section) => section.key === key);
     if (!item) return null;
     const Icon = ICONS[item.key];
-    const chosen = item.key === active;
+    // A favorited/recent module appears twice; only its canonical group link is current.
+    const chosen = item.key === active && placement === "group";
     const favorite = favorites.includes(key);
     const linkClass =
       "flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
@@ -119,7 +165,7 @@ export function AdminNavigation({ active }: { active: AdminSection }) {
     );
     return (
       <div
-        key={`${shortcut ? "favorite" : "module"}:${key}`}
+        key={`${placement}:${key}`}
         className="flex min-w-0 items-center gap-1 rounded-xl border border-transparent hover:border-border"
       >
         {key === "inicio" ? (
@@ -134,7 +180,7 @@ export function AdminNavigation({ active }: { active: AdminSection }) {
         ) : (
           <Link
             to="/admin/$secao"
-              params={{ secao: item.key }}
+            params={{ secao: item.key }}
             onClick={() => setMobileOpen(false)}
             aria-current={chosen ? "page" : undefined}
             className={linkClass}
@@ -225,7 +271,18 @@ export function AdminNavigation({ active }: { active: AdminSection }) {
               <h2 className="flex items-center gap-2 px-2 py-1 text-xs font-bold uppercase tracking-wide text-primary">
                 <Star className="h-3.5 w-3.5" aria-hidden="true" /> Favoritos
               </h2>
-              {visibleFavorites.map((key) => moduleLink(key, true))}
+              {visibleFavorites.map((key) => moduleLink(key, "favorite"))}
+            </section>
+          )}
+          {visibleRecent.length > 0 && (
+            <section
+              aria-label="Módulos acessados recentemente"
+              className="min-w-0 space-y-1 rounded-xl border border-border/70 bg-muted/20 p-2"
+            >
+              <h2 className="px-2 py-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                Acessados recentemente
+              </h2>
+              {visibleRecent.map((key) => moduleLink(key, "recent"))}
             </section>
           )}
           {ADMIN_NAV_GROUPS.map((group) => {

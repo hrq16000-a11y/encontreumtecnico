@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   ADMIN_NAV_GROUPS,
   matchingAdminNavKeys,
+  nextAdminRecent,
+  sanitizeAdminCollapsed,
   sanitizeAdminFavorites,
 } from "./admin-navigation-preferences";
 import { ADMIN_SECTIONS } from "./admin-sections";
@@ -35,5 +37,26 @@ describe("navegação administrativa aditiva", () => {
     ).toEqual(["tecnicos", "mensagens"]);
     expect(sanitizeAdminFavorites("tecnicos")).toEqual([]);
     expect(sanitizeAdminFavorites(null)).toEqual([]);
+  });
+
+  it("mantém apenas IDs válidos dos grupos recolhidos", () => {
+    expect(
+      sanitizeAdminCollapsed({ geral: true, atendimento: false, operacao: true, falso: true }),
+    ).toEqual({ geral: true, operacao: true });
+    expect(sanitizeAdminCollapsed(["geral"])).toEqual({});
+    expect(sanitizeAdminCollapsed(null)).toEqual({});
+  });
+
+  it("guarda os últimos módulos sem repetir chaves nem aceitar rotas adulteradas", () => {
+    expect(nextAdminRecent(["tecnicos", "clientes", "tecnicos", "../admin"], "clientes")).toEqual([
+      "clientes",
+      "tecnicos",
+    ]);
+    expect(nextAdminRecent(["tecnicos", "clientes", "mensagens", "catalogo"], "inicio")).toEqual([
+      "inicio",
+      "tecnicos",
+      "clientes",
+      "mensagens",
+    ]);
   });
 });
