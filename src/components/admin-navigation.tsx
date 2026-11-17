@@ -219,7 +219,7 @@ export function AdminNavigation({ active }: { active: AdminSection }) {
   }
   return (
     <aside ref={root} className="min-w-0 lg:sticky lg:top-24 lg:self-start">
-      <div className="rounded-2xl border border-border bg-card p-3 shadow-sm sm:p-4">
+      <div className="rounded-2xl border border-border bg-card p-3 shadow-sm sm:p-4 lg:flex lg:max-h-[calc(100dvh-7rem)] lg:min-h-0 lg:flex-col">
         <div className="hidden border-b border-border px-2 pb-4 lg:block">
           <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-primary">
             Central de comando
@@ -251,9 +251,10 @@ export function AdminNavigation({ active }: { active: AdminSection }) {
         <nav
           id="eut-admin-navigation"
           aria-label="Menu administrativo"
+          tabIndex={0}
           className={
-            "mt-3 min-w-0 gap-3 pb-2 lg:flex lg:flex-col lg:overflow-visible " +
-            (mobileOpen ? "flex max-h-[65vh] flex-col overflow-y-auto" : "hidden")
+            "mt-3 min-w-0 gap-3 overscroll-contain pb-2 [scrollbar-gutter:stable] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-y-scroll " +
+            (mobileOpen ? "flex max-h-[65dvh] flex-col overflow-y-auto" : "hidden")
           }
         >
           <div className="relative min-w-0">

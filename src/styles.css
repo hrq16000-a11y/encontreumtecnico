@@ -399,11 +399,3 @@ html {
 .eut-guide-stable-type h3 {
   font-family: inherit;
 }
-
-/* An expanded mobile admin menu must remain operable beneath the global help CTA.
- * The CTA returns automatically when the menu closes; its dialog remains available. */
-@media (max-width: 1023px) {
-  body:has([aria-controls="eut-admin-navigation"][aria-expanded="true"]) #eut-free-help-trigger {
-    display: none;
-  }
-}
