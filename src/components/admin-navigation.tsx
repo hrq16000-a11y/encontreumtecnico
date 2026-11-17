@@ -134,7 +134,7 @@ export function AdminNavigation({ active }: { active: AdminSection }) {
         ) : (
           <Link
             to="/admin/$secao"
-            params={{ secao: key }}
+              params={{ secao: item.key }}
             onClick={() => setMobileOpen(false)}
             aria-current={chosen ? "page" : undefined}
             className={linkClass}
