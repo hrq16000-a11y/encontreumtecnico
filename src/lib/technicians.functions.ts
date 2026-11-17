@@ -23,12 +23,60 @@ export type PublicTechnician = {
   service_radius_km: number | null;
   coverage_city_ids: number[];
   coverage_cities?: Array<{ id: number; name: string; uf: string }>;
+  covers_entire_state?: boolean;
   online_now: boolean;
   pioneer_bronze?: boolean;
   referral_highlight?: boolean;
 };
 
 const COLUMNS = "id, public_slug, display_name, specialties, service_slugs, city, state_uf, neighborhood, region, bio, avatar_path, service_radius_km, coverage_city_ids";
+
+// Owner-authorized technicians can be listed without creating fake Auth accounts.
+// The database RPC exposes public fields only and checks private moderation state.
+const adminPublicRow = z.object({
+  id: z.string().uuid(),
+  public_slug: z.string().regex(/^tecnico-[a-f0-9]{32}$/),
+  display_name: z.string().min(3).max(120),
+  specialties: z.array(z.string()),
+  service_slugs: z.array(z.string()),
+  city: z.string(),
+  state_uf: z.string().nullable(),
+  covers_entire_state: z.boolean(),
+  neighborhood: z.string().nullable(),
+  region: z.string().nullable(),
+  bio: z.string().nullable(),
+  avatar_path: z.string().nullable(),
+  service_radius_km: z.number().nullable(),
+  coverage_city_ids: z.array(z.number().int()),
+});
+
+async function listAdminPublished(filters: {
+  slug?: string; category?: string; service?: string; uf?: string;
+  city?: string; region?: string; neighborhood?: string;
+}): Promise<PublicTechnician[]> {
+  // No neighborhood was supplied for these imports; never invent a match.
+  if (filters.neighborhood) return [];
+  const { data, error } = await (publicClient() as unknown as SupabaseClient).rpc(
+    "eut_public_admin_technicians", {
+      _slug: filters.slug ?? null,
+      _category: filters.category ?? null,
+      _service: filters.service ?? null,
+      _uf: filters.uf ?? null,
+      _city: filters.city ?? null,
+      _region: filters.region ?? null,
+      _limit: filters.slug ? 1 : 200,
+      _offset: 0,
+    },
+  );
+  if (error) throw new Error("Não foi possível consultar o catálogo de técnicos.");
+  const rows = z.array(adminPublicRow).parse(data);
+  return withCoverageCities(rows.map((r) => ({
+    ...sanitizePublicTechnician(r),
+    online_now: false,
+    pioneer_bronze: false,
+    referral_highlight: false,
+  })));
+}
 
 // Links e classificação por IA anteriores usavam rótulos, não identificadores.
 const LEGACY_CATEGORY_ALIASES: Record<string, string> = {
@@ -149,6 +197,8 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
     // "Priorizar minha região" is not a strict geography filter. It ranks
     // among approved matching professionals so other regions remain options.
     const regionalPriority = data.prioridade === "regiao" && Boolean(data.uf || data.cidade.trim());
+    const category = data.especialidade && data.especialidade !== "Todas"
+      ? (LEGACY_CATEGORY_ALIASES[data.especialidade] ?? data.especialidade) : undefined;
     let q = publicClient()
       .from("technicians")
       .select(COLUMNS)
@@ -156,7 +206,7 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false })
       .limit(200);
     if (data.especialidade && data.especialidade !== "Todas") {
-      const slug = LEGACY_CATEGORY_ALIASES[data.especialidade] ?? data.especialidade;
+      const slug = category!;
       const { data: active, error: catalogError } = await (publicClient() as unknown as SupabaseClient)
         .from("eut_service_categories").select("slug").eq("slug", slug).eq("active", true).maybeSingle();
       if (catalogError) throw new Error("Não foi possível validar a categoria selecionada.");
@@ -189,8 +239,17 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
     }
     const eligible = await readPublicEligibleRows(publicClient() as unknown as PublicEligibilityRpc, rows ?? []);
     const published = await withCoverageCities(await withReferralHighlights(await withPioneerBadges(await withOnlineStatus(eligible.map(sanitizePublicTechnician)))));
-    if (!regionalPriority) return published.sort((a,b) => Number(b.online_now)-Number(a.online_now) || Number(Boolean(b.referral_highlight))-Number(Boolean(a.referral_highlight)) || Number(Boolean(b.pioneer_bronze))-Number(Boolean(a.pioneer_bronze)));
-    return rankTechniciansByDeclaredArea(published, {
+    const adminPublished = await listAdminPublished({
+      category,
+      service: data.servico || undefined,
+      uf: !regionalPriority ? uf || undefined : undefined,
+      city: !regionalPriority ? city || undefined : undefined,
+      region: !regionalPriority ? region || undefined : undefined,
+      neighborhood: !regionalPriority ? bairro || undefined : undefined,
+    });
+    const unified = [...published, ...adminPublished];
+    if (!regionalPriority) return unified.sort((a,b) => Number(b.online_now)-Number(a.online_now) || Number(Boolean(b.referral_highlight))-Number(Boolean(a.referral_highlight)) || Number(Boolean(b.pioneer_bronze))-Number(Boolean(a.pioneer_bronze)));
+    return rankTechniciansByDeclaredArea(unified, {
       uf, cidade: data.cidade, bairro: data.bairro,
     });
   });
@@ -201,6 +260,9 @@ export const getApprovedTechnician = createServerFn({ method: "GET" })
     setResponseHeader("Cache-Control", "no-store");
     const isUuid = isValidTechnicianId(data.id);
     if (!isUuid && !isValidTechnicianSlug(data.id)) return null;
+    if (/^tecnico-[a-f0-9]{32}$/.test(data.id)) {
+      return (await listAdminPublished({ slug: data.id }))[0] ?? null;
+    }
     const lookupColumn = isUuid ? "id" : "public_slug";
     const { data: row, error } = await publicClient()
       .from("technicians")
