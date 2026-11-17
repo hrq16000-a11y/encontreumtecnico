@@ -46,7 +46,7 @@ describe("Cabeçalho do novo portal", () => {
     expect(mobile.querySelector('a[href="/entrar"] svg')).toBeTruthy();
   });
 
-  it("oferece três atalhos móveis sem substituir o menu completo", () => {
+  it("oferece quatro atalhos móveis com ajuda acionável sem botão flutuante duplicado", () => {
     render(<SiteHeader />);
     const quick = screen.getByRole("navigation", { name: "Acesso rápido no celular" });
     for (const path of ["/", "/tecnicos", "/entrar"]) {
@@ -54,6 +54,12 @@ describe("Cabeçalho do novo portal", () => {
     }
     expect(quick.textContent).toContain("Minha área");
     expect(quick.textContent).toContain("Buscar");
+    expect(quick.className).toContain("grid-cols-4");
+    const helpEvent = vi.fn();
+    window.addEventListener("eut-open-free-help", helpEvent);
+    fireEvent.click(screen.getByRole("button", { name: "Ajuda" }));
+    expect(helpEvent).toHaveBeenCalledOnce();
+    window.removeEventListener("eut-open-free-help", helpEvent);
     expect(quick.className).toContain("md:hidden");
     expect(screen.getByRole("button", { name: "Abrir menu" })).toBeTruthy();
   });
