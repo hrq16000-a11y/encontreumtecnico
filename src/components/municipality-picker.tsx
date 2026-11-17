@@ -3,12 +3,13 @@ import { normalizedCityText, useMunicipalities, type Municipality } from "@/hook
 
 /** No free-form municipality submission: an official numeric IBGE ID is selected. */
 export function MunicipalityPicker({
-  uf, selectedId, currentCityName, onSelect,
+  uf, selectedId, currentCityName, onSelect, required = true,
 }: {
   uf: string;
   selectedId: number | null;
   currentCityName: string;
   onSelect: (city: Municipality) => void;
+  required?: boolean;
 }) {
   const { cities, loading, error, retry } = useMunicipalities(uf);
   const [query, setQuery] = useState("");
@@ -41,7 +42,7 @@ export function MunicipalityPicker({
         Não foi possível carregar a lista de municípios. <button type="button" className="font-semibold underline" onClick={retry}>Tentar novamente</button>
       </p>}
       <label htmlFor="municipio-opcoes" className="text-sm font-semibold text-foreground">Município selecionado</label>
-      <select id="municipio-opcoes" required value={selectedId ?? ""} disabled={!uf || loading || error}
+      <select id="municipio-opcoes" required={required} value={selectedId ?? ""} disabled={!uf || loading || error}
         onChange={(event) => {
           const found = cities.find((item) => item.id === Number(event.target.value));
           if (found) { onSelect(found); setQuery(""); }
@@ -52,7 +53,7 @@ export function MunicipalityPicker({
       </select>
       {currentCityName && !selectedId && !loading && !error && uf && (
         <p className="text-xs text-amber-800 dark:text-amber-200" role="status">
-          Município anterior ou sugestão GPS: “{currentCityName}”. Selecione o nome oficial acima antes de publicar.
+          Município informado ou sugerido: “{currentCityName}”. Selecione o nome oficial acima para confirmar.
         </p>
       )}
       {selectedId && <p className="text-xs font-medium text-foreground">

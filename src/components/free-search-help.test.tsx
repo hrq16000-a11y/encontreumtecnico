@@ -15,6 +15,14 @@ vi.mock("./assistance-funnel", () => ({
 afterEach(() => { cleanup(); document.body.style.overflow = ""; routeState.pathname = "/tecnicos"; });
 
 describe("Funil flutuante de atendimento", () => {
+  it("não cobre ações administrativas e mantém o funil acessível a eventos internos", async () => {
+    routeState.pathname = "/admin/tecnicos";
+    render(<FreeSearchHelp />);
+    expect(screen.queryByRole("button", { name: /preciso de ajuda/i })).toBeNull();
+    act(() => openFreeHelp({ city: "Curitiba" }));
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect((await screen.findByTestId("guided-funnel")).textContent).toContain("Curitiba");
+  });
   it("não abre de forma intrusiva e permanece acessível em qualquer página", async () => {
     render(<FreeSearchHelp />);
     expect(screen.queryByRole("dialog")).toBeNull();
