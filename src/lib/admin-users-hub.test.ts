@@ -13,6 +13,8 @@ describe("Rodada 2: central única de usuários", () => {
     expect(hub).toContain('role="tabpanel"');
     expect(hub).toContain('aria-selected={tab === item.key}');
     expect(hub).toContain('new URLSearchParams(window.location.search).get("perfil")');
+    expect(hub).toContain('useState<UserTab>("todos")');
+    expect(hub).toContain('window.addEventListener("popstate", syncTabFromUrl)');
     expect(hub).not.toMatch(/key: "(wordpress|guiafix|whatsapp|importados)"/i);
   });
   it("reaproveita RPCs, RLS, moderação em lote e edição de técnicos existentes", () => {

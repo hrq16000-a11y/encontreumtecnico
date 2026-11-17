@@ -76,8 +76,13 @@ function AdminUsersList({ openAccount }: { openAccount: (id: string) => void }) 
 }
 
 export function AdminUsersHub({ adminOwnerId }: { adminOwnerId: string }) {
-  const [tab, setTab] = useState<UserTab>(() => typeof window === "undefined"
-    ? "todos" : validUserTab(new URLSearchParams(window.location.search).get("perfil")));
+  const [tab, setTab] = useState<UserTab>("todos");
+  useEffect(() => {
+    const syncTabFromUrl = () => setTab(validUserTab(new URLSearchParams(window.location.search).get("perfil")));
+    syncTabFromUrl();
+    window.addEventListener("popstate", syncTabFromUrl);
+    return () => window.removeEventListener("popstate", syncTabFromUrl);
+  }, []);
   function selectTab(next: UserTab, accountId?: string) {
     setTab(next);
     const url = new URL(window.location.href);
