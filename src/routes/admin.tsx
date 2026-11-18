@@ -13,7 +13,7 @@ import { AdminCommandOverview } from "@/components/admin-command-overview";
 import { AdminRequestQueue } from "@/components/admin-request-queue";
 import { AdminMessageQueue } from "@/components/admin-message-queue";
 import { AdminAdvertisingManager } from "@/components/admin-advertising-manager";
-import { AdminNavigation } from "@/components/admin-navigation";
+import { AdminNavigation, AdminShortcutLink } from "@/components/admin-navigation";
 import { AdminTechnicianUnifiedDirectory } from "@/components/admin-technician-unified-directory";
 import { AdminOwnTechnicianRole } from "@/components/admin-own-technician-role";
 import { AdminMemberInvites } from "@/components/admin-member-invites";
@@ -97,14 +97,13 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
               <p className="mt-1 text-xs text-muted-foreground">Atalhos internos. As permissões de cada ação continuam protegidas.</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {ADMIN_QUICK_LINKS.map((item) => (
-                  <Link key={item.section} to="/admin/$secao" params={{ secao: item.section }}
-                    aria-current={section === item.section ? "page" : undefined}
+                  <AdminShortcutLink key={item.section} to="/admin/$secao" params={{ secao: item.section }}
                     className={"inline-flex min-h-11 items-center rounded-lg border px-4 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
                       (section === item.section
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border bg-background text-foreground hover:border-primary hover:text-primary")}>
                     <item.icon className="mr-2 inline h-4 w-4 shrink-0 align-text-bottom" aria-hidden="true" /> {item.label}
-                  </Link>
+                  </AdminShortcutLink>
                 ))}
               </div>
             </nav>

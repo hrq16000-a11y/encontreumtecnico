@@ -36,11 +36,13 @@ describe("Rodada 2: central única de usuários", () => {
   });
   it("centraliza o menu sem apagar os caminhos legados ou alterar banco", () => {
     const navigation = read("src/components/admin-navigation.tsx");
+    const preferences = read("src/lib/admin-navigation-preferences.ts");
     const page = read("src/routes/admin.tsx");
     expect(validAdminModule("usuarios")).toBe(true);
     expect(ADMIN_SECTIONS.find((section) => section.key === "usuarios")?.label).toBe("Usuários");
-    expect(navigation).toContain('"tecnicos", "clientes", "contas", "contatos", "legado", "reivindicacoes"');
-    expect(navigation).toContain('!SECONDARY_USER_SECTIONS.has(item.key)');
+    expect(preferences).toContain('keys: ["usuarios", "tecnicos", "clientes", "contas", "contatos"]');
+    expect(navigation).toContain("ADMIN_NAV_GROUPS.map((group) => {");
+    expect(navigation).toContain("{keys.map((key) => moduleLink(key))}");
     expect(page).toContain('section === "usuarios" && <AdminUsersHub adminOwnerId={user.id} />');
     for (const section of ["tecnicos", "clientes", "contas", "contatos", "legado"])
       expect(validAdminModule(section)).toBe(true);
@@ -52,7 +54,9 @@ describe("Rodada 2: central única de usuários", () => {
     expect(navigation).toContain("max-h-[65dvh] flex-col overflow-y-auto");
     expect(navigation).toContain("[scrollbar-gutter:stable]");
     expect(navigation).toContain("tabIndex={0}");
-    expect(navigation).toContain('item.key === "usuarios" && SECONDARY_USER_SECTIONS.has(active)');
+    expect(navigation).toContain('aria-current={chosen ? "page" : undefined}');
+    expect(navigation).toContain('export const AdminShortcutLink = createLink(ShortcutAnchor)');
+    expect(navigation).toContain("matchingAdminNavKeys(moduleQuery)");
     expect(navigation).not.toContain("lg:overflow-visible");
   });
   it("mantém todos os acessos históricos e os contatos administrativos disponíveis", () => {

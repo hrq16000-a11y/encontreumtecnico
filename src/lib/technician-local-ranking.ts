@@ -9,6 +9,7 @@ export type AreaTechnician = {
   city: string;
   neighborhood: string | null;
   coverage_cities?: Array<{ id: number; name: string; uf: string }>;
+  covers_entire_state?: boolean;
   online_now: boolean;
   pioneer_bronze?: boolean;
   referral_highlight?: boolean;
@@ -30,7 +31,8 @@ export function localMatchLevel(technician: AreaTechnician, area: DeclaredArea):
   const declaredCoverageMatches = Boolean(city) &&
     (technician.coverage_cities ?? []).some((covered) =>
       normalized(covered.name) === city && (!uf || normalized(covered.uf) === uf));
-  const cityMatches = baseCityMatches || declaredCoverageMatches;
+  const cityMatches = baseCityMatches || declaredCoverageMatches ||
+    (stateMatches && Boolean(city) && technician.covers_entire_state === true);
   // A named extra city must not inherit the base city's neighborhood.
   const neighborhoodMatches = baseCityMatches && Boolean(neighborhood)
     && normalized(technician.neighborhood) === neighborhood;
@@ -45,7 +47,8 @@ export function localMatchLabel(technician: AreaTechnician, area: DeclaredArea):
   const level = localMatchLevel(technician, area);
   if (level === 3) return "Mesmo bairro informado";
   if (level === 2) return normalized(technician.city) === normalized(area.cidade)
-    ? "Mesma cidade-base informada" : "Cidade atendida declarada";
+    ? "Mesma cidade-base informada" : technician.covers_entire_state
+      ? "Atende todo o estado" : "Cidade atendida declarada";
   if (level === 1) return "Mesmo estado informado";
   return null;
 }

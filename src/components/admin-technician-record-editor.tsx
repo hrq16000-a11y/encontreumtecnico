@@ -68,11 +68,12 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
   const [categories, setCategories] = useState<string[]>(existing?.category_slugs ?? []);
   const [services, setServices] = useState<string[]>(existing?.service_slugs ?? []);
   const [availableServices, setAvailableServices] = useState<CatalogService[]>([]);
-  const [active, setActive] = useState(existing?.admin_active ?? !importedCreation);
-  const [phoneAction, setPhoneAction] = useState<"keep" | "replace" | "remove">("keep");
+  const [active, setActive] = useState(existing?.admin_active ?? !importedDemo);
   const [phone, setPhone] = useState("");
-  // Suspension is exceptional. No paid-contact authorization exists in this registry.
-  // Existing suspended numbers cannot be replaced/removed by the RPC.
+  const [originalPhone, setOriginalPhone] = useState("");
+  const [phoneLoaded, setPhoneLoaded] = useState(!existing);
+  const [phoneLoadError, setPhoneLoadError] = useState(false);
+  // Suspension remains a status; it does not hide the telephone from administration.
   const [contactSuspended, setContactSuspended] = useState(false);
   const [reason, setReason] = useState("");
   const [acknowledged, setAcknowledged] = useState(false);
@@ -91,6 +92,30 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
       .catch(() => {});
     return () => { current = false; };
   }, [existing?.city_ibge_id, importedCityIbgeId]);
+
+  useEffect(() => {
+    if (!existing) return;
+    let current = true;
+    setPhoneLoaded(false);
+    setPhoneLoadError(false);
+    void Promise.resolve(db.rpc("eut_admin_unified_contact", {
+      _record_key: `registry:${existing.technician_id}`,
+      _reason: null,
+    })).then(({ data, error: rpcError }) => {
+      if (!current) return;
+      if (rpcError || data?.ok !== true || typeof data.available !== "boolean") {
+        throw new Error("Telefone administrativo indisponível");
+      }
+      const currentPhone = data.available && typeof data.phone === "string" ? data.phone : "";
+      setPhone(currentPhone);
+      setOriginalPhone(currentPhone);
+      setContactSuspended(data.contact_suspended === true);
+      setPhoneLoaded(true);
+    }).catch(() => {
+      if (current) setPhoneLoadError(true);
+    });
+    return () => { current = false; };
+  }, [existing?.technician_id]);
 
   useEffect(() => {
     let current = true;
@@ -124,6 +149,11 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
       s.slug === item && next.includes(s.category_slug))));
   }
 
+  const normalizedPhoneDraft = phone.trim() ? normalizeBrazilPhoneE164(phone) : null;
+  const phoneAction: "keep" | "replace" | "remove" = normalizedPhoneDraft
+    ? normalizedPhoneDraft === originalPhone ? "keep" : "replace"
+    : phone.trim() ? "keep" : originalPhone ? "remove" : "keep";
+
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (busy || !available || !acknowledged || existing?.archived || importedDemo) return;
@@ -145,17 +175,20 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
     if (reason.trim().length < 8 || reason.trim().length > 400 || publicTextProblem(reason, "identity")) {
       setError("Justificativa obrigatória de 8 a 400 caracteres, sem dados privados ou links."); return;
     }
-    const normalizedPhone = phoneAction === "replace" ? normalizeBrazilPhoneE164(phone) : null;
-    if (phoneAction === "replace" && !normalizedPhone) {
+    if (existing && !phoneLoaded) {
+      setError("Não foi possível carregar o telefone atual. Atualize a ficha antes de gravar."); return;
+    }
+    if (phone.trim() && !normalizedPhoneDraft) {
       setError("Informe um telefone brasileiro válido com DDD."); return;
     }
+    const normalizedPhone = phoneAction === "replace" ? normalizedPhoneDraft : null;
     const payload: Record<string, unknown> = {
       display_name: cleanedName, city_ibge_id: cityId,
       ddd: ddd || null,
       region_approx: region.trim() || null,
       category_slugs: categories,
       service_slugs: services,
-      admin_active: importedCreation ? false : active && !existing?.is_demo,
+      admin_active: active && !existing?.is_demo && !importedDemo,
       is_demo: existing?.is_demo ?? importedDemo,
       phone_action: phoneAction,
     };
@@ -175,7 +208,7 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
         throw new Error("O banco não confirmou a gravação.");
       setPhone("");
       onSaved(data.idempotent ? "Registro já existente preservado, sem sobrescrever dados." :
-        data.created ? importedCreation ? "Técnico importado para gestão, sem ativar contato ou conta."
+        data.created ? importedCreation ? "Técnico cadastrado e habilitado, com telefone privado e sem criar conta."
           : "Técnico adicionado e auditado no banco."
           : "Ficha do técnico atualizada e auditada no banco.");
     } catch (error) {
@@ -285,26 +318,23 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
       {importedCreation ? "Ficha importada não ativa até revisão individual (bloqueado nesta importação)" :
         "Ativo na gestão administrativa (não libera contato público ou pago)"}
     </label>
-    <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">Contato privado
-      <select className={field} value={phoneAction}
-        onChange={(event) => { setPhoneAction(event.target.value as typeof phoneAction); setPhone(""); }}>
-        <option value="keep">Manter como está / sem contato</option>
-        <option value="replace">{existing ? "Substituir" : "Cadastrar"} telefone</option>
-        {existing && <option value="remove">Remover telefone (se permitido pelo banco)</option>}
-      </select>
+    <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">Telefone com DDD
+      <input className={field} inputMode="tel" autoComplete="off"
+        value={phone} disabled={Boolean(existing) && !phoneLoaded}
+        onChange={(event) => setPhone(event.target.value)}
+        placeholder="(41) 99999-9999" />
     </label>
-    {phoneAction === "replace" && <div className="grid min-w-0 gap-2">
-      <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">Número com DDD (privado)
-        <input className={field} inputMode="tel" autoComplete="off" value={phone}
-          onChange={(event) => setPhone(event.target.value)} placeholder="(41) 99999-9999" />
-      </label>
-      <label className="flex min-h-10 items-center gap-2 text-xs text-foreground">
-        <input type="checkbox" checked={contactSuspended}
-          onChange={(event) => setContactSuspended(event.target.checked)} />
-        Suspender especificamente este contato (não habilita comercialização)
-      </label>
-      <p className="text-xs text-muted-foreground">O número integral é enviado apenas à função protegida; nunca será mostrado na lista.</p>
-    </div>}
+    {phoneLoadError && <p role="alert" className="text-xs text-destructive">
+      Não foi possível carregar o número cadastrado; os demais dados não foram alterados.
+    </p>}
+    {phoneAction === "replace" && <label className="flex min-h-10 items-center gap-2 text-xs text-foreground">
+      <input type="checkbox" checked={contactSuspended}
+        onChange={(event) => setContactSuspended(event.target.checked)} />
+      Manter contato suspenso (restrição de atendimento ao cliente)
+    </label>}
+    {existing && contactSuspended && <p className="text-xs text-muted-foreground">
+      Contato suspenso: o telefone é visível, mas sua alteração exige tratamento da restrição no banco.
+    </p>}
     <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">Justificativa de auditoria
       <textarea className={field} required minLength={8} maxLength={400} rows={2} value={reason}
         onChange={(event) => setReason(event.target.value)} placeholder="Motivo verificável desta inclusão ou edição" />
