@@ -45,4 +45,22 @@ describe("Rodada 2: central única de usuários", () => {
     for (const section of ["tecnicos", "clientes", "contas", "contatos", "legado"])
       expect(validAdminModule(section)).toBe(true);
   });
+  it("combina a rolagem independente da R1 com o menu unificado", () => {
+    const navigation = read("src/components/admin-navigation.tsx");
+    expect(navigation).toContain("lg:max-h-[calc(100dvh-7rem)]");
+    expect(navigation).toContain("lg:flex lg:flex-col lg:min-h-0 lg:flex-1 lg:overflow-y-scroll");
+    expect(navigation).toContain("max-h-[65dvh] flex-col overflow-y-auto");
+    expect(navigation).toContain("[scrollbar-gutter:stable]");
+    expect(navigation).toContain("tabIndex={0}");
+    expect(navigation).toContain('item.key === "usuarios" && SECONDARY_USER_SECTIONS.has(active)');
+    expect(navigation).not.toContain("lg:overflow-visible");
+  });
+  it("mantém todos os acessos históricos e os contatos administrativos disponíveis", () => {
+    const hub = read("src/components/admin-users-hub.tsx");
+    const page = read("src/routes/admin.tsx");
+    for (const section of ["tecnicos", "clientes", "contas", "contatos", "legado", "reivindicacoes"])
+      expect(hub).toContain('section: "' + section + '"');
+    expect(hub).toContain('to="/admin/$secao"');
+    expect(page).toContain('<AdminContactsDashboard adminId={user.id} />');
+  });
 });

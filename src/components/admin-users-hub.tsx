@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ShieldCheck, UsersRound, Wrench } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +10,15 @@ const USER_TABS = [
   { key: "admins", label: "Admins" },
   { key: "clientes", label: "Clientes" },
   { key: "tecnicos", label: "Técnicos" },
+] as const;
+// Transitional access to the existing administrative tools; no records or roles are split.
+const USER_MANAGEMENT_TOOLS = [
+  { section: "tecnicos", label: "Gestão detalhada de técnicos" },
+  { section: "clientes", label: "Gestão detalhada de clientes" },
+  { section: "contas", label: "Bloqueios e auditoria de contas" },
+  { section: "contatos", label: "Contatos e dados cadastrais" },
+  { section: "legado", label: "Revisão de cadastros anteriores" },
+  { section: "reivindicacoes", label: "Revisão de vínculos" },
 ] as const;
 type UserTab = typeof USER_TABS[number]["key"];
 
@@ -119,5 +129,20 @@ export function AdminUsersHub({ adminOwnerId }: { adminOwnerId: string }) {
         </details>
       </div>}
     </div>
+    <details className="rounded-xl border border-border bg-card p-4">
+      <summary className="cursor-pointer text-sm font-bold">Ferramentas administrativas complementares</summary>
+      <p className="mt-3 text-sm leading-6 text-muted-foreground">
+        Os recursos anteriores continuam disponíveis enquanto suas operações são reunidas nesta central.
+        Nenhum cadastro é duplicado ou separado por procedência.
+      </p>
+      <nav aria-label="Acessos às ferramentas de usuários existentes" className="mt-3 grid gap-2 sm:grid-cols-2">
+        {USER_MANAGEMENT_TOOLS.map((item) => (
+          <Link key={item.section} to="/admin/$secao" params={{ secao: item.section }}
+            className="flex min-h-11 items-center rounded-lg border border-input px-3 py-2 text-sm font-semibold text-foreground hover:border-primary hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            {item.label}
+          </Link>
+        ))}
+      </nav>
+    </details>
   </section>;
 }

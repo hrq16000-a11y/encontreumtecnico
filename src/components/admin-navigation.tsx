@@ -49,7 +49,7 @@ export function AdminNavigation({ active }: { active: AdminSection }) {
   }, [mobileOpen]);
   return (
     <aside ref={root} className="min-w-0 lg:sticky lg:top-24 lg:self-start">
-      <div className="rounded-2xl border border-border bg-card p-3 shadow-sm sm:p-4">
+      <div className="rounded-2xl border border-border bg-card p-3 shadow-sm sm:p-4 lg:flex lg:max-h-[calc(100dvh-7rem)] lg:min-h-0 lg:flex-col">
         <div className="hidden border-b border-border px-2 pb-4 lg:block">
           <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-primary">Central de comando</p>
           <p className="mt-1 text-xs text-muted-foreground">Módulos administrativos</p>
@@ -62,12 +62,12 @@ export function AdminNavigation({ active }: { active: AdminSection }) {
           <span className="text-xs text-primary-foreground/90">{active === "inicio" ? "Início" : ADMIN_SECTIONS.find((item) => item.key === active)?.label}</span>
         </button>
         <AdminGlobalSearch />
-        <nav id="eut-admin-navigation" aria-label="Menu administrativo"
-          className={"mt-3 gap-1 pb-2 lg:flex lg:flex-col lg:overflow-visible " +
-            (mobileOpen ? "flex max-h-[65vh] flex-col overflow-y-auto" : "hidden")}>
+        <nav id="eut-admin-navigation" aria-label="Menu administrativo" tabIndex={0}
+          className={"mt-3 gap-1 overscroll-contain pb-2 [scrollbar-gutter:stable] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:flex lg:flex-col lg:min-h-0 lg:flex-1 lg:overflow-y-scroll " +
+            (mobileOpen ? "flex max-h-[65dvh] flex-col overflow-y-auto" : "hidden")}>
           {ADMIN_SECTIONS.filter((item) => !SECONDARY_USER_SECTIONS.has(item.key)).map((item) => {
             const Icon = ICONS[item.key];
-            const chosen = item.key === active;
+            const chosen = item.key === active || (item.key === "usuarios" && SECONDARY_USER_SECTIONS.has(active));
             const className = "flex min-h-12 shrink-0 items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
               (chosen ? "border-primary/20 bg-primary text-primary-foreground shadow-sm" : "border-transparent text-foreground hover:border-border hover:bg-accent");
             const content = <><Icon className="h-5 w-5 shrink-0" aria-hidden="true" /><span className="whitespace-nowrap">{item.label}</span></>;
