@@ -30,3 +30,12 @@
 - Pesquisas analíticas consentidas não devem incluir identidade do visitante; agregações administrativas exigem autorização/RLS.
 - Para alterações de integração, consultar `README.md`, documentação de migração e workflows específicos, sempre conferindo a validade temporal dos documentos.
 - Para ferramentas abertas de atendimento, CRM, documentos, agenda ou IA, consultar `docs/integrations/open-source-compatibility-2026-11-18.md`; nenhuma integração externa está automaticamente autorizada.
+
+## Adoção visual de referências externas (17/11/2026)
+
+- TasteSkill (https://www.tasteskill.dev/): método de direção de arte, revisão visual e hierarquia; nunca copiar marca, material ou instalar scripts externos sem revisão.
+- Transitions.dev (https://transitions.dev/): microtransições CSS em filtros, menus, modais, estados de formulário e feedback; respeitar `prefers-reduced-motion`, foco, teclado, Escape e contraste. Evitar `transition: all`.
+- React Bits (https://reactbits.dev/): componentes React isolados da edição gratuita, com revisão da licença MIT + Commons Clause, dependências e custo de renderização; não instalar o catálogo inteiro nem assumir acesso ao Pro.
+- RiseClub (https://riseclub.tech/): referência conceitual para comunidade e aprendizagem. Não copiar cursos, artigos, dados de usuários, imagens ou elementos protegidos.
+- Prioridades locais: Home, `/tecnicos`, cards/perfis e painel administrativo 390/1440; preservar SSR, LCP, SEO, funis, dados reais e contatos privados.
+- Mudanças funcionais: micro-PR isolada com comparação visual e gates existentes. Esta diretriz não autoriza deploy, alteração de DNS, pagamentos, dados, Supabase ou RLS.
