@@ -7,7 +7,7 @@ import { AdminTechnician360SheetContent } from "./admin-technician-360-sheet";
 
 vi.mock("@/components/admin-technician-contact-access", () => ({
   AdminTechnicianContactAccess: ({ recordKey }: { recordKey: string }) => (
-    <button type="button">Consultar contato {recordKey}</button>
+    <span>Telefone do cadastro {recordKey}</span>
   ),
 }));
 
@@ -74,18 +74,15 @@ function openTab(name: string) {
 }
 
 describe("ficha administrativa 360°", () => {
-  it("mostra dados existentes e isola o contato sob demanda", () => {
+  it("mostra dados existentes e o campo de telefone sem etapa de revelação", () => {
     render(<Fixture />);
     expect(screen.getByRole("dialog", { name: /Ficha 360°/ })).toBeTruthy();
     expect(screen.getAllByText("Curitiba/PR").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Ativo").length).toBeGreaterThan(0);
     expect(screen.queryByText("11999998888")).toBeNull();
 
-    openTab("Contato privado");
-    expect(screen.getByText(/Somente final 8888/)).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: /Consultar contato registry:teste-01/ }),
-    ).toBeTruthy();
+    openTab("Contato");
+    expect(screen.getByText(/Telefone do cadastro registry:teste-01/)).toBeTruthy();
     expect(document.body.textContent).not.toContain("11999998888");
 
     openTab("Atuação");
@@ -102,8 +99,8 @@ describe("ficha administrativa 360°", () => {
     expect(screen.getAllByText("Suspenso / arquivado").length).toBeGreaterThan(0);
     expect(screen.getByText(/não altera suspensões nem restaura contatos/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Editar cadastro" })).toBeNull();
-    openTab("Contato privado");
-    expect(screen.queryByRole("button", { name: /Consultar contato/ })).toBeNull();
+    openTab("Contato");
+    expect(screen.queryByText(/Telefone do cadastro registry:teste-01/)).toBeNull();
   });
 
   it("não oferece edição de registro arquivado, mesmo fora de demonstração", () => {

@@ -793,7 +793,6 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
         </div>
         {row.registry && <p className="mt-2 text-xs text-muted-foreground">
           {row.registry.archived ? "Registro arquivado" : row.registry.admin_active ? "Registro administrativo ativo" : "Registro administrativo não ativo"}
-          {row.registry.contact_last4 ? ` · Contato privado final ${row.registry.contact_last4}` : ""}
         </p>}
         {selectedKey === row.key && row.registry &&
           <AdminTechnicianRecordEditor key={row.registry.technician_id + row.registry.updated_at}
