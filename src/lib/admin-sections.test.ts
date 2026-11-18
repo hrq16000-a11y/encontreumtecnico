@@ -72,8 +72,22 @@ describe("Central administrativa: URLs próprias e RLS intacta", () => {
       expect(validAdminModule(module)).toBe(true);
     }
     expect(page).toContain('params={{ secao: item.section }}');
-    expect(page).toContain('aria-current={section === item.section ? "page" : undefined}');
+    expect(page).toContain('<AdminShortcutLink key={item.section}');
+    expect(page).not.toContain('aria-current={section === item.section ? "page" : undefined}');
     expect(page).toContain('noindex, nofollow');
   });
 
+  it("marca apenas o link canônico do módulo, sem falsa seleção da Visão geral nas subseções", () => {
+    const nav = read("src/components/admin-navigation.tsx");
+    const help = read("src/components/free-search-help.tsx");
+    const styles = read("src/styles.css");
+    expect(nav).toContain('activeOptions={{ exact: true }}');
+    expect(nav).toContain('const NavLink = placement === "group" ? Link : AdminShortcutLink;');
+    expect(nav).toContain('aria-current={undefined}');
+    // The current main already removes the floating public help trigger on admin routes.
+    // No duplicate CSS overlay workaround is needed after reconciliation.
+    expect(help).toContain('!inAdmin && <button');
+    expect(help).not.toContain('id="eut-free-help-trigger"');
+    expect(styles).not.toContain('body:has([aria-controls="eut-admin-navigation"]');
+  });
 });
