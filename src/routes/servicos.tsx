@@ -1,11 +1,10 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { PageShell } from "../components/page-placeholder";
 import { SponsoredPublicSlot } from "@/components/sponsored-public-slot";
-import { SERVICE_CATEGORIES, getEnrichedServiceCategory } from "@/lib/service-catalog";
+import { getEnrichedServiceCategory } from "@/lib/service-catalog";
+import { getPublicServiceCategories } from "@/lib/public-service-catalog.functions";
 
-const SERVICES = SERVICE_CATEGORIES;
-
-import { AirVent, ArrowUpRight, BookOpen, Cctv, CircuitBoard, Laptop, MonitorCog, Palette, Printer, RadioTower, Search, Wifi, Zap, type LucideIcon } from "lucide-react";
+import { AirVent, ArrowUpRight, BookOpen, Cctv, CircuitBoard, Laptop, MonitorCog, Palette, Printer, RadioTower, Search, Wifi, Wrench, Zap, type LucideIcon } from "lucide-react";
 
 const SERVICE_ICONS = {
   climatizacao: AirVent,
@@ -18,20 +17,21 @@ const SERVICE_ICONS = {
   impressoras: Printer,
   redes: Wifi,
   software: MonitorCog,
-} satisfies Record<(typeof SERVICES)[number]["slug"], LucideIcon>;
+} satisfies Record<string, LucideIcon>;
 
-function ServiceIcon({ slug }: { slug: (typeof SERVICES)[number]["slug"] }) {
-  const Icon = SERVICE_ICONS[slug];
+function ServiceIcon({ slug }: { slug: string }) {
+  const Icon = SERVICE_ICONS[slug as keyof typeof SERVICE_ICONS] ?? Wrench;
   return <Icon className="h-6 w-6" aria-hidden="true" />;
 }
 
 
 export const Route = createFileRoute("/servicos")({
+  loader: () => getPublicServiceCategories(),
   // Child category routes own their metadata: do not emit a second /servicos canonical.
   head: ({ matches }) => matches.some(match => match.pathname.startsWith("/servicos/")) ? {} : ({
     meta: [
       { title: "Serviços e especialidades técnicas — Encontre um Técnico" },
-      { name: "description", content: "Explore dez categorias de serviços técnicos e filtre profissionais por especialidade, cidade e região. Contatos privados continuam protegidos." },
+      { name: "description", content: "Explore as categorias de serviços técnicos disponíveis e filtre profissionais por especialidade, cidade e região. Contatos privados continuam protegidos." },
       { property: "og:title", content: "Serviços e especialidades — Encontre um Técnico" },
       { property: "og:description", content: "Encontre profissionais cadastrados por tipo de serviço e confira suas regiões de atendimento declaradas." },
       { property: "og:type", content: "website" },
@@ -45,6 +45,7 @@ export const Route = createFileRoute("/servicos")({
 
 function ServicesPage() {
   const isCategoryDetail = useRouterState({ select: state => state.location.pathname.startsWith("/servicos/") });
+  const { categories, unavailable } = Route.useLoaderData();
   // TanStack file route /servicos is the parent of /servicos/$categoria.
   // It must render the nested Outlet or the child can only contribute metadata.
   if (isCategoryDetail) return <Outlet />;
@@ -57,11 +58,20 @@ function ServicesPage() {
           a plataforma não certifica a habilitação técnica nem garante disponibilidade.
         </p>
         <SponsoredPublicSlot slotKey="services.content_1" routePath="/servicos" />
+        {unavailable ? (
+          <p role="status" className="mt-6 rounded-xl border border-border bg-muted/30 p-5 text-sm text-muted-foreground">
+            O catálogo de categorias está temporariamente indisponível. Você ainda pode consultar os técnicos publicados.
+          </p>
+        ) : categories.length === 0 ? (
+          <p role="status" className="mt-6 rounded-xl border border-border bg-muted/30 p-5 text-sm text-muted-foreground">
+            Nenhuma categoria está habilitada no momento.
+          </p>
+        ) : null}
         <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {SERVICES.map((service) => (
+          {categories.map((service) => (
             <li key={service.slug} className="group flex flex-col rounded-2xl border border-border bg-card p-5 shadow-sm transition-colors hover:border-primary/40 hover:shadow-md">
               <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground"><ServiceIcon slug={service.slug} /></span>
-              <h2 className="font-semibold text-card-foreground">{service.name}</h2>
+              <h2 className="font-semibold text-card-foreground">{service.label}</h2>
               <p className="mt-2 flex-1 text-sm leading-6 text-muted-foreground">{service.description}</p>
               {getEnrichedServiceCategory(service.slug) ? (
                 <Link
@@ -96,8 +106,8 @@ function ServicesPage() {
         <aside className="mt-8 rounded-2xl border border-primary/20 bg-primary/5 p-6">
           <h2 className="text-lg font-bold text-foreground">Antes de solicitar um atendimento</h2>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            As informações práticas agora ficam dentro de cada especialidade, junto à busca de profissionais.
-            A navegação de assuntos conecta computadores, câmeras, redes, impressoras e outras necessidades reais.
+            Algumas especialidades incluem orientações detalhadas; todas as categorias habilitadas pelo painel
+            levam à busca de profissionais. Consulte também os guias para assuntos técnicos frequentes.
           </p>
           <Link to="/guias" className="mt-4 inline-flex min-h-11 items-center text-sm font-bold text-primary hover:underline">
             Navegar pelos assuntos das especialidades →
