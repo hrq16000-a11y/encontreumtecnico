@@ -101,8 +101,8 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
   const [wpAction, setWpAction] = useState<"corrigir_nome" | "arquivar" | "restaurar">("corrigir_nome");
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const { categories } = useActiveCategories();
-  const { services } = useActiveServices();
+  const { categories, loading: categoriesLoading, error: categoriesError } = useActiveCategories();
+  const { services, loading: servicesLoading, error: servicesError } = useActiveServices();
   const activeServices = services.filter((item) => categories.some((category) => category.slug === item.category_slug) &&
     (!categoryFilter || item.category_slug === categoryFilter));
   useEffect(() => {
@@ -384,6 +384,18 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
   const pages = unifiedPageCount(total ?? 0);
   const selectedRows = results.filter((row) => selected.has(row.key));
 
+  function clearDirectoryFilters() {
+    setDraft("");
+    setRegionDraft("");
+    setSpecialtyDraft("");
+    setCategoryFilter("");
+    setServiceFilter("");
+    setStateFilter("all");
+    setRecentOnly(false);
+    setSort("name-asc");
+    setPage(0);
+  }
+
   async function copySelectedNames() {
     if (!selectedRows.length) return;
     try {
@@ -658,7 +670,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
           maxLength={80} placeholder="Pesquisa livre (opcional)" className="min-h-12 w-full rounded-xl border border-input bg-background px-4 font-normal text-foreground" />
       </label>
       <label className="grid gap-1 text-sm font-semibold text-foreground">Categoria cadastrada
-        <select value={categoryFilter} onChange={(event) => {
+        <select value={categoryFilter} disabled={categoriesLoading || categoriesError} onChange={(event) => {
           setCategoryFilter(event.target.value); setServiceFilter(""); setPage(0);
         }} className="min-h-12 w-full rounded-xl border border-input bg-background px-4 font-normal text-foreground">
           <option value="">Todas as categorias</option>
@@ -666,7 +678,8 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
         </select>
       </label>
       <label className="grid gap-1 text-sm font-semibold text-foreground">Serviço cadastrado
-        <select value={serviceFilter} onChange={(event) => { setServiceFilter(event.target.value); setPage(0); }}
+        <select value={serviceFilter} disabled={categoriesLoading || categoriesError || servicesLoading || servicesError}
+          onChange={(event) => { setServiceFilter(event.target.value); setPage(0); }}
           className="min-h-12 w-full rounded-xl border border-input bg-background px-4 font-normal text-foreground">
           <option value="">Todos os serviços</option>
           {activeServices.map((item) => <option key={item.slug} value={item.slug}>
@@ -675,7 +688,19 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
         </select>
       </label>
     </div>
-    <p className="mt-2 text-xs text-muted-foreground">Categorias e serviços vêm do catálogo administrativo. Serviços específicos filtram apenas fichas com o serviço explicitamente cadastrado; a pesquisa livre continua disponível.</p>
+    <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+      <p className="text-xs text-muted-foreground">Categorias e serviços vêm do catálogo administrativo. Serviços específicos filtram apenas fichas com o serviço explicitamente cadastrado; a pesquisa livre continua disponível.</p>
+      {(draft || regionDraft || specialtyDraft || categoryFilter || serviceFilter || stateFilter !== "all" || recentOnly || sort !== "name-asc") && (
+        <button type="button" onClick={clearDirectoryFilters}
+          className="min-h-10 rounded-lg border border-input px-3 text-xs font-semibold text-foreground">
+          Limpar todos os filtros
+        </button>
+      )}
+    </div>
+    {(categoriesError || servicesError) && <p role="status" className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+      {categoriesError ? "Não foi possível consultar as categorias ativas do catálogo." : "Não foi possível consultar os serviços ativos do catálogo."}
+      {" "}Use a pesquisa livre ou tente novamente ao voltar para esta página.
+    </p>}
     <div className="mt-4 flex flex-wrap items-end justify-between gap-3 rounded-xl border border-border bg-muted/20 p-3">
       <div className="flex w-full min-w-0 flex-wrap items-end gap-3 sm:w-auto">
         <label className="grid w-full min-w-0 gap-1 text-xs font-semibold text-foreground sm:w-auto"><span className="flex items-center gap-1"><SlidersHorizontal className="h-4 w-4" /> Situação</span>
