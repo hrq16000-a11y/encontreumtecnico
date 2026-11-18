@@ -45,7 +45,7 @@ export const Route = createFileRoute("/servicos")({
 
 function ServicesPage() {
   const isCategoryDetail = useRouterState({ select: state => state.location.pathname.startsWith("/servicos/") });
-  const { categories, unavailable } = Route.useLoaderData();
+  const { categories, services, unavailable, servicesUnavailable } = Route.useLoaderData();
   // TanStack file route /servicos is the parent of /servicos/$categoria.
   // It must render the nested Outlet or the child can only contribute metadata.
   if (isCategoryDetail) return <Outlet />;
@@ -67,12 +67,36 @@ function ServicesPage() {
             Nenhuma categoria está habilitada no momento.
           </p>
         ) : null}
+        {!unavailable && servicesUnavailable && (
+          <p role="status" className="mt-4 text-sm text-muted-foreground">
+            Os serviços específicos não estão disponíveis neste momento; as categorias seguem acessíveis.
+          </p>
+        )}
         <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {categories.map((service) => (
             <li key={service.slug} className="group flex flex-col rounded-2xl border border-border bg-card p-5 shadow-sm transition-colors hover:border-primary/40 hover:shadow-md">
               <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground"><ServiceIcon slug={service.slug} /></span>
               <h2 className="font-semibold text-card-foreground">{service.label}</h2>
               <p className="mt-2 flex-1 text-sm leading-6 text-muted-foreground">{service.description}</p>
+              {services.some((item) => item.category_slug === service.slug) && (
+                <div className="mt-4 border-t border-border pt-3">
+                  <h3 className="text-xs font-semibold text-muted-foreground">Serviços específicos disponíveis</h3>
+                  <ul className="mt-2 flex flex-wrap gap-2" aria-label={`Serviços de ${service.label}`}>
+                    {services.filter((item) => item.category_slug === service.slug).map((item) => (
+                      <li key={item.slug}>
+                        <Link
+                          to="/tecnicos"
+                          search={{ especialidade: service.slug, servico: item.slug, cidade: "", regiao: "" }}
+                          title={item.description || undefined}
+                          className="inline-flex min-h-10 items-center rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs font-semibold text-primary hover:border-primary/50 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          {item.label}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {getEnrichedServiceCategory(service.slug) ? (
                 <Link
                   to="/servicos/$categoria" params={{ categoria: service.slug }}
