@@ -9,7 +9,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CalendarDays, MapPin, Pencil, ShieldCheck } from "lucide-react";
+import { CalendarDays, MapPin, Pencil } from "lucide-react";
 
 type Technician360Snapshot = {
   key: string;
@@ -31,12 +31,6 @@ type TechnicianState = "active" | "inactive" | "review";
 function formatDate(value?: string) {
   if (!value || !Number.isFinite(Date.parse(value))) return "Não informado";
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(new Date(value));
-}
-
-/** The registry contract returns only the last four digits; never render unexpected extra digits. */
-function safeContactSuffix(value?: string | null) {
-  const digits = value?.replace(/\D/g, "") ?? "";
-  return digits.length >= 4 ? digits.slice(-4) : null;
 }
 
 function Detail({ label, children }: { label: string; children: ReactNode }) {
@@ -63,7 +57,6 @@ export function AdminTechnician360SheetContent({
       : state === "inactive"
         ? "Suspenso / arquivado"
         : "Situação não confirmada";
-  const contactLast4 = safeContactSuffix(record.registry?.contact_last4);
   const registry = record.registry;
   const reference =
     registry?.technician_id ??
@@ -119,7 +112,7 @@ export function AdminTechnician360SheetContent({
             Atuação
           </TabsTrigger>
           <TabsTrigger className="min-h-10 min-w-0 px-2 text-xs" value="contato">
-            Contato privado
+            Contato
           </TabsTrigger>
           <TabsTrigger className="min-h-10 min-w-0 px-2 text-xs" value="historico">
             Histórico
@@ -170,21 +163,16 @@ export function AdminTechnician360SheetContent({
             </p>
           </TabsContent>
           <TabsContent value="contato" className="mt-0 space-y-3">
-            <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
-              <div className="flex items-center gap-2 font-semibold">
-                <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-                Contato protegido
-              </div>
-              <p className="mt-2 text-muted-foreground">
-                {contactLast4
-                  ? `Somente final ${contactLast4} disponível nesta ficha.`
-                  : "Número não exibido nesta ficha. A disponibilidade deve ser verificada em consulta autorizada."}
-              </p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                A consulta completa exige autorização do servidor e justificativa auditada.
-              </p>
+            <div className="rounded-lg border border-border bg-background/80 p-3 text-sm">
+              <h3 className="font-semibold">Telefone do cadastro</h3>
+              {!record.demo
+                ? <AdminTechnicianContactAccess recordKey={record.key} />
+                : <p className="text-muted-foreground">Registro de demonstração.</p>}
             </div>
-            {!record.demo && <AdminTechnicianContactAccess recordKey={record.key} />}
+            <p className="text-xs text-muted-foreground">
+              Dados completos disponíveis somente para administradores. A suspensão do contato
+              com clientes não altera a visualização na gestão.
+            </p>
           </TabsContent>
           <TabsContent value="historico" className="mt-0 space-y-3">
             <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
