@@ -29,6 +29,7 @@
 - Filtros de técnicos em `/tecnicos`, com parâmetros de consulta para especialidade, cidade e região, e links profundos nas categorias.
 - Pesquisas analíticas consentidas não devem incluir identidade do visitante; agregações administrativas exigem autorização/RLS.
 - Para alterações de integração, consultar `README.md`, documentação de migração e workflows específicos, sempre conferindo a validade temporal dos documentos.
+- Para ferramentas abertas de atendimento, CRM, documentos, agenda ou IA, consultar `docs/integrations/open-source-compatibility-2026-11-18.md`; nenhuma integração externa está automaticamente autorizada.
 
 ## Adoção visual de referências externas (17/11/2026)
 
