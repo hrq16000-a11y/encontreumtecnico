@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { AdminTechnicianRegistryRecord } from "@/components/admin-technician-record-editor";
 import { AdminTechnicianContactAccess } from "@/components/admin-technician-contact-access";
+import { AdminTechnicianIdentityEditor } from "@/components/admin-technician-identity-editor";
 import {
   SheetClose,
   SheetContent,
@@ -169,9 +170,10 @@ export function AdminTechnician360SheetContent({
                 ? <AdminTechnicianContactAccess recordKey={record.key} />
                 : <p className="text-muted-foreground">Registro de demonstração.</p>}
             </div>
+            {!record.demo && <AdminTechnicianIdentityEditor recordKey={record.key} />}
             <p className="text-xs text-muted-foreground">
-              Dados completos disponíveis somente para administradores. A suspensão do contato
-              com clientes não altera a visualização na gestão.
+              Telefone, e-mail e endereço são dados administrativos completos. A suspensão
+              do contato com clientes não altera sua visualização na gestão.
             </p>
           </TabsContent>
           <TabsContent value="historico" className="mt-0 space-y-3">
