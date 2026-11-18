@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const component = readFileSync(new URL("./admin-technician-contact-access.tsx", import.meta.url), "utf8");
+const component = readFileSync("src/components/admin-technician-contact-access.tsx", "utf8");
 
 describe("telefone como campo do cadastro administrativo", () => {
   it("carrega o telefone completo no painel sem botão revelar ou justificativa", () => {
