@@ -240,12 +240,12 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
     const eligible = await readPublicEligibleRows(publicClient() as unknown as PublicEligibilityRpc, rows ?? []);
     const published = await withCoverageCities(await withReferralHighlights(await withPioneerBadges(await withOnlineStatus(eligible.map(sanitizePublicTechnician)))));
     const adminPublished = await listAdminPublished({
-      category,
-      service: data.servico || undefined,
-      uf: !regionalPriority ? uf || undefined : undefined,
-      city: !regionalPriority ? city || undefined : undefined,
-      region: !regionalPriority ? region || undefined : undefined,
-      neighborhood: !regionalPriority ? bairro || undefined : undefined,
+      ...(category ? { category } : {}),
+      ...(data.servico ? { service: data.servico } : {}),
+      ...(!regionalPriority && uf ? { uf } : {}),
+      ...(!regionalPriority && city ? { city } : {}),
+      ...(!regionalPriority && region ? { region } : {}),
+      ...(!regionalPriority && bairro ? { neighborhood: bairro } : {}),
     });
     const unified = [...published, ...adminPublished];
     if (!regionalPriority) return unified.sort((a,b) => Number(b.online_now)-Number(a.online_now) || Number(Boolean(b.referral_highlight))-Number(Boolean(a.referral_highlight)) || Number(Boolean(b.pioneer_bronze))-Number(Boolean(a.pioneer_bronze)));
