@@ -17,6 +17,7 @@ type CatalogChanges = {
 export function validateCatalogDraft(
   draft: CatalogDraft,
   activeCategorySlugs: readonly string[],
+  retainedInactiveCategorySlug: string | null = null,
 ): { changes: CatalogChanges; error: null } | { changes: null; error: string } {
   const label = draft.label.trim();
   const description = draft.description.trim();
@@ -38,7 +39,10 @@ export function validateCatalogDraft(
 
   const changes: CatalogChanges = { label, description, display_order: displayOrder };
   if (draft.kind === "service") {
-    if (!activeCategorySlugs.includes(draft.categorySlug)) {
+    // A hidden service may keep its original hidden parent while its details
+    // are edited. New services and parent changes still need an active category.
+    if (!activeCategorySlugs.includes(draft.categorySlug) &&
+      draft.categorySlug !== retainedInactiveCategorySlug) {
       return { changes: null, error: "Selecione uma categoria ativa para o serviço." };
     }
     changes.category_slug = draft.categorySlug;
