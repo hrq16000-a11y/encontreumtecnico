@@ -20,6 +20,7 @@ export function HomeCommunityInvite() {
   const [showPopup, setShowPopup] = useState(false);
   const [approvedCard, setApprovedCard] = useState<ApprovedCard | null>(null);
   const [popupCard, setPopupCard] = useState<ApprovedCard | null>(null);
+  const [consentRevision, setConsentRevision] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -46,21 +47,25 @@ export function HomeCommunityInvite() {
       if (document.visibilityState === "visible") load();
       else { generation += 1; invalidate(); }
     };
+    const onConsentChanged = () => {
+      load();
+      setConsentRevision((current) => current + 1);
+    };
     const onConsentStorage = (event: StorageEvent) => {
-      if (event.key === "eut-cookie-consent" || event.key === null) load();
+      if (event.key === "eut-cookie-consent" || event.key === null) onConsentChanged();
     };
     const onPageShow = (event: PageTransitionEvent) => {
       if (event.persisted) onVisibility();
     };
     load();
-    window.addEventListener("eut-consent-changed", load);
+    window.addEventListener("eut-consent-changed", onConsentChanged);
     window.addEventListener("storage", onConsentStorage);
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("pageshow", onPageShow);
     return () => {
       active = false;
       generation += 1;
-      window.removeEventListener("eut-consent-changed", load);
+      window.removeEventListener("eut-consent-changed", onConsentChanged);
       window.removeEventListener("storage", onConsentStorage);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("pageshow", onPageShow);
@@ -78,6 +83,9 @@ export function HomeCommunityInvite() {
 
     const timer = window.setTimeout(() => {
       if (document.visibilityState !== "visible") return;
+      // A primeira visita deve concluir a escolha de cookies antes do convite.
+      // Não consumir a exibição única enquanto o aviso de privacidade cobre a tela.
+      if (document.querySelector('[role="dialog"][aria-label="Aviso de cookies"]')) return;
       const focused = document.activeElement;
       if (focused instanceof HTMLElement &&
         (focused.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(focused.tagName))) return;
@@ -86,7 +94,7 @@ export function HomeCommunityInvite() {
       setShowPopup(true);
     }, 11000);
     return () => window.clearTimeout(timer);
-  }, [approvedCard]);
+  }, [approvedCard, consentRevision]);
 
   return (
     <>
