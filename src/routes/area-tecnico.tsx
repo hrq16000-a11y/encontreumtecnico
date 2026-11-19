@@ -93,6 +93,9 @@ export function TechnicianAreaPage() {
   const draftOwnerRef = useRef<string | null>(null);
   const [draftRestoredOwnerId, setDraftRestoredOwnerId] = useState<string | null>(null);
   const serverFormBaselineRef = useRef<string>("");
+  // Source of truth for allowing an unchanged persisted municipality during edit.
+  // A private session draft or geolocation hint must never grant this exception.
+  const persistedCityRef = useRef<{ ownerId: string; state_uf: string; city: string } | null>(null);
   const currentUserRef = useRef<string | null>(null);
   currentUserRef.current = user?.id ?? null;
   const roleKey = roles.join(",");
@@ -103,6 +106,10 @@ export function TechnicianAreaPage() {
   const currentStatus = roles.includes("tecnico") && profileOwnerId === user?.id ? status : null;
   const profileReady = Boolean(user && roles.includes("tecnico")
     && profileOwnerId === user.id && !profileLoading && !profileError);
+  const persistedCity = user && persistedCityRef.current?.ownerId === user.id
+    ? persistedCityRef.current : null;
+  const editingUnchangedCity = Boolean(persistedCity && form.base_city_ibge_id === null &&
+    form.state_uf === persistedCity.state_uf && form.city.trim() === persistedCity.city.trim());
 
   // Read the latest committed draft on tab backgrounding or a hard navigation.
   // Account ownership and published-profile guards remain mandatory.
@@ -155,6 +162,7 @@ export function TechnicianAreaPage() {
       base_city_ibge_id: null as number | null,
     };
     serverFormBaselineRef.current = JSON.stringify(initial);
+    persistedCityRef.current = null;
     draftOwnerRef.current = null;
     setDraftRestoredOwnerId(null);
     setForm(initial);
@@ -196,6 +204,7 @@ export function TechnicianAreaPage() {
             base_city_ibge_id: null as number | null,
           };
           serverFormBaselineRef.current = JSON.stringify(loadedForm);
+          persistedCityRef.current = { ownerId: owner, state_uf: loadedForm.state_uf, city: loadedForm.city };
           setForm(loadedForm);
           setSavedCoverageIds(data.coverage_city_ids ?? []);
           setSavedRadius(data.service_radius_km ?? null);
@@ -297,7 +306,7 @@ export function TechnicianAreaPage() {
     }
   }
   function advance() {
-    const validation = registrationStepError(step, form, catalog);
+    const validation = registrationStepError(step, form, catalog, persistedCity);
     if (validation) { setMsg(validation); return; }
     if (step < 3) moveToStep((step + 1) as RegistrationStep);
   }
@@ -314,7 +323,7 @@ export function TechnicianAreaPage() {
     e.preventDefault();
     if (!user || !profileReady || saving) return;
     if (step < 3) { advance(); return; }
-    const firstError = registrationStepError(1, form, catalog);
+    const firstError = registrationStepError(1, form, catalog, persistedCity);
     const serviceError = registrationStepError(2, form, catalog);
     if (firstError || serviceError) { setMsg(firstError || serviceError); return; }
     const publicTextError = publicTextProblem(form.bio, "bio")
@@ -364,6 +373,7 @@ export function TechnicianAreaPage() {
           return;
         }
         serverFormBaselineRef.current = JSON.stringify(form);
+        persistedCityRef.current = { ownerId: savingOwner, state_uf: persisted.state_uf ?? "", city: persisted.city };
         clearProtectedDraft("tecnico", savingOwner);
         setStatus("aprovado");
         setProfileId(persisted.id);
@@ -568,11 +578,18 @@ export function TechnicianAreaPage() {
                   </select>
                 </label>
                 <MunicipalityPicker uf={form.state_uf} selectedId={form.base_city_ibge_id}
+                  required={!editingUnchangedCity}
                   currentCityName={form.city}
                   onSelect={(city) => selectBaseMunicipality({
                     state_uf: form.state_uf, city: city.name, base_city_ibge_id: city.id,
                   })} />
               </div>
+              {editingUnchangedCity && (
+                <p className="text-xs text-muted-foreground" role="status">
+                  Cidade já registrada no seu perfil. Você pode atualizar outros dados sem selecioná-la novamente.
+                  Para mudar de município, escolha uma cidade da lista oficial.
+                </p>
+              )}
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="text-sm font-medium text-foreground">Bairro de referência (opcional)
                   <input maxLength={80} className={input} list={bairroCatalog ? "eut-bairro-profissional" : undefined}
