@@ -31,6 +31,17 @@ describe("validação das edições do catálogo administrativo", () => {
     expect(validateCatalogDraft(service, ["eletrica"]).error).toMatch(/categoria ativa/);
   });
 
+  it("permite editar serviço oculto sem reativar sua categoria original", () => {
+    const renamed = { ...service, label: "Reparo e manutenção de notebooks" };
+    expect(validateCatalogDraft(renamed, ["eletrica"], "informatica")).toMatchObject({
+      error: null,
+      changes: { label: "Reparo e manutenção de notebooks", category_slug: "informatica" },
+    });
+    expect(validateCatalogDraft({ ...renamed, categorySlug: "telefonia" },
+      ["eletrica"], "informatica").error).toMatch(/categoria ativa/);
+    expect(validateCatalogDraft(renamed, ["eletrica"]).error).toMatch(/categoria ativa/);
+  });
+
   it.each(["-1", "3.5", "abc", "10000", "", "9007199254740993"])(
     "recusa posição inválida %s",
     (displayOrder) => {

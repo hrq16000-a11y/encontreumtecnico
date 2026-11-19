@@ -189,10 +189,16 @@ export function EutAdminManager() {
     setCatalogDraft({kind:which,slug:item.slug,label:item.label,description:item.description,
       displayOrder:String(item.display_order),categorySlug:which==="service"?(item as Service).category_slug:""});
   }
+  const editedService = catalogDraft?.kind === "service"
+    ? services.find(service => service.slug === catalogDraft.slug) : undefined;
+  const retainedInactiveParent = editedService && !editedService.active &&
+    categories.some(category => category.slug === editedService.category_slug && !category.active)
+    ? editedService.category_slug : null;
   async function saveCatalogEdit(event:FormEvent) {
     event.preventDefault();
     if(!catalogDraft)return;
-    const validated=validateCatalogDraft(catalogDraft,categories.filter(c=>c.active).map(c=>c.slug));
+    const validated=validateCatalogDraft(catalogDraft,categories.filter(c=>c.active).map(c=>c.slug),
+      retainedInactiveParent);
     if(!validated.changes){setMessage(validated.error);return;}
     const changes=validated.changes;
     const original=catalogDraft.kind==="category"?
@@ -370,8 +376,10 @@ export function EutAdminManager() {
               <label className="grid gap-1 text-sm md:col-span-2">Categoria responsável
                 <select className={common} required value={catalogDraft.categorySlug}
                   onChange={e=>setCatalogDraft(v=>v?{...v,categorySlug:e.target.value}:v)}>
-                  <option value="">Escolha uma categoria ativa</option>
-                  {categories.filter(c=>c.active).map(c=><option key={c.slug} value={c.slug}>{c.label}</option>)}
+                  <option value="">Escolha uma categoria</option>
+                  {categories.filter(c=>c.active || c.slug===retainedInactiveParent).map(c=><option key={c.slug} value={c.slug}>
+                    {c.label}{c.active?"":" (oculta; vínculo atual)"}
+                  </option>)}
                 </select>
               </label>
             )}
