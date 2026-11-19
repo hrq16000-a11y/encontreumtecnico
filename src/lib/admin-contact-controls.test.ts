@@ -44,10 +44,12 @@ describe("Administração de contatos — operações auditadas",()=>{
     const page=readFileSync("src/routes/admin.tsx","utf8");
     const nav=readFileSync("src/lib/admin-sections.ts","utf8");
     expect(component).toContain('db.rpc("eut_admin_contacts_dashboard"');
-    expect(component).toContain('db.rpc("eut_admin_contact_reveal"');
     expect(component).toContain('db.rpc("eut_admin_contact_action"');
-    expect(component).toContain('setTimeout(() => {');
-    expect(component).toContain("revealTimeout.current");
+    expect(component).toContain("item.phone");
+    expect(component).toContain("Copiar telefone");
+    expect(component).not.toContain('db.rpc("eut_admin_contact_reveal"');
+    expect(component).not.toContain("revealTimeout.current");
+    expect(component).not.toContain("Ver número completo");
     expect(component).toContain("role");
     expect(component).not.toContain("localStorage.setItem");
     expect(component).not.toContain("sessionStorage.setItem");

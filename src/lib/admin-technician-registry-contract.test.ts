@@ -9,7 +9,11 @@ describe("cadastro administrativo sem conta artificial", () => {
     expect(editor).toContain('db.rpc("eut_admin_technician_record_save"');
     expect(editor).toContain("_expected_updated_at: existing?.updated_at ?? null");
     expect(editor).toContain("if (data?.ok !== true");
-    expect(editor).toContain("disabled={!available || busy || !acknowledged || Boolean(existing?.archived) || importedDemo}");
+    expect(editor).toContain("|| Boolean(existing && !identityLoaded)}");
+    expect(editor).toContain('db.rpc("eut_admin_identity_get"');
+    expect(editor).toContain('db.rpc("eut_admin_identity_save"');
+    expect(editor).toContain("hasIdentityFields");
+    expect(editor).toContain("A ficha profissional foi salva, mas e-mail/endereço não foram confirmados.");
     expect(editor).toContain('db.rpc("eut_admin_technician_record_archive"');
     expect(editor).toContain('code === "PGRST202"');
     expect(editor).not.toMatch(/auth\.admin|service_role|createUser\(/);
@@ -35,6 +39,14 @@ describe("cadastro administrativo sem conta artificial", () => {
     expect(archive).toContain("'contact_authorization_changed',false");
     expect(fixture).toContain("Restore lost prior active state or audit");
     expect(fixture).toContain("c.contact_suspended=true");
+  });
+
+  it("preserva serviços históricos e de outras categorias durante a edição", () => {
+    const editor = read("src/components/admin-technician-record-editor.tsx");
+    expect(editor).toContain("if (!checked) {");
+    expect(editor).toContain(".filter((item) => item.category_slug === slug)");
+    expect(editor).toContain("current.filter((item) => !removedServices.has(item))");
+    expect(editor).not.toContain("next.includes(s.category_slug)");
   });
 
   it("mantém uma única gestão e não expõe contato integral na listagem", () => {

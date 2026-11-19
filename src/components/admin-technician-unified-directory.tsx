@@ -7,9 +7,12 @@ import { publicTextProblem } from "@/lib/public-profile-text";
 import { AdminTechnicianManager } from "@/components/admin-technician-manager";
 import { AdminTechnicianRecordEditor, type AdminTechnicianRegistryRecord } from "@/components/admin-technician-record-editor";
 import { AdminTechnicianContactAccess } from "@/components/admin-technician-contact-access";
+import { AdminTechnician360SheetContent } from "@/components/admin-technician-360-sheet";
 import { TechnicianAvatar } from "@/components/technician-avatar";
+import { Sheet, SheetTrigger } from "@/components/ui/sheet";
 import { Link } from "@tanstack/react-router";
 import { useActiveCategories } from "@/hooks/use-active-categories";
+import { useActiveServices } from "@/hooks/use-active-services";
 import { categoryKeyword, UNIFIED_DIRECTORY_PAGE_SIZE, unifiedPageCount, unifiedPageSlice } from "@/lib/admin-unified-pagination";
 import { canBulkAct, orderTechnicians, technicianState, type TechnicianBulkAction,
   type TechnicianSortMode, type TechnicianStateFilter, type TechnicianViewMode } from "@/lib/admin-technician-directory-view";
@@ -34,6 +37,8 @@ type DirectoryRow = {
   location: string;
   regionKey?: string | undefined;
   specialty: string | null;
+  categorySlugs?: string[];
+  serviceSlugs?: string[];
   createdAt?: string;
   importedAt?: string;
   updatedAt?: string;
@@ -58,6 +63,8 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
   const [specialtyDraft, setSpecialtyDraft] = useState("");
   const [region, setRegion] = useState("");
   const [specialty, setSpecialty] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [serviceFilter, setServiceFilter] = useState("");
   const [recentOnly, setRecentOnly] = useState(false);
   const [sort, setSort] = useState<TechnicianSortMode>("name-asc");
   const [stateFilter, setStateFilter] = useState<TechnicianStateFilter>("all");
@@ -94,7 +101,10 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
   const [wpAction, setWpAction] = useState<"corrigir_nome" | "arquivar" | "restaurar">("corrigir_nome");
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const { categories } = useActiveCategories();
+  const { categories, loading: categoriesLoading, error: categoriesError } = useActiveCategories();
+  const { services, loading: servicesLoading, error: servicesError } = useActiveServices();
+  const activeServices = services.filter((item) => categories.some((category) => category.slug === item.category_slug) &&
+    (!categoryFilter || item.category_slug === categoryFilter));
   useEffect(() => {
     const initialSearch = new URLSearchParams(window.location.search).get("busca");
     if (initialSearch) setDraft(cleanUnifiedSearch(initialSearch));
@@ -128,7 +138,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       // Fetch in 200-row chunks to avoid PostgREST's 1,000-row response cap.
       // Alternate sorts and status filters require the whole matching candidate set;
       // otherwise a name-sorted prefix would give false ordering/empty pages.
-      const needed = sort === "name-asc" && !recentOnly && stateFilter === "all" && !region && !specialtyTerm
+      const needed = sort === "name-asc" && !recentOnly && stateFilter === "all" && !region && !specialtyTerm && !categoryFilter && !serviceFilter
         ? (page + 1) * UNIFIED_DIRECTORY_PAGE_SIZE : 10000;
       let matchedIds: number[] = [];
       if (term) {
@@ -150,7 +160,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
         let total = 0;
         for (let start = 0; start < needed && current; start += FETCH_CHUNK) {
           let query = db.from("technicians")
-            .select("id,display_name,city,state_uf,region,specialties,status,created_at,updated_at,avatar_path", { count: "exact" });
+            .select("id,display_name,city,state_uf,region,specialties,service_slugs,status,created_at,updated_at,avatar_path", { count: "exact" });
           if (term) query = query.ilike("display_name", `%${term}%`);
           if (region) query = region.length === 2 ? query.eq("state_uf", region.toUpperCase())
             : query.or(["city", "region"].map((field) => `${field}.ilike.%${region}%`).join(","));
@@ -166,6 +176,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
             location: [item.city, item.state_uf].filter(Boolean).join("/") || item.region || "Localidade não informada",
             regionKey: item.city || item.state_uf || undefined,
             specialty: item.specialties?.join(", ") || null,
+            categorySlugs: item.specialties ?? [], serviceSlugs: item.service_slugs ?? [],
             createdAt: item.created_at, updatedAt: item.updated_at,
             avatarPath: item.avatar_path, portalStatus: item.status, origin: "portal",
           })));
@@ -241,7 +252,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       setOperational([]); setLegacy([]); setFailed(true); setLoading(false);
     } });
     return () => { current = false; };
-  }, [term, region, specialtyTerm, matchedSlugs, page, recentOnly, sort, stateFilter, reload]);
+  }, [term, region, specialtyTerm, matchedSlugs, categoryFilter, serviceFilter, page, recentOnly, sort, stateFilter, reload]);
 
   useEffect(() => {
     let current = true;
@@ -251,7 +262,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       // The registry RPC has a strict 100-row maximum per call.
       // With locality/specialty filters, read all matching-by-name records so
       // the client does not silently omit later matching category/region rows.
-      const needAll = Boolean(region || specialtyTerm || sort !== "name-asc" || stateFilter !== "all");
+      const needAll = Boolean(region || specialtyTerm || categoryFilter || serviceFilter || sort !== "name-asc" || stateFilter !== "all");
       const wanted = needAll ? Number.POSITIVE_INFINITY : (page + 1) * UNIFIED_DIRECTORY_PAGE_SIZE;
       let total = 0;
       for (let offset = 0; offset < wanted && current; offset += 100) {
@@ -285,7 +296,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
         : "Sem conexão com a API administrativa; nenhuma gravação está habilitada.");
     });
     return () => { current = false; };
-  }, [term, region, specialtyTerm, page, sort, stateFilter, reload]);
+  }, [term, region, specialtyTerm, categoryFilter, serviceFilter, page, sort, stateFilter, reload]);
 
   useEffect(() => {
     const ids = [...new Set(registry.map((item) => item.city_ibge_id).filter((id): id is number => id !== null))];
@@ -335,6 +346,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
         item.ddd ? `DDD ${item.ddd}` : null].filter(Boolean))].join(" · ") || "Localidade não informada",
       regionKey: municipalityNames[item.city_ibge_id ?? -1]?.split("/")[0] || item.region_approx || undefined,
       specialty: item.category_slugs.join(" · ") || null,
+      categorySlugs: item.category_slugs, serviceSlugs: item.service_slugs,
       updatedAt: item.updated_at,
       demo: item.is_demo,
     }));
@@ -344,12 +356,21 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       ...legacyUnlinked,
       ...guiafixUnlinked,
       ...registryRows];
-    const datedRows = recentOnly ? rows.filter((row) => Boolean(row.createdAt || row.importedAt)) : rows;
+    const selectedCategory = categories.find((item) => item.slug === categoryFilter);
+    const catalogRows = rows.filter((row) => {
+      const text = normalizeGuiafixSearch(row.specialty ?? "");
+      const categoryMatches = !categoryFilter || row.categorySlugs?.includes(categoryFilter) ||
+        (Boolean(text) && (text.includes(normalizeGuiafixSearch(categoryFilter)) ||
+          Boolean(selectedCategory?.label && text.includes(normalizeGuiafixSearch(selectedCategory.label)))));
+      const serviceMatches = !serviceFilter || row.serviceSlugs?.includes(serviceFilter);
+      return categoryMatches && serviceMatches;
+    });
+    const datedRows = recentOnly ? catalogRows.filter((row) => Boolean(row.createdAt || row.importedAt)) : catalogRows;
     const ordered = orderTechnicians(datedRows.filter((row) => stateFilter === "all" || technicianState(row) === stateFilter),
       recentOnly ? "newest" : sort);
     return { rows: ordered, importedCount: legacy.length - legacyUnlinked.length + guiafixResults.length - guiafixUnlinked.length,
       registryFilteredCount: registryRows.length };
-  }, [operational, legacy, guiafixResults, registry, municipalityNames, region, specialtyTerm, recentOnly, sort, stateFilter]);
+  }, [operational, legacy, guiafixResults, registry, municipalityNames, region, specialtyTerm, categoryFilter, serviceFilter, categories, recentOnly, sort, stateFilter]);
   const results = useMemo(() => unifiedPageSlice(merged.rows, page), [merged, page]);
   const registryCount = region || specialtyTerm ? merged.registryFilteredCount : registryAvailable ? registryTotal : 0;
   const sourceTotal = operationalTotal === null || legacyTotal === null ? null
@@ -358,9 +379,22 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     operational.length >= operationalTotal && legacy.length >= legacyTotal &&
     (!registryAvailable || registry.length >= registryTotal);
   const allLoaded = exactTotal && !loading && !registryLoading;
-  const total = recentOnly || stateFilter !== "all" || allLoaded ? (allLoaded ? merged.rows.length : null) : sourceTotal;
+  const total = recentOnly || stateFilter !== "all" || categoryFilter || serviceFilter || allLoaded
+    ? (allLoaded ? merged.rows.length : null) : sourceTotal;
   const pages = unifiedPageCount(total ?? 0);
   const selectedRows = results.filter((row) => selected.has(row.key));
+
+  function clearDirectoryFilters() {
+    setDraft("");
+    setRegionDraft("");
+    setSpecialtyDraft("");
+    setCategoryFilter("");
+    setServiceFilter("");
+    setStateFilter("all");
+    setRecentOnly(false);
+    setSort("name-asc");
+    setPage(0);
+  }
 
   async function copySelectedNames() {
     if (!selectedRows.length) return;
@@ -378,7 +412,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     setSelected(new Set());
     setBulkAction(null);
     setDetailKey(null);
-  }, [page, sort, stateFilter, recentOnly, region, specialty]);
+  }, [page, sort, stateFilter, recentOnly, region, specialty, categoryFilter, serviceFilter]);
 
   function toggleSelected(key: string) {
     setSelected((before) => {
@@ -415,7 +449,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
             _payload: {
               display_name: row.name, city_ibge_id: row.cityIbgeId ?? null, ddd: null,
               region_approx: row.regionKey?.slice(0, 120) || null,
-              category_slugs: [], service_slugs: [], admin_active: false,
+              category_slugs: [], service_slugs: [], admin_active: true,
               is_demo: false, phone_action: "keep",
             }, _reason: bulkReason.trim(),
           });
@@ -457,11 +491,6 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     setFeedback(`${done} alteração(ões) confirmada(s) no banco. ${failures ? `${failures} não concluída(s); nenhuma delas foi presumida como salva. ` : ""}${skipped ? `${skipped} ficha(s) sem ação compatível foram ignoradas.` : ""}`);
   }
 
-  function formatDate(value?: string): string {
-    if (!value || !Number.isFinite(Date.parse(value))) return "Não informado";
-    return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(new Date(value));
-  }
-
   function filterRegion(value: string) {
     setRegionDraft(value); setRegion(cleanUnifiedSearch(value)); setPage(0); setSelectedKey(null); setImportKey(null);
   }
@@ -498,7 +527,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     const auditReason = csvReason.trim();
     if (csvBusy || !registryAvailable || !csvRows.length || !csvAcknowledged ||
       auditReason.length < 8 || auditReason.length > 400 || publicTextProblem(auditReason, "identity")) return;
-    if (!window.confirm(`Importar ${csvRows.length} técnicos como fichas administrativas editáveis? Contatos permanecerão privados e nenhuma conta será ativada.`)) return;
+    if (!window.confirm(`Cadastrar ${csvRows.length} técnicos já habilitados? Os telefones continuarão privados e não será criada conta de acesso.`)) return;
     setCsvBusy(true);
     let saved = 0;
     let failedAt = 0;
@@ -507,7 +536,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
         display_name: row.displayName, city_ibge_id: row.cityIbgeId,
         ddd: row.ddd, region_approx: row.regionApprox,
         category_slugs: row.categorySlugs, service_slugs: [],
-        admin_active: false, is_demo: false,
+        admin_active: true, is_demo: false,
         phone_action: row.phoneE164 ? "replace" : "keep",
         ...(row.phoneE164 ? { phone_e164: row.phoneE164, contact_suspended: false } : {}),
       };
@@ -529,7 +558,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     } else {
       setCsvRows([]);
       setCsvAcknowledged(false);
-      setCsvInfo(`${saved} técnicos importados e auditados no banco; nenhum contato foi publicado.`);
+      setCsvInfo(`${saved} técnicos habilitados e auditados no banco. O telefone permanece privado; a ficha aparece na busca quando possui contato elegível.`);
     }
     if (saved) setReload((value) => value + 1);
   }
@@ -638,23 +667,54 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       </label>
       <label className="grid gap-1 text-sm font-semibold text-foreground">Categoria ou especialidade
         <input value={specialtyDraft} onChange={(event) => setSpecialtyDraft(event.target.value)}
-          maxLength={80} placeholder="Ex.: informática" className="min-h-12 w-full rounded-xl border border-input bg-background px-4 font-normal text-foreground" />
+          maxLength={80} placeholder="Pesquisa livre (opcional)" className="min-h-12 w-full rounded-xl border border-input bg-background px-4 font-normal text-foreground" />
+      </label>
+      <label className="grid gap-1 text-sm font-semibold text-foreground">Categoria cadastrada
+        <select value={categoryFilter} disabled={categoriesLoading || categoriesError} onChange={(event) => {
+          setCategoryFilter(event.target.value); setServiceFilter(""); setPage(0);
+        }} className="min-h-12 w-full rounded-xl border border-input bg-background px-4 font-normal text-foreground">
+          <option value="">Todas as categorias</option>
+          {categories.map((item) => <option key={item.slug} value={item.slug}>{item.label}</option>)}
+        </select>
+      </label>
+      <label className="grid gap-1 text-sm font-semibold text-foreground">Serviço cadastrado
+        <select value={serviceFilter} disabled={categoriesLoading || categoriesError || servicesLoading || servicesError}
+          onChange={(event) => { setServiceFilter(event.target.value); setPage(0); }}
+          className="min-h-12 w-full rounded-xl border border-input bg-background px-4 font-normal text-foreground">
+          <option value="">Todos os serviços</option>
+          {activeServices.map((item) => <option key={item.slug} value={item.slug}>
+            {item.label}{!categoryFilter ? ` · ${categories.find((category) => category.slug === item.category_slug)?.label ?? item.category_slug}` : ""}
+          </option>)}
+        </select>
       </label>
     </div>
+    <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+      <p className="text-xs text-muted-foreground">Categorias e serviços vêm do catálogo administrativo. Serviços específicos filtram apenas fichas com o serviço explicitamente cadastrado; a pesquisa livre continua disponível.</p>
+      {(draft || regionDraft || specialtyDraft || categoryFilter || serviceFilter || stateFilter !== "all" || recentOnly || sort !== "name-asc") && (
+        <button type="button" onClick={clearDirectoryFilters}
+          className="min-h-10 rounded-lg border border-input px-3 text-xs font-semibold text-foreground">
+          Limpar todos os filtros
+        </button>
+      )}
+    </div>
+    {(categoriesError || servicesError) && <p role="status" className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+      {categoriesError ? "Não foi possível consultar as categorias ativas do catálogo." : "Não foi possível consultar os serviços ativos do catálogo."}
+      {" "}Use a pesquisa livre ou tente novamente ao voltar para esta página.
+    </p>}
     <div className="mt-4 flex flex-wrap items-end justify-between gap-3 rounded-xl border border-border bg-muted/20 p-3">
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="grid gap-1 text-xs font-semibold text-foreground"><span className="flex items-center gap-1"><SlidersHorizontal className="h-4 w-4" /> Situação</span>
+      <div className="flex w-full min-w-0 flex-wrap items-end gap-3 sm:w-auto">
+        <label className="grid w-full min-w-0 gap-1 text-xs font-semibold text-foreground sm:w-auto"><span className="flex items-center gap-1"><SlidersHorizontal className="h-4 w-4" /> Situação</span>
           <select value={stateFilter} onChange={(event) => { setStateFilter(event.target.value as TechnicianStateFilter); setPage(0); }}
-            className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm">
+            className="min-h-11 w-full min-w-0 max-w-full rounded-lg border border-input bg-background px-3 text-sm">
             <option value="all">Todas as situações</option>
             <option value="active">Ativos</option>
             <option value="inactive">Suspensos e arquivados</option>
             <option value="review">Sem ativação / em análise</option>
           </select>
         </label>
-        <label className="grid gap-1 text-xs font-semibold text-foreground">Ordenar por
+        <label className="grid w-full min-w-0 gap-1 text-xs font-semibold text-foreground sm:w-auto">Ordenar por
           <select value={sort} onChange={(event) => { setSort(event.target.value as TechnicianSortMode); setRecentOnly(false); setPage(0); }}
-            className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm">
+            className="min-h-11 w-full min-w-0 max-w-full rounded-lg border border-input bg-background px-3 text-sm">
             <option value="name-asc">Nome A–Z</option>
             <option value="name-desc">Nome Z–A</option>
             <option value="newest">Entradas mais recentes (cadastro ou importação)</option>
@@ -671,10 +731,12 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
           </button>)}
       </div>
     </div>
-    {(region || specialty || stateFilter !== "all") && <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+    {(region || specialty || categoryFilter || serviceFilter || stateFilter !== "all") && <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
       <span>Filtros ativos:</span>
       {region && <button type="button" onClick={() => filterRegion("")} className="min-h-9 rounded-full border border-input px-3">Região: {region} ×</button>}
       {specialty && <button type="button" onClick={() => filterSpecialty("")} className="min-h-9 rounded-full border border-input px-3">Especialidade: {specialty} ×</button>}
+      {categoryFilter && <button type="button" onClick={() => { setCategoryFilter(""); setServiceFilter(""); setPage(0); }} className="min-h-9 rounded-full border border-input px-3">Categoria: {categories.find((item) => item.slug === categoryFilter)?.label ?? categoryFilter} ×</button>}
+      {serviceFilter && <button type="button" onClick={() => { setServiceFilter(""); setPage(0); }} className="min-h-9 rounded-full border border-input px-3">Serviço: {services.find((item) => item.slug === serviceFilter)?.label ?? serviceFilter} ×</button>}
       {stateFilter !== "all" && <button type="button" onClick={() => { setStateFilter("all"); setPage(0); }} className="min-h-9 rounded-full border border-input px-3">Situação ×</button>}
     </div>}
     <p role="status" className="mt-3 text-sm text-muted-foreground">
@@ -721,7 +783,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     {feedback && <p role="status" className="mt-3 rounded-lg border border-border bg-muted/50 p-3 text-sm text-foreground">{feedback}</p>}
     {!loading && !registryLoading && !failed && view === "rows" && results.length > 0 &&
       <div aria-hidden="true" className="mt-4 hidden grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-3 rounded-t-xl border border-b-0 border-border bg-muted/60 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:grid">
-        <span>Profissional</span><span>Localidade</span><span>Especialidade</span><span>Origem / situação</span><span>Ações</span>
+        <span>Profissional</span><span>Localidade</span><span>Especialidade</span><span>Situação</span><span>Ações</span>
       </div>}
     {!loading && !registryLoading && !failed && <ul aria-label="Diretório operacional de técnicos" className={"grid min-w-0 gap-3 " +
       (view === "rows" ? "grid-cols-1 gap-0 rounded-b-xl border border-border lg:border-t-0" : view === "cards" ? "mt-4 grid-cols-1 md:grid-cols-2" : "mt-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4")}>
@@ -771,14 +833,22 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
               className="min-h-9 break-words text-left text-primary hover:underline">{row.specialty}</button> : "Não informada"}
           </div>}
           {view === "rows" && <div className="hidden min-w-0 text-xs text-muted-foreground lg:block">
-            <span className="block">{row.origin === "portal" ? "Cadastro no portal" : row.origin === "wordpress" ? "Acervo WordPress" : row.origin === "guiafix" ? "Importação Guiafix" : row.origin === "manual" ? "Cadastro administrativo" : "Outra importação"}</span>
             <span>{technicianState(row) === "active" ? "Ativo" : technicianState(row) === "inactive" ? "Suspenso / arquivado" : "A revisar"}</span>
           </div>}
           <div className={"flex shrink-0 flex-wrap items-center gap-2 " + (view === "rows" ? "lg:justify-end" : view === "avatars" ? "justify-center" : "sm:justify-end")}>
-            <button type="button" onClick={() => setDetailKey((key) => key === row.key ? null : row.key)}
-              aria-expanded={detailKey === row.key} className="min-h-10 rounded-lg border border-input px-3 text-xs font-semibold text-foreground hover:bg-muted">
-              {detailKey === row.key ? "Fechar ficha" : "Ver ficha"}
-            </button>
+            <Sheet open={detailKey === row.key} onOpenChange={(open) => setDetailKey(open ? row.key : null)}>
+              <SheetTrigger asChild>
+                <button type="button" aria-expanded={detailKey === row.key}
+                  className="min-h-10 rounded-lg border border-input px-3 text-xs font-semibold text-foreground hover:bg-muted">
+                  Ver ficha
+                </button>
+              </SheetTrigger>
+              {detailKey === row.key && <AdminTechnician360SheetContent record={row} state={technicianState(row)}
+                onEdit={() => {
+                  setDetailKey(null);
+                  if (selectedKey !== row.key) selectRow(row);
+                }} />}
+            </Sheet>
             {!row.demo && <button type="button" onClick={() => selectRow(row)} aria-expanded={selectedKey === row.key}
               className="min-h-10 rounded-lg border border-primary/40 bg-primary/10 px-3 text-xs font-semibold text-primary hover:bg-primary/20">
               {selectedKey === row.key ? "Fechar edição" : "Editar"}
@@ -786,22 +856,8 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
             {!row.demo && <AdminTechnicianContactAccess recordKey={row.key} />}
           </div>
         </div>
-        {detailKey === row.key && <section aria-label={`Ficha de ${row.name}`}
-          className="mt-3 grid gap-3 rounded-lg border border-border bg-muted/30 p-3 text-sm sm:grid-cols-2">
-          <div><span className="block text-xs text-muted-foreground">Nome profissional</span><strong className="break-words">{row.name}</strong></div>
-          <div><span className="block text-xs text-muted-foreground">Localidade</span><span className="break-words">{row.location}</span></div>
-          <div><span className="block text-xs text-muted-foreground">Categoria / especialidade</span>{row.specialty || "Não informada"}</div>
-          <div><span className="block text-xs text-muted-foreground">Situação</span>{technicianState(row) === "active" ? "Ativo" : technicianState(row) === "inactive" ? "Suspenso / arquivado" : "A revisar"}</div>
-          <div><span className="block text-xs text-muted-foreground">Cadastro</span>{formatDate(row.createdAt)}</div>
-          {row.importedAt && <div><span className="block text-xs text-muted-foreground">Entrada no sistema (importação)</span>{formatDate(row.importedAt)}</div>}
-          <div><span className="block text-xs text-muted-foreground">Última atualização</span>{formatDate(row.updatedAt)}</div>
-          <div className="sm:col-span-2"><span className="block text-xs text-muted-foreground">Contato</span>
-            {row.registry?.contact_last4 ? `Privado · final ${row.registry.contact_last4}` : "Use Consultar contato para verificar disponibilidade"}
-          </div>
-        </section>}
         {row.registry && <p className="mt-2 text-xs text-muted-foreground">
           {row.registry.archived ? "Registro arquivado" : row.registry.admin_active ? "Registro administrativo ativo" : "Registro administrativo não ativo"}
-          {row.registry.contact_last4 ? ` · Contato privado final ${row.registry.contact_last4}` : ""}
         </p>}
         {selectedKey === row.key && row.registry &&
           <AdminTechnicianRecordEditor key={row.registry.technician_id + row.registry.updated_at}
@@ -885,7 +941,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     </nav>}
     <p className="mt-4 text-xs text-muted-foreground">
       Edições e ações em massa exigem sessão administrativa autorizada e motivo auditável.
-      O cadastro CSV é confirmado diretamente pela função auditada e não ativa contatos automaticamente.
+      O cadastro CSV é confirmado diretamente pela função auditada e nasce habilitado, sem revelar contatos.
     </p>
     <fieldset className="mt-4 space-y-2 rounded-xl border border-dashed border-border p-3">
       <legend className="text-sm font-semibold">Preparar importação CSV</legend>
@@ -893,7 +949,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
         Importe até 500 técnicos por arquivo de até 2 MB, com coluna nome obrigatória.
         Campos opcionais: ddd, cidade/regiao, ibge, categoria e telefone. Separe múltiplas categorias por |.
         A prévia fica neste aparelho; ao confirmar, as fichas são gravadas individualmente com auditoria,
-        sem ativar conta nem contato público. Reenviar o mesmo arquivo não duplica técnicos.
+        sem criar conta nem expor telefones. Técnicos habilitados com contato elegível entram na busca. Reenviar o mesmo arquivo não duplica técnicos.
       </p>
       <input type="file" accept=".csv,text/csv" aria-label="Selecionar CSV para análise local"
         className="max-w-full text-sm text-foreground"

@@ -63,7 +63,7 @@ export function AdminCommandOverview() {
   }, [revision]);
 
   const cards: SummaryItem[] = [
-    { label: "Técnicos", value: null, module: "tecnicos", note: "Lista única de gestão e edição" },
+    { label: "Técnicos aprovados no portal", value: metrics?.approved ?? null, module: "tecnicos", note: "Não inclui fichas históricas ou cadastros administrativos" },
     { label: "Clientes cadastrados", value: metrics?.clients ?? null, module: "clientes", note: "Total do RPC administrativo" },
     { label: "Solicitações registradas", value: metrics?.requests ?? null, module: "solicitacoes", note: "Todas as situações" },
     { label: "Solicitações abertas", value: metrics?.requestsOpen ?? null, module: "solicitacoes", note: "Status: aberta" },
@@ -79,7 +79,7 @@ export function AdminCommandOverview() {
     { label: "Revisar campanhas em rascunho", value: metrics?.drafts ?? null, module: "patrocinadores" },
   ];
   const availableAlerts = alerts.filter((item) => item.value !== null && item.value > 0);
-  const incomplete = !loading && [...cards, ...alerts].some((item) => item.value === null && item.label !== "Técnicos");
+  const incomplete = !loading && [...cards, ...alerts].some((item) => item.value === null);
 
   const requestStages = [
     { label: "Abertas", count: metrics?.requestsOpen ?? null, color: "bg-amber-500" },
@@ -110,7 +110,7 @@ export function AdminCommandOverview() {
         className="group block min-w-0 rounded-xl border border-border bg-background p-4 transition-colors hover:border-primary hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <span className="block text-sm font-semibold text-muted-foreground">{item.label}</span>
         <strong aria-live="polite" className="mt-1 block text-2xl font-bold tabular-nums text-foreground">
-          {item.module === "tecnicos" ? "Abrir gestão" : loading ? "…" : item.value === null ? "Indisponível" : item.value.toLocaleString("pt-BR")}
+          {loading ? "…" : item.value === null ? "Indisponível" : item.value.toLocaleString("pt-BR")}
         </strong>
         <span className="mt-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">{item.note} <ArrowUpRight className="h-4 w-4 shrink-0 text-primary transition-transform group-hover:translate-x-0.5" /></span>
       </Link>)}

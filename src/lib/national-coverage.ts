@@ -31,7 +31,7 @@ export const CAPITAL_CITIES: readonly CoverageCity[] = [
   { uf: "TO", cidade: "Palmas" },
 ];
 
-/** Localidades informadas como presença de parceiros pela administração em 10/11/2026.
+/** Localidades informadas como presença de parceiros pela administração do portal.
  * Quatro capitais aparecem também aqui, de propósito: há dois recortes distintos.
  * Não use estes dados para afirmar profissional ativo, verificado ou disponível.
  */
@@ -44,11 +44,11 @@ export const PARTNER_CITIES_BY_STATE: Readonly<Record<string, readonly string[]>
   ES: ["Nova Venécia", "Colatina", "São Mateus"],
   GO: ["Rio Verde", "Mineiros"],
   MA: ["Barreirinhas", "Imperatriz"],
-  MG: ["Juiz de Fora", "Poços de Caldas", "Muriaé", "Três Corações", "Além Paraíba", "Salinas", "Visconde do Rio Branco"],
+  MG: ["Governador Valadares", "Juiz de Fora", "Poços de Caldas", "Muriaé", "Três Corações", "Além Paraíba", "Salinas", "Visconde do Rio Branco"],
   MS: ["Dourados", "Sidrolândia", "Naviraí"],
   MT: ["Cuiabá"],
   PA: ["Abaetetuba", "Paragominas", "Santarém", "Cametá", "Barcarena", "Altamira", "Bragança"],
-  PB: ["Campina Grande"],
+  PB: ["Campina Grande", "Santa Rita"],
   PE: ["Araripina", "Salgueiro"],
   PI: ["Campo Maior", "Altos"],
   PR: ["Medianeira", "Londrina", "Cascavel", "Paranaguá", "Arapongas", "Cambé", "Francisco Beltrão", "Marechal Cândido Rondon"],

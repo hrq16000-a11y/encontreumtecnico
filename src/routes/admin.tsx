@@ -13,15 +13,16 @@ import { AdminCommandOverview } from "@/components/admin-command-overview";
 import { AdminRequestQueue } from "@/components/admin-request-queue";
 import { AdminMessageQueue } from "@/components/admin-message-queue";
 import { AdminAdvertisingManager } from "@/components/admin-advertising-manager";
-import { AdminNavigation } from "@/components/admin-navigation";
+import { AdminNavigation, AdminShortcutLink } from "@/components/admin-navigation";
 import { AdminTechnicianUnifiedDirectory } from "@/components/admin-technician-unified-directory";
 import { AdminOwnTechnicianRole } from "@/components/admin-own-technician-role";
 import { AdminMemberInvites } from "@/components/admin-member-invites";
 import { AdminAccountsManager } from "@/components/admin-accounts-manager";
 import { AdminContactsDashboard } from "@/components/admin-contacts-dashboard";
 import { AdminClientInsights } from "@/components/admin-client-insights";
+import { AdminUsersHub } from "@/components/admin-users-hub";
 import { adminModuleTitle, type AdminSection } from "@/lib/admin-sections";
-import { ArrowRight, ClipboardList, PhoneCall, ShieldBan, Wrench } from "lucide-react";
+import { ArrowRight, ClipboardList, ChartNoAxesCombined, Tags, UsersRound } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -39,11 +40,11 @@ export const Route = createFileRoute("/admin")({
 });
 
 const ADMIN_QUICK_LINKS = [
-  { section: "tecnicos", label: "Técnicos", icon: Wrench },
+  { section: "usuarios", label: "Usuários", icon: UsersRound },
   { section: "solicitacoes", label: "Solicitações", icon: ClipboardList },
-  { section: "contas", label: "Contas e bloqueios", icon: ShieldBan },
-  { section: "contatos", label: "Contatos privados", icon: PhoneCall },
-] as const satisfies ReadonlyArray<{ section: AdminSection; label: string; icon: typeof Wrench }>;
+  { section: "catalogo", label: "Categorias e serviços", icon: Tags },
+  { section: "metricas", label: "Métricas", icon: ChartNoAxesCombined },
+] as const satisfies ReadonlyArray<{ section: AdminSection; label: string; icon: typeof UsersRound }>;
 
 export function AdminPage() {
   return <AdminWorkspace section="inicio" />;
@@ -96,14 +97,13 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
               <p className="mt-1 text-xs text-muted-foreground">Atalhos internos. As permissões de cada ação continuam protegidas.</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {ADMIN_QUICK_LINKS.map((item) => (
-                  <Link key={item.section} to="/admin/$secao" params={{ secao: item.section }}
-                    aria-current={section === item.section ? "page" : undefined}
+                  <AdminShortcutLink key={item.section} to="/admin/$secao" params={{ secao: item.section }}
                     className={"inline-flex min-h-11 items-center rounded-lg border px-4 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
                       (section === item.section
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border bg-background text-foreground hover:border-primary hover:text-primary")}>
                     <item.icon className="mr-2 inline h-4 w-4 shrink-0 align-text-bottom" aria-hidden="true" /> {item.label}
-                  </Link>
+                  </AdminShortcutLink>
                 ))}
               </div>
             </nav>
@@ -119,6 +119,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             {section === "reivindicacoes" && <section aria-label="Reivindicações"><div id="admin-reivindicacoes"><LegacyClaimReview /></div></section>}
             {section === "catalogo" && <section aria-label="Categorias e serviços"><div id="admin-catalogo"><EutAdminManager /></div></section>}
             {section === "contas" && <section aria-label="Contas e bloqueios"><AdminMemberInvites /><AdminAccountsManager /></section>}
+            {section === "usuarios" && <AdminUsersHub adminOwnerId={user.id} />}
             {section === "contatos" && <section aria-label="Contatos administrativos"><AdminContactsDashboard adminId={user.id} /></section>}
             {section === "tecnicos" && <section aria-label="Gestão de técnicos">
               <AdminTechnicianUnifiedDirectory adminOwnerId={user.id} />

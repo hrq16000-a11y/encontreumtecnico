@@ -12,7 +12,7 @@ import { CustomerLocationButton } from "@/components/customer-location-button";
 import { BRAZIL_STATES } from "@/lib/service-taxonomy";
 import { technicianSearchAfterUfChange } from "@/lib/technician-search-uf-transition";
 import { neighborhoodCatalogFor, neighborhoodOptions } from "@/lib/neighborhood-sources";
-import { localMatchLabel } from "@/lib/technician-local-ranking";
+import { groupTechniciansByDeclaredArea, localMatchLabel } from "@/lib/technician-local-ranking";
 import { LegacyPublicArchive } from "../components/legacy-public-archive";
 import { canShowLegacyArchive } from "../lib/legacy-archive-filters";
 import { useEffect, useRef, useState } from "react";
@@ -67,6 +67,7 @@ const searchSchema = z.object({
   uf: fallback(z.string(), "").default(""),
   bairro: fallback(z.string(), "").default(""),
   prioridade: fallback(z.string(), "").default(""),
+  pagina: fallback(z.coerce.number().int().min(1).max(1000), 1).default(1),
 });
 
 export const Route = createFileRoute("/tecnicos/")({
@@ -130,6 +131,11 @@ function TechniciansPage() {
   }, [search.especialidade, search.cidade, search.regiao, search.servico, search.uf, search.bairro, search.prioridade, technicians.length, consentRevision]);
   const prioritizeRegion = search.prioridade === "regiao" && Boolean(search.uf || search.cidade.trim());
   const hasDeclaredLocation = Boolean(search.uf || search.cidade.trim());
+  const regionalGroups = prioritizeRegion
+    ? groupTechniciansByDeclaredArea(technicians, { uf: search.uf, cidade: search.cidade, bairro: search.bairro })
+    : null;
+  const localCount = regionalGroups?.local.length ?? technicians.length;
+  const alternativesCount = regionalGroups ? regionalGroups.sameState.length + regionalGroups.otherStates.length : 0;
 
   const searchArea = [search.bairro, search.cidade, search.uf].filter(Boolean).join(" · ");
   const bairroCatalog = neighborhoodCatalogFor({ city: search.cidade, uf: search.uf });
@@ -156,7 +162,7 @@ function TechniciansPage() {
     : "Todas";
 
   const update = (patch: Partial<typeof search>) =>
-    navigate({ search: (prev) => ({ ...prev, ...patch }), replace: true });
+    navigate({ search: (prev) => ({ ...prev, ...patch, pagina: patch.pagina ?? 1 }), replace: true });
 
   return (
     <PageShell>
@@ -325,14 +331,32 @@ function TechniciansPage() {
               <UserRoundCheck className="h-6 w-6" />
             </span>
             <div>
-              <h2 className="text-lg font-extrabold text-white">{technicians.length} {technicians.length === 1 ? "profissional" : "profissionais"} nesta busca</h2>
-              <p className="text-xs text-white/80">{searchArea || "Em todo o Brasil"} · Perfis públicos declarados</p>
+              <h2 className="text-lg font-extrabold text-white">{localCount} {localCount === 1 ? "profissional" : "profissionais"} {regionalGroups ? "com atendimento local declarado nesta página" : "nesta página"}</h2>
+              <p className="text-xs text-white/80">{searchArea || "Em todo o Brasil"} · {regionalGroups ? `${alternativesCount} ${alternativesCount === 1 ? "alternativa de outra localidade" : "alternativas de outras localidades"} em seções separadas` : "Perfis públicos declarados"}</p>
             </div>
           </div>
           <span className="inline-flex items-center gap-2 text-xs font-semibold text-white/85"><ShieldCheck className="h-4 w-4" aria-hidden="true" /> Contatos protegidos</span>
         </div>
         <div className="mt-4">
-          {technicians.length === 0 ? (
+          {(() => {
+            // Keep actual cards in the results area, before contextual guidance.
+            const renderCards = (rows: typeof technicians) => (
+              <ul className="grid min-w-0 gap-4 md:grid-cols-2 lg:gap-5">
+                {rows.map((t) => (
+                  <li key={t.id} className="min-w-0">
+                    <TechnicianSearchCard
+                      technician={t}
+                      categories={categories}
+                      services={services}
+                      localMatch={prioritizeRegion ? localMatchLabel(t, {
+                        uf: search.uf, cidade: search.cidade, bairro: search.bairro,
+                      }) : null}
+                    />
+                  </li>
+                ))}
+              </ul>
+            );
+            return technicians.length === 0 ? (
             <div className="space-y-4">
               <EmptyState
                 title="Nenhum técnico encontrado com estes filtros"
@@ -389,23 +413,49 @@ function TechniciansPage() {
                 </div>
               </div>
             </div>
-          ) : (
-            <ul className="grid gap-4 md:grid-cols-2 lg:gap-5">
-              {technicians.map((t) => (
-                <li key={t.id} className="min-w-0">
-                  <TechnicianSearchCard
-                    technician={t}
-                    categories={categories}
-                    services={services}
-                    localMatch={prioritizeRegion ? localMatchLabel(t, {
-                      uf: search.uf, cidade: search.cidade, bairro: search.bairro,
-                    }) : null}
-                  />
-                </li>
-              ))}
-            </ul>
-          )}
+          ) : regionalGroups ? (
+            <div className="space-y-7">
+              <section aria-label="Atendimento declarado na localidade pesquisada" className="space-y-3">
+                <div>
+                  <h2 className="text-lg font-extrabold text-foreground">Atendimento declarado {search.cidade.trim() ? `em ${search.cidade}${search.uf ? `/${search.uf}` : ""}` : `no estado ${search.uf}`}</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">{localCount} {localCount === 1 ? "perfil informa" : "perfis informam"} atender a esta localidade; isso não garante disponibilidade.</p>
+                </div>
+                {regionalGroups.local.length > 0 ? renderCards(regionalGroups.local) : (
+                  <div role="status" className="rounded-2xl border border-primary/25 bg-accent/50 p-5 sm:p-6">
+                    <h3 className="text-base font-bold text-foreground">Ainda não há técnico com atendimento declarado {search.cidade.trim() ? "nesta cidade" : "neste estado"}</h3>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">As opções abaixo são de outras localidades. Elas não devem ser confundidas com atendimento confirmado na região pesquisada.</p>
+                    <button type="button" onClick={() => openFreeHelp(helpContext)}
+                      className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground hover:bg-primary/90">
+                      <LifeBuoy className="h-4 w-4" aria-hidden="true" /> Pedir ajuda para minha região
+                    </button>
+                  </div>
+                )}
+              </section>
+              {regionalGroups.sameState.length > 0 && (
+                <section aria-label="Alternativas de outros municípios do estado" className="space-y-3 border-t border-border pt-6">
+                  <h2 className="text-lg font-extrabold text-foreground">Outras cidades de {search.uf}</h2>
+                  <p className="text-sm text-muted-foreground">Esses profissionais estão no mesmo estado, mas não declararam atendimento à cidade pesquisada.</p>
+                  {renderCards(regionalGroups.sameState)}
+                </section>
+              )}
+              {regionalGroups.otherStates.length > 0 && (
+                <section aria-label="Sugestões nacionais de outras localidades" className="space-y-3 border-t border-border pt-6">
+                  <h2 className="text-lg font-extrabold text-foreground">{search.uf ? "Sugestões de outros estados" : "Sugestões de outras regiões"}</h2>
+                  <p className="text-sm text-muted-foreground">Esses perfis não declaram atender à localidade pesquisada. Confirme a área de cobertura antes de solicitar atendimento.</p>
+                  {renderCards(regionalGroups.otherStates)}
+                </section>
+              )}
+            </div>
+          ) : renderCards(technicians);
+          })()}
         </div>
+        <nav aria-label="Paginação do diretório" className="mt-5 flex flex-wrap items-center justify-center gap-3">
+          {search.pagina > 1 && <button type="button" onClick={() => void update({ pagina: search.pagina - 1 })}
+            className="min-h-11 rounded-xl border border-primary/40 px-4 text-sm font-bold text-primary">Página anterior</button>}
+          <span className="text-sm text-muted-foreground">Página {search.pagina}</span>
+          {technicians.length >= 100 && search.pagina < 1000 && <button type="button" onClick={() => void update({ pagina: search.pagina + 1 })}
+            className="min-h-11 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground">Próxima página</button>}
+        </nav>
         {CATEGORY_SEARCH_CONTEXT[search.especialidade] && (
           <aside aria-label="Orientações da especialidade selecionada"
             className="mt-5 flex flex-col gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
@@ -422,7 +472,7 @@ function TechniciansPage() {
           </aside>
         )}
         <section aria-label="Transparência e confiança na busca" className="mt-6 grid gap-3 rounded-2xl border border-primary/15 bg-accent/50 p-4 sm:grid-cols-3">
-          <div className="flex items-start gap-3"><UserRoundCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" /><p className="text-sm text-foreground"><strong className="block">{technicians.length} perfil{technicians.length === 1 ? "" : "s"} nesta busca</strong><span className="text-xs text-muted-foreground">Somente perfis publicados; resultados conforme os filtros aplicados.</span></p></div>
+          <div className="flex items-start gap-3"><UserRoundCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" /><p className="text-sm text-foreground"><strong className="block">{localCount} perfil{localCount === 1 ? "" : "s"} {regionalGroups ? "da localidade" : "nesta busca"}</strong><span className="text-xs text-muted-foreground">{regionalGroups ? `${alternativesCount} alternativas separadas por região; somente perfis publicados.` : "Somente perfis publicados; resultados conforme os filtros aplicados."}</span></p></div>
           <div className="flex items-start gap-3"><MapPin className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" /><p className="text-sm text-foreground"><strong className="block">Localidade informada</strong><span className="text-xs text-muted-foreground">Regiões declaradas pelos profissionais, sem localização inventada.</span></p></div>
           <div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" /><p className="text-sm text-foreground"><strong className="block">Contato protegido</strong><span className="text-xs text-muted-foreground">Telefones particulares não aparecem na busca pública.</span></p></div>
         </section>

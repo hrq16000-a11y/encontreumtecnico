@@ -39,7 +39,8 @@ vi.mock("@/integrations/supabase/client", () => ({
             mockDb.delayNextMessageQuery = null;
             await delay;
           }
-          return { data: rows.slice(start, end + 1), count: rows.length, error: null };
+          // Supabase returns a JSON snapshot, not references to mutable fixture rows.
+          return { data: rows.slice(start, end + 1).map((row) => ({ ...row })), count: rows.length, error: null };
         },
         async maybeSingle() {
           return { data: records().find((r) => r["id"] === idFilter) ?? null, error: null };
