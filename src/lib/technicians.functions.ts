@@ -53,7 +53,7 @@ const adminPublicRow = z.object({
 async function listAdminPublished(filters: {
   slug?: string | undefined; category?: string | undefined; service?: string | undefined;
   uf?: string | undefined; city?: string | undefined; region?: string | undefined;
-  neighborhood?: string | undefined;
+  neighborhood?: string | undefined; offset?: number; limit?: number;
 }): Promise<PublicTechnician[]> {
   // No neighborhood was supplied for these imports; never invent a match.
   if (filters.neighborhood) return [];
@@ -65,8 +65,8 @@ async function listAdminPublished(filters: {
       _uf: filters.uf ?? null,
       _city: filters.city ?? null,
       _region: filters.region ?? null,
-      _limit: filters.slug ? 1 : 200,
-      _offset: 0,
+      _limit: filters.slug ? 1 : filters.limit ?? 200,
+      _offset: filters.slug ? 0 : filters.offset ?? 0,
     },
   );
   if (error) throw new Error("Não foi possível consultar o catálogo de técnicos.");
@@ -191,13 +191,14 @@ const clean = (s: string) => s.replace(/[%,()*\\]/g, " ").trim().slice(0, 80);
 
 export const listApprovedTechnicians = createServerFn({ method: "GET" })
   .inputValidator((d) =>
-    z.object({ especialidade: z.string().max(80), cidade: z.string().max(80), regiao: z.string().max(80), servico: z.string().max(80).default(""), uf: z.string().max(2).default(""), bairro: z.string().max(80).default(""), prioridade: z.string().max(12).default("") }).parse(d),
+    z.object({ especialidade: z.string().max(80), cidade: z.string().max(80), regiao: z.string().max(80), servico: z.string().max(80).default(""), uf: z.string().max(2).default(""), bairro: z.string().max(80).default(""), prioridade: z.string().max(12).default(""), pagina: z.number().int().min(1).max(1000).default(1) }).parse(d),
   )
   .handler(async ({ data }): Promise<PublicTechnician[]> => {
     setResponseHeader("Cache-Control", "no-store");
     // "Priorizar minha região" is not a strict geography filter. It ranks
     // among approved matching professionals so other regions remain options.
     const regionalPriority = data.prioridade === "regiao" && Boolean(data.uf || data.cidade.trim());
+    const offset = (data.pagina - 1) * 100;
     const category = data.especialidade && data.especialidade !== "Todas"
       ? (LEGACY_CATEGORY_ALIASES[data.especialidade] ?? data.especialidade) : undefined;
     let q = publicClient()
@@ -205,7 +206,7 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
       .select(COLUMNS)
       .eq("status", "aprovado")
       .order("created_at", { ascending: false })
-      .limit(200);
+      .range(offset, offset + 99);
     if (data.especialidade && data.especialidade !== "Todas") {
       const slug = category!;
       const { data: active, error: catalogError } = await (publicClient() as unknown as SupabaseClient)
@@ -241,6 +242,7 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
     const eligible = await readPublicEligibleRows(publicClient() as unknown as PublicEligibilityRpc, rows ?? []);
     const published = await withCoverageCities(await withReferralHighlights(await withPioneerBadges(await withOnlineStatus(eligible.map(sanitizePublicTechnician)))));
     const adminPublished = await listAdminPublished({
+      offset, limit: 100,
       ...(category ? { category } : {}),
       ...(data.servico ? { service: data.servico } : {}),
       ...(!regionalPriority && uf ? { uf } : {}),

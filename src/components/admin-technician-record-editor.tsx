@@ -5,6 +5,7 @@ import { useActiveCategories } from "@/hooks/use-active-categories";
 import { normalizeBrazilPhoneE164 } from "@/lib/admin-technician-crud-intent";
 import { confirmedTechnicianArchiveResult } from "@/lib/admin-technician-archive-confirmation";
 import { publicTextProblem } from "@/lib/public-profile-text";
+import { AdminTechnicianCoverageEditor } from "@/components/admin-technician-coverage-editor";
 
 const db = supabase as unknown as SupabaseClient;
 const field = "min-h-11 min-w-0 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground";
@@ -387,10 +388,9 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
     </fieldset>}
     </>
     <label className="flex min-h-11 items-center gap-2 text-sm text-foreground">
-      <input type="checkbox" checked={active} disabled={existing?.is_demo || importedCreation}
+      <input type="checkbox" checked={active} disabled={existing?.is_demo || importedDemo}
         onChange={(event) => setActive(event.target.checked)} />
-      {importedCreation ? "Ficha importada não ativa até revisão individual (bloqueado nesta importação)" :
-        "Ativo na gestão administrativa (não libera contato público ou pago)"}
+      Habilitado no catálogo, sem distinção de origem ou reivindicação obrigatória
     </label>
     <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">Telefone com DDD
       <input className={field} inputMode="tel" autoComplete="off"
@@ -471,6 +471,8 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
       Esta ficha está arquivada. Restaure primeiro para voltar a editá-la;
       a restauração recupera a condição administrativa anterior sem alterar contatos privados ou acesso pago.
     </p>}
+    {existing && !existing.archived && !existing.is_demo &&
+      <AdminTechnicianCoverageEditor technicianId={existing.technician_id} onSaved={onSaved} />}
     <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
       <button type="button" className="min-h-11 rounded-lg border border-input px-4 text-foreground" onClick={onCancel}>Cancelar</button>
       {existing && <button type="button" disabled={!available || busy || !acknowledged}
