@@ -179,10 +179,16 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
   }, [citySearch]);
 
   function toggleCategory(slug: string, checked: boolean) {
-    const next = checked ? [...categories, slug] : categories.filter((item) => item !== slug);
-    setCategories(next);
-    setServices((items) => items.filter((item) => availableServices.some((s) =>
-      s.slug === item && next.includes(s.category_slug))));
+    setCategories((current) => checked
+      ? (current.includes(slug) ? current : [...current, slug])
+      : current.filter((item) => item !== slug));
+    if (!checked) {
+      // Only detach known services from the removed category. An unavailable or
+      // incomplete catalog must never erase unrelated or historical selections.
+      const removedServices = new Set(availableServices
+        .filter((item) => item.category_slug === slug).map((item) => item.slug));
+      setServices((current) => current.filter((item) => !removedServices.has(item)));
+    }
   }
 
   function changeIdentity(key: IdentityField, value: string) {
