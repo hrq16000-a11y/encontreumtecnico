@@ -67,6 +67,7 @@ const searchSchema = z.object({
   uf: fallback(z.string(), "").default(""),
   bairro: fallback(z.string(), "").default(""),
   prioridade: fallback(z.string(), "").default(""),
+  pagina: fallback(z.coerce.number().int().min(1).max(1000), 1).default(1),
 });
 
 export const Route = createFileRoute("/tecnicos/")({
@@ -161,7 +162,7 @@ function TechniciansPage() {
     : "Todas";
 
   const update = (patch: Partial<typeof search>) =>
-    navigate({ search: (prev) => ({ ...prev, ...patch }), replace: true });
+    navigate({ search: (prev) => ({ ...prev, ...patch, pagina: patch.pagina ?? 1 }), replace: true });
 
   return (
     <PageShell>
@@ -330,7 +331,7 @@ function TechniciansPage() {
               <UserRoundCheck className="h-6 w-6" />
             </span>
             <div>
-              <h2 className="text-lg font-extrabold text-white">{localCount} {localCount === 1 ? "profissional" : "profissionais"} {regionalGroups ? "com atendimento local declarado" : "nesta busca"}</h2>
+              <h2 className="text-lg font-extrabold text-white">{localCount} {localCount === 1 ? "profissional" : "profissionais"} {regionalGroups ? "com atendimento local declarado nesta página" : "nesta página"}</h2>
               <p className="text-xs text-white/80">{searchArea || "Em todo o Brasil"} · {regionalGroups ? `${alternativesCount} ${alternativesCount === 1 ? "alternativa de outra localidade" : "alternativas de outras localidades"} em seções separadas` : "Perfis públicos declarados"}</p>
             </div>
           </div>
@@ -448,6 +449,13 @@ function TechniciansPage() {
           ) : renderCards(technicians);
           })()}
         </div>
+        <nav aria-label="Paginação do diretório" className="mt-5 flex flex-wrap items-center justify-center gap-3">
+          {search.pagina > 1 && <button type="button" onClick={() => void update({ pagina: search.pagina - 1 })}
+            className="min-h-11 rounded-xl border border-primary/40 px-4 text-sm font-bold text-primary">Página anterior</button>}
+          <span className="text-sm text-muted-foreground">Página {search.pagina}</span>
+          {technicians.length >= 100 && search.pagina < 1000 && <button type="button" onClick={() => void update({ pagina: search.pagina + 1 })}
+            className="min-h-11 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground">Próxima página</button>}
+        </nav>
         {CATEGORY_SEARCH_CONTEXT[search.especialidade] && (
           <aside aria-label="Orientações da especialidade selecionada"
             className="mt-5 flex flex-col gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
