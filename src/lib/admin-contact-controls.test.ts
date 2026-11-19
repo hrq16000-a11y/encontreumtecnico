@@ -30,6 +30,15 @@ describe("Administração de contatos — operações auditadas",()=>{
     expect(validate("mark_message",{messageId:null})).toMatch(/mensagem/);
     expect(validate("mark_message",{messageId:uuid,messageStatus:"deletada"})).toMatch(/mensagem/);
   });
+  it("mensagens usam RPC auditada e verificam a persistência sem UPDATE direto",()=>{
+    const queue=readFileSync("src/components/admin-message-queue.tsx","utf8");
+    expect(queue).toContain('db.rpc("eut_admin_contact_action"');
+    expect(queue).toContain('validateAdminContactAction({');
+    expect(queue).toContain('_reason: reason.trim()');
+    expect(queue).toContain('.select("id,status").eq("id", id).single()');
+    expect(queue).toContain("Confirmar e auditar");
+    expect(queue).not.toContain('.update({ status })');
+  });
   it("usa apenas RPCs administrativas existentes; não armazena contatos nem abre outras contas",()=>{
     const component=readFileSync("src/components/admin-contacts-dashboard.tsx","utf8");
     const page=readFileSync("src/routes/admin.tsx","utf8");
