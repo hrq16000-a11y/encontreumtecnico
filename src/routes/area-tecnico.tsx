@@ -34,6 +34,7 @@ import { registrationStepError, type RegistrationStep } from "@/lib/technician-r
 import { hydrateTechnicianOfficialCity } from "@/lib/technician-official-city-hydration";
 import { publicTextProblem } from "@/lib/public-profile-text";
 import { technicianPublishErrorMessage } from "@/lib/technician-publish-error";
+import { technicianPublicationWasPersisted } from "@/lib/technician-publication-verification";
 import { TechnicianPanelNavigation } from "@/components/technician-panel-navigation";
 import { technicianTabFromHash, technicianTabHref, type TechnicianPanelTab } from "@/lib/technician-panel-navigation";
 import { ArrowRight, ShieldCheck, MapPin, UserRound, Inbox, Camera } from "lucide-react";
@@ -350,19 +351,24 @@ export function TechnicianAreaPage() {
       } else if (data?.state === "bloqueado_por_seguranca") {
         setMsg("Seu perfil tem uma restrição de segurança e não pode ser reativado automaticamente. Entre em contato.");
       } else if (data?.state === "publicado") {
+        // A successful RPC response alone does not prove that every field was
+        // committed. Verify this account's canonical row before clearing its draft.
+        const { data: persisted, error: verifyError } = await supabase.from("technicians")
+          .select("id,status,display_name,state_uf,city,neighborhood,region,bio,specialties,service_slugs,public_slug")
+          .eq("user_id", savingOwner).maybeSingle();
+        if (currentUserRef.current !== savingOwner) return;
+        const requested = { ...form, neighborhood: safeNeighborhood(form.neighborhood, form.city) || "" };
+        if (!persisted || verifyError || !technicianPublicationWasPersisted(requested, persisted,
+          typeof data.technician_id === "string" ? data.technician_id : undefined)) {
+          setMsg("O servidor respondeu à publicação, mas não conseguimos confirmar que todos os campos foram gravados. Seu rascunho foi preservado nesta aba. Não crie outra conta; tente recarregar o perfil ou solicite suporte.");
+          return;
+        }
         serverFormBaselineRef.current = JSON.stringify(form);
         clearProtectedDraft("tecnico", savingOwner);
         setStatus("aprovado");
-        if (typeof data.technician_id === "string") {
-          setProfileId(data.technician_id);
-          // Public slug is generated server-side; UUID remains private routing data.
-          const { data: published } = await supabase.from("technicians")
-            .select("public_slug").eq("id", data.technician_id).maybeSingle();
-          if (currentUserRef.current === savingOwner && published?.public_slug) {
-            setProfileSlug(published.public_slug);
-          }
-        }
-        setMsg("Perfil publicado automaticamente. Os dados profissionais são declarados por você; não há avaliação técnica do portal.");
+        setProfileId(persisted.id);
+        setProfileSlug(persisted.public_slug);
+        setMsg("Perfil salvo e conferido no servidor. Complete também a foto, a cobertura e o contato privado nas abas do seu painel.");
       } else {
         setMsg("A publicação não foi concluída. Tente novamente.");
       }
