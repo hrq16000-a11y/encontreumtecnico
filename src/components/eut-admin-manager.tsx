@@ -229,34 +229,50 @@ export function EutAdminManager() {
       verification_basis:form.verification_basis.slice(0,500),
       admin_notes:form.admin_notes.slice(0,800),
     };
-    const ok=await runOperation(async()=>db.from("eut_legacy_profile_management")
-      .update(update).eq("source_key",SOURCE).eq("wp_post_id",selected.wp_post_id),
+    const ok=await runOperation(async()=>{
+      const {data,error}=await db.from("eut_legacy_profile_management")
+        .update(update).eq("source_key",SOURCE).eq("wp_post_id",selected.wp_post_id)
+        .select("wp_post_id").maybeSingle();
+      return {error:error??(data?.wp_post_id===selected.wp_post_id?null:{message:"Ficha não alterada"})};
+    },
       "Ficha atualizada. Cadastro ainda não é público nem aprovado.");
     if(ok)await loadProfiles();
   }
   async function addService() {
     if(!selected||selected.demo_candidate||!serviceToAdd)return;
-    const ok=await runOperation(async()=>db.from("eut_legacy_profile_services").insert({
-      source_key:SOURCE,wp_post_id:selected.wp_post_id,service_slug:serviceToAdd,
-      confirmation_status:"pendente",evidence:"",
-    }),"Serviço adicionado para conferência.");
+    const ok=await runOperation(async()=>{
+      const {data,error}=await db.from("eut_legacy_profile_services").insert({
+        source_key:SOURCE,wp_post_id:selected.wp_post_id,service_slug:serviceToAdd,
+        confirmation_status:"pendente",evidence:"",
+      }).select("service_slug").maybeSingle();
+      return {error:error??(data?.service_slug===serviceToAdd?null:{message:"Serviço não associado"})};
+    },"Serviço adicionado para conferência.");
     if(ok){setServiceToAdd("");await openProfile(selected);}
   }
   async function confirmService(item:Assignment) {
     const basis=serviceEvidence.trim().slice(0,500);
     if(basis.length<12) {setMessage("Descreva a fonte da comprovação em pelo menos 12 caracteres.");return;}
     if(!selected)return;
-    const ok=await runOperation(async()=>db.from("eut_legacy_profile_services")
-      .update({confirmation_status:"confirmado",evidence:basis})
-      .eq("source_key",SOURCE).eq("wp_post_id",selected.wp_post_id)
-      .eq("service_slug",item.service_slug),"Serviço confirmado.");
+    const ok=await runOperation(async()=>{
+      const {data,error}=await db.from("eut_legacy_profile_services")
+        .update({confirmation_status:"confirmado",evidence:basis})
+        .eq("source_key",SOURCE).eq("wp_post_id",selected.wp_post_id)
+        .eq("service_slug",item.service_slug)
+        .select("service_slug,confirmation_status").maybeSingle();
+      return {error:error??(data?.service_slug===item.service_slug && data.confirmation_status==="confirmado"
+        ?null:{message:"Serviço não confirmado"})};
+    },"Serviço confirmado.");
     if(ok)await openProfile(selected);
   }
   async function removeService(item:Assignment) {
     if(!selected||!window.confirm("Remover esta vinculação de serviço?"))return;
-    const ok=await runOperation(async()=>db.from("eut_legacy_profile_services")
-      .delete().eq("source_key",SOURCE).eq("wp_post_id",selected.wp_post_id)
-      .eq("service_slug",item.service_slug),"Associação removida.");
+    const ok=await runOperation(async()=>{
+      const {data,error}=await db.from("eut_legacy_profile_services")
+        .delete().eq("source_key",SOURCE).eq("wp_post_id",selected.wp_post_id)
+        .eq("service_slug",item.service_slug)
+        .select("service_slug").maybeSingle();
+      return {error:error??(data?.service_slug===item.service_slug?null:{message:"Associação não removida"})};
+    },"Associação removida.");
     if(ok)await openProfile(selected);
   }
 
