@@ -51,8 +51,9 @@ const adminPublicRow = z.object({
 });
 
 async function listAdminPublished(filters: {
-  slug?: string; category?: string; service?: string; uf?: string;
-  city?: string; region?: string; neighborhood?: string;
+  slug?: string | undefined; category?: string | undefined; service?: string | undefined;
+  uf?: string | undefined; city?: string | undefined; region?: string | undefined;
+  neighborhood?: string | undefined;
 }): Promise<PublicTechnician[]> {
   // No neighborhood was supplied for these imports; never invent a match.
   if (filters.neighborhood) return [];

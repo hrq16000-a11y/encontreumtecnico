@@ -32,6 +32,10 @@ describe("busca administrativa unificada", () => {
     expect(directory).not.toContain('if (recentOnly) return { rows: [] as DirectoryRow[], total: 0 }');
     expect(directory).toContain("Cidade, região ou UF");
     expect(directory).toContain("Categoria ou especialidade");
+    expect(directory).toContain("Categoria cadastrada");
+    expect(directory).toContain("Serviço cadastrado");
+    expect(directory).toContain("Limpar todos os filtros");
+    expect(directory).toContain("Não foi possível consultar as categorias ativas do catálogo.");
     expect(directory).toContain("filterRegion(row.regionKey");
     expect(directory).toContain("filterSpecialty(categoryKeyword(");
     expect(directory).toContain("selectedTechnicianId={row.portalId}");

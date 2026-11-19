@@ -12,6 +12,7 @@ import { TechnicianAvatar } from "@/components/technician-avatar";
 import { Sheet, SheetTrigger } from "@/components/ui/sheet";
 import { Link } from "@tanstack/react-router";
 import { useActiveCategories } from "@/hooks/use-active-categories";
+import { useActiveServices } from "@/hooks/use-active-services";
 import { categoryKeyword, UNIFIED_DIRECTORY_PAGE_SIZE, unifiedPageCount, unifiedPageSlice } from "@/lib/admin-unified-pagination";
 import { canBulkAct, orderTechnicians, technicianState, type TechnicianBulkAction,
   type TechnicianSortMode, type TechnicianStateFilter, type TechnicianViewMode } from "@/lib/admin-technician-directory-view";
@@ -36,6 +37,8 @@ type DirectoryRow = {
   location: string;
   regionKey?: string | undefined;
   specialty: string | null;
+  categorySlugs?: string[];
+  serviceSlugs?: string[];
   createdAt?: string;
   importedAt?: string;
   updatedAt?: string;
@@ -60,6 +63,8 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
   const [specialtyDraft, setSpecialtyDraft] = useState("");
   const [region, setRegion] = useState("");
   const [specialty, setSpecialty] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [serviceFilter, setServiceFilter] = useState("");
   const [recentOnly, setRecentOnly] = useState(false);
   const [sort, setSort] = useState<TechnicianSortMode>("name-asc");
   const [stateFilter, setStateFilter] = useState<TechnicianStateFilter>("all");
@@ -96,7 +101,10 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
   const [wpAction, setWpAction] = useState<"corrigir_nome" | "arquivar" | "restaurar">("corrigir_nome");
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const { categories } = useActiveCategories();
+  const { categories, loading: categoriesLoading, error: categoriesError } = useActiveCategories();
+  const { services, loading: servicesLoading, error: servicesError } = useActiveServices();
+  const activeServices = services.filter((item) => categories.some((category) => category.slug === item.category_slug) &&
+    (!categoryFilter || item.category_slug === categoryFilter));
   useEffect(() => {
     const initialSearch = new URLSearchParams(window.location.search).get("busca");
     if (initialSearch) setDraft(cleanUnifiedSearch(initialSearch));
@@ -130,7 +138,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       // Fetch in 200-row chunks to avoid PostgREST's 1,000-row response cap.
       // Alternate sorts and status filters require the whole matching candidate set;
       // otherwise a name-sorted prefix would give false ordering/empty pages.
-      const needed = sort === "name-asc" && !recentOnly && stateFilter === "all" && !region && !specialtyTerm
+      const needed = sort === "name-asc" && !recentOnly && stateFilter === "all" && !region && !specialtyTerm && !categoryFilter && !serviceFilter
         ? (page + 1) * UNIFIED_DIRECTORY_PAGE_SIZE : 10000;
       let matchedIds: number[] = [];
       if (term) {
@@ -152,7 +160,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
         let total = 0;
         for (let start = 0; start < needed && current; start += FETCH_CHUNK) {
           let query = db.from("technicians")
-            .select("id,display_name,city,state_uf,region,specialties,status,created_at,updated_at,avatar_path", { count: "exact" });
+            .select("id,display_name,city,state_uf,region,specialties,service_slugs,status,created_at,updated_at,avatar_path", { count: "exact" });
           if (term) query = query.ilike("display_name", `%${term}%`);
           if (region) query = region.length === 2 ? query.eq("state_uf", region.toUpperCase())
             : query.or(["city", "region"].map((field) => `${field}.ilike.%${region}%`).join(","));
@@ -168,6 +176,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
             location: [item.city, item.state_uf].filter(Boolean).join("/") || item.region || "Localidade não informada",
             regionKey: item.city || item.state_uf || undefined,
             specialty: item.specialties?.join(", ") || null,
+            categorySlugs: item.specialties ?? [], serviceSlugs: item.service_slugs ?? [],
             createdAt: item.created_at, updatedAt: item.updated_at,
             avatarPath: item.avatar_path, portalStatus: item.status, origin: "portal",
           })));
@@ -243,7 +252,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       setOperational([]); setLegacy([]); setFailed(true); setLoading(false);
     } });
     return () => { current = false; };
-  }, [term, region, specialtyTerm, matchedSlugs, page, recentOnly, sort, stateFilter, reload]);
+  }, [term, region, specialtyTerm, matchedSlugs, categoryFilter, serviceFilter, page, recentOnly, sort, stateFilter, reload]);
 
   useEffect(() => {
     let current = true;
@@ -253,7 +262,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       // The registry RPC has a strict 100-row maximum per call.
       // With locality/specialty filters, read all matching-by-name records so
       // the client does not silently omit later matching category/region rows.
-      const needAll = Boolean(region || specialtyTerm || sort !== "name-asc" || stateFilter !== "all");
+      const needAll = Boolean(region || specialtyTerm || categoryFilter || serviceFilter || sort !== "name-asc" || stateFilter !== "all");
       const wanted = needAll ? Number.POSITIVE_INFINITY : (page + 1) * UNIFIED_DIRECTORY_PAGE_SIZE;
       let total = 0;
       for (let offset = 0; offset < wanted && current; offset += 100) {
@@ -287,7 +296,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
         : "Sem conexão com a API administrativa; nenhuma gravação está habilitada.");
     });
     return () => { current = false; };
-  }, [term, region, specialtyTerm, page, sort, stateFilter, reload]);
+  }, [term, region, specialtyTerm, categoryFilter, serviceFilter, page, sort, stateFilter, reload]);
 
   useEffect(() => {
     const ids = [...new Set(registry.map((item) => item.city_ibge_id).filter((id): id is number => id !== null))];
@@ -337,6 +346,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
         item.ddd ? `DDD ${item.ddd}` : null].filter(Boolean))].join(" · ") || "Localidade não informada",
       regionKey: municipalityNames[item.city_ibge_id ?? -1]?.split("/")[0] || item.region_approx || undefined,
       specialty: item.category_slugs.join(" · ") || null,
+      categorySlugs: item.category_slugs, serviceSlugs: item.service_slugs,
       updatedAt: item.updated_at,
       demo: item.is_demo,
     }));
@@ -346,12 +356,21 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       ...legacyUnlinked,
       ...guiafixUnlinked,
       ...registryRows];
-    const datedRows = recentOnly ? rows.filter((row) => Boolean(row.createdAt || row.importedAt)) : rows;
+    const selectedCategory = categories.find((item) => item.slug === categoryFilter);
+    const catalogRows = rows.filter((row) => {
+      const text = normalizeGuiafixSearch(row.specialty ?? "");
+      const categoryMatches = !categoryFilter || row.categorySlugs?.includes(categoryFilter) ||
+        (Boolean(text) && (text.includes(normalizeGuiafixSearch(categoryFilter)) ||
+          Boolean(selectedCategory?.label && text.includes(normalizeGuiafixSearch(selectedCategory.label)))));
+      const serviceMatches = !serviceFilter || row.serviceSlugs?.includes(serviceFilter);
+      return categoryMatches && serviceMatches;
+    });
+    const datedRows = recentOnly ? catalogRows.filter((row) => Boolean(row.createdAt || row.importedAt)) : catalogRows;
     const ordered = orderTechnicians(datedRows.filter((row) => stateFilter === "all" || technicianState(row) === stateFilter),
       recentOnly ? "newest" : sort);
     return { rows: ordered, importedCount: legacy.length - legacyUnlinked.length + guiafixResults.length - guiafixUnlinked.length,
       registryFilteredCount: registryRows.length };
-  }, [operational, legacy, guiafixResults, registry, municipalityNames, region, specialtyTerm, recentOnly, sort, stateFilter]);
+  }, [operational, legacy, guiafixResults, registry, municipalityNames, region, specialtyTerm, categoryFilter, serviceFilter, categories, recentOnly, sort, stateFilter]);
   const results = useMemo(() => unifiedPageSlice(merged.rows, page), [merged, page]);
   const registryCount = region || specialtyTerm ? merged.registryFilteredCount : registryAvailable ? registryTotal : 0;
   const sourceTotal = operationalTotal === null || legacyTotal === null ? null
@@ -360,9 +379,22 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     operational.length >= operationalTotal && legacy.length >= legacyTotal &&
     (!registryAvailable || registry.length >= registryTotal);
   const allLoaded = exactTotal && !loading && !registryLoading;
-  const total = recentOnly || stateFilter !== "all" || allLoaded ? (allLoaded ? merged.rows.length : null) : sourceTotal;
+  const total = recentOnly || stateFilter !== "all" || categoryFilter || serviceFilter || allLoaded
+    ? (allLoaded ? merged.rows.length : null) : sourceTotal;
   const pages = unifiedPageCount(total ?? 0);
   const selectedRows = results.filter((row) => selected.has(row.key));
+
+  function clearDirectoryFilters() {
+    setDraft("");
+    setRegionDraft("");
+    setSpecialtyDraft("");
+    setCategoryFilter("");
+    setServiceFilter("");
+    setStateFilter("all");
+    setRecentOnly(false);
+    setSort("name-asc");
+    setPage(0);
+  }
 
   async function copySelectedNames() {
     if (!selectedRows.length) return;
@@ -380,7 +412,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     setSelected(new Set());
     setBulkAction(null);
     setDetailKey(null);
-  }, [page, sort, stateFilter, recentOnly, region, specialty]);
+  }, [page, sort, stateFilter, recentOnly, region, specialty, categoryFilter, serviceFilter]);
 
   function toggleSelected(key: string) {
     setSelected((before) => {
@@ -635,9 +667,40 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       </label>
       <label className="grid gap-1 text-sm font-semibold text-foreground">Categoria ou especialidade
         <input value={specialtyDraft} onChange={(event) => setSpecialtyDraft(event.target.value)}
-          maxLength={80} placeholder="Ex.: informática" className="min-h-12 w-full rounded-xl border border-input bg-background px-4 font-normal text-foreground" />
+          maxLength={80} placeholder="Pesquisa livre (opcional)" className="min-h-12 w-full rounded-xl border border-input bg-background px-4 font-normal text-foreground" />
+      </label>
+      <label className="grid gap-1 text-sm font-semibold text-foreground">Categoria cadastrada
+        <select value={categoryFilter} disabled={categoriesLoading || categoriesError} onChange={(event) => {
+          setCategoryFilter(event.target.value); setServiceFilter(""); setPage(0);
+        }} className="min-h-12 w-full rounded-xl border border-input bg-background px-4 font-normal text-foreground">
+          <option value="">Todas as categorias</option>
+          {categories.map((item) => <option key={item.slug} value={item.slug}>{item.label}</option>)}
+        </select>
+      </label>
+      <label className="grid gap-1 text-sm font-semibold text-foreground">Serviço cadastrado
+        <select value={serviceFilter} disabled={categoriesLoading || categoriesError || servicesLoading || servicesError}
+          onChange={(event) => { setServiceFilter(event.target.value); setPage(0); }}
+          className="min-h-12 w-full rounded-xl border border-input bg-background px-4 font-normal text-foreground">
+          <option value="">Todos os serviços</option>
+          {activeServices.map((item) => <option key={item.slug} value={item.slug}>
+            {item.label}{!categoryFilter ? ` · ${categories.find((category) => category.slug === item.category_slug)?.label ?? item.category_slug}` : ""}
+          </option>)}
+        </select>
       </label>
     </div>
+    <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+      <p className="text-xs text-muted-foreground">Categorias e serviços vêm do catálogo administrativo. Serviços específicos filtram apenas fichas com o serviço explicitamente cadastrado; a pesquisa livre continua disponível.</p>
+      {(draft || regionDraft || specialtyDraft || categoryFilter || serviceFilter || stateFilter !== "all" || recentOnly || sort !== "name-asc") && (
+        <button type="button" onClick={clearDirectoryFilters}
+          className="min-h-10 rounded-lg border border-input px-3 text-xs font-semibold text-foreground">
+          Limpar todos os filtros
+        </button>
+      )}
+    </div>
+    {(categoriesError || servicesError) && <p role="status" className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+      {categoriesError ? "Não foi possível consultar as categorias ativas do catálogo." : "Não foi possível consultar os serviços ativos do catálogo."}
+      {" "}Use a pesquisa livre ou tente novamente ao voltar para esta página.
+    </p>}
     <div className="mt-4 flex flex-wrap items-end justify-between gap-3 rounded-xl border border-border bg-muted/20 p-3">
       <div className="flex w-full min-w-0 flex-wrap items-end gap-3 sm:w-auto">
         <label className="grid w-full min-w-0 gap-1 text-xs font-semibold text-foreground sm:w-auto"><span className="flex items-center gap-1"><SlidersHorizontal className="h-4 w-4" /> Situação</span>
@@ -668,10 +731,12 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
           </button>)}
       </div>
     </div>
-    {(region || specialty || stateFilter !== "all") && <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+    {(region || specialty || categoryFilter || serviceFilter || stateFilter !== "all") && <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
       <span>Filtros ativos:</span>
       {region && <button type="button" onClick={() => filterRegion("")} className="min-h-9 rounded-full border border-input px-3">Região: {region} ×</button>}
       {specialty && <button type="button" onClick={() => filterSpecialty("")} className="min-h-9 rounded-full border border-input px-3">Especialidade: {specialty} ×</button>}
+      {categoryFilter && <button type="button" onClick={() => { setCategoryFilter(""); setServiceFilter(""); setPage(0); }} className="min-h-9 rounded-full border border-input px-3">Categoria: {categories.find((item) => item.slug === categoryFilter)?.label ?? categoryFilter} ×</button>}
+      {serviceFilter && <button type="button" onClick={() => { setServiceFilter(""); setPage(0); }} className="min-h-9 rounded-full border border-input px-3">Serviço: {services.find((item) => item.slug === serviceFilter)?.label ?? serviceFilter} ×</button>}
       {stateFilter !== "all" && <button type="button" onClick={() => { setStateFilter("all"); setPage(0); }} className="min-h-9 rounded-full border border-input px-3">Situação ×</button>}
     </div>}
     <p role="status" className="mt-3 text-sm text-muted-foreground">

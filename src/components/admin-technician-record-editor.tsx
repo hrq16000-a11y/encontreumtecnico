@@ -30,6 +30,12 @@ export type AdminTechnicianRegistryRecord = {
 
 type CatalogService = { slug: string; label: string; category_slug: string };
 type City = { id: number; name: string; uf: string };
+type IdentityField = "email" | "postal_code" | "street" | "number" | "complement" | "neighborhood" | "city" | "uf";
+type IdentityDraft = Record<IdentityField, string>;
+const emptyIdentity: IdentityDraft = {
+  email: "", postal_code: "", street: "", number: "", complement: "",
+  neighborhood: "", city: "", uf: "",
+};
 
 function safeRegistryError(error: unknown): string {
   const code = (error as { code?: string } | null)?.code;
@@ -73,6 +79,10 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
   const [originalPhone, setOriginalPhone] = useState("");
   const [phoneLoaded, setPhoneLoaded] = useState(!existing);
   const [phoneLoadError, setPhoneLoadError] = useState(false);
+  const [identity, setIdentity] = useState<IdentityDraft>(emptyIdentity);
+  const [identityRevision, setIdentityRevision] = useState<string | null>(null);
+  const [identityLoaded, setIdentityLoaded] = useState(!existing);
+  const [identityLoadError, setIdentityLoadError] = useState(false);
   // Suspension remains a status; it does not hide the telephone from administration.
   const [contactSuspended, setContactSuspended] = useState(false);
   const [reason, setReason] = useState("");
@@ -118,6 +128,32 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
   }, [existing?.technician_id]);
 
   useEffect(() => {
+    if (!existing) return;
+    let current = true;
+    setIdentityLoaded(false);
+    setIdentityLoadError(false);
+    void Promise.resolve(db.rpc("eut_admin_identity_get", {
+      _record_key: `registry:${existing.technician_id}`,
+    })).then(({ data, error: rpcError }) => {
+      if (!current) return;
+      if (rpcError || data?.ok !== true || data.available !== true) {
+        throw new Error("Dados cadastrais indisponíveis");
+      }
+      setIdentity({
+        email: data.email ?? "", postal_code: data.postal_code ?? "",
+        street: data.street ?? "", number: data.number ?? "",
+        complement: data.complement ?? "", neighborhood: data.neighborhood ?? "",
+        city: data.city ?? "", uf: data.uf ?? "",
+      });
+      setIdentityRevision(data.updated_at ?? null);
+      setIdentityLoaded(true);
+    }).catch(() => {
+      if (current) setIdentityLoadError(true);
+    });
+    return () => { current = false; };
+  }, [existing?.technician_id]);
+
+  useEffect(() => {
     let current = true;
     void Promise.resolve(db.from("eut_service_types")
       .select("slug,label,category_slug").eq("active", true).order("label").limit(300))
@@ -149,6 +185,10 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
       s.slug === item && next.includes(s.category_slug))));
   }
 
+  function changeIdentity(key: IdentityField, value: string) {
+    setIdentity((previous) => ({ ...previous, [key]: value }));
+  }
+
   const normalizedPhoneDraft = phone.trim() ? normalizeBrazilPhoneE164(phone) : null;
   const phoneAction: "keep" | "replace" | "remove" = normalizedPhoneDraft
     ? normalizedPhoneDraft === originalPhone ? "keep" : "replace"
@@ -175,12 +215,27 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
     if (reason.trim().length < 8 || reason.trim().length > 400 || publicTextProblem(reason, "identity")) {
       setError("Justificativa obrigatória de 8 a 400 caracteres, sem dados privados ou links."); return;
     }
-    if (existing && !phoneLoaded) {
-      setError("Não foi possível carregar o telefone atual. Atualize a ficha antes de gravar."); return;
+    if (existing && (!phoneLoaded || !identityLoaded)) {
+      setError("Não foi possível carregar os dados atuais. Atualize a ficha antes de gravar."); return;
     }
     if (phone.trim() && !normalizedPhoneDraft) {
       setError("Informe um telefone brasileiro válido com DDD."); return;
     }
+    const email = identity.email.trim();
+    const postalCode = identity.postal_code.replace(/\D/g, "");
+    if ((email && (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) ||
+      (identity.postal_code.trim() && postalCode.length !== 8)) {
+      setError("Confira o e-mail cadastral e o CEP de oito dígitos."); return;
+    }
+    const identityPayload = {
+      email: email || null, postal_code: postalCode || null,
+      street: identity.street.trim() || null,
+      number: identity.number.trim() || null,
+      complement: identity.complement.trim() || null,
+      neighborhood: identity.neighborhood.trim() || null,
+      city: identity.city.trim() || null,
+      uf: identity.uf.trim().toUpperCase() || null,
+    };
     const normalizedPhone = phoneAction === "replace" ? normalizedPhoneDraft : null;
     const payload: Record<string, unknown> = {
       display_name: cleanedName, city_ibge_id: cityId,
@@ -206,11 +261,24 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
       if (writeError) throw writeError;
       if (data?.ok !== true || !data.technician_id || !data.updated_at)
         throw new Error("O banco não confirmou a gravação.");
+      const hasIdentityFields = Object.values(identityPayload).some((value) => value !== null);
+      if (existing || hasIdentityFields) {
+        const { data: savedIdentity, error: identityError } = await db.rpc("eut_admin_identity_save", {
+          _record_key: `registry:${data.technician_id}`,
+          _expected_updated_at: identityRevision,
+          _payload: identityPayload,
+          _reason: reason.trim(),
+        });
+        if (identityError || savedIdentity?.ok !== true || !savedIdentity.updated_at) {
+          setError("A ficha profissional foi salva, mas e-mail/endereço não foram confirmados. " +
+            "Reabra a ficha para atualizar esses campos sem duplicar o cadastro.");
+          return;
+        }
+      }
       setPhone("");
-      onSaved(data.idempotent ? "Registro já existente preservado, sem sobrescrever dados." :
-        data.created ? importedCreation ? "Técnico cadastrado e habilitado, com telefone privado e sem criar conta."
-          : "Técnico adicionado e auditado no banco."
-          : "Ficha do técnico atualizada e auditada no banco.");
+      onSaved(data.created ? "Técnico cadastrado e habilitado com dados administrativos auditados." :
+        data.idempotent ? "Cadastro profissional preservado; dados administrativos conferidos." :
+          "Dados profissionais, e-mail e endereço atualizados no painel.");
     } catch (error) {
       setError(safeRegistryError(error));
     } finally { setBusy(false); }
@@ -335,6 +403,54 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
     {existing && contactSuspended && <p className="text-xs text-muted-foreground">
       Contato suspenso: o telefone é visível, mas sua alteração exige tratamento da restrição no banco.
     </p>}
+    <fieldset className="grid min-w-0 gap-3 rounded-lg border border-border p-3" disabled={Boolean(existing) && !identityLoaded}>
+      <legend className="px-1 text-sm font-bold text-foreground">E-mail e endereço cadastrais</legend>
+      <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">E-mail completo
+        <input className={field} type="email" maxLength={254} autoComplete="off"
+          value={identity.email} placeholder="Não informado"
+          onChange={(event) => changeIdentity("email", event.target.value)} />
+      </label>
+      <p className="text-xs text-muted-foreground">E-mail administrativo de contato; não altera o e-mail de login.</p>
+      <div className="grid min-w-0 gap-3 sm:grid-cols-[9rem_minmax(0,1fr)]">
+        <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">CEP
+          <input className={field} inputMode="numeric" maxLength={9}
+            value={identity.postal_code} placeholder="00000-000"
+            onChange={(event) => changeIdentity("postal_code", event.target.value.replace(/[^\d-]/g, ""))} />
+        </label>
+        <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">Logradouro
+          <input className={field} maxLength={200} value={identity.street}
+            onChange={(event) => changeIdentity("street", event.target.value)} />
+        </label>
+      </div>
+      <div className="grid min-w-0 gap-3 sm:grid-cols-[7rem_minmax(0,1fr)]">
+        <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">Número
+          <input className={field} maxLength={25} value={identity.number}
+            onChange={(event) => changeIdentity("number", event.target.value)} placeholder="S/N" />
+        </label>
+        <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">Complemento
+          <input className={field} maxLength={120} value={identity.complement}
+            onChange={(event) => changeIdentity("complement", event.target.value)} />
+        </label>
+      </div>
+      <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">Bairro
+        <input className={field} maxLength={120} value={identity.neighborhood}
+          onChange={(event) => changeIdentity("neighborhood", event.target.value)} />
+      </label>
+      <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_5.5rem]">
+        <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">Cidade do endereço
+          <input className={field} maxLength={120} value={identity.city}
+            onChange={(event) => changeIdentity("city", event.target.value)} />
+        </label>
+        <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">UF
+          <input className={field} maxLength={2} value={identity.uf}
+            onChange={(event) => changeIdentity("uf", event.target.value.toUpperCase().replace(/[^A-Z]/g, ""))} />
+        </label>
+      </div>
+      <p className="text-xs text-muted-foreground">Dados completos para a administração; não alteram cobertura pública nem autorizam divulgação.</p>
+    </fieldset>
+    {identityLoadError && <p role="alert" className="text-xs text-destructive">
+      Não foi possível carregar e-mail e endereço existentes. Salvar está temporariamente bloqueado.
+    </p>}
     <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">Justificativa de auditoria
       <textarea className={field} required minLength={8} maxLength={400} rows={2} value={reason}
         onChange={(event) => setReason(event.target.value)} placeholder="Motivo verificável desta inclusão ou edição" />
@@ -356,7 +472,7 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
         className="min-h-11 rounded-lg border border-amber-500/50 px-4 text-sm font-bold text-foreground disabled:opacity-50">
         {busy ? "Aguarde…" : existing.archived ? "Restaurar ficha" : "Arquivar ficha"}
       </button>}
-      <button type="submit" disabled={!available || busy || !acknowledged || Boolean(existing?.archived) || importedDemo}
+      <button type="submit" disabled={!available || busy || !acknowledged || Boolean(existing?.archived) || importedDemo || Boolean(existing && !identityLoaded)}
         className="min-h-12 rounded-lg bg-primary px-5 text-sm font-bold text-primary-foreground disabled:opacity-50">
         {busy ? "Gravando no banco…" : existing ? "Salvar edição" : importedCreation ? "Salvar técnico" : "Adicionar técnico"}
       </button>
