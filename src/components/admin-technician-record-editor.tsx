@@ -306,7 +306,7 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
           verified.admin_active !== payload.admin_active ||
           !sameSlugs(verified.category_slugs, categories) ||
           !sameSlugs(verified.service_slugs, services) ||
-          (verified.contact_last4 ?? null) !== expectedLast4) {
+          (phoneAction !== "keep" && (verified.contact_last4 ?? null) !== expectedLast4)) {
         setError("O servidor recebeu a edição, mas a releitura não confirmou todos os campos. " +
           "Reabra a ficha antes de repetir a operação; nenhum contato será reenviado automaticamente.");
         return;
