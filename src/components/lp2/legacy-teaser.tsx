@@ -33,7 +33,7 @@ export function LP2LegacyTeaser(){
  {profiles.map(p=><article className="market-card" key={p.wp_post_id}>
   <div className="profile-top"><div className="profile-avatar">{legacyAvatarUrl(p.wp_post_id)?<img src={legacyAvatarUrl(p.wp_post_id)!} alt={'Imagem pública do cadastro de '+p.display_name} width={64} height={64} loading="lazy"/>:<ServiceIcon name="user" size={30}/>}</div><div className="profile-type">Técnico</div></div>
   <h3 title={suggestLegacyDisplayName(p.display_name).suggested?'Nome original: '+p.display_name:undefined}>{suggestLegacyDisplayName(p.display_name).display}</h3>
-  <p className="profile-description">Cadastro histórico · região de atendimento a confirmar.</p>
+  <p className="profile-description">Região de atendimento a confirmar.</p>
   <Link to="/lp2/galeria" search={{q:'',city:''}} className="profile-action">Ver acervo público <ServiceIcon name="arrow" size={16}/></Link>
  </article>)}
  </>}
