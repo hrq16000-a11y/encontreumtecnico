@@ -145,7 +145,12 @@ describe("filas administrativas em interação real de React", () => {
     expect(mockDb.updates).toBe(1);
     expect(mockDb.audits).toHaveLength(1);
     expect(screen.queryByRole("button", { name: "Confirmar e auditar" })).toBeNull();
+    expect(screen.getByRole("button", { name: /Marcar respondida/ })).toHaveProperty("disabled", true);
     expect(mockDb.directUpdates).toBe(0);
+    fireEvent.click(screen.getByRole("button", { name: /Atualizar/ }));
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Marcar respondida/ })).toBeNull());
+    expect(mockDb.updates).toBe(1);
+    expect(mockDb.audits).toHaveLength(1);
   });
 
   it("não mantém ações antigas clicáveis enquanto o filtro de mensagens carrega", async () => {
