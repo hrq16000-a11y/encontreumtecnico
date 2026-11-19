@@ -516,8 +516,36 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     try {
       const contents = await file.text();
       const prepared = prepareTechnicianCsv(contents, categories);
-      setCsvRows(prepared);
-      setCsvInfo(`${prepared.length} técnicos prontos para importar. Nenhum dado foi gravado ainda.`);
+      let ready = prepared;
+      const needsCity = prepared.some((row) => row.declaredCity && !row.cityIbgeId);
+      let catalogUnavailable = false;
+      if (needsCity) {
+        type Municipality = { id: number; name: string; uf: string };
+        const municipalities: Municipality[] = [];
+        for (let start = 0; start < 7_000; start += 1_000) {
+          const { data, error } = await db.from("eut_ibge_municipalities")
+            .select("id,name,uf").order("id").range(start, start + 999);
+          if (error) { catalogUnavailable = true; break; }
+          municipalities.push(...(data ?? []) as Municipality[]);
+          if ((data ?? []).length < 1_000) break;
+        }
+        if (!catalogUnavailable) {
+          const byCity = new Map<string, Municipality[]>();
+          for (const city of municipalities) {
+            const key = normalizeGuiafixSearch(city.name);
+            byCity.set(key, [...(byCity.get(key) ?? []), city]);
+          }
+          ready = prepared.map((row) => {
+            if (row.cityIbgeId || !row.declaredCity) return row;
+            const matches = (byCity.get(normalizeGuiafixSearch(row.declaredCity)) ?? [])
+              .filter((city) => !row.declaredUf || city.uf === row.declaredUf);
+            return matches.length === 1 ? { ...row, cityIbgeId: matches[0]!.id } : row;
+          });
+        }
+      }
+      const cityMatches = ready.filter((row) => row.cityIbgeId !== null).length;
+      setCsvRows(ready);
+      setCsvInfo(`${ready.length} técnicos prontos para importar; ${cityMatches} com município IBGE definido. ${catalogUnavailable ? "Catálogo de municípios indisponível: cidades sem código serão mantidas como texto. " : ""}Nenhum dado foi gravado ainda.`);
     } catch (error) {
       setCsvInfo(csvImportErrorText(error));
     }
@@ -529,38 +557,53 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       auditReason.length < 8 || auditReason.length > 400 || publicTextProblem(auditReason, "identity")) return;
     if (!window.confirm(`Cadastrar ${csvRows.length} técnicos já habilitados? Os telefones continuarão privados e não será criada conta de acesso.`)) return;
     setCsvBusy(true);
-    let saved = 0;
-    let failedAt = 0;
-    for (const [index, row] of csvRows.entries()) {
-      const payload = {
-        display_name: row.displayName, city_ibge_id: row.cityIbgeId,
-        ddd: row.ddd, region_approx: row.regionApprox,
-        category_slugs: row.categorySlugs, service_slugs: [],
-        admin_active: true, is_demo: false,
-        phone_action: row.phoneE164 ? "replace" : "keep",
-        ...(row.phoneE164 ? { phone_e164: row.phoneE164, contact_suspended: false } : {}),
-      };
-      const { data, error } = await db.rpc("eut_admin_technician_record_save", {
-        _origin: "other_import", _source_id: row.sourceId,
-        _expected_updated_at: null, _payload: payload, _reason: auditReason,
-      });
-      if (error || data?.ok !== true || !data.technician_id) {
-        failedAt = index + 1;
-        break;
+    let created = 0;
+    let preserved = 0;
+    const failedRows: TechnicianImportRow[] = [];
+    const failedLines: number[] = [];
+    // Small bounded batches preserve each technician's individual audit trail
+    // and avoid serializing thousands of independent network round trips.
+    for (let start = 0; start < csvRows.length; start += 6) {
+      const batch = csvRows.slice(start, start + 6);
+      const outcomes = await Promise.all(batch.map(async (row) => {
+        const payload = {
+          display_name: row.displayName, city_ibge_id: row.cityIbgeId,
+          ddd: row.ddd, region_approx: row.regionApprox,
+          category_slugs: row.categorySlugs, service_slugs: [],
+          admin_active: true, is_demo: false,
+          phone_action: row.phoneE164 ? "replace" : "keep",
+          ...(row.phoneE164 ? { phone_e164: row.phoneE164, contact_suspended: false } : {}),
+        };
+        try {
+          const { data, error } = await db.rpc("eut_admin_technician_record_save", {
+            _origin: "other_import", _source_id: row.sourceId,
+            _expected_updated_at: null, _payload: payload, _reason: auditReason,
+          });
+          return !error && data?.ok === true && data.technician_id
+            ? { ok: true, created: data.created === true } : { ok: false, created: false };
+        } catch { return { ok: false, created: false }; }
+      }));
+      for (const [index, outcome] of outcomes.entries()) {
+        if (outcome.ok) {
+          if (outcome.created) created += 1;
+          else preserved += 1;
+        } else {
+          failedRows.push(batch[index]!);
+          failedLines.push(batch[index]!.lineNumber);
+        }
       }
-      saved += 1;
-      if (saved % 5 === 0 || saved === csvRows.length)
-        setCsvInfo(`Importação real em andamento: ${saved} de ${csvRows.length} confirmados pelo banco.`);
+      setCsvInfo(`Processados ${Math.min(start + batch.length, csvRows.length)} de ${csvRows.length}: ${created} incluídos, ${preserved} já existentes, ${failedRows.length} não concluídos.`);
     }
     setCsvBusy(false);
-    if (failedAt) {
-      setCsvInfo(`${saved} fichas confirmadas. Falha na linha ${failedAt + 1}; revise seus dados e tente novamente com o mesmo arquivo.`);
+    if (failedRows.length) {
+      setCsvRows(failedRows);
+      setCsvInfo(`${created} técnicos incluídos, ${preserved} já existentes preservados e ${failedRows.length} não concluídos. Linhas com falha: ${failedLines.slice(0, 12).join(", ")}${failedLines.length > 12 ? "…" : ""}. Apenas os não concluídos permanecem disponíveis para nova tentativa.`);
     } else {
       setCsvRows([]);
       setCsvAcknowledged(false);
-      setCsvInfo(`${saved} técnicos habilitados e auditados no banco. O telefone permanece privado; a ficha aparece na busca quando possui contato elegível.`);
+      setCsvInfo(`${created} técnicos habilitados e auditados; ${preserved} já existentes preservados. Todos os ${csvRows.length} registros foram confirmados pelo banco. Telefones permanecem privados ao público.`);
     }
-    if (saved) setReload((value) => value + 1);
+    if (created) setReload((value) => value + 1);
   }
 
   function selectRow(row: DirectoryRow) {
@@ -946,8 +989,8 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
     <fieldset className="mt-4 space-y-2 rounded-xl border border-dashed border-border p-3">
       <legend className="text-sm font-semibold">Preparar importação CSV</legend>
       <p className="text-xs text-muted-foreground">
-        Importe até 500 técnicos por arquivo de até 2 MB, com coluna nome obrigatória.
-        Campos opcionais: ddd, cidade/regiao, ibge, categoria e telefone. Separe múltiplas categorias por |.
+        Importe até 5.000 técnicos por arquivo de até 2 MB, com coluna nome obrigatória.
+        Campos opcionais: ddd, cidade, UF, região, ibge, categoria e telefone. Separe múltiplas categorias por |.
         A prévia fica neste aparelho; ao confirmar, as fichas são gravadas individualmente com auditoria,
         sem criar conta nem expor telefones. Técnicos habilitados com contato elegível entram na busca. Reenviar o mesmo arquivo não duplica técnicos.
       </p>

@@ -19,4 +19,15 @@ describe("importação real de técnicos sem dados inventados", () => {
     expect(() => prepareTechnicianCsv("nome;categoria\nEmpresa;categoria inventada", categories)).toThrow(/categoria/);
     expect(() => prepareTechnicianCsv("nome;cidade\nEmpresa;Curitiba\nNome", categories)).toThrow(/colunas/);
   });
+  it("aceita cidade/UF e lotes grandes sem inventar município IBGE", () => {
+    const header = "nome;cidade;telefone";
+    const body = Array.from({ length: 5_000 }, (_, index) =>
+      `Técnico ${index + 1};Santo André/SP;(11) 99999-${String(index).padStart(4, "0")}`);
+    const rows = prepareTechnicianCsv([header, ...body].join("\n"), categories);
+    expect(rows).toHaveLength(5_000);
+    expect(rows[0]).toMatchObject({ declaredCity: "Santo André", declaredUf: "SP", cityIbgeId: null, lineNumber: 2 });
+    expect(rows[4_999]?.lineNumber).toBe(5_001);
+    expect(() => prepareTechnicianCsv([header, ...body, "Técnico Extra;Santo André/SP;(11) 99999-5000"].join("\n"), categories))
+      .toThrow(/5\.000/);
+  });
 });
