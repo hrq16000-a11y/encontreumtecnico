@@ -58,6 +58,8 @@ describe("Central administrativa: URLs próprias e RLS intacta", () => {
     expect(page).not.toContain("service_role");
     expect(page).toContain('<AdminAccountsManager initialFilter="clientes" />');
     expect(page).toContain('section === "contas"');
+    expect(page).toContain('<section id="admin-patrocinadores" aria-label="Patrocinadores e banners">');
+    expect(page).toContain('id="admin-patrocinadores-formulario"');
     expect(read("src/components/admin-message-queue.tsx")).toContain('from("contact_messages")');
   });
   it("oferece atalhos operacionais autenticados sem alterar os guardas de acesso", () => {

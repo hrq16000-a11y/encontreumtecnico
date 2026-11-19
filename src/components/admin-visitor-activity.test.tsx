@@ -13,6 +13,14 @@ const mockRead = vi.hoisted(() => ({
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
+    channel() {
+      return {
+        on() { return this; },
+        subscribe(callback: (status: string) => void) { callback("SUBSCRIBED"); return this; },
+        presenceState() { return { visitor: [{ kind: "consented-visitor-tab" }] }; },
+      };
+    },
+    removeChannel() { return Promise.resolve(); },
     from(table: string) {
       if (table !== "search_events") throw new Error("unexpected table");
       return {

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Activity, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { AdminLivePresence } from "@/components/admin-live-presence";
 
 const db = supabase as unknown as SupabaseClient;
 type RecentSearch = {
@@ -84,7 +85,7 @@ export function AdminVisitorActivity() {
       .replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").includes(normalized);
   });
 
-  return <section aria-label="Atividade recente de buscas consentidas" className="mt-7 rounded-xl border border-border bg-card p-4 sm:p-6">
+  return <><AdminLivePresence /><section aria-label="Atividade recente de buscas consentidas" className="mt-7 rounded-xl border border-border bg-card p-4 sm:p-6">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <h2 className="flex items-center gap-2 text-lg font-bold text-foreground"><Activity className="h-5 w-5 text-primary" /> Atividade recente no portal</h2>
@@ -135,5 +136,5 @@ export function AdminVisitorActivity() {
     <p className="mt-4 text-xs text-muted-foreground">
       A lista exibe até 12 buscas recentes; os contadores consultam o total real do período. Não há rastreamento individual de sessões.
     </p>
-  </section>;
+  </section></>;
 }

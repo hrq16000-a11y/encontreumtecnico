@@ -14,6 +14,7 @@ import { AdminRequestQueue } from "@/components/admin-request-queue";
 import { AdminMessageQueue } from "@/components/admin-message-queue";
 import { AdminAdvertisingManager } from "@/components/admin-advertising-manager";
 import { AdminNavigation, AdminShortcutLink } from "@/components/admin-navigation";
+import { AdminPublicExperience } from "@/components/admin-public-experience";
 import { AdminTechnicianUnifiedDirectory } from "@/components/admin-technician-unified-directory";
 import { AdminOwnTechnicianRole } from "@/components/admin-own-technician-role";
 import { AdminMemberInvites } from "@/components/admin-member-invites";
@@ -113,7 +114,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
               <AdminCommandOverview />
               <AdminControlHub />
             </section>)}
-            {section === "patrocinadores" && <section aria-label="Patrocinadores e banners"><div id="admin-patrocinadores"><AdminAdvertisingManager /></div></section>}
+            {section === "patrocinadores" && <section id="admin-patrocinadores" aria-label="Patrocinadores e banners"><AdminPublicExperience /><div id="admin-patrocinadores-formulario"><AdminAdvertisingManager /></div></section>}
             {section === "metricas" && <section aria-label="Buscas e indicadores"><div id="admin-metricas"><AdminVisitorActivity /><SearchMetrics /></div></section>}
             {section === "legado" && <section aria-label="Acervo WordPress"><div id="admin-legado"><LegacyReviewQueue /></div></section>}
             {section === "reivindicacoes" && <section aria-label="Reivindicações"><div id="admin-reivindicacoes"><LegacyClaimReview /></div></section>}
