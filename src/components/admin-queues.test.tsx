@@ -10,6 +10,7 @@ const mockDb = vi.hoisted(() => ({
   directUpdates: 0,
   audits: [] as Array<{ id: string; status: string; reason: string }>,
   delayNextMessageQuery: null as Promise<void> | null,
+  failNextMessageRead: false,
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({
@@ -44,6 +45,10 @@ vi.mock("@/integrations/supabase/client", () => ({
           return { data: records().find((r) => r["id"] === idFilter) ?? null, error: null };
         },
         async single() {
+          if (table === "contact_messages" && mockDb.failNextMessageRead) {
+            mockDb.failNextMessageRead = false;
+            return { data: null, error: { message: "Temporary read failure" } };
+          }
           const row = records().find((r) => r["id"] === idFilter);
           if (!row) return { data: null, error: { message: "No row" } };
           if (change) { Object.assign(row, change); mockDb.directUpdates++; }
@@ -79,6 +84,7 @@ beforeEach(() => {
   mockDb.directUpdates = 0;
   mockDb.audits = [];
   mockDb.delayNextMessageQuery = null;
+  mockDb.failNextMessageRead = false;
   window.history.replaceState({}, "", "/admin");
 });
 afterEach(() => cleanup());
@@ -121,6 +127,25 @@ describe("filas administrativas em interação real de React", () => {
     expect(mockDb.updates).toBe(1);
     expect(mockDb.directUpdates).toBe(0);
     expect(mockDb.audits).toEqual([{ id, status: "respondida", reason: "Resposta encaminhada pela equipe" }]);
+  });
+
+  it("impede reenviar a mesma ação auditada após falha na releitura", async () => {
+    const id = "a8d48d0f-a011-4a1c-a6a7-3ebd210dc258";
+    mockDb.messages = [{ id, name: "Cliente", subject: "Mensagem para auditoria",
+      status: "nova", email: "cliente@example.test", message: "Mensagem", created_at: "2026-11-14T00:00:00Z" }];
+    render(<AdminMessageQueue />);
+    expect(await screen.findByText("Mensagem para auditoria")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Marcar respondida/ }));
+    fireEvent.change(screen.getByRole("textbox", { name: /Justificativa de auditoria/ }),
+      { target: { value: "Ação comprovada em auditoria" } });
+    mockDb.failNextMessageRead = true;
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar e auditar" }));
+    expect(await screen.findByRole("alert")).toHaveProperty("textContent",
+      "O servidor confirmou a alteração, mas a releitura falhou. Atualize a lista antes de agir novamente.");
+    expect(mockDb.updates).toBe(1);
+    expect(mockDb.audits).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "Confirmar e auditar" })).toBeNull();
+    expect(mockDb.directUpdates).toBe(0);
   });
 
   it("não mantém ações antigas clicáveis enquanto o filtro de mensagens carrega", async () => {
