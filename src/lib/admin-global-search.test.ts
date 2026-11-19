@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { adminSearchUrl, cleanAdminSearch, importedTechnicianSearchResult, matchingAdminModules } from "./admin-global-search";
+import { ADMIN_SECTIONS } from "./admin-sections";
 
 describe("busca unificada do painel administrativo", () => {
   it("localiza qualquer módulo por nome sem depender do banco", () => {
-    expect(matchingAdminModules("")).toHaveLength(12);
+    expect(matchingAdminModules("")).toHaveLength(ADMIN_SECTIONS.length);
+    expect(matchingAdminModules("usuarios").map((item) => item.section)).toContain("usuarios");
     expect(matchingAdminModules("mEtricas").map((item) => item.section)).toContain("metricas");
     expect(matchingAdminModules("solicitacoes").map((item) => item.section)).toContain(
       "solicitacoes",

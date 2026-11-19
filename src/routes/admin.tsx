@@ -20,8 +20,9 @@ import { AdminMemberInvites } from "@/components/admin-member-invites";
 import { AdminAccountsManager } from "@/components/admin-accounts-manager";
 import { AdminContactsDashboard } from "@/components/admin-contacts-dashboard";
 import { AdminClientInsights } from "@/components/admin-client-insights";
+import { AdminUsersHub } from "@/components/admin-users-hub";
 import { adminModuleTitle, type AdminSection } from "@/lib/admin-sections";
-import { ArrowRight, ClipboardList, PhoneCall, ShieldBan, Wrench } from "lucide-react";
+import { ArrowRight, ClipboardList, ChartNoAxesCombined, Tags, UsersRound } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -39,11 +40,11 @@ export const Route = createFileRoute("/admin")({
 });
 
 const ADMIN_QUICK_LINKS = [
-  { section: "tecnicos", label: "Técnicos", icon: Wrench },
+  { section: "usuarios", label: "Usuários", icon: UsersRound },
   { section: "solicitacoes", label: "Solicitações", icon: ClipboardList },
-  { section: "contas", label: "Contas e bloqueios", icon: ShieldBan },
-  { section: "contatos", label: "Contatos privados", icon: PhoneCall },
-] as const satisfies ReadonlyArray<{ section: AdminSection; label: string; icon: typeof Wrench }>;
+  { section: "catalogo", label: "Categorias e serviços", icon: Tags },
+  { section: "metricas", label: "Métricas", icon: ChartNoAxesCombined },
+] as const satisfies ReadonlyArray<{ section: AdminSection; label: string; icon: typeof UsersRound }>;
 
 export function AdminPage() {
   return <AdminWorkspace section="inicio" />;
@@ -118,6 +119,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             {section === "reivindicacoes" && <section aria-label="Reivindicações"><div id="admin-reivindicacoes"><LegacyClaimReview /></div></section>}
             {section === "catalogo" && <section aria-label="Categorias e serviços"><div id="admin-catalogo"><EutAdminManager /></div></section>}
             {section === "contas" && <section aria-label="Contas e bloqueios"><AdminMemberInvites /><AdminAccountsManager /></section>}
+            {section === "usuarios" && <AdminUsersHub adminOwnerId={user.id} />}
             {section === "contatos" && <section aria-label="Contatos administrativos"><AdminContactsDashboard adminId={user.id} /></section>}
             {section === "tecnicos" && <section aria-label="Gestão de técnicos">
               <AdminTechnicianUnifiedDirectory adminOwnerId={user.id} />

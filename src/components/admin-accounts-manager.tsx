@@ -32,7 +32,9 @@ const ACTION_NAMES: Record<Action, string> = {
 };
 
 /** Read and write only through explicitly admin-guarded RPCs. Never use auth.admin in the browser. */
-export function AdminAccountsManager({ initialFilter = "todos" }: { initialFilter?: Filter }) {
+export function AdminAccountsManager({ initialFilter = "todos", lockFilter = false }: {
+  initialFilter?: Filter; lockFilter?: boolean;
+}) {
   const [filter, setFilter] = useState<Filter>(initialFilter);
   const [draftSearch, setDraftSearch] = useState(() => typeof window === "undefined" ? "" :
     new URLSearchParams(window.location.search).get("q")?.slice(0, 80) ?? "");
@@ -251,13 +253,13 @@ export function AdminAccountsManager({ initialFilter = "todos" }: { initialFilte
         <Search className="h-4 w-4" aria-hidden="true" /> Buscar
       </button>
     </form>
-    <div className="flex gap-2 overflow-x-auto pb-2" aria-label="Filtro de contas">
+    {!lockFilter && <div className="flex gap-2 overflow-x-auto pb-2" aria-label="Filtro de contas">
       {FILTERS.map((item) => <button key={item.value} type="button"
         aria-pressed={filter === item.value} onClick={() => { setFilter(item.value); setPage(0); setSelection(null); setSelectedIds(new Set()); setBulkAction(null); }}
         className={"min-h-11 shrink-0 rounded-full border px-4 text-sm font-semibold " +
           (filter === item.value ? "border-primary bg-primary text-primary-foreground" : "border-input bg-card text-foreground hover:bg-accent")}>
         {item.label}</button>)}
-    </div>
+    </div>}
     {error && <p role="alert" className="rounded-xl border border-destructive/30 bg-card p-4 text-sm text-destructive">{error}</p>}
     {notice && <p role="status" className="rounded-xl border border-primary/25 bg-primary/5 p-4 text-sm text-foreground">{notice}</p>}
     {selection && <form onSubmit={(e) => void apply(e)}

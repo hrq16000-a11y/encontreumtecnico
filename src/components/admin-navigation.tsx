@@ -34,6 +34,7 @@ import { AdminGlobalSearch } from "@/components/admin-global-search";
 
 const ICONS = {
   inicio: LayoutDashboard,
+  usuarios: UsersRound,
   tecnicos: Wrench,
   clientes: UsersRound,
   contas: ShieldBan,

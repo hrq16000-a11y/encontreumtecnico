@@ -11,7 +11,7 @@ export const ADMIN_NAV_GROUPS = [
   {
     id: "cadastros",
     title: "Cadastros e segurança",
-    keys: ["tecnicos", "clientes", "contas", "contatos"],
+    keys: ["usuarios", "tecnicos", "clientes", "contas", "contatos"],
   },
   { id: "atendimento", title: "Atendimento", keys: ["solicitacoes", "mensagens"] },
   {
