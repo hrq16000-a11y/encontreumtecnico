@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type KeyboardEvent } from "react";
 import { ShieldCheck, UsersRound, Wrench } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminAccountsManager } from "@/components/admin-accounts-manager";
@@ -102,6 +102,19 @@ export function AdminUsersHub({ adminOwnerId }: { adminOwnerId: string }) {
     else url.searchParams.delete("registro");
     window.history.replaceState(window.history.state, "", url);
   }
+  function onTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, current: UserTab) {
+    const index = USER_TABS.findIndex((item) => item.key === current);
+    const nextIndex = event.key === "ArrowRight" ? (index + 1) % USER_TABS.length
+      : event.key === "ArrowLeft" ? (index - 1 + USER_TABS.length) % USER_TABS.length
+      : event.key === "Home" ? 0
+      : event.key === "End" ? USER_TABS.length - 1 : null;
+    if (nextIndex === null) return;
+    const next = USER_TABS[nextIndex]?.key;
+    if (!next) return;
+    event.preventDefault();
+    selectTab(next);
+    document.getElementById(`eut-user-tab-${next}`)?.focus();
+  }
 
   return <section aria-labelledby="admin-usuarios-title" className="min-w-0 space-y-5">
     <div>
@@ -111,7 +124,9 @@ export function AdminUsersHub({ adminOwnerId }: { adminOwnerId: string }) {
     <div role="tablist" aria-label="Perfis dos usuários" className="flex flex-wrap gap-2">
       {USER_TABS.map((item) => <button key={item.key} id={`eut-user-tab-${item.key}`} role="tab" type="button"
         aria-selected={tab === item.key} aria-controls="eut-users-panel"
+        tabIndex={tab === item.key ? 0 : -1}
         onClick={() => selectTab(item.key)}
+        onKeyDown={(event) => onTabKeyDown(event, item.key)}
         className={"min-h-11 rounded-lg border px-4 text-sm font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
           (tab === item.key ? "border-primary bg-primary text-primary-foreground" : "border-input bg-background hover:bg-accent")}>
         {item.label}</button>)}

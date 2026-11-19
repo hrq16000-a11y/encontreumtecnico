@@ -17,6 +17,14 @@ describe("Rodada 2: central única de usuários", () => {
     expect(hub).toContain('window.addEventListener("popstate", syncTabFromUrl)');
     expect(hub).not.toMatch(/key: "(wordpress|guiafix|whatsapp|importados)"/i);
   });
+  it("navega entre as abas pelo teclado e mantém somente a aba ativa na ordem de foco", () => {
+    const hub = read("src/components/admin-users-hub.tsx");
+    for (const key of ["ArrowLeft", "ArrowRight", "Home", "End"])
+      expect(hub).toContain(`event.key === "${key}"`);
+    expect(hub).toContain("tabIndex={tab === item.key ? 0 : -1}");
+    expect(hub).toContain("onKeyDown={(event) => onTabKeyDown(event, item.key)}");
+    expect(hub).toContain("document.getElementById(`eut-user-tab-${next}`)?.focus()");
+  });
   it("reaproveita RPCs, RLS, moderação em lote e edição de técnicos existentes", () => {
     const hub = read("src/components/admin-users-hub.tsx");
     const accounts = read("src/components/admin-accounts-manager.tsx");
