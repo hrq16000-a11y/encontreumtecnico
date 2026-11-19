@@ -10,7 +10,7 @@ const CONSENT_KEY = "eut-cookie-consent";
 const PUBLIC_ROUTES = new Set(["/", "/tecnicos", "/servicos", "/como-funciona", "/faq", "/galeria"]);
 
 export function isEligibleAdSenseRoute(pathname: string): boolean {
-  return PUBLIC_ROUTES.has(pathname);
+  return PUBLIC_ROUTES.has(pathname) || pathname === "/guias" || pathname === "/cobertura" || /^\/servicos\/[a-z0-9]+(?:-[a-z0-9]+)*$/.test(pathname);
 }
 
 export function allowsAdSenseAdvertising(consent: unknown): boolean {

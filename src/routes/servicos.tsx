@@ -145,6 +145,7 @@ function ServicesPage() {
           </Link>.
         </p>
       </section>
+<p className="mx-auto my-5 w-full max-w-6xl px-4 text-sm leading-7 text-muted-foreground">Depois de identificar o serviço, consulte a <a href="/cobertura" className="font-semibold text-primary underline underline-offset-2">rede de técnicos por município</a>. Ao pedir orçamento, diga qual equipamento precisa de atenção e se a falha acontece sempre ou apenas em determinadas condições.</p>
     </PageShell>
   );
 }

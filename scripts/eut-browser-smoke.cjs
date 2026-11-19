@@ -160,7 +160,11 @@ async function publicMobileNeighborhoods(page) {
       needsHeightFix: box.height < 44,
     }));
   }
+  // Changing UF replaces the city input after the router commits the new state.
+  const previousCity = await city.elementHandle();
   await state.selectOption("PR");
+  await page.waitForFunction(previous => !previous.isConnected, previousCity);
+  await previousCity.dispose();
   await city.fill("São José dos Pinhais");
   await expandAdvancedFilters(page);
   const suggestions = page.locator("#eut-bairro-diretorio");

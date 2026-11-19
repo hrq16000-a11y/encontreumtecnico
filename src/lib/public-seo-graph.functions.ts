@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { setResponseHeader } from "@tanstack/react-start/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { readPublicEligibleRows, type PublicEligibilityRpc } from "@/lib/public-eligibility";
 import type { Database } from "@/integrations/supabase/types";
@@ -80,7 +80,7 @@ async function loadGraphUncached(): Promise<GraphCatalog> {
     const { data, error } = await db.from("technicians")
       .select("id,public_slug,display_name,city,state_uf,specialties,service_slugs,updated_at")
       .eq("status", "aprovado")
-      .order("created_at", { ascending: true })
+      .order("created_at", { ascending: true }).order("id", { ascending: true })
       .range(page * BATCH, (page + 1) * BATCH - 1);
     if (error) throw new Error("Could not load approved public SEO profiles");
     // One extra read verifies the ceiling without silently truncating a sitemap.
@@ -95,6 +95,25 @@ async function loadGraphUncached(): Promise<GraphCatalog> {
     if ((data ?? []).length < BATCH) break;
   }
 
+  // This public RPC applies the same publication rules as the directory and profile route.
+  // Its result has no modification timestamp, so these URLs omit lastmod.
+  const publicRow = z.object({
+    public_slug: z.string().regex(/^tecnico-[a-f0-9]{32}$/),
+    display_name: z.string(), city: z.string(), state_uf: z.string().nullable(),
+    specialties: z.array(z.string()), service_slugs: z.array(z.string()),
+  });
+  const pageSize = 100;
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await (db as unknown as SupabaseClient).rpc("eut_public_admin_technicians", {
+      _slug: null, _category: null, _service: null, _uf: null, _city: null, _region: null,
+      _limit: pageSize, _offset: offset,
+    });
+    if (error) throw new Error("Could not load public technician directory");
+    const rows = z.array(publicRow).parse(data);
+    profiles.push(...rows);
+    if (rows.length < pageSize) break;
+    if (offset >= 50_000) throw new Error("Public technician directory requires partitioning");
+  }
   const { cities, activeCategories } = await getCachedReferenceCatalog();
   return buildPublicGraph(profiles, cities, activeCategories);
 }
