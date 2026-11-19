@@ -15,6 +15,14 @@ describe("Falhas de publicação sem exposição de dados privados", () => {
     expect(technicianPublishErrorMessage({ code: "23514" })).toMatch(/município/);
     expect(technicianPublishErrorMessage({ code: "P0001" })).toMatch(/regra do cadastro/);
   });
+  it("orienta a recuperar a titularidade sem vazar erro interno", () => {
+    const raw = "confirmed technician session required; private@example.com";
+    const feedback = technicianPublishErrorMessage({ code: "P0001", message: raw });
+    expect(feedback).toMatch(/titularidade do e-mail/);
+    expect(feedback).toMatch(/Não crie outra conta/);
+    expect(feedback).not.toContain(raw);
+    expect(feedback).not.toContain("private@example.com");
+  });
   it("não exibe mensagem SQL, detalhes nem códigos arbitrários", () => {
     const raw = "password=secret; SELECT * FROM private_users";
     expect(technicianPublishErrorMessage({ code: "xx';DROP TABLE--", message: raw })).not.toContain(raw);
