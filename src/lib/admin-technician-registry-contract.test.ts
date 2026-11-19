@@ -41,6 +41,14 @@ describe("cadastro administrativo sem conta artificial", () => {
     expect(fixture).toContain("c.contact_suspended=true");
   });
 
+  it("preserva serviços históricos e de outras categorias durante a edição", () => {
+    const editor = read("src/components/admin-technician-record-editor.tsx");
+    expect(editor).toContain("if (!checked) {");
+    expect(editor).toContain(".filter((item) => item.category_slug === slug)");
+    expect(editor).toContain("current.filter((item) => !removedServices.has(item))");
+    expect(editor).not.toContain("next.includes(s.category_slug)");
+  });
+
   it("mantém uma única gestão e não expõe contato integral na listagem", () => {
     const directory = read("src/components/admin-technician-unified-directory.tsx");
     const editor = read("src/components/admin-technician-record-editor.tsx");
