@@ -27,6 +27,7 @@ export function AdminMessageQueue() {
   const [page, setPage] = useState(0);
   const [revision, setRevision] = useState(0);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [refreshRequired, setRefreshRequired] = useState(false);
   const [pending, setPending] = useState<{ id: string; status: "respondida" | "arquivada" | "nova" } | null>(null);
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +52,7 @@ export function AdminMessageQueue() {
       .then(({ data, count, error: queryError }) => {
         if (!active) return;
         if (queryError) { setError("Não foi possível consultar mensagens."); setRows([]); setTotal(null); }
-        else { setRows(data ?? []); setTotal(count ?? null); }
+        else { setRows(data ?? []); setTotal(count ?? null); setRefreshRequired(false); }
       }).catch(() => { if (active) { setError("Não foi possível consultar mensagens."); setRows([]); setTotal(null); } })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
@@ -64,7 +65,7 @@ export function AdminMessageQueue() {
   }
 
   function chooseStatus(id: string, status: "respondida" | "arquivada" | "nova") {
-    if (busyId) return;
+    if (busyId || refreshRequired) return;
     setPending({ id, status });
     setReason("");
     setError(null);
@@ -72,7 +73,7 @@ export function AdminMessageQueue() {
   }
 
   async function updateStatus() {
-    if (!pending || busyId) return;
+    if (!pending || busyId || refreshRequired) return;
     const { id, status } = pending;
     const validation = validateAdminContactAction({
       action: "mark_message", reason, userId: null, phone: "",
@@ -102,6 +103,7 @@ export function AdminMessageQueue() {
       // Exigir nova escolha depois de consultar a lista evita reenvio acidental da ação auditada.
       setPending(null);
       setReason("");
+      setRefreshRequired(true);
       setError(rpcConfirmed
         ? "O servidor confirmou a alteração, mas a releitura falhou. Atualize a lista antes de agir novamente."
         : "Não foi possível confirmar o resultado e sua auditoria. Atualize a lista antes de tentar novamente.");
@@ -151,11 +153,11 @@ export function AdminMessageQueue() {
         <div className="mt-4 flex flex-wrap gap-2">
           <a href={`mailto:${row.email}?subject=${encodeURIComponent(`Re: ${row.subject}`)}`}
             className="inline-flex min-h-11 items-center rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground">Responder por e-mail</a>
-          {row.status !== "respondida" && <button type="button" disabled={Boolean(busyId)} onClick={() => chooseStatus(row.id, "respondida")}
+          {row.status !== "respondida" && <button type="button" disabled={Boolean(busyId) || refreshRequired} onClick={() => chooseStatus(row.id, "respondida")}
             className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-input px-3 text-sm disabled:opacity-40"><Check className="h-4 w-4" /> Marcar respondida</button>}
-          {row.status !== "arquivada" ? <button type="button" disabled={Boolean(busyId)} onClick={() => chooseStatus(row.id, "arquivada")}
+          {row.status !== "arquivada" ? <button type="button" disabled={Boolean(busyId) || refreshRequired} onClick={() => chooseStatus(row.id, "arquivada")}
             className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-input px-3 text-sm disabled:opacity-40"><Archive className="h-4 w-4" /> Arquivar</button>
-            : <button type="button" disabled={Boolean(busyId)} onClick={() => chooseStatus(row.id, "nova")}
+            : <button type="button" disabled={Boolean(busyId) || refreshRequired} onClick={() => chooseStatus(row.id, "nova")}
               className="min-h-11 rounded-lg border border-input px-3 text-sm disabled:opacity-40">Reabrir</button>}
         </div>
         {pending?.id === row.id && <form className="mt-3 grid gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3"
