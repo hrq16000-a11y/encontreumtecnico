@@ -55,6 +55,15 @@ export function NationalCoverage() {
         </div>
       </div>
 
+      <div className="mt-6 flex flex-wrap items-center gap-3 rounded-xl border border-primary/20 bg-card p-4">
+        <p className="min-w-0 flex-1 basis-64 text-sm text-foreground">
+          Atende nesta ou em outra cidade? Cadastre-se como técnico e informe as regiões onde você atende.
+        </p>
+        <Link to="/cadastro" className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground hover:underline">
+          Cadastrar como técnico
+        </Link>
+      </div>
+
       <div className="mt-8">
         <h4 className="flex items-center gap-2 text-lg font-bold text-foreground">
           <MapPinned className="h-5 w-5 text-primary" aria-hidden /> Todas as 27 capitais
@@ -70,9 +79,9 @@ export function NationalCoverage() {
       </div>
 
       <div className="mt-9">
-        <h4 className="text-lg font-bold text-foreground">Cidades informadas com parceiros</h4>
+        <h4 className="text-lg font-bold text-foreground">Cidades com técnicos na rede</h4>
         <p className="mt-1 text-sm text-muted-foreground">
-          Localidades fornecidas pela administração do portal, organizadas por estado. Abra uma UF e selecione a cidade para buscar.
+          Selecione seu estado e clique na cidade para consultar os perfis públicos da região.
         </p>
         <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {PARTNER_GROUPS.map(([uf, cidades]) => (

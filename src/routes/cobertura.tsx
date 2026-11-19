@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { NationalCoverage } from "@/components/national-coverage";
 import { PageShell } from "@/components/page-placeholder";
 import { getPublicCoverageOverview } from "@/lib/public-coverage.functions";
 import { SITE } from "@/lib/public-sitemap";
@@ -47,6 +48,9 @@ function CoveragePage() {
           </p>
         </header>
 
+        <NationalCoverage />
+
+        <h2 className="mt-10 text-2xl font-bold text-foreground">Perfis públicos por localidade</h2>
         {locations.length === 0 ? (
           <div className="mt-9 rounded-xl border border-border bg-card p-6">
             <h2 className="font-semibold text-foreground">Ainda não há localidades públicas nesta consulta</h2>
