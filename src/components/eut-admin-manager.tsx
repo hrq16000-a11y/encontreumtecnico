@@ -177,12 +177,12 @@ export function EutAdminManager() {
       }
     }
     if(active){
-      if(!window.confirm(`Ocultar este ${which==="category"?"grupo":"serviço"}? O histórico será preservado.`))return;
+      if(!window.confirm(`Excluir este ${which==="category"?"grupo":"serviço"} da busca pública? O histórico será preservado e a ação é reversível.`))return;
     }
     const table=which==="category"?"eut_service_categories":"eut_service_types";
     if(await catalogOperation(slug,async()=>db.from(table).update({active:!active})
       .eq("slug",slug).eq("active",active).select("slug").maybeSingle(),
-      active?"Item ocultado sem apagar histórico.":"Item reativado.")) await loadCatalog();
+      active?"Filtro excluído da busca, com histórico preservado.":"Filtro reativado.")) await loadCatalog();
   }
   function editCatalog(which:"category"|"service",item:Category|Service) {
     setMessage("");
@@ -275,7 +275,7 @@ export function EutAdminManager() {
         Municípios e bairros só são gravados mediante confirmação. Perfis históricos continuam sem contratação.
       </p>
       <p className="mt-2 text-xs text-muted-foreground">
-        Catálogo: criar, consultar, editar e ocultar/reativar. O identificador permanece estável e a exclusão é lógica
+        Catálogo: criar, consultar, editar e excluir da busca/reativar. O identificador permanece estável e a exclusão é lógica
         para preservar vínculos, histórico e páginas existentes. Oculte os serviços ativos antes de ocultar uma categoria.
       </p>
       <label className="mt-4 grid gap-1 text-sm font-semibold text-foreground">Localizar categoria ou serviço
@@ -302,7 +302,7 @@ export function EutAdminManager() {
               <span className="min-w-0 text-sm">{c.label} <span className="text-xs text-muted-foreground">({c.slug} · ordem {c.display_order} · {c.active?"ativa":"oculta"})</span></span>
               <span className="flex shrink-0 gap-1">
                 <button className={btn} disabled={busy} type="button" onClick={()=>editCatalog("category",c)}>Editar</button>
-                <button className={btn} disabled={busy} type="button" onClick={()=>void toggleCatalog("category",c.slug,c.active)}>{c.active?"Ocultar":"Ativar"}</button>
+                <button className={btn} disabled={busy} type="button" onClick={()=>void toggleCatalog("category",c.slug,c.active)}>{c.active?"Excluir da busca":"Reativar"}</button>
               </span>
             </li>)}
           </ul>
@@ -331,7 +331,7 @@ export function EutAdminManager() {
               <span className="min-w-0 text-sm">{s.label}<span className="block text-xs text-muted-foreground">{categories.find(c=>c.slug===s.category_slug)?.label??s.category_slug} · ordem {s.display_order} · {s.active?"ativo":"oculto"}</span></span>
               <span className="flex shrink-0 gap-1">
                 <button type="button" disabled={busy} className={btn} onClick={()=>editCatalog("service",s)}>Editar</button>
-                <button type="button" disabled={busy} className={btn} onClick={()=>void toggleCatalog("service",s.slug,s.active)}>{s.active?"Ocultar":"Ativar"}</button>
+                <button type="button" disabled={busy} className={btn} onClick={()=>void toggleCatalog("service",s.slug,s.active)}>{s.active?"Excluir da busca":"Reativar"}</button>
               </span>
             </li>)}
           </ul>

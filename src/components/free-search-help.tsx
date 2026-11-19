@@ -1,8 +1,10 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { LifeBuoy, X } from "lucide-react";
+import { useRouterState } from "@tanstack/react-router";
+import { showMobileQuickTabs } from "@/lib/navigation-safety";
 // The complete wizard (regional hint, Supabase, drafts and validation) is only
 // needed after an explicit help request. Keep the global event listener and
-// floating CTA mounted so cross-route requests and open drafts are preserved.
+// floating CTA on public routes so cross-route requests and open drafts are preserved.
 const LazyAssistanceFunnel = lazy(() =>
   import("./assistance-funnel").then(({ AssistanceFunnel }) => ({ default: AssistanceFunnel })),
 );
@@ -12,12 +14,17 @@ import { type FreeHelpContext } from "@/lib/free-search-help";
  * No free phone reveal, payment bypass or external WhatsApp jump.
  */
 export function FreeSearchHelp() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const hasMobileHelpTab = showMobileQuickTabs(pathname);
+  const inAdmin = pathname === "/admin" || pathname.startsWith("/admin/");
   const [open, setOpen] = useState(false);
   const [context, setContext] = useState<FreeHelpContext>({});
   const closeRef = useRef<HTMLButtonElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
     const onRequest = (event: Event) => {
+      returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       const detail = (event as CustomEvent<FreeHelpContext>).detail;
       setContext(detail && typeof detail === "object" ? detail : {});
       setOpen(true);
@@ -35,19 +42,20 @@ export function FreeSearchHelp() {
     return () => {
       document.body.style.overflow = previous;
       window.removeEventListener("keydown", key);
-      triggerRef.current?.focus();
+      if (returnFocusRef.current?.isConnected) returnFocusRef.current.focus();
+      else triggerRef.current?.focus();
     };
   }, [open]);
-  // On mobile, sit just above the bottom navigation so the button does not
-  // cover the city search input while the initial filter card is in view.
+  // Mobile quick tabs expose help without a floating button covering results.
+  // Preserve the floating action on pages without tabs and on desktop.
   return (
     <>
-      <button type="button" ref={triggerRef} aria-haspopup="dialog"
+      {!inAdmin && <button type="button" ref={triggerRef} aria-haspopup="dialog"
         aria-expanded={open} aria-controls="eut-free-help-dialog"
-        onClick={() => { setContext({}); setOpen(true); }}
-        className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 z-40 inline-flex min-h-12 items-center gap-2 rounded-full border border-white/30 bg-brand-navy px-4 py-3 text-sm font-bold text-white shadow-[0_14px_42px_-14px_rgba(7,28,57,.7)] transition-transform hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transform-none md:bottom-24 md:right-6">
+        onClick={() => { returnFocusRef.current = triggerRef.current; setContext({}); setOpen(true); }}
+        className={"fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 z-40 min-h-12 items-center gap-2 rounded-full border border-white/30 bg-brand-navy px-4 py-3 text-sm font-bold text-white shadow-[0_14px_42px_-14px_rgba(7,28,57,.7)] transition-transform hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transform-none md:bottom-24 md:right-6 " + (hasMobileHelpTab ? "hidden md:inline-flex" : "inline-flex")}>
         <LifeBuoy className="h-5 w-5" aria-hidden="true" /> Preciso de ajuda
-      </button>
+      </button>}
       {open && (
         <div className="fixed inset-0 z-[90] flex items-end justify-center bg-slate-950/65 backdrop-blur-[3px] sm:items-center sm:p-4"
           onMouseDown={event => { if (event.target === event.currentTarget) setOpen(false); }}>

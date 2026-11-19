@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  canRevealAdminContact, validateAdminContactAction, type AdminContactAction,
+  validateAdminContactAction, type AdminContactAction,
 } from "@/lib/admin-contact-controls";
 
 const db = supabase as unknown as SupabaseClient;
@@ -11,7 +11,7 @@ type Filter = "todos" | "aprovado" | "pendente" | "suspenso" | "rejeitado" | "ba
 type Technician = {
   id: string; user_id: string; display_name: string; status: string;
   city: string; state_uf: string | null; created_at: string;
-  email: string | null; masked_phone: string | null; has_phone: boolean;
+  email: string | null; phone: string | null; has_phone: boolean;
   allow_paid_contact: boolean; blocked_account: boolean; blocked_phone: boolean;
 };
 type FullTechnician = {
@@ -72,40 +72,17 @@ export function AdminContactsDashboard({ adminId }: { adminId: string }) {
   const [phoneToBlock, setPhoneToBlock] = useState("");
   const [messageStatus, setMessageStatus] = useState("respondida");
   const [busy, setBusy] = useState(false);
-  const [revealed, setRevealed] = useState<{ owner: string; phone: string } | null>(null);
-  const revealTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const accessEpoch = useRef(0);
   const [info, setInfo] = useState("");
   const [error, setError] = useState("");
   const [showAudit, setShowAudit] = useState(false);
   const [showBlocked, setShowBlocked] = useState(false);
   const [showMessages, setShowMessages] = useState(false);
 
-  function hidePhone() {
-    // Invalidate even an in-flight reveal request on filter change, logout or tab switch.
-    accessEpoch.current++;
-    if (revealTimeout.current) clearTimeout(revealTimeout.current);
-    revealTimeout.current = null;
-    setRevealed(null);
-  }
-  useEffect(() => {
-    function hideOnBackground() {
-      if (document.visibilityState === "hidden") hidePhone();
-    }
-    document.addEventListener("visibilitychange", hideOnBackground);
-    window.addEventListener("pagehide", hidePhone);
-    return () => {
-      document.removeEventListener("visibilitychange", hideOnBackground);
-      window.removeEventListener("pagehide", hidePhone);
-      accessEpoch.current++;
-      if (revealTimeout.current) clearTimeout(revealTimeout.current);
-    };
-  }, []);
   useEffect(() => {
     let active = true;
     setLoading(true);
     setError("");
-    hidePhone();
+    
     detailEpoch.current++;
     setDetail(null);
     void Promise.resolve(db.rpc("eut_admin_contacts_dashboard", {
@@ -128,7 +105,7 @@ export function AdminContactsDashboard({ adminId }: { adminId: string }) {
 
   function choose(action: AdminContactAction, subject: Technician | null = null,
     block: Block | null = null, message: Message | null = null) {
-    hidePhone();
+    
     setDetail(null);
     setPending({ action, subject, block, message });
     setReason(""); setPhoneToBlock(""); setMessageStatus("respondida");
@@ -152,35 +129,6 @@ export function AdminContactsDashboard({ adminId }: { adminId: string }) {
     }
   }
 
-  async function reveal(subject: Technician) {
-    if (busy || !subject.has_phone) return;
-    const reasonText = window.prompt(
-      "Motivo do acesso ao número integral (8 a 500 caracteres). O acesso será registrado em auditoria:",
-    )?.trim();
-    if (!canRevealAdminContact(reasonText)) return;
-    hidePhone();
-    const epoch = accessEpoch.current;
-    setBusy(true); setError(""); setInfo("");
-    try {
-      const { data, error: rpcError } = await db.rpc("eut_admin_contact_reveal", {
-        _user_id: subject.user_id, _reason: reasonText,
-      });
-      if (epoch !== accessEpoch.current) return;
-      if (rpcError || data?.ok !== true || typeof data.phone !== "string" ||
-          !/^\+[1-9]\d{7,14}$/.test(data.phone)) {
-        throw new Error("O servidor não confirmou a leitura do contato.");
-      }
-      setRevealed({ owner: subject.user_id, phone: data.phone });
-      revealTimeout.current = setTimeout(() => {
-        setRevealed(null); revealTimeout.current = null;
-      }, 60_000);
-      setInfo("Número revelado apenas nesta tela por 60 segundos. Consulta auditada.");
-    } catch {
-      if (epoch === accessEpoch.current)
-        setError("Não foi possível consultar o número completo. Verifique as permissões.");
-    } finally { setBusy(false); }
-  }
-
   async function perform(event: FormEvent) {
     event.preventDefault();
     if (!pending || busy) return;
@@ -196,7 +144,7 @@ export function AdminContactsDashboard({ adminId }: { adminId: string }) {
       return;
     }
     if (!window.confirm(`Confirmar ${ACTION_LABELS[pending.action]}? A ação será auditada no banco. O bloqueio de conta não remove bloqueios telefônicos.`)) return;
-    setBusy(true); hidePhone(); setError(""); setInfo("");
+    setBusy(true);  setError(""); setInfo("");
     try {
       const { data, error: rpcError } = await db.rpc("eut_admin_contact_action", {
         _action: pending.action,
@@ -222,9 +170,8 @@ export function AdminContactsDashboard({ adminId }: { adminId: string }) {
       <div className="rounded-2xl border border-border bg-card p-4 sm:p-6">
         <h2 className="text-xl font-bold text-foreground">Contatos e gestão de acesso</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Consulte nome, e-mail, cidade, status e número completo quando necessário. A leitura
-          do número exige motivo, fica auditada e desaparece desta tela após 60 segundos.
-          Somente administradores autorizados podem chamar estas operações.
+          Telefone, e-mail, cidade e status são dados normais da ficha administrativa.
+          Somente administradores autorizados consultam esses dados; as regras de contato do cliente são independentes.
         </p>
         <div className="mt-3 flex flex-wrap gap-3">
           <Link to="/admin/$secao" params={{ secao: "tecnicos" }} className="text-sm font-semibold text-primary underline">Editar dados e aprovar técnicos</Link>
@@ -281,7 +228,7 @@ export function AdminContactsDashboard({ adminId }: { adminId: string }) {
                 {[item.city,item.state_uf].filter(Boolean).join(" / ")} · {item.email || "E-mail não informado"}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Contato: {revealed?.owner===item.user_id ? revealed.phone : item.masked_phone ?? "não informado"}
+                Telefone: {item.phone ?? "não informado"}
                 {item.blocked_account ? " · conta banida" : ""}
                 {item.blocked_phone ? " · telefone banido" : ""}
                 {!item.allow_paid_contact ? " · divulgação desautorizada" : ""}
@@ -291,12 +238,11 @@ export function AdminContactsDashboard({ adminId }: { adminId: string }) {
                   className="min-h-11 rounded-lg border border-input px-3 text-sm font-semibold text-foreground">
                   {detail?.id===item.id ? "Fechar ficha" : "Ver ficha completa"}
                 </button>
-                {item.has_phone && <button type="button" disabled={busy} onClick={()=>void reveal(item)}
+                {item.phone && <button type="button"
+                  onClick={() => { void navigator.clipboard.writeText(item.phone!); }}
                   className="min-h-11 rounded-lg border border-input px-3 text-sm font-semibold text-foreground">
-                  Ver número completo
+                  Copiar telefone
                 </button>}
-                {revealed?.owner===item.user_id && <button type="button" onClick={hidePhone}
-                  className="min-h-11 rounded-lg border border-input px-3 text-sm">Ocultar número</button>}
                 {!item.blocked_account && <button type="button" onClick={()=>choose("block_account",item)}
                   className="min-h-11 rounded-lg border border-input px-3 text-sm">Banir conta</button>}
                 {item.blocked_account && <button type="button" onClick={()=>choose("unblock_account",item)}

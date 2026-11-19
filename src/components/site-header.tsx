@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { showMobileQuickTabs } from "@/lib/navigation-safety";
-import { ArrowRight, CircleHelp, House, LogIn, Menu, Search, Wrench, X, UserRound, UsersRound } from "lucide-react";
+import { ArrowRight, CircleHelp, House, LifeBuoy, LogIn, Menu, Search, Wrench, X, UserRound, UsersRound } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { openFreeHelp } from "@/lib/free-search-help";
 import logo from "@/assets/logo-marinho.png";
 
 const NAV_ITEMS = [
@@ -69,7 +70,7 @@ export function SiteHeader() {
           onClick={() => setOpen(false)}
         >
           <img src={logo} alt="Encontre um Técnico" width={324} height={60}
-            className="h-9 w-auto max-w-[185px] object-contain transition-transform duration-200 group-hover:scale-[1.025] sm:h-10 sm:max-w-[218px] motion-reduce:transform-none" />
+            className="h-9 w-auto max-w-[142px] object-contain transition-transform duration-200 group-hover:scale-[1.025] sm:h-10 sm:max-w-[218px] motion-reduce:transform-none" />
         </Link>
 
         <nav className="hidden items-center gap-1 lg:flex" aria-label="Navegação principal">
@@ -98,7 +99,7 @@ export function SiteHeader() {
                 className={"inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-sm font-semibold text-foreground transition-colors hover:bg-accent " + FOCUS}>
                 <LogIn className="h-4 w-4" aria-hidden="true" /> Entrar
               </Link>
-              <Link to="/area-tecnico"
+              <Link to="/cadastro"
                 className={"inline-flex min-h-11 items-center gap-2 rounded-full border border-primary/25 bg-card px-4 text-sm font-semibold text-primary shadow-sm transition-colors hover:border-primary hover:bg-accent " + FOCUS}>
                 <Wrench className="h-4 w-4" aria-hidden="true" /> Sou técnico
               </Link>
@@ -111,6 +112,12 @@ export function SiteHeader() {
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
         </div>
+
+        <Link to={signedIn ? accountPath : "/cadastro"}
+          className={"ml-auto hidden min-h-11 shrink-0 items-center justify-center rounded-xl bg-primary px-3 text-xs font-bold text-primary-foreground min-[370px]:inline-flex lg:hidden " + FOCUS}>
+          {signedIn ? "Minha conta" : "Cadastre-se"}
+          <ArrowRight className="ml-1.5 h-4 w-4" aria-hidden="true" />
+        </Link>
 
         <button type="button" aria-expanded={open} aria-controls="eut-mobile-menu"
           aria-label={open ? "Fechar menu" : "Abrir menu"}
@@ -145,7 +152,7 @@ export function SiteHeader() {
                 className={"inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-input bg-card px-3 text-center text-sm font-semibold text-foreground " + FOCUS}>
                 <UsersRound className="h-4 w-4 text-primary" aria-hidden="true" /> Sou cliente
               </Link>
-              <Link to="/area-tecnico" onClick={() => setOpen(false)}
+              <Link to="/cadastro" onClick={() => setOpen(false)}
                 className={"inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-primary/30 bg-accent px-3 text-center text-sm font-semibold text-primary " + FOCUS}>
                 <Wrench className="h-4 w-4" aria-hidden="true" /> Sou técnico
               </Link>
@@ -161,7 +168,7 @@ export function SiteHeader() {
       )}
     </header>
     {showQuickTabs && <nav aria-label="Acesso rápido no celular"
-      className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-3 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-6px_22px_rgba(0,0,0,0.08)] backdrop-blur md:hidden">
+      className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-6px_22px_rgba(0,0,0,0.08)] backdrop-blur md:hidden">
       <Link to="/" activeOptions={{ exact: true }}
         className={"flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg py-2 text-xs font-medium text-muted-foreground " + FOCUS}
         activeProps={{ className: "flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg bg-primary/10 py-2 text-xs font-semibold text-primary" }}>
@@ -177,6 +184,10 @@ export function SiteHeader() {
         activeProps={{ className: "flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg bg-primary/10 py-2 text-xs font-semibold text-primary" }}>
         {signedIn ? <UserRound className="h-5 w-5" aria-hidden="true" /> : <LogIn className="h-5 w-5" aria-hidden="true" />} Minha área
       </Link>
+      <button type="button" onClick={event => { event.currentTarget.focus(); openFreeHelp({}); }}
+        className={"flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg py-2 text-xs font-semibold text-primary " + FOCUS}>
+        <LifeBuoy className="h-5 w-5" aria-hidden="true" /> Ajuda
+      </button>
     </nav>}
     </>
   );
