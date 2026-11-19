@@ -2,6 +2,7 @@ import { normalizeBrazilPhoneE164 } from "@/lib/admin-technician-crud-intent";
 import { publicTextProblem } from "@/lib/public-profile-text";
 
 export type TechnicianImportRow = {
+  lineNumber: number;
   sourceId: string;
   displayName: string;
   ddd: string | null;
@@ -9,9 +10,11 @@ export type TechnicianImportRow = {
   cityIbgeId: number | null;
   categorySlugs: string[];
   phoneE164: string | null;
+  declaredCity: string | null;
+  declaredUf: string | null;
 };
 
-const MAX_IMPORT_ROWS = 500;
+const MAX_IMPORT_ROWS = 5_000;
 
 /** All parser errors contain fixed text/line numbers, never the underlying cell values. */
 export function csvImportErrorText(error: unknown): string {
@@ -73,7 +76,7 @@ export function prepareTechnicianCsv(text: string, activeCategories: readonly { 
   const nameIndex = indexes(["nome", "name", "nome_profissional"]);
   if (nameIndex < 0) throw new Error("O CSV precisa da coluna nome (ou name).");
   if (!rows.length) throw new Error("CSV sem técnicos para importar.");
-  if (rows.length > MAX_IMPORT_ROWS) throw new Error("Importe no máximo 500 técnicos por arquivo.");
+  if (rows.length > MAX_IMPORT_ROWS) throw new Error("Importe no máximo 5.000 técnicos por arquivo.");
   const lookup = (row: string[], names: string[]) => {
     const index = indexes(names);
     return index >= 0 ? (row[index] ?? "").trim() : "";
@@ -91,6 +94,14 @@ export function prepareTechnicianCsv(text: string, activeCategories: readonly { 
     const regionApprox = lookup(row, ["regiao", "regiao_aproximada", "cidade", "municipio"]) || null;
     if (regionApprox && (regionApprox.length > 120 || publicTextProblem(regionApprox, "identity")))
       throw new Error(`Linha ${index + 2}: região inválida.`);
+    const inputCity = lookup(row, ["cidade", "municipio"]);
+    const cityAndUf = inputCity.match(/^(.+?)\s*\/\s*([a-zA-Z]{2})$/);
+    const declaredCity = (cityAndUf ? cityAndUf[1] : inputCity)?.trim() || null;
+    const declaredUf = (lookup(row, ["uf", "estado"]) || cityAndUf?.[2] || "").toUpperCase() || null;
+    if (declaredCity && (declaredCity.length > 120 || publicTextProblem(declaredCity, "identity")))
+      throw new Error(`Linha ${index + 2}: município inválido.`);
+    if (declaredUf && !/^(AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)$/.test(declaredUf))
+      throw new Error(`Linha ${index + 2}: UF inválida.`);
     const phone = lookup(row, ["telefone", "celular", "phone"]);
     const phoneE164 = phone ? normalizeBrazilPhoneE164(phone) : null;
     if (phone && !phoneE164) throw new Error(`Linha ${index + 2}: telefone inválido.`);
@@ -106,6 +117,7 @@ export function prepareTechnicianCsv(text: string, activeCategories: readonly { 
       return slug;
     });
     return {
+      lineNumber: index + 2,
       sourceId: `other_import:${fingerprint}:${(index + 1).toString(36)}`,
       displayName,
       ddd,
@@ -113,6 +125,8 @@ export function prepareTechnicianCsv(text: string, activeCategories: readonly { 
       cityIbgeId: ibge ? Number(ibge) : null,
       categorySlugs: [...new Set(categorySlugs)],
       phoneE164,
+      declaredCity,
+      declaredUf,
     };
   });
 }
