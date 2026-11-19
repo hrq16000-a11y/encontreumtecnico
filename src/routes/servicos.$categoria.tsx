@@ -1,3 +1,4 @@
+import { AdSensePublicUnit } from "@/components/adsense-public-unit";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { PageShell } from "@/components/page-placeholder";
 import { GuideSectionVisual } from "@/components/guide-section-visual";
@@ -195,7 +196,9 @@ function ServiceCategoryPage() {
               Ver profissionais de {category.name.toLocaleLowerCase("pt-BR")} →
             </Link>
           </div>
+<p className="mx-auto my-5 w-full max-w-6xl px-4 text-sm leading-7 text-muted-foreground">Para solicitar orçamento de <Link to="/tecnicos" search={directorySearch} className="font-semibold text-primary underline underline-offset-2">{category.name.toLocaleLowerCase("pt-BR")}</Link>, tenha em mãos o modelo do equipamento e uma descrição do problema. Consulte a <a href="/cobertura" className="font-semibold text-primary underline underline-offset-2">cobertura por município</a> para avaliar se a visita pode ser feita na sua região.</p>
         </article>
+        <AdSensePublicUnit />
 
         <section id="guias-relacionados" aria-labelledby="conteudos-relacionados" className="mt-10 scroll-mt-28 rounded-2xl border border-border bg-card p-5 sm:p-7">
           <h2 id="conteudos-relacionados" className="text-xl font-bold text-foreground">Especialidades relacionadas</h2>

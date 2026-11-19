@@ -26,9 +26,10 @@ export const Route = createFileRoute("/tecnicos/$tecnicoId")({
   },
   head: ({ loaderData, params }) => {
     const name = loaderData?.display_name;
-    const title = name ? `${name} — Técnico em ${loaderData.city} | Encontre um Técnico` : "Perfil do técnico — Encontre um Técnico";
+    const location = [loaderData?.city, loaderData?.state_uf].filter(Boolean).join("/");
+    const title = name ? `${name} — Técnico${location ? " em " + location : ""} | Encontre um Técnico` : "Perfil do técnico — Encontre um Técnico";
     const desc = name
-      ? `${name}: ${loaderData.specialties.join(", ")} em ${loaderData.city}.`
+      ? `Consulte o perfil de ${name}${location ? " em " + location : ""}. Confira ${loaderData.seoLinks.categories.length ? "especialidades como " + loaderData.seoLinks.categories.slice(0, 3).map(c => c.label).join(", ") : "os serviços declarados"} e a região de atendimento.`
       : "Perfil público do técnico, especialidades e regiões atendidas.";
     const canonical = `https://www.encontreumtecnico.com.br/tecnicos/${loaderData?.public_slug ?? params.tecnicoId}`;
     return {

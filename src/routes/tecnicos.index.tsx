@@ -476,6 +476,7 @@ function TechniciansPage() {
           <div className="flex items-start gap-3"><MapPin className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" /><p className="text-sm text-foreground"><strong className="block">Localidade informada</strong><span className="text-xs text-muted-foreground">Regiões declaradas pelos profissionais, sem localização inventada.</span></p></div>
           <div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" /><p className="text-sm text-foreground"><strong className="block">Contato protegido</strong><span className="text-xs text-muted-foreground">Telefones particulares não aparecem na busca pública.</span></p></div>
         </section>
+<p className="mx-auto my-5 w-full max-w-6xl px-4 text-sm leading-7 text-muted-foreground">Em dúvida sobre qual especialidade escolher? Os <a href="/guias" className="font-semibold text-primary underline underline-offset-2">guias de diagnóstico</a> ajudam a descrever o problema. Se precisar de atendimento presencial, consulte a <a href="/cobertura" className="font-semibold text-primary underline underline-offset-2">cobertura da rede</a> e confirme com o técnico se há taxa de visita.</p>
         <LegacyPublicArchive show={canShowLegacyArchive(search)} />
       </section>
     </PageShell>

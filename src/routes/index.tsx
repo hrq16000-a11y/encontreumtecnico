@@ -327,6 +327,7 @@ function HomePage() {
 
       <Reveal><HowItWorksRich /></Reveal>
 
+<p className="mx-auto my-5 w-full max-w-6xl px-4 text-sm leading-7 text-muted-foreground">Precisa de uma visita? Consulte a <a href="/cobertura" className="font-semibold text-primary underline underline-offset-2">cobertura por município</a> e use o <a href="/servicos" className="font-semibold text-primary underline underline-offset-2">catálogo de serviços</a> para identificar a especialidade antes de escolher um profissional.</p>
       <AdSensePublicUnit />
 
       <section className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 lg:grid-cols-2">

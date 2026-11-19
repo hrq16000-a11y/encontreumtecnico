@@ -1,3 +1,4 @@
+import { AdSensePublicUnit } from "@/components/adsense-public-unit";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { NationalCoverage } from "@/components/national-coverage";
 import { PageShell } from "@/components/page-placeholder";
@@ -48,7 +49,9 @@ function CoveragePage() {
           </p>
         </header>
 
+<p className="mx-auto my-5 w-full max-w-6xl px-4 text-sm leading-7 text-muted-foreground">Se o equipamento puder ser avaliado à distância, pergunte ao profissional como funciona o diagnóstico remoto. Para uma visita, use a <a href="/tecnicos" className="font-semibold text-primary underline underline-offset-2">busca por cidade e especialidade</a> e confira no perfil a região atendida antes de combinar o deslocamento.</p>
         <NationalCoverage />
+        <AdSensePublicUnit />
 
         <h2 className="mt-10 text-2xl font-bold text-foreground">Perfis públicos por localidade</h2>
         {locations.length === 0 ? (

@@ -19,7 +19,9 @@ export function PublicProfileConnections({ links }: { links?: PublicSeoLinks | u
       <h2 id="tecnicos-relacionados" className="text-xl font-bold text-foreground">Explore técnicos relacionados</h2>
     </div>
     <p className="mt-2 text-sm text-muted-foreground">
-      Relações baseadas em municípios, categorias ou serviços declarados. Não representam recomendações, certificações ou disponibilidade confirmada.
+      {links.city && <>Se você precisa de uma visita, consulte os <a href={cityGraphPath(links.city)} className="font-semibold text-primary underline underline-offset-2">técnicos de {links.city.name}/{links.city.uf}</a> e confirme se atendem ao seu bairro. </>}
+      {links.categories[0] && <>Para comparar profissionais de <a href={categoryGraphPath(links.categories[0])} className="font-semibold text-primary underline underline-offset-2">{links.categories[0].label}</a>, descreva o equipamento, o sintoma e quando começou. </>}
+      Antes de combinar valores, confira <a href="/como-funciona" className="font-semibold text-primary underline underline-offset-2">como funciona o contato com o profissional</a>.
     </p>
     <nav aria-label="Cidade e categorias deste técnico" className="mt-4 flex flex-wrap gap-2">
       {links.city && <a href={cityGraphPath(links.city)}
@@ -66,7 +68,10 @@ export function PublicSeoDirectory({
     <header className="mt-5 rounded-3xl border border-primary/15 bg-accent/50 p-6 sm:p-9">
       <h1 className="text-2xl font-extrabold text-foreground sm:text-4xl">{heading}</h1>
       <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">{summary}</p>
-      <p className="mt-3 text-xs text-muted-foreground">Perfis profissionais aprovados para publicação; as áreas e localidades são informadas pelos cadastrados. O portal não certifica qualificação ou disponibilidade.</p>
+      <p className="mt-3 text-xs text-muted-foreground">{profiles[0] && <>Abra o perfil de <a href={`/tecnicos/${profiles[0].public_slug}`} className="font-semibold text-primary underline underline-offset-2">{profiles[0].display_name}</a> para conferir os serviços declarados. </>}
+        {cities[0] && <>Se o atendimento for presencial em {cities[0].name}, compare também os <a href={cityGraphPath(cities[0])} className="font-semibold text-primary underline underline-offset-2">profissionais desse município</a>. </>}
+        {categories[0] && <>Quem procura ajuda com <a href={categoryGraphPath(categories[0])} className="font-semibold text-primary underline underline-offset-2">{categories[0].label}</a> pode consultar os perfis dessa especialidade. </>}
+        Ao pedir um orçamento, informe o bairro e pergunte se o valor inclui a visita e o diagnóstico.</p>
     </header>
     {categories.length > 0 && <nav aria-label="Outras categorias nesta localização" className="mt-6">
       <h2 className="font-semibold text-foreground">Categorias presentes</h2>
