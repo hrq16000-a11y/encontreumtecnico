@@ -1,8 +1,13 @@
-/** Single public return origin for all production OAuth/email callbacks.
- * Supabase must allow exact /entrar and /redefinir-senha redirects.
- * Lovable editor previews and localhost retain their own origin for testing.
+/** Production OAuth/email callbacks use the public origin.
+ * Supabase must explicitly allow /entrar and /redefinir-senha on any preview
+ * used for authenticated QA; this client-side choice cannot add that allowlist.
+ * Approved project previews and localhost retain their own origin.
  */
 export const EUT_CANONICAL_ORIGIN = "https://www.encontreumtecnico.com.br";
+
+// Restrict the exception to immutable EUT deployments in the msolus team.
+// Other vercel.app hosts continue to use the canonical production callback.
+const EUT_VERCEL_PREVIEW_HOST = /^encontreumtecnico-[a-z0-9]{8,16}-msolus\.vercel\.app$/;
 
 export function authReturnOrigin(origin: string): string {
   try {
@@ -12,6 +17,7 @@ export function authReturnOrigin(origin: string): string {
     }
     const host = url.hostname.toLowerCase();
     if (host === "localhost" || host === "127.0.0.1" ||
+        (url.protocol === "https:" && url.port === "" && EUT_VERCEL_PREVIEW_HOST.test(host)) ||
         host === "lovable.app" || host.endsWith(".lovable.app") ||
         host.endsWith(".lovableproject.com") || host.endsWith(".lovableproject-dev.com") ||
         host.endsWith(".lovable.dev") ||

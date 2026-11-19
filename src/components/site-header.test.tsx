@@ -28,7 +28,7 @@ describe("Cabeçalho do novo portal", () => {
     const menu = screen.getByRole("navigation", { name: "Navegação móvel" });
     expect(menu.querySelector('a[href="/tecnicos"]')).toBeTruthy();
     expect(menu.querySelector('a[href="/area-cliente"]')).toBeTruthy();
-    expect(menu.querySelector('a[href="/area-tecnico"]')).toBeTruthy();
+    expect(menu.querySelector('a[href="/cadastro"]')).toBeTruthy();
     expect(menu.querySelector('a[href="/entrar"]')).toBeTruthy();
   });
 
@@ -40,20 +40,27 @@ describe("Cabeçalho do novo portal", () => {
     }
     fireEvent.click(screen.getByRole("button", { name: "Abrir menu" }));
     const mobile = screen.getByRole("navigation", { name: "Navegação móvel" });
-    for (const destination of ["/", "/tecnicos", "/servicos", "/como-funciona", "/area-cliente", "/area-tecnico"]) {
+    for (const destination of ["/", "/tecnicos", "/servicos", "/como-funciona", "/area-cliente", "/cadastro"]) {
       expect(mobile.querySelector(`a[href="${destination}"] svg`)).toBeTruthy();
     }
     expect(mobile.querySelector('a[href="/entrar"] svg')).toBeTruthy();
   });
 
-  it("oferece três atalhos móveis sem substituir o menu completo", () => {
+  it("oferece quatro atalhos móveis com ajuda acionável sem botão flutuante duplicado", () => {
     render(<SiteHeader />);
+    expect(screen.getByRole("link", { name: /Cadastre-se/i }).getAttribute("href")).toBe("/cadastro");
     const quick = screen.getByRole("navigation", { name: "Acesso rápido no celular" });
     for (const path of ["/", "/tecnicos", "/entrar"]) {
       expect(quick.querySelector(`a[href="${path}"]`)).toBeTruthy();
     }
     expect(quick.textContent).toContain("Minha área");
     expect(quick.textContent).toContain("Buscar");
+    expect(quick.className).toContain("grid-cols-4");
+    const helpEvent = vi.fn();
+    window.addEventListener("eut-open-free-help", helpEvent);
+    fireEvent.click(screen.getByRole("button", { name: "Ajuda" }));
+    expect(helpEvent).toHaveBeenCalledOnce();
+    window.removeEventListener("eut-open-free-help", helpEvent);
     expect(quick.className).toContain("md:hidden");
     expect(screen.getByRole("button", { name: "Abrir menu" })).toBeTruthy();
   });

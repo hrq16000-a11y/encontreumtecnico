@@ -1,16 +1,22 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Tables } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { TechnicianAvatar } from "@/components/technician-avatar";
+import { AdminTechnicianComprehensiveDraft } from "@/components/admin-technician-comprehensive-draft";
 import { publicTextProblem } from "@/lib/public-profile-text";
 import { clearAdminPublicDraft, readAdminPublicDraft, saveAdminPublicDraft, type AdminPublicFields } from "@/lib/admin-public-profile-draft";
 import { useActiveCategories } from "@/hooks/use-active-categories";
 import { BRAZIL_STATES } from "@/lib/service-taxonomy";
 import { adminPageRange, cleanAdminSearch } from "@/lib/admin-technician-pagination";
+import type { PreparedEdit } from "@/lib/admin-technician-crud-intent";
+import { adminTechnicianChangePayload } from "@/lib/admin-technician-rpc-payload";
 import { Check, Pencil, RotateCcw, ShieldAlert, UserRoundX, X } from "lucide-react";
 
-type Technician = Pick<Tables<"technicians">, "id" | "status" | "display_name" | "bio" | "region" | "city" | "state_uf" | "specialties" | "avatar_path" | "created_at">;
+type Technician = Pick<Tables<"technicians">,
+  "id" | "status" | "display_name" | "bio" | "region" | "city" | "state_uf" |
+  "specialties" | "avatar_path" | "created_at" | "updated_at" | "neighborhood" |
+  "coverage_city_ids" | "service_slugs" | "service_radius_km">;
 type Status = Technician["status"];
 type Action = "editar" | "aprovar" | "suspender" | "reativar" | "rejeitar" | "revisar";
 const db = supabase as unknown as SupabaseClient;
@@ -23,7 +29,17 @@ const actionLabels: Record<Action, string> = {
   reativar: "Reativar perfil", rejeitar: "Rejeitar perfil", revisar: "Enviar para revisão",
 };
 
-export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string }) {
+export function AdminTechnicianManager({
+  adminOwnerId,
+  selectedTechnicianId,
+  onUpdated,
+}: {
+  adminOwnerId: string;
+  /** Opens the actual record from the unified directory, irrespective of moderation status. */
+  selectedTechnicianId?: string;
+  /** Refresh the unified directory only after the server confirms a write. */
+  onUpdated?: () => void;
+}) {
   const [status, setStatus] = useState<Status>("aprovado");
   const [search, setSearch] = useState("");
   const [draftSearch, setDraftSearch] = useState("");
@@ -57,18 +73,24 @@ export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string 
     setReadError(null);
     setLoadingRows(true);
     void (async () => {
-      const [from, to] = adminPageRange(page);
+      const [from, to] = selectedTechnicianId ? [0, 0] : adminPageRange(page);
       let query = supabase.from("technicians")
-        .select("id,status,display_name,bio,region,city,state_uf,specialties,avatar_path,created_at", { count: "exact" })
-        .eq("status", status);
-      const term = cleanAdminSearch(search);
-      if (term) query = query.ilike("display_name", `%${term}%`);
-      const municipality = cleanAdminSearch(city);
-      if (municipality) query = query.ilike("city", `%${municipality}%`);
-      if (uf) query = query.eq("state_uf", uf);
-      const district = cleanAdminSearch(neighborhood);
-      if (district) query = query.ilike("neighborhood", `%${district}%`);
-      if (category) query = query.contains("specialties", [category]);
+        .select("id,status,display_name,bio,region,city,state_uf,specialties,avatar_path,created_at,updated_at,neighborhood,coverage_city_ids,service_slugs,service_radius_km", { count: "exact" });
+      if (selectedTechnicianId) {
+        // A selected technician is independent from status tabs and stale search filters.
+        // The database RLS still decides whether the signed-in admin may read this id.
+        query = query.eq("id", selectedTechnicianId);
+      } else {
+        query = query.eq("status", status);
+        const term = cleanAdminSearch(search);
+        if (term) query = query.ilike("display_name", `%${term}%`);
+        const municipality = cleanAdminSearch(city);
+        if (municipality) query = query.ilike("city", `%${municipality}%`);
+        if (uf) query = query.eq("state_uf", uf);
+        const district = cleanAdminSearch(neighborhood);
+        if (district) query = query.ilike("neighborhood", `%${district}%`);
+        if (category) query = query.contains("specialties", [category]);
+      }
       const ordered = query.order(sort === "name" ? "display_name" : "created_at",
         { ascending: sort === "name" || sort === "oldest" })
         .order("id", { ascending: true }).range(from, to);
@@ -90,9 +112,10 @@ export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string 
       }
     });
     return () => { active = false; };
-  }, [status, search, city, neighborhood, uf, category, sort, page, reload]);
+  }, [selectedTechnicianId, status, search, city, neighborhood, uf, category, sort, page, reload]);
 
   useEffect(() => {
+    if (selectedTechnicianId) return;
     let active = true;
     void Promise.all(TABS.map(async (tab) => {
       const { count, error } = await supabase.from("technicians")
@@ -105,19 +128,33 @@ export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string 
       if (active) setCounts({ pendente: null, aprovado: null, suspenso: null, rejeitado: null });
     });
     return () => { active = false; };
-  }, [reload]);
+  }, [reload, selectedTechnicianId]);
 
   const [target, setTarget] = useState<{ technician: Technician; action: Action } | null>(null);
+  const [advanced, setAdvanced] = useState<Technician | null>(null);
   const [draft, setDraft] = useState({ display_name: "", bio: "", region: "" });
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setTarget(null);
+    setAdvanced(null);
+    setFeedback(null);
+    setPage(0);
+  }, [selectedTechnicianId]);
+
+  useEffect(() => {
+    if (target || advanced) editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [target, advanced]);
 
   function publicBaseline(technician: Technician): AdminPublicFields {
     return { display_name: technician.display_name, bio: technician.bio ?? "", region: technician.region ?? "" };
   }
 
   function choose(technician: Technician, action: Action) {
+    setAdvanced(null);
     const baseline = publicBaseline(technician);
     const recovered = action === "editar"
       ? readAdminPublicDraft(adminOwnerId, technician.id, baseline) : null;
@@ -166,6 +203,7 @@ export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string 
         throw new Error("Servidor não confirmou a atualização solicitada.");
       if (target.action === "editar") clearAdminPublicDraft(adminOwnerId, target.technician.id);
       setReload((value) => value + 1);
+      onUpdated?.();
       setTarget(null);
       setFeedback(`Alteração confirmada no banco: ${data.name} · ${data.status}. Auditoria registrada.`);
     } catch (error) {
@@ -175,21 +213,45 @@ export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string 
       setBusy(false);
     }
   }
+
+  async function saveAdvanced(edit: PreparedEdit): Promise<void> {
+    // Only a selected, currently loaded record can be edited. The RPC additionally
+    // checks verified admin, archived accounts, blocked phones, data and revision.
+    if (!advanced || advanced.id !== edit.technicianId) throw new Error("revisao");
+    const { data, error } = await db.rpc("eut_admin_technician_change", {
+      _technician_id: edit.technicianId,
+      _expected_updated_at: edit.expectedUpdatedAt,
+      _payload: adminTechnicianChangePayload(edit),
+      _reason: edit.reason,
+    });
+    if (error) {
+      // Never show raw database errors containing private contact data.
+      throw new Error(error.code === "40001" ? "conflito" : "revisao");
+    }
+    if (data?.ok !== true || data?.technician_id !== edit.technicianId || !data?.updated_at) {
+      throw new Error("resposta");
+    }
+    setAdvanced(null);
+    setReload((value) => value + 1);
+    onUpdated?.();
+    setFeedback("Alterações de cidade, categorias, serviços e contato confirmadas no banco com auditoria.");
+  }
   const filtered = rows ?? [];
   const pages = Math.max(1, Math.ceil(total / 25));
   return <section aria-label="Gestão administrativa de técnicos">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h2 className="text-xl font-bold text-foreground">Técnicos cadastrados</h2>
+        <h2 className="text-xl font-bold text-foreground">{selectedTechnicianId ? "Gerenciar técnico" : "Técnicos cadastrados"}</h2>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Edite dados profissionais ou altere o status com motivo obrigatório. A aprovação e reativação
-          dependem das regras de qualidade e bloqueio no banco; não liberam contatos privados.
+          Edite os dados disponíveis ou altere a situação com motivo obrigatório.
+          O banco registra as alterações e preserva bloqueios de contatos privados.
         </p>
       </div>
       <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary">
         Operações auditadas
       </span>
     </div>
+    {!selectedTechnicianId && <>
     <label className="mt-5 block text-sm font-semibold text-foreground" htmlFor="admin-busca-tecnicos">Buscar técnico</label>
     <input id="admin-busca-tecnicos" value={draftSearch} onChange={(e) => setDraftSearch(e.target.value)} maxLength={80}
       placeholder="Buscar por nome profissional"
@@ -229,12 +291,14 @@ export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string 
     </div>
     <div role="tablist" aria-label="Status dos técnicos" className="mt-4 flex gap-2 overflow-x-auto pb-2">
       {TABS.map((tab) => <button key={tab.key} type="button" role="tab"
-        aria-selected={status === tab.key} onClick={() => { setStatus(tab.key); setPage(0); setTarget(null); }}
+        aria-selected={status === tab.key} onClick={() => { setStatus(tab.key); setPage(0); setTarget(null); setAdvanced(null); }}
         className={"min-h-11 shrink-0 rounded-full border px-4 text-sm font-semibold " +
           (status === tab.key ? "border-primary bg-primary text-primary-foreground" : "border-input text-foreground hover:bg-accent")}>
         {tab.label} ({counts[tab.key] ?? "…"})
       </button>)}
     </div>
+    </>}
+    <div ref={editorRef} className="scroll-mt-24">
     {feedback && <p role="status" className="mt-3 rounded-xl border border-border bg-muted/60 p-4 text-sm text-foreground">{feedback}</p>}
     {target && <form onSubmit={(e) => void submit(e)} className="mt-5 space-y-4 rounded-2xl border-2 border-primary/30 bg-card p-5 shadow-sm" aria-label="Confirmar ação administrativa">
       <div className="flex items-start justify-between gap-3">
@@ -275,13 +339,22 @@ export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string 
           onChange={(e) => setReason(e.target.value)}
           className="mt-2 w-full rounded-lg border border-input bg-background px-3 py-3 text-foreground" />
       </label>
-      <button disabled={busy} type="submit" className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-primary px-5 font-bold text-primary-foreground disabled:opacity-60">
+      <button disabled={busy} type="submit" className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 font-bold text-primary-foreground disabled:opacity-60 sm:w-auto">
         <Check className="h-4 w-4" /> {busy ? "Gravando no banco…" : "Confirmar e registrar"}
       </button>
     </form>}
+    {advanced && <AdminTechnicianComprehensiveDraft key={advanced.id} technician={advanced}
+      onClose={() => setAdvanced(null)} onSave={saveAdvanced}
+      onArchived={(message) => {
+        setAdvanced(null);
+        setReload((value) => value + 1);
+        onUpdated?.();
+        setFeedback(message);
+      }} />}
+    </div>
     {readError && <p role="alert" className="mt-4 rounded-lg border border-destructive/30 p-3 text-sm text-destructive">{readError}</p>}
     {loadingRows || rows === null ? <p role="status" className="mt-5 text-sm text-muted-foreground">Carregando página de técnicos…</p>
-      : filtered.length === 0 ? <p className="mt-5 rounded-xl border border-border p-6 text-sm text-muted-foreground">Nenhum técnico encontrado neste filtro.</p>
+      : filtered.length === 0 ? <p className="mt-5 rounded-xl border border-border p-6 text-sm text-muted-foreground">{selectedTechnicianId ? "Técnico não encontrado ou sem permissão para consulta." : "Nenhum técnico encontrado neste filtro."}</p>
       : <ul className="mt-5 grid gap-3">{filtered.map((technician) => (
         <li key={technician.id} className="rounded-xl border border-border bg-background p-4">
           <div className="flex items-start gap-3">
@@ -293,28 +366,32 @@ export function AdminTechnicianManager({ adminOwnerId }: { adminOwnerId: string 
               {technician.bio && <p className="mt-2 text-sm text-foreground">{technician.bio}</p>}
             </div>
           </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button type="button" onClick={() => choose(technician, "editar")} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-input px-3 text-sm font-semibold text-foreground hover:bg-accent"><Pencil className="h-4 w-4" /> Editar</button>
-            {technician.status === "aprovado" && <button type="button" onClick={() => choose(technician, "suspender")} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-amber-500/40 px-3 text-sm font-semibold text-foreground hover:bg-accent"><ShieldAlert className="h-4 w-4" /> Suspender</button>}
-            {technician.status === "suspenso" && <button type="button" onClick={() => choose(technician, "reativar")} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground"><RotateCcw className="h-4 w-4" /> Dessuspender</button>}
-            {technician.status === "pendente" && <button type="button" onClick={() => choose(technician, "aprovar")} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground"><Check className="h-4 w-4" /> Aprovar</button>}
-            {technician.status === "pendente" && <button type="button" onClick={() => choose(technician, "rejeitar")} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-input px-3 text-sm font-semibold text-foreground"><UserRoundX className="h-4 w-4" /> Rejeitar</button>}
-            {technician.status === "rejeitado" && <button type="button" onClick={() => choose(technician, "revisar")} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-input px-3 text-sm font-semibold text-foreground"><RotateCcw className="h-4 w-4" /> Reabrir análise</button>}
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <button type="button" onClick={() => choose(technician, "editar")} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-input px-3 text-sm font-semibold text-foreground hover:bg-accent sm:w-auto"><Pencil className="h-4 w-4" /> Editar nome e apresentação</button>
+            <button type="button" onClick={() => { setTarget(null); setAdvanced(technician); }}
+              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-primary/40 px-3 text-sm font-semibold text-foreground hover:bg-accent sm:w-auto">
+              Editar cidade, categorias e contato privado
+            </button>
+            {technician.status === "aprovado" && <button type="button" onClick={() => choose(technician, "suspender")} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-amber-500/40 px-3 text-sm font-semibold text-foreground hover:bg-accent sm:w-auto"><ShieldAlert className="h-4 w-4" /> Suspender</button>}
+            {technician.status === "suspenso" && <button type="button" onClick={() => choose(technician, "reativar")} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground sm:w-auto"><RotateCcw className="h-4 w-4" /> Dessuspender</button>}
+            {technician.status === "pendente" && <button type="button" onClick={() => choose(technician, "aprovar")} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground sm:w-auto"><Check className="h-4 w-4" /> Aprovar</button>}
+            {technician.status === "pendente" && <button type="button" onClick={() => choose(technician, "rejeitar")} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-input px-3 text-sm font-semibold text-foreground sm:w-auto"><UserRoundX className="h-4 w-4" /> Rejeitar</button>}
+            {technician.status === "rejeitado" && <button type="button" onClick={() => choose(technician, "revisar")} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-input px-3 text-sm font-semibold text-foreground sm:w-auto"><RotateCcw className="h-4 w-4" /> Reabrir análise</button>}
           </div>
         </li>
       ))}</ul>}
-    <nav aria-label="Paginação administrativa de técnicos" className="mt-5 flex flex-wrap items-center justify-between gap-3">
+    {!selectedTechnicianId && <nav aria-label="Paginação administrativa de técnicos" className="mt-5 flex flex-wrap items-center justify-between gap-3">
       <p className="text-sm text-muted-foreground" role="status">
         {total.toLocaleString("pt-BR")} resultado(s) · Página {page + 1} de {pages} · 25 por página
       </p>
       <div className="flex gap-2">
         <button type="button" disabled={loadingRows || page === 0}
-          onClick={() => { setPage((p) => Math.max(0, p - 1)); setTarget(null); }}
+          onClick={() => { setPage((p) => Math.max(0, p - 1)); setTarget(null); setAdvanced(null); }}
           className="min-h-11 rounded-lg border border-input px-4 text-sm disabled:opacity-40">Anterior</button>
         <button type="button" disabled={loadingRows || page + 1 >= pages}
-          onClick={() => { setPage((p) => p + 1); setTarget(null); }}
+          onClick={() => { setPage((p) => p + 1); setTarget(null); setAdvanced(null); }}
           className="min-h-11 rounded-lg border border-input px-4 text-sm disabled:opacity-40">Próximo</button>
       </div>
-    </nav>
+    </nav>}
   </section>;
 }

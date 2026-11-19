@@ -22,7 +22,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - name: Install pinned dependencies
         run: bun install --frozen-lockfile
-      - name: Verify 27 capitals, 79 listed partner cities and deduplicated total
+      - name: Verify 27 capitals, listed partner cities and deduplicated total
         run: bunx vitest run src/lib/national-coverage.test.ts
       - name: Build TanStack Start
         run: bun run build

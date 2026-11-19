@@ -40,8 +40,11 @@ describe("Admin: indicadores e histórico de clientes sem dados pessoais", () =>
       "'clients_restricted'",
       "'pending_client_invites'",
     ]) expect(sql).toContain(guard);
-    expect(ui).toContain("não são estimativas da página atual");
     expect(ui).toContain("Contagens completas calculadas no banco");
+    expect(ui).toContain("Registros de clientes sob gestão");
+    expect(ui).toContain('db.from("legacy_review_profiles")');
+    expect(ui).toContain('.eq("kind", "employer")');
+    expect(ui).toContain("snapshot.clients_total + importedClients");
     expect(ui).not.toContain("localStorage");
     expect(ui).not.toContain("service_requests");
   });

@@ -1,3 +1,4 @@
+import { AdSensePublicUnit } from "@/components/adsense-public-unit";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageShell } from "@/components/page-placeholder";
 import { getGuideArtwork } from "@/lib/guide-artwork";
@@ -42,6 +43,8 @@ function ServiceTopicsNavigation() {
             Escolha um assunto para consultar explicações práticas, perfis públicos e o atendimento guiado no mesmo lugar.
           </p>
         </header>
+<p className="mx-auto my-5 w-full max-w-6xl px-4 text-sm leading-7 text-muted-foreground">Use os guias para anotar os sintomas antes de <a href="/tecnicos" className="font-semibold text-primary underline underline-offset-2">procurar um técnico</a>. Se a orientação indicar uma visita, confira <a href="/como-funciona" className="font-semibold text-primary underline underline-offset-2">como combinar o atendimento</a> e pergunte se o diagnóstico faz parte do orçamento.</p>
+        <AdSensePublicUnit />
         <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {enriched.map(({ category, guide }, index) => (
             <li key={category.slug} className="flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">

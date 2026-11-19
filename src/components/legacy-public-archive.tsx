@@ -8,6 +8,8 @@ import { getLegacyApproximateRegion } from "@/lib/legacy-ddd-region";
 type HistoricalProfile = {
   wp_post_id: number;
   display_name: string;
+  sector_tags: string[];
+  country_label: string;
   validation_status: "em_validacao";
 };
 
@@ -30,9 +32,8 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
     setError(false);
     async function load() {
       const response = await archiveDb.from("legacy_public_archive")
-        .select("wp_post_id,display_name,validation_status", { count: "exact" })
+        .select("wp_post_id,display_name,sector_tags,country_label,validation_status", { count: "exact" })
         .eq("validation_status", "em_validacao")
-        .order("display_name", { ascending: true })
         .order("wp_post_id", { ascending: true })
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
       if (!mounted) return;
@@ -52,11 +53,12 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
 
   return (
     <section className="mt-12 border-t border-border pt-8" aria-label="Mais técnicos">
-      <h2 className="text-xl font-semibold tracking-tight text-foreground">Técnicos do portal anterior</h2>
+      <h2 className="text-xl font-semibold tracking-tight text-foreground">Mais técnicos</h2>
       <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-        Todos os profissionais apresentados são técnicos, organizados alfabeticamente.
-        As especialidades não são presumidas. A referência regional por DDD, quando disponível,
-        não confirma a cidade de atendimento.
+        Todos os profissionais apresentados são técnicos. Alguns ainda não informaram cidade
+        ou especialidades detalhadas. A exibição não representa certificação nem presença online;
+        os telefones particulares permanecem protegidos. Quando o backup permite, exibimos uma
+        referência regional aproximada pelo DDD, que não confirma a cidade de atendimento.
       </p>
       {!show ? (
         <p className="mt-4 text-sm text-muted-foreground">
@@ -87,12 +89,11 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <h3 className="break-words font-semibold text-card-foreground"
-                        title={suggestLegacyDisplayName(profile.display_name).suggested ? `Nome original: ${profile.display_name}` : undefined}>
-                        {suggestLegacyDisplayName(profile.display_name).display}
-                      </h3>
+                      <h3 className="break-words font-semibold text-card-foreground">{suggestLegacyDisplayName(profile.display_name).display}</h3>
                       {suggestLegacyDisplayName(profile.display_name).suggested && (
-                        <p className="mt-1 text-xs text-muted-foreground">Nome de exibição sugerido</p>
+                        <p className="mt-1 break-all text-xs text-muted-foreground">
+                          Nome sugerido (não verificado) · nome no cadastro: {profile.display_name}
+                        </p>
                       )}
                       <span className="mt-1 inline-flex rounded border border-primary/20 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">Técnico</span>
                     </div>
@@ -100,8 +101,15 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
                   <p className="mt-2 text-sm text-muted-foreground">
                     {getLegacyApproximateRegion(profile.wp_post_id)
                       ? `Referência regional: ${getLegacyApproximateRegion(profile.wp_post_id)} · atendimento não confirmado`
-                      : "Região de atendimento a confirmar"}
+                      : "Local de atendimento não confirmado"}
                   </p>
+                  <ul className="mt-3 flex flex-wrap gap-1.5">
+                    {(profile.sector_tags.filter((tag) => !/^TI\s*[-–]\s*Informática$/i.test(tag)).length ? profile.sector_tags.filter((tag) => !/^TI\s*[-–]\s*Informática$/i.test(tag)) : ["Categoria ainda não declarada"]).map((tag) => (
+                      <li key={tag} className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-foreground">
+                        {tag}
+                      </li>
+                    ))}
+                  </ul>
                 </li>
               ))}
             </ul>

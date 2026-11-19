@@ -10,6 +10,8 @@ type Snapshot = {
   sponsors: Row[]; placements: Row[]; campaigns: Row[];
   creatives: Row[]; assignments: Row[]; totals: Record<string, number>;
 };
+type Sort = "recentes" | "antigos" | "nome";
+const PAGE_SIZE = 15;
 type Option = { value: string; label: string };
 type Field = { key: string; label: string; type?: string; required?: boolean;
   max?: number; placeholder?: string; options?: Option[] };
@@ -133,6 +135,16 @@ function rowStatus(tab: Tab, row: Row): string {
   if (tab === "creatives") return text(row["review_state"]);
   return row["enabled"] === true ? "Ativo" : "Desativado";
 }
+const persistedFields: Record<Tab, string[]> = {
+  sponsors: ["brand_name", "status", "legal_name", "contact_email", "contact_phone_e164"],
+  placements: ["slot_key", "position_label", "route_pattern", "state", "format"],
+  campaigns: ["sponsor_id", "title", "status", "pricing_model", "price_cents"],
+  creatives: ["campaign_id", "title", "creative_type", "headline", "destination_url"],
+  assignments: ["campaign_id", "placement_id", "priority"],
+};
+function matchesPersistedFields(tab: Tab, row: Row, payload: Row): boolean {
+  return persistedFields[tab].every((key) => text(row[key]).trim() === text(payload[key]).trim());
+}
 function optionsFor(field: Field, data: Snapshot): Option[] {
   if (field.key === "sponsor_id") return data.sponsors.filter(row => row["status"] !== "archived")
     .map(row => ({ value: text(row["id"]), label: text(row["brand_name"]) }));
@@ -145,7 +157,16 @@ function optionsFor(field: Field, data: Snapshot): Option[] {
 
 export function AdminAdvertisingManager() {
   const [data, setData] = useState<Snapshot | null>(null);
-  const [tab, setTab] = useState<Tab>("sponsors");
+  const [tab, setTab] = useState<Tab>(() => {
+    if (typeof window === "undefined") return "sponsors";
+    const area = new URLSearchParams(window.location.search).get("area");
+    return sections.find((section) => section.key === area)?.key ?? "sponsors";
+  });
+  const [search, setSearch] = useState(() => typeof window === "undefined" ? "" :
+    new URLSearchParams(window.location.search).get("busca")?.slice(0, 80) ?? "");
+  const [statusFilter, setStatusFilter] = useState("todos");
+  const [sort, setSort] = useState<Sort>("recentes");
+  const [listPage, setListPage] = useState(0);
   const [draft, setDraft] = useState<Record<string, string>>({ ...defaults.sponsors });
   const [image, setImage] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
@@ -168,13 +189,15 @@ export function AdminAdvertisingManager() {
     return () => { alive = false; };
   }, []);
 
-  async function refresh() {
+  async function refresh(): Promise<Snapshot> {
     const response = await db.rpc("eut_ads_admin_snapshot");
     if (response.error || !asSnapshot(response.data)) throw new Error("Falha ao atualizar os dados.");
     setData(response.data);
+    return response.data;
   }
   function changeTab(value: Tab) {
     setTab(value); setDraft({ ...defaults[value] }); setImage(null); setError(""); setNotice("");
+    setSearch(""); setStatusFilter("todos"); setSort("recentes"); setListPage(0);
   }
   function edit(row: Row) {
     const edited: Record<string, string> = { id: text(row["id"]) };
@@ -242,10 +265,16 @@ export function AdminAdvertisingManager() {
       const kind = tab === "sponsors" ? "sponsor" : tab === "placements" ? "placement" :
         tab === "campaigns" ? "campaign" : tab === "creatives" ? "creative" : "assignment";
       const response = await db.rpc("eut_ads_admin_save", { _kind: kind, _data: payload });
-      if (response.error || response.data?.saved !== true) throw new Error("Não foi possível salvar. Confira campos, permissões e vínculos.");
-      await refresh();
+      if (response.error || response.data?.saved !== true || !response.data?.id) {
+        throw new Error("Não foi possível salvar. Confira campos, permissões e vínculos.");
+      }
+      const current = await refresh();
+      const persisted = current[tab].find((row) => row["id"] === response.data.id);
+      if (!persisted || !matchesPersistedFields(tab, persisted, payload)) {
+        throw new Error("A gravação retornou sucesso, mas os dados alterados não foram confirmados na consulta atual. Confira antes de repetir.");
+      }
       setDraft({ ...defaults[tab] }); setImage(null);
-      setNotice("Registro salvo com sucesso. Nenhuma publicidade foi publicada no site.");
+      setNotice("Registro salvo e consultado novamente. Nenhuma publicidade foi publicada no site.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha de gravação.");
     } finally { setBusy(false); }
@@ -257,7 +286,11 @@ export function AdminAdvertisingManager() {
     try {
       const response = await db.rpc("eut_ads_admin_save", { _kind: "pause_campaign", _data: { id } });
       if (response.error || response.data?.saved !== true) throw new Error("Não foi possível pausar esta campanha.");
-      await refresh(); setNotice("Campanha pausada.");
+      const current = await refresh();
+      if (current.campaigns.find((row) => row["id"] === id)?.["status"] !== "paused") {
+        throw new Error("Não foi possível confirmar a pausa na consulta atual.");
+      }
+      setNotice("Campanha pausada e estado persistido confirmado.");
     } catch { setError("Não foi possível pausar esta campanha."); }
     finally { setBusy(false); }
   }
@@ -277,7 +310,13 @@ export function AdminAdvertisingManager() {
       if (response.error || response.data?.activated !== true) {
         throw new Error("Não foi possível ativar. Confira contrato, valor positivo, período vigente, card aprovado e espaço disponível.");
       }
-      await refresh();
+      const current = await refresh();
+      if (current.campaigns.find((row) => row["id"] === approvalCampaignId)?.["status"] !== "active" ||
+          current.creatives.find((row) => row["id"] === approvalCreativeId)?.["review_state"] !== "approved" ||
+          !current.assignments.some((row) => row["campaign_id"] === approvalCampaignId &&
+            row["placement_id"] === approvalPlacementId && row["enabled"] === true)) {
+        throw new Error("Ativação enviada, mas a confirmação dos três estados não foi obtida. Confira antes de repetir.");
+      }
       setApprovalCampaignId(""); setApprovalCreativeId(""); setApprovalPlacementId(""); setApprovalNote("");
       setNotice("Card patrocinado aprovado e ativado no slot autorizado. Use Pausar para interromper a veiculação.");
     } catch (reason) {
@@ -297,6 +336,23 @@ export function AdminAdvertisingManager() {
       ["home.content_1", "search.top", "services.content_1"].includes(String(p["slot_key"])))) ?? [];
 
   const activeRows: Row[] = data ? data[tab] : [];
+  const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  const statusOptions = [...new Set(activeRows.map((row) => rowStatus(tab, row)))].sort();
+  const filteredRows = activeRows.filter((row) => {
+    if (statusFilter !== "todos" && rowStatus(tab, row) !== statusFilter) return false;
+    if (!search.trim()) return true;
+    const searchable = [rowLabel(tab, row, data!), rowStatus(tab, row), row["id"],
+      row["slot_key"], row["route_pattern"], row["headline"], row["legal_name"]]
+      .map(text).join(" ");
+    return normalize(searchable).includes(normalize(search.trim()));
+  });
+  const orderedRows = [...filteredRows];
+  if (sort === "antigos") orderedRows.reverse();
+  if (sort === "nome") orderedRows.sort((a, b) =>
+    rowLabel(tab, a, data!).localeCompare(rowLabel(tab, b, data!), "pt-BR", { sensitivity: "base" }));
+  const maxListPage = Math.max(1, Math.ceil(orderedRows.length / PAGE_SIZE));
+  const safeListPage = Math.min(listPage, maxListPage - 1);
+  const visibleRows = orderedRows.slice(safeListPage * PAGE_SIZE, (safeListPage + 1) * PAGE_SIZE);
   return (
     <section className="mt-8 rounded-xl border border-border bg-card p-5 sm:p-6" aria-label="Gestão de patrocinadores e publicidade">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -386,9 +442,37 @@ export function AdminAdvertisingManager() {
             </form>
             <div>
               <h3 className="font-semibold">Registros existentes</h3>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2" aria-label="Filtros de publicidade">
+                <label className="text-sm">Localizar registro
+                  <input className={input} maxLength={80} value={search}
+                    placeholder="Nome, título ou identificador"
+                    onChange={(event) => { setSearch(event.target.value); setListPage(0); }} />
+                </label>
+                <label className="text-sm">Situação
+                  <select className={input} value={statusFilter}
+                    onChange={(event) => { setStatusFilter(event.target.value); setListPage(0); }}>
+                    <option value="todos">Todas as situações</option>
+                    {statusOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+                  </select>
+                </label>
+                <label className="text-sm sm:col-span-2">Organização
+                  <select className={input} value={sort}
+                    onChange={(event) => { setSort(event.target.value as Sort); setListPage(0); }}>
+                    <option value="recentes">Cadastros recentes primeiro</option>
+                    <option value="antigos">Cadastros antigos primeiro</option>
+                    <option value="nome">Nome A–Z</option>
+                  </select>
+                </label>
+              </div>
+              <p role="status" className="mt-3 text-xs text-muted-foreground">
+                {filteredRows.length} resultado(s) entre {activeRows.length} carregado(s) · {data.totals[tab] ?? 0} no banco.
+                {Number(data.totals[tab] ?? 0) > activeRows.length && " A pesquisa cobre apenas os 100 registros mais recentes recebidos."}
+              </p>
               {activeRows.length === 0 && <p className="mt-3 text-sm text-muted-foreground">Nenhum registro neste módulo.</p>}
+              {activeRows.length > 0 && filteredRows.length === 0 &&
+                <p className="mt-3 text-sm text-muted-foreground">Nenhum registro corresponde aos filtros.</p>}
               <ul className="mt-3 grid gap-2">
-                {activeRows.map(row => (
+                {visibleRows.map(row => (
                   <li key={text(row["id"])} className="rounded-lg border border-border p-3">
                     <p className="text-sm font-semibold text-card-foreground">{rowLabel(tab, row, data)}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
@@ -410,6 +494,13 @@ export function AdminAdvertisingManager() {
                   </li>
                 ))}
               </ul>
+              {maxListPage > 1 && <nav aria-label="Paginação da publicidade" className="mt-4 flex items-center justify-between gap-2">
+                <button type="button" className={btn} disabled={safeListPage === 0}
+                  onClick={() => setListPage(value => Math.max(0, value - 1))}>Anterior</button>
+                <span className="text-xs text-muted-foreground">Página {safeListPage + 1} de {maxListPage}</span>
+                <button type="button" className={btn} disabled={safeListPage + 1 >= maxListPage}
+                  onClick={() => setListPage(value => value + 1)}>Próxima</button>
+              </nav>}
               {tab === "campaigns" && (
                 <section className="mt-6 rounded-xl border border-primary/30 bg-primary/5 p-4" aria-label="Aprovação de campanhas">
                   <h4 className="font-semibold">Aprovar e ativar card patrocinado</h4>

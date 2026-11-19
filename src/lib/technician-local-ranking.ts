@@ -9,6 +9,7 @@ export type AreaTechnician = {
   city: string;
   neighborhood: string | null;
   coverage_cities?: Array<{ id: number; name: string; uf: string }>;
+  covers_entire_state?: boolean;
   online_now: boolean;
   pioneer_bronze?: boolean;
   referral_highlight?: boolean;
@@ -30,7 +31,8 @@ export function localMatchLevel(technician: AreaTechnician, area: DeclaredArea):
   const declaredCoverageMatches = Boolean(city) &&
     (technician.coverage_cities ?? []).some((covered) =>
       normalized(covered.name) === city && (!uf || normalized(covered.uf) === uf));
-  const cityMatches = baseCityMatches || declaredCoverageMatches;
+  const cityMatches = baseCityMatches || declaredCoverageMatches ||
+    (stateMatches && Boolean(city) && technician.covers_entire_state === true);
   // A named extra city must not inherit the base city's neighborhood.
   const neighborhoodMatches = baseCityMatches && Boolean(neighborhood)
     && normalized(technician.neighborhood) === neighborhood;
@@ -45,9 +47,29 @@ export function localMatchLabel(technician: AreaTechnician, area: DeclaredArea):
   const level = localMatchLevel(technician, area);
   if (level === 3) return "Mesmo bairro informado";
   if (level === 2) return normalized(technician.city) === normalized(area.cidade)
-    ? "Mesma cidade-base informada" : "Cidade atendida declarada";
+    ? "Mesma cidade-base informada" : technician.covers_entire_state
+      ? "Atende todo o estado" : "Cidade atendida declarada";
   if (level === 1) return "Mesmo estado informado";
   return null;
+}
+
+/** Keep nationwide fallbacks visibly separate from the requested municipality.
+ * A different municipality in the same UF is never presented as local coverage.
+ */
+export function groupTechniciansByDeclaredArea<T extends AreaTechnician>(
+  technicians: T[], area: DeclaredArea,
+): { local: T[]; sameState: T[]; otherStates: T[] } {
+  const local: T[] = [];
+  const sameState: T[] = [];
+  const otherStates: T[] = [];
+  const hasCity = Boolean(normalized(area.cidade));
+  for (const technician of technicians) {
+    const level = localMatchLevel(technician, area);
+    if (level >= (hasCity ? 2 : 1)) local.push(technician);
+    else if (level === 1) sameState.push(technician);
+    else otherStates.push(technician);
+  }
+  return { local, sameState, otherStates };
 }
 
 export function rankTechniciansByDeclaredArea<T extends AreaTechnician>(

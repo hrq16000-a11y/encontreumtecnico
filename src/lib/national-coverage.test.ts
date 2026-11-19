@@ -13,15 +13,15 @@ describe("cobertura nacional informativa", () => {
     expect(CAPITAL_CITIES).toContainEqual({ uf: "DF", cidade: "Brasília" });
   });
 
-  it("preserva as 79 localidades parceiras informadas em 22 UFs", () => {
+  it("preserva as 81 localidades parceiras informadas em 22 UFs", () => {
     expect(Object.keys(PARTNER_CITIES_BY_STATE)).toHaveLength(22);
-    expect(PARTNER_CITY_COUNT).toBe(79);
+    expect(PARTNER_CITY_COUNT).toBe(81);
     for (const [uf, cidades] of Object.entries(PARTNER_CITIES_BY_STATE)) {
       expect(new Set(cidades).size, "localidade duplicada em " + uf).toBe(cidades.length);
     }
   });
 
   it("não duplica capitais também presentes na relação de parceiros no total de localidades", () => {
-    expect(DISTINCT_COVERAGE_CITY_COUNT).toBe(102);
+    expect(DISTINCT_COVERAGE_CITY_COUNT).toBe(104);
   });
 });

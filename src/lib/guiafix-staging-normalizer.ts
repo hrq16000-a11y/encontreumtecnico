@@ -6,6 +6,7 @@ export type GuiafixAdminRow = {
   name: string;
   city: string;
   uf: string;
+  cityIbgeId: number;
   category: "Técnico de Informática";
 };
 
@@ -22,6 +23,21 @@ type Capture = {
 export function normalizeGuiafixSearch(input: string): string {
   return input.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .toLocaleLowerCase("pt-BR").replace(/\s+/g, " ").trim();
+}
+
+/** Stable admin import key. The original capture key stays private and unchanged. */
+export function guiafixAdminSourceId(key: string): string {
+  const normalized = normalizeGuiafixSearch(key);
+  const slug = normalized.replace(/[^a-z]+/g, "-").replace(/^-|-$/g, "").slice(0, 70).replace(/-$/g, "") || "tecnico";
+  let first = 2166136261;
+  let second = 2166136261;
+  for (let index = 0; index < key.length; index += 1) {
+    const code = key.charCodeAt(index);
+    first = Math.imul(first ^ code, 16777619) >>> 0;
+    second = Math.imul(second ^ (code + index), 16777619) >>> 0;
+  }
+  const suffix = [first, second].map((value) => value.toString(16).padStart(8, "0")).join("-");
+  return `guiafix:${slug}-${suffix}`;
 }
 
 export function readGuiafixStaging(captures: readonly unknown[]): GuiafixAdminRow[] {
@@ -55,7 +71,8 @@ export function readGuiafixStaging(captures: readonly unknown[]): GuiafixAdminRo
       const key = `${capture.uf}:${normalizeGuiafixSearch(capture.city)}:${normalizeGuiafixSearch(name)}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      result.push({ key, name, city: capture.city, uf: capture.uf, category: "Técnico de Informática" });
+      result.push({ key, name, city: capture.city, uf: capture.uf,
+        cityIbgeId: capture.city_ibge, category: "Técnico de Informática" });
     }
   }
   return result.sort((a,b)=> a.name.localeCompare(b.name,"pt-BR") || a.city.localeCompare(b.city,"pt-BR"));

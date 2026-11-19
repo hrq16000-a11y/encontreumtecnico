@@ -3,8 +3,8 @@
  * persist changes. An audited server RPC is required before any "Save" button.
  */
 export type AdminCity = { id: number; name: string; uf: string };
-export type AdminCategory = { slug: string; active: boolean };
-export type AdminService = { slug: string; category_slug: string; active: boolean };
+export type AdminCategory = { slug: string; active: boolean; label?: string };
+export type AdminService = { slug: string; category_slug: string; active: boolean; label?: string };
 export type AdminCatalog = {
   cities: AdminCity[]; categories: AdminCategory[]; services: AdminService[];
 };
@@ -98,7 +98,8 @@ export function prepareAdminTechnicianEdit(
       DANGEROUS_CONTACT.test(neighborhood)))
     issues.push("Bairro inválido ou contendo contato privado.");
   const categories = new Set(draft.categorySlugs);
-  if (draft.categorySlugs.length === 0 || categories.size !== draft.categorySlugs.length ||
+  if (draft.categorySlugs.length === 0 || draft.categorySlugs.length > 30 ||
+      categories.size !== draft.categorySlugs.length ||
       draft.categorySlugs.some(slug => !catalog.categories.some(c => c.slug === slug && c.active)))
     issues.push("Escolha especialidades únicas e ativas no catálogo.");
   const services = new Set(draft.serviceSlugs);

@@ -30,15 +30,26 @@ describe("Administração de contatos — operações auditadas",()=>{
     expect(validate("mark_message",{messageId:null})).toMatch(/mensagem/);
     expect(validate("mark_message",{messageId:uuid,messageStatus:"deletada"})).toMatch(/mensagem/);
   });
+  it("mensagens usam RPC auditada e verificam a persistência sem UPDATE direto",()=>{
+    const queue=readFileSync("src/components/admin-message-queue.tsx","utf8");
+    expect(queue).toContain('db.rpc("eut_admin_contact_action"');
+    expect(queue).toContain('validateAdminContactAction({');
+    expect(queue).toContain('_reason: reason.trim()');
+    expect(queue).toContain('.select("id,status").eq("id", id).single()');
+    expect(queue).toContain("Confirmar e auditar");
+    expect(queue).not.toContain('.update({ status })');
+  });
   it("usa apenas RPCs administrativas existentes; não armazena contatos nem abre outras contas",()=>{
     const component=readFileSync("src/components/admin-contacts-dashboard.tsx","utf8");
     const page=readFileSync("src/routes/admin.tsx","utf8");
     const nav=readFileSync("src/lib/admin-sections.ts","utf8");
     expect(component).toContain('db.rpc("eut_admin_contacts_dashboard"');
-    expect(component).toContain('db.rpc("eut_admin_contact_reveal"');
     expect(component).toContain('db.rpc("eut_admin_contact_action"');
-    expect(component).toContain('setTimeout(() => {');
-    expect(component).toContain("revealTimeout.current");
+    expect(component).toContain("item.phone");
+    expect(component).toContain("Copiar telefone");
+    expect(component).not.toContain('db.rpc("eut_admin_contact_reveal"');
+    expect(component).not.toContain("revealTimeout.current");
+    expect(component).not.toContain("Ver número completo");
     expect(component).toContain("role");
     expect(component).not.toContain("localStorage.setItem");
     expect(component).not.toContain("sessionStorage.setItem");

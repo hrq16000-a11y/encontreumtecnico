@@ -9,6 +9,7 @@ import { SponsoredPublicSlot } from "@/components/sponsored-public-slot";
 import { AdSensePublicUnit } from "@/components/adsense-public-unit";
 import { HomePublicProof } from "@/components/home-public-proof";
 import { HomeCommunityInvite } from "@/components/home-community-invite";
+import { HomeTechnicianJoin } from "@/components/home-technician-join";
 import { ProblemAssistant } from "../components/problem-assistant";
 import { CustomerLocationButton } from "@/components/customer-location-button";
 import { safeNeighborhood } from "@/lib/location-labels";
@@ -259,6 +260,8 @@ function HomePage() {
         </div>
       </section>
 
+      <HomeTechnicianJoin />
+
       <section aria-labelledby="home-visual-servicos" className="border-b border-border bg-gradient-to-r from-accent/80 via-background to-accent/80 px-4 py-12 sm:py-16">
         <div className="mx-auto max-w-6xl">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
@@ -324,6 +327,7 @@ function HomePage() {
 
       <Reveal><HowItWorksRich /></Reveal>
 
+<p className="mx-auto my-5 w-full max-w-6xl px-4 text-sm leading-7 text-muted-foreground">Precisa de uma visita? Consulte a <a href="/cobertura" className="font-semibold text-primary underline underline-offset-2">cobertura por município</a> e use o <a href="/servicos" className="font-semibold text-primary underline underline-offset-2">catálogo de serviços</a> para identificar a especialidade antes de escolher um profissional.</p>
       <AdSensePublicUnit />
 
       <section className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 lg:grid-cols-2">
@@ -334,7 +338,7 @@ function HomePage() {
             Não cobramos do técnico para participar nem por cliente recebido, e não fazemos leilão de preço. O cliente encontra quem tem a especialidade certa, perto dele, e o técnico é reconhecido pelo seu trabalho.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <Link to="/entrar" className="inline-flex min-h-11 items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"><Wrench className="h-4 w-4" aria-hidden="true" /> Sou técnico, quero participar</Link>
+            <Link to="/cadastro" className="inline-flex min-h-11 items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"><Wrench className="h-4 w-4" aria-hidden="true" /> Sou técnico, quero participar</Link>
             <Link to="/tecnicos" search={{ especialidade: "Todas", cidade: "", regiao: "" }} className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-5 py-2.5 text-sm font-semibold text-foreground hover:border-primary"><Search className="h-4 w-4" aria-hidden /> Ver técnicos</Link>
           </div>
         </div>
@@ -400,7 +404,7 @@ function HomePage() {
                   Mostre suas especialidades, informe sua região de atendimento e participe gratuitamente da rede.
                 </p>
               </div>
-              <Link to="/entrar"
+              <Link to="/cadastro"
                 className="relative mt-6 inline-flex min-h-12 w-fit items-center justify-center gap-3 rounded-xl border border-white/30 bg-white px-5 py-3 text-sm font-bold text-brand-navy shadow-sm transition-all hover:shadow-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none">
                 <Wrench className="h-5 w-5" aria-hidden="true" /> Criar conta de técnico
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1 motion-reduce:transform-none" aria-hidden="true" />

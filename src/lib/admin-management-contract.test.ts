@@ -4,6 +4,7 @@ const sql = readFileSync("docs/sql/eut-admin-management-actions-20261111.sql", "
 const employers = readFileSync("docs/sql/eut-admin-legacy-employer-overlay-20261111.sql", "utf8");
 const admin = readFileSync("src/routes/admin.tsx", "utf8");
 const technicians = readFileSync("src/components/admin-technician-manager.tsx", "utf8");
+const catalogue = readFileSync("src/components/eut-admin-manager.tsx", "utf8");
 const legacy = readFileSync("src/components/legacy-review-queue.tsx", "utf8");
 const nav = readFileSync("src/components/admin-navigation.tsx", "utf8");
 const header = readFileSync("src/components/site-header.tsx", "utf8");
@@ -37,7 +38,9 @@ describe("Admin management hardening", () => {
     expect(technicians).toContain("setReload((value) => value + 1)");
     expect(technicians).toContain("window.confirm");
     expect(technicians).toContain("Dessuspender");
-    expect(admin).toContain("<AdminTechnicianManager adminOwnerId={user.id} />");
+    const directory = readFileSync("src/components/admin-technician-unified-directory.tsx", "utf8");
+    expect(admin).toContain("<AdminTechnicianUnifiedDirectory adminOwnerId={user.id} />");
+    expect(directory).toContain("<AdminTechnicianManager");
   });
   it("protects WordPress source and 20 demo candidates, with at most 20 records per batch", () => {
     for (const term of [
@@ -67,6 +70,15 @@ describe("Admin management hardening", () => {
     expect(employers).not.toContain("ORDER BY wp_post_id FOR UPDATE");
     expect(employers).toContain("ON CONFLICT(source_key,wp_post_id)");
     expect(employers).toContain("RETURN jsonb_build_object('updated',count_items,'action',p_action,'published',false)");
+  });
+  it("does not report historical profile or service writes as saved when RLS changes zero rows", () => {
+    expect(catalogue).toContain('.select("wp_post_id").maybeSingle()');
+    expect(catalogue).toContain('data?.wp_post_id===selected.wp_post_id');
+    expect(catalogue).toContain('.select("service_slug").maybeSingle()');
+    expect(catalogue).toContain('data?.service_slug===serviceToAdd');
+    expect(catalogue).toContain('.select("service_slug,confirmation_status").maybeSingle()');
+    expect(catalogue).toContain('data.confirmation_status==="confirmado"');
+    expect(catalogue).toContain('data?.service_slug===item.service_slug');
   });
   it("closes menus on outside tap and Escape while preserving desktop navigation", () => {
     for (const source of [nav,header]) {

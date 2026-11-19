@@ -1,28 +1,28 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useContext, useEffect, useState } from "react";
+import { useContext } from "react";
 import { PageShell, LP2EmbeddedContext } from "../components/page-placeholder";
-import { RequestCard, type Req } from "../components/request-list";
 import { useAuth } from "@/hooks/use-auth";
 import { ConnectedGoogleIdentity } from "@/components/connected-google-identity";
-import { supabase } from "@/integrations/supabase/client";
-import type { Tables } from "@/integrations/supabase/types";
 import { SearchMetrics } from "@/components/search-metrics";
+import { AdminVisitorActivity } from "@/components/admin-visitor-activity";
 import { LegacyReviewQueue } from "@/components/legacy-review-queue";
 import { LegacyClaimReview } from "@/components/legacy-claim-review";
 import { EutAdminManager } from "@/components/eut-admin-manager";
 import { AdminControlHub } from "@/components/admin-control-hub";
 import { AdminCommandOverview } from "@/components/admin-command-overview";
+import { AdminRequestQueue } from "@/components/admin-request-queue";
+import { AdminMessageQueue } from "@/components/admin-message-queue";
 import { AdminAdvertisingManager } from "@/components/admin-advertising-manager";
-import { AdminNavigation } from "@/components/admin-navigation";
-import { AdminTechnicianManager } from "@/components/admin-technician-manager";
-import { AdminGuiafixStaging } from "@/components/admin-guiafix-staging";
+import { AdminNavigation, AdminShortcutLink } from "@/components/admin-navigation";
+import { AdminTechnicianUnifiedDirectory } from "@/components/admin-technician-unified-directory";
 import { AdminOwnTechnicianRole } from "@/components/admin-own-technician-role";
 import { AdminMemberInvites } from "@/components/admin-member-invites";
 import { AdminAccountsManager } from "@/components/admin-accounts-manager";
 import { AdminContactsDashboard } from "@/components/admin-contacts-dashboard";
 import { AdminClientInsights } from "@/components/admin-client-insights";
+import { AdminUsersHub } from "@/components/admin-users-hub";
 import { adminModuleTitle, type AdminSection } from "@/lib/admin-sections";
-import { ArrowRight, ClipboardList, PhoneCall, ShieldBan, Wrench } from "lucide-react";
+import { ArrowRight, ClipboardList, ChartNoAxesCombined, Tags, UsersRound } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -40,11 +40,11 @@ export const Route = createFileRoute("/admin")({
 });
 
 const ADMIN_QUICK_LINKS = [
-  { section: "tecnicos", label: "Técnicos", icon: Wrench },
+  { section: "usuarios", label: "Usuários", icon: UsersRound },
   { section: "solicitacoes", label: "Solicitações", icon: ClipboardList },
-  { section: "contas", label: "Contas e bloqueios", icon: ShieldBan },
-  { section: "contatos", label: "Contatos privados", icon: PhoneCall },
-] as const satisfies ReadonlyArray<{ section: AdminSection; label: string; icon: typeof Wrench }>;
+  { section: "catalogo", label: "Categorias e serviços", icon: Tags },
+  { section: "metricas", label: "Métricas", icon: ChartNoAxesCombined },
+] as const satisfies ReadonlyArray<{ section: AdminSection; label: string; icon: typeof UsersRound }>;
 
 export function AdminPage() {
   return <AdminWorkspace section="inicio" />;
@@ -54,36 +54,6 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
   const lp2 = useContext(LP2EmbeddedContext);
   const { user, roles, loading, rolesError, refreshRoles } = useAuth();
   const isAdmin = roles.includes("admin");
-  const [reqs, setReqs] = useState<Req[]>([]);
-  const [msgs, setMsgs] = useState<Tables<"contact_messages">[]>([]);
-  const [error, setError] = useState<string | null>(null);
-
-  async function load() {
-    // A page only queries the records it needs. RLS remains authoritative.
-    // No global prefetch of private contacts when browsing sponsors or metrics.
-    const needsRequests = section === "solicitacoes";
-    const needsMessages = section === "mensagens";
-    const [r, m] = await Promise.all([
-      needsRequests
-        ? supabase.from("service_requests").select("*").order("created_at", { ascending: false }).limit(500)
-        : Promise.resolve({ data: [] as Req[], error: null }),
-      needsMessages
-        ? supabase.from("contact_messages").select("*").neq("status", "arquivada").order("created_at", { ascending: false }).limit(100)
-        : Promise.resolve({ data: [] as Tables<"contact_messages">[], error: null }),
-    ]);
-    setError(r.error || m.error ? "Não foi possível carregar os dados deste módulo." : null);
-    setReqs(r.data ?? []);
-    setMsgs(m.data ?? []);
-  }
-
-  async function setMsgStatus(id: string, status: "respondida" | "arquivada") {
-    const { error } = await supabase.from("contact_messages").update({ status }).eq("id", id);
-    if (error) setError("Não foi possível atualizar a mensagem.");
-    else load();
-  }
-  useEffect(() => { if (isAdmin) void load(); }, [isAdmin, section]);
-
-  const btn = "min-h-11 rounded-md px-4 text-sm font-medium disabled:opacity-50";
 
   return (
     <PageShell>
@@ -127,73 +97,52 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
               <p className="mt-1 text-xs text-muted-foreground">Atalhos internos. As permissões de cada ação continuam protegidas.</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {ADMIN_QUICK_LINKS.map((item) => (
-                  <Link key={item.section} to="/admin/$secao" params={{ secao: item.section }}
-                    aria-current={section === item.section ? "page" : undefined}
+                  <AdminShortcutLink key={item.section} to="/admin/$secao" params={{ secao: item.section }}
                     className={"inline-flex min-h-11 items-center rounded-lg border px-4 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
                       (section === item.section
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border bg-background text-foreground hover:border-primary hover:text-primary")}>
                     <item.icon className="mr-2 inline h-4 w-4 shrink-0 align-text-bottom" aria-hidden="true" /> {item.label}
-                  </Link>
+                  </AdminShortcutLink>
                 ))}
               </div>
             </nav>
-            {(section === "inicio" || section === "tecnicos") &&
+            {section === "inicio" &&
               <AdminOwnTechnicianRole isTechnician={roles.includes("tecnico")} refreshRoles={refreshRoles} />}
-            {error && <p role="alert" className="mt-2 text-sm text-destructive">{error}</p>}
                         {section === "inicio" && (<section aria-label="Resumo administrativo">
               <AdminCommandOverview />
               <AdminControlHub />
             </section>)}
             {section === "patrocinadores" && <section aria-label="Patrocinadores e banners"><div id="admin-patrocinadores"><AdminAdvertisingManager /></div></section>}
-            {section === "metricas" && <section aria-label="Buscas e indicadores"><div id="admin-metricas"><SearchMetrics /></div></section>}
+            {section === "metricas" && <section aria-label="Buscas e indicadores"><div id="admin-metricas"><AdminVisitorActivity /><SearchMetrics /></div></section>}
             {section === "legado" && <section aria-label="Acervo WordPress"><div id="admin-legado"><LegacyReviewQueue /></div></section>}
             {section === "reivindicacoes" && <section aria-label="Reivindicações"><div id="admin-reivindicacoes"><LegacyClaimReview /></div></section>}
             {section === "catalogo" && <section aria-label="Categorias e serviços"><div id="admin-catalogo"><EutAdminManager /></div></section>}
             {section === "contas" && <section aria-label="Contas e bloqueios"><AdminMemberInvites /><AdminAccountsManager /></section>}
+            {section === "usuarios" && <AdminUsersHub adminOwnerId={user.id} />}
             {section === "contatos" && <section aria-label="Contatos administrativos"><AdminContactsDashboard adminId={user.id} /></section>}
             {section === "tecnicos" && <section aria-label="Gestão de técnicos">
-              <AdminMemberInvites initialRole="tecnico" />
-              <AdminGuiafixStaging />
-              <AdminTechnicianManager adminOwnerId={user.id} />
+              <AdminTechnicianUnifiedDirectory adminOwnerId={user.id} />
+              <details className="mt-4 min-w-0 rounded-xl border border-border p-4">
+                <summary className="cursor-pointer text-sm font-semibold text-foreground">Operações complementares e ações em lote</summary>
+                <div className="mt-5 min-w-0"><LegacyReviewQueue onlyTechnicians /></div>
+              </details>
             </section>}
-            {section === "mensagens" && <section aria-label="Mensagens administrativas">
-              <h2 id="admin-mensagens" className="mt-10 scroll-mt-20 text-lg font-semibold text-foreground">Mensagens de contato</h2>
-            {msgs.length === 0 ? (
-              <p className="mt-3 text-sm text-muted-foreground">Nenhuma mensagem recebida.</p>
-            ) : (
-              <ul className="mt-3 grid gap-3">
-                {msgs.map((m) => (
-                  <li key={m.id} className="rounded-lg border border-border bg-card p-4">
-                    <div className="flex flex-wrap justify-between gap-2">
-                      <p className="font-semibold text-card-foreground">{m.subject}</p>
-                      <span className="rounded bg-muted px-2 py-0.5 text-xs text-foreground">{m.status}</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{m.name} · <a className="text-primary underline" href={`mailto:${m.email}`}>{m.email}</a> · {new Date(m.created_at).toLocaleString("pt-BR")}</p>
-                    <p className="mt-2 whitespace-pre-line text-sm text-card-foreground">{m.message}</p>
-                    <div className="mt-3 flex gap-2">
-                      {m.status !== "respondida" && <button onClick={() => setMsgStatus(m.id, "respondida")} className={`${btn} bg-primary text-primary-foreground`}>Marcar respondida</button>}
-                      {m.status !== "arquivada" && <button onClick={() => setMsgStatus(m.id, "arquivada")} className={`${btn} border border-input text-foreground`}>Arquivar</button>}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-            </section>}
-            {section === "solicitacoes" && <section aria-label="Solicitações registradas">
-              <h2 id="admin-solicitacoes" className="mt-10 scroll-mt-20 text-lg font-semibold text-foreground">Solicitações recentes</h2>
-            {reqs.length === 0 ? (
-              <p className="mt-3 text-sm text-muted-foreground">Nenhuma solicitação aberta ainda.</p>
-            ) : (
-              <ul className="mt-3 grid gap-3">{reqs.slice(0, 50).map((r) => <RequestCard key={r.id} r={r} />)}</ul>
-            )}
-            </section>}
+            {section === "mensagens" && <AdminMessageQueue />}
+            {section === "solicitacoes" && <AdminRequestQueue />}
             {section === "clientes" && <section aria-labelledby="admin-clientes-titulo">
-              <h2 id="admin-clientes-titulo" className="text-xl font-bold text-foreground">Clientes e solicitações</h2>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">Gerencie os clientes por identidade confirmada, convite, nome e bloqueios auditados. Os dados de solicitações privadas são consultados somente no módulo Solicitações. Exclusões definitivas exigem procedimento próprio de privacidade.</p>
-              <AdminMemberInvites initialRole="cliente" />
+              <h2 id="admin-clientes-titulo" className="text-xl font-bold text-foreground">Gestão de clientes</h2>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">Localize e gerencie registros atuais e importados nesta página. Os dados privados de atendimentos continuam restritos ao módulo Solicitações.</p>
+              <nav aria-label="Navegação entre cadastros de clientes" className="mt-4 flex flex-wrap gap-2">
+                <a href="#admin-clientes-contas" className="inline-flex min-h-11 items-center rounded-lg border border-input px-4 text-sm font-semibold">Contas e ações em massa</a>
+                <a href="#admin-clientes-historicos" className="inline-flex min-h-11 items-center rounded-lg border border-input px-4 text-sm font-semibold">Fichas de clientes</a>
+              </nav>
               <AdminClientInsights />
-              <AdminAccountsManager initialFilter="clientes" />
+              <div id="admin-clientes-historicos" className="mt-6 scroll-mt-24" aria-label="Gestão de fichas de clientes">
+                <LegacyReviewQueue onlyClients />
+              </div>
+              <div id="admin-clientes-contas" className="mt-6 scroll-mt-24"><AdminAccountsManager initialFilter="clientes" /></div>
+              <AdminMemberInvites initialRole="cliente" />
               <div className="mt-5 rounded-xl border border-border bg-muted/20 p-5">
                 <h3 className="font-bold text-foreground">Solicitações em módulo protegido</h3>
                 <p className="mt-2 text-sm text-muted-foreground">
