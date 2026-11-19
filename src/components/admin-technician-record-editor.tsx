@@ -282,10 +282,60 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
           return;
         }
       }
+      // A RPC pode retornar OK enquanto outra etapa da ficha ainda está
+      // incompleta. Releia o snapshot administrativo antes de dizer "salvo".
+      // Nunca reenvie a escrita automaticamente em caso de leitura incerta.
+      const { data: verifiedRows, error: readError } = await db.rpc(
+        "eut_admin_technician_registry_list",
+        { _search: cleanedName.slice(0, 80), _limit: 100, _offset: 0 },
+      );
+      const verified = (Array.isArray(verifiedRows) ? verifiedRows : [])
+        .find((row) => row.technician_id === data.technician_id);
+      const sameSlugs = (actual: unknown, expected: string[]) =>
+        Array.isArray(actual) && actual.length === expected.length &&
+        expected.every((item) => actual.includes(item));
+      const expectedLast4 = phoneAction === "replace"
+        ? normalizedPhoneDraft?.slice(-4) ?? null
+        : phoneAction === "remove" ? null
+        : originalPhone ? originalPhone.slice(-4) : null;
+      if (readError || !verified ||
+          verified.display_name !== cleanedName ||
+          verified.city_ibge_id !== cityId ||
+          (verified.ddd ?? null) !== (ddd || null) ||
+          (verified.region_approx ?? null) !== (region.trim() || null) ||
+          verified.admin_active !== payload.admin_active ||
+          !sameSlugs(verified.category_slugs, categories) ||
+          !sameSlugs(verified.service_slugs, services) ||
+          (verified.contact_last4 ?? null) !== expectedLast4) {
+        setError("O servidor recebeu a edição, mas a releitura não confirmou todos os campos. " +
+          "Reabra a ficha antes de repetir a operação; nenhum contato será reenviado automaticamente.");
+        return;
+      }
+      if (existing || hasIdentityFields) {
+        const { data: verifiedIdentity, error: identityReadError } = await db.rpc(
+          "eut_admin_identity_get", { _record_key: `registry:${data.technician_id}` },
+        );
+        if (identityReadError || verifiedIdentity?.ok !== true ||
+            verifiedIdentity.available !== true ||
+            (verifiedIdentity.email ?? null) !== (email.toLowerCase() || null) ||
+            (verifiedIdentity.postal_code ?? null) !== identityPayload.postal_code ||
+            (verifiedIdentity.street ?? null) !== identityPayload.street ||
+            (verifiedIdentity.number ?? null) !== identityPayload.number ||
+            (verifiedIdentity.complement ?? null) !== identityPayload.complement ||
+            (verifiedIdentity.neighborhood ?? null) !== identityPayload.neighborhood ||
+            (verifiedIdentity.city ?? null) !== identityPayload.city ||
+            (verifiedIdentity.uf ?? null) !== identityPayload.uf) {
+          setError("A gravação profissional foi confirmada, mas e-mail ou endereço não foram " +
+            "confirmados na releitura. Reabra a ficha para conferir antes de tentar novamente.");
+          return;
+        }
+      }
       setPhone("");
-      onSaved(data.created ? "Técnico cadastrado e habilitado com dados administrativos auditados." :
-        data.idempotent ? "Cadastro profissional preservado; dados administrativos conferidos." :
-          "Dados profissionais, e-mail e endereço atualizados no painel.");
+      const incomplete = cityId === null || categories.length === 0 || services.length === 0;
+      onSaved((data.created ? "Técnico cadastrado e habilitado." :
+        data.idempotent ? "Cadastro preservado." : "Edição gravada.") +
+        " Dados conferidos no banco." +
+        (incomplete ? " Ficha ainda incompleta: informe município, categorias e serviços conhecidos, sem inventar dados." : ""));
     } catch (error) {
       setError(safeRegistryError(error));
     } finally { setBusy(false); }
