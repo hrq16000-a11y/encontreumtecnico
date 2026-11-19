@@ -67,6 +67,25 @@ describe("convite factual para comunidade", () => {
     expect(sessionStorage.getItem("eut-community-invite-home-v1")).toBe("1");
   });
 
+  it("aguarda o fechamento do aviso de cookies antes de consumir o convite da sessão", () => {
+    const notice = document.createElement("div");
+    notice.setAttribute("role", "dialog");
+    notice.setAttribute("aria-label", "Aviso de cookies");
+    document.body.appendChild(notice);
+    try {
+      render(<HomeCommunityInvite />);
+      act(() => { vi.advanceTimersByTime(11000); });
+      expect(screen.queryByRole("complementary", { name: /convite para profissionais/i })).toBeNull();
+      expect(sessionStorage.getItem("eut-community-invite-home-v1")).toBeNull();
+
+      notice.remove();
+      act(() => { window.dispatchEvent(new Event("eut-consent-changed")); });
+      act(() => { vi.advanceTimersByTime(11000); });
+      expect(screen.getByRole("complementary", { name: /convite para profissionais/i })).toBeTruthy();
+      expect(sessionStorage.getItem("eut-community-invite-home-v1")).toBe("1");
+    } finally { notice.remove(); }
+  });
+
   it("oferece convite compacto no celular após atraso, sem bloquear o conteúdo", () => {
     vi.mocked(window.matchMedia).mockImplementation((query) => ({
       matches: false,
