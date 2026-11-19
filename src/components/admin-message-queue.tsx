@@ -80,6 +80,7 @@ export function AdminMessageQueue() {
     });
     if (validation) { setError(validation); return; }
     setBusyId(id); setError(null); setSuccess(null);
+    let rpcConfirmed = false;
     try {
       const { data, error: actionError } = await db.rpc("eut_admin_contact_action", {
         _action: "mark_message", _user_id: null, _phone: null, _block_id: null,
@@ -87,6 +88,7 @@ export function AdminMessageQueue() {
       });
       if (actionError || data?.ok !== true || data.action !== "mark_message")
         throw new Error("Audit RPC did not confirm update");
+      rpcConfirmed = true;
       const { data: saved, error: readError } = await db.from("contact_messages")
         .select("id,status").eq("id", id).single();
       if (readError || saved?.id !== id || saved.status !== status)
@@ -96,7 +98,13 @@ export function AdminMessageQueue() {
       setSuccess("Situação persistida e registrada na auditoria administrativa.");
       setRevision((n) => n + 1);
     } catch {
-      setError("Não foi possível confirmar o resultado e sua auditoria. Consulte a situação atual antes de repetir.");
+      // O servidor pode ter persistido a alteração mesmo se a confirmação de rede falhou.
+      // Exigir nova escolha depois de consultar a lista evita reenvio acidental da ação auditada.
+      setPending(null);
+      setReason("");
+      setError(rpcConfirmed
+        ? "O servidor confirmou a alteração, mas a releitura falhou. Atualize a lista antes de agir novamente."
+        : "Não foi possível confirmar o resultado e sua auditoria. Atualize a lista antes de tentar novamente.");
     } finally { setBusyId(null); }
   }
 
