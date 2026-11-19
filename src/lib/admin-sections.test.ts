@@ -7,13 +7,13 @@ import {
 const read = (path: string) => readFileSync(path, "utf8");
 
 describe("Central administrativa: URLs próprias e RLS intacta", () => {
-  it("oferece doze seções únicas, uma home e onze módulos reais", () => {
+  it("oferece a central única de usuários e preserva URLs existentes", () => {
     expect(ADMIN_SECTIONS.map((x) => x.key)).toEqual([
-      "inicio", "tecnicos", "clientes", "contas", "contatos", "solicitacoes",
+      "inicio", "usuarios", "tecnicos", "clientes", "contas", "contatos", "solicitacoes",
       "patrocinadores", "mensagens", "catalogo",
       "legado", "reivindicacoes", "metricas",
     ]);
-    expect(new Set(ADMIN_SECTIONS.map((x) => x.key)).size).toBe(12);
+    expect(new Set(ADMIN_SECTIONS.map((x) => x.key)).size).toBe(13);
     expect(adminModulePath("inicio")).toBe("/admin");
     for (const entry of ADMIN_SECTIONS.filter((x) => x.key !== "inicio")) {
       expect(validAdminModule(entry.key)).toBe(true);
@@ -22,9 +22,10 @@ describe("Central administrativa: URLs próprias e RLS intacta", () => {
     }
   });
   it("bloqueia deep links desconhecidos antes de renderizar o painel", () => {
-    for (const malicious of ["", "inicio", "../admin", "admin", "usuarios", "__proto__", "tecnicos?auth=1"]) {
+    for (const malicious of ["", "inicio", "../admin", "admin", "__proto__", "tecnicos?auth=1"]) {
       expect(validAdminModule(malicious)).toBe(false);
     }
+    expect(validAdminModule("usuarios")).toBe(true);
     const route = read("src/routes/admin_.$secao.tsx");
     expect(route).toContain("validAdminModule(params.secao)");
     expect(route).toContain("throw notFound()");
@@ -69,7 +70,7 @@ describe("Central administrativa: URLs próprias e RLS intacta", () => {
     expect(roleGate).toBeGreaterThanOrEqual(0);
     expect(authenticatedContent).toBeGreaterThan(roleGate);
     expect(shortcuts).toBeGreaterThan(authenticatedContent);
-    for (const module of ["tecnicos", "solicitacoes", "contas", "contatos"]) {
+    for (const module of ["usuarios", "solicitacoes", "catalogo", "metricas"]) {
       expect(page).toContain('{ section: "' + module + '"');
       expect(validAdminModule(module)).toBe(true);
     }
