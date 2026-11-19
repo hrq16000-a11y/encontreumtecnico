@@ -358,7 +358,7 @@ export function TechnicianAreaPage() {
           .eq("user_id", savingOwner).maybeSingle();
         if (currentUserRef.current !== savingOwner) return;
         const requested = { ...form, neighborhood: safeNeighborhood(form.neighborhood, form.city) || "" };
-        if (verifyError || !technicianPublicationWasPersisted(requested, persisted,
+        if (!persisted || verifyError || !technicianPublicationWasPersisted(requested, persisted,
           typeof data.technician_id === "string" ? data.technician_id : undefined)) {
           setMsg("O servidor respondeu à publicação, mas não conseguimos confirmar que todos os campos foram gravados. Seu rascunho foi preservado nesta aba. Não crie outra conta; tente recarregar o perfil ou solicite suporte.");
           return;
