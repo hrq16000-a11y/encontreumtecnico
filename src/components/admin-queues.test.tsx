@@ -146,13 +146,13 @@ describe("filas administrativas em interação real de React", () => {
     expect(mockDb.updates).toBe(1);
     expect(mockDb.audits).toHaveLength(1);
     expect(screen.queryByRole("button", { name: "Confirmar e auditar" })).toBeNull();
-    // A gravação já mudou o status para respondida: esse botão deve desaparecer.
-    // A ação ainda disponível (Arquivar) fica bloqueada até a atualização da lista.
-    expect(screen.queryByRole("button", { name: /Marcar respondida/ })).toBeNull();
+    // A lista mantém o snapshot anterior até o refresh: ambos os botões ficam bloqueados.
+    expect(screen.getByRole("button", { name: /Marcar respondida/ })).toHaveProperty("disabled", true);
     expect(screen.getByRole("button", { name: /Arquivar/ })).toHaveProperty("disabled", true);
     expect(mockDb.directUpdates).toBe(0);
     fireEvent.click(screen.getByRole("button", { name: /Atualizar/ }));
-    await waitFor(() => expect(screen.getByRole("button", { name: /Arquivar/ })).toHaveProperty("disabled", false));
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Marcar respondida/ })).toBeNull());
+    expect(screen.getByRole("button", { name: /Arquivar/ })).toHaveProperty("disabled", false);
     expect(mockDb.updates).toBe(1);
     expect(mockDb.audits).toHaveLength(1);
   });
