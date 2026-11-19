@@ -113,7 +113,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
               <AdminCommandOverview />
               <AdminControlHub />
             </section>)}
-            {section === "patrocinadores" && <section aria-label="Patrocinadores e banners"><AdminPublicExperience /><div id="admin-patrocinadores-formulario"><AdminAdvertisingManager /></div></section>}
+            {section === "patrocinadores" && <section id="admin-patrocinadores" aria-label="Patrocinadores e banners"><AdminPublicExperience /><div id="admin-patrocinadores-formulario"><AdminAdvertisingManager /></div></section>}
             {section === "metricas" && <section aria-label="Buscas e indicadores"><div id="admin-metricas"><AdminVisitorActivity /><SearchMetrics /></div></section>}
             {section === "legado" && <section aria-label="Acervo WordPress"><div id="admin-legado"><LegacyReviewQueue /></div></section>}
             {section === "reivindicacoes" && <section aria-label="Reivindicações"><div id="admin-reivindicacoes"><LegacyClaimReview /></div></section>}
