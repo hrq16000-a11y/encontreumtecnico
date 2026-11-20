@@ -91,8 +91,15 @@ before(async () => {
     const login = await client.auth.signInWithPassword({ email: user.email, password });
     assert.ifError(login.error);
     assert.ok(login.data.session?.access_token, 'independent authenticated session missing');
+    const payload = JSON.parse(Buffer.from(login.data.session.access_token.split('.')[1], 'base64url').toString());
+    assert.equal(payload.role, 'authenticated', 'synthetic JWT role must be authenticated');
+    assert.equal(payload.sub, user.id, 'synthetic JWT subject must match the signed-in user');
     await client.realtime.setAuth(login.data.session.access_token);
   }
+  const roleProof = await administrator.rpc('has_role', { _user_id: admin.id, _role: 'admin' });
+  assert.ifError(roleProof.error);
+  assert.equal(roleProof.data, true, 'synthetic admin role must be visible with authenticated JWT');
+  console.log('AUTHCHECK: admin role, JWT subject and authenticated role validated independently');
   console.log('SETUP: one visitor, one technician, one admin; all synthetic/local');
 });
 

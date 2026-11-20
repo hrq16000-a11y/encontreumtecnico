@@ -102,9 +102,13 @@ jobs:
           test "$verified" = ok || { echo 'Local tenant is not private-only' >&2; exit 1; }
           realtime_container="$(docker ps --format '{{.Names}}' | awk '/^supabase_realtime_/ {print; exit}')"
           test -n "$realtime_container" || { echo 'Disposable Realtime container missing' >&2; exit 1; }
-          docker restart "$realtime_container" >/dev/null
-          sleep 8
-          echo 'Private-only active in single local Realtime tenant; service restarted'
+          # Realtime caches the tenant configuration (default TTL 30 s). A direct
+          # container restart can rerun local tenant seeding and reset the flag.
+          # Wait for cache expiry instead of restarting the service.
+          sleep 40
+          verified="$(docker exec "$(docker ps --format '{{.Names}}' | awk '/^supabase_db_/ {print; exit}')" psql -U supabase_admin -d postgres -At -v ON_ERROR_STOP=1 -c "$verify_sql")"
+          test "$verified" = ok || { echo 'Local private_only flag reverted after cache window' >&2; exit 1; }
+          echo 'Local private_only remains true after cache expiry; service was not restarted'
 
       - name: Export localhost keys without printing them
         shell: bash
