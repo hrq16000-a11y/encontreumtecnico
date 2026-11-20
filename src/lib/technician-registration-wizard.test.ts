@@ -90,6 +90,18 @@ describe("Cadastro guiado mobile", () => {
     expect(route).toContain("writeDraft(form, next)");
   });
 
+  it("permite navegar pelo checklist entre as etapas sem submeter ou perder o rascunho", () => {
+    const route = readFileSync("src/routes/area-tecnico.tsx", "utf8");
+    const checklist = route.split('aria-label="Checklist do perfil profissional"')[1]?.split("</ul>")[0] ?? "";
+    expect(route).toContain('{ step: 1, label: "Nome e município"');
+    expect(route).toContain('{ step: 2, label: "Especialidades e serviços"');
+    expect(route).toContain('{ step: 3, label: "Apresentação profissional"');
+    expect(checklist).toContain('type="button"');
+    expect(checklist).toContain('onClick={() => moveToStep(item.step)}');
+    expect(checklist).toContain('aria-current={step === item.step ? "step" : undefined}');
+    expect(route).toContain("writeDraft(form, next)");
+  });
+
   it("exige intenção explícita de publicar; navegar ou pressionar Enter cedo não publica", () => {
     expect(shouldSubmitTechnicianWizard(1, null)).toBe(false);
     expect(shouldSubmitTechnicianWizard(2, "publish")).toBe(false);
