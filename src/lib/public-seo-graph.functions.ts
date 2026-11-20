@@ -78,7 +78,7 @@ async function loadGraphUncached(): Promise<GraphCatalog> {
   const profiles: GraphProfile[] = [];
   for (let page = 0; page <= MAX_PROFILE_PAGES; page++) {
     const { data, error } = await db.from("technicians")
-      .select("id,public_slug,display_name,city,state_uf,specialties,service_slugs,updated_at")
+      .select("id,public_slug,display_name,city,state_uf,avatar_path,specialties,service_slugs,updated_at")
       .eq("status", "aprovado")
       .order("created_at", { ascending: true }).order("id", { ascending: true })
       .range(page * BATCH, (page + 1) * BATCH - 1);

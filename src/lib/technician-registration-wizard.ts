@@ -19,6 +19,85 @@ export type RegistrationCatalog = {
   servicesError: boolean;
 };
 
+/** Reconcile a saved wizard draft against the currently active catalog.
+ * Only the technician's local selection changes; no server record is written. */
+export function reconcileRegistrationSelections(
+  form: Pick<TechnicianRegistrationForm, "specialties" | "service_slugs">,
+  catalog: Pick<RegistrationCatalog, "categories" | "services">,
+): Pick<TechnicianRegistrationForm, "specialties" | "service_slugs"> {
+  const activeCategories = new Set(catalog.categories.map((category) => category.slug));
+  const specialties = form.specialties.filter((slug) => activeCategories.has(slug));
+  const activeServices = new Set(catalog.services
+    .filter((service) => specialties.includes(service.category_slug)).map((service) => service.slug));
+  return { specialties, service_slugs: form.service_slugs.filter((slug) => activeServices.has(slug)) };
+}
+
+/** Navigation is never a publication intent, even if React changes the
+ * visible button while a click is being processed. */
+export function shouldSubmitTechnicianWizard(step: RegistrationStep, action: string | null): boolean {
+  return step === 3 && action === "publish";
+}
+
+function foldRegistrationSearch(value: string): string {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR");
+}
+
+/** Search the catalog without hiding already-selected categories or changing the draft. */
+export function matchingRegistrationCategories<T extends { slug: string; label: string }>(
+  categories: readonly T[], selectedSlugs: readonly string[], query: string,
+): T[] {
+  const term = foldRegistrationSearch(query.trim());
+  return categories.filter((category) => selectedSlugs.includes(category.slug)
+    || !term || foldRegistrationSearch(`${category.label} ${category.slug}`).includes(term));
+}
+
+/** Filter only the visible service choices; never mutate a saved selection. */
+export function matchingRegistrationServices<T extends { slug: string; label: string; category_slug: string }>(
+  services: readonly T[], selectedCategories: readonly string[], query: string,
+): T[] {
+  const term = foldRegistrationSearch(query.trim());
+  return services.filter((service) => selectedCategories.includes(service.category_slug) &&
+    (!term || foldRegistrationSearch(`${service.label} ${service.slug}`).includes(term)));
+}
+
+/** Organize active service choices under their catalog specialty without
+ * changing selected values or hiding choices from other selected specialties. */
+export function groupRegistrationServices<T extends { category_slug: string }>(
+  visibleServices: readonly T[],
+  categories: readonly { slug: string; label: string }[],
+): { categorySlug: string; categoryLabel: string; services: T[] }[] {
+  return categories.map((category) => ({
+    categorySlug: category.slug,
+    categoryLabel: category.label,
+    services: visibleServices.filter((service) => service.category_slug === category.slug),
+  })).filter((group) => group.services.length > 0);
+}
+
+/** Keep selected services visible, even while a search hides their checkboxes.
+ * Unknown catalog entries remain removable without silently changing the draft. */
+export function selectedRegistrationServices<T extends { slug: string; label: string }>(
+  services: readonly T[], selectedSlugs: readonly string[],
+): { slug: string; label: string }[] {
+  const labels = new Map(services.map((service) => [service.slug, service.label]));
+  return [...new Set(selectedSlugs)].map((slug) => ({
+    slug, label: labels.get(slug) ?? "Serviço indisponível",
+  }));
+}
+
+/** Send a failed final review back to the first required field group, without
+ * submitting or changing the technician's saved selections. */
+export function registrationReviewIssue(
+  form: TechnicianRegistrationForm,
+  catalog: RegistrationCatalog,
+  persistedCity: PersistedTechnicianCity | null = null,
+): { step: 1 | 2; message: string } | null {
+  const identityError = registrationStepError(1, form, catalog, persistedCity);
+  if (identityError) return { step: 1, message: identityError };
+  const servicesError = registrationStepError(2, form, catalog);
+  return servicesError ? { step: 2, message: servicesError } : null;
+}
+
 /** Mobile onboarding validates locally before advancing; only the server RPC
  * can approve/publicly publish a technician, on the final review step. */
 export function registrationStepError(

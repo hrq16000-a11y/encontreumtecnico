@@ -12,7 +12,9 @@ import { BRAZIL_STATES, validMunicipality } from "@/lib/service-taxonomy";
 import { useMunicipalities } from "@/hooks/use-municipalities";
 import { MunicipalityPicker } from "@/components/municipality-picker";
 import { TechnicianCoverageEditor } from "@/components/technician-coverage-editor";
+import { TechnicianOperationsEditor } from "@/components/technician-operations-editor";
 import { TechnicianAvatarEditor } from "@/components/technician-avatar-editor";
+import { TechnicianBioPreview } from "@/components/technician-bio-preview";
 import { LegacyAccountActivation } from "@/components/legacy-account-activation";
 import { LegacyProfileImport } from "@/components/legacy-profile-import";
 import { TechnicianPresence } from "@/components/technician-presence";
@@ -30,11 +32,13 @@ import { clearProtectedDraft, readProtectedDraft, saveProtectedDraft } from "@/l
 import { saveTechnicianDraftImmediately } from "@/lib/technician-live-draft";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
-import { registrationStepError, type RegistrationStep } from "@/lib/technician-registration-wizard";
+import { matchingRegistrationCategories, matchingRegistrationServices, groupRegistrationServices, selectedRegistrationServices, reconcileRegistrationSelections, registrationReviewIssue, registrationStepError, shouldSubmitTechnicianWizard, type RegistrationStep } from "@/lib/technician-registration-wizard";
 import { hydrateTechnicianOfficialCity } from "@/lib/technician-official-city-hydration";
 import { publicTextProblem } from "@/lib/public-profile-text";
 import { technicianPublishErrorMessage } from "@/lib/technician-publish-error";
 import { technicianPublicationWasPersisted } from "@/lib/technician-publication-verification";
+import { addPublicProfileTopic, PUBLIC_PROFILE_TOPICS, publicProfileHasTopic,
+  technicianProfileEnrichment } from "@/lib/technician-profile-enrichment";
 import { TechnicianPanelNavigation } from "@/components/technician-panel-navigation";
 import { technicianTabFromHash, technicianTabHref, type TechnicianPanelTab } from "@/lib/technician-panel-navigation";
 import { ArrowRight, ShieldCheck, MapPin, UserRound, Inbox, Camera } from "lucide-react";
@@ -77,8 +81,11 @@ export function TechnicianAreaPage() {
   const [profileError, setProfileError] = useState(false);
   const [reloadCounter, setReloadCounter] = useState(0);
   const [msg, setMsg] = useState<string | null>(null);
+  const [validationIssue, setValidationIssue] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [step, setStep] = useState<RegistrationStep>(1);
+  const [categoryQuery, setCategoryQuery] = useState("");
+  const [serviceQuery, setServiceQuery] = useState("");
   const [panelTab, setPanelTab] = useState<TechnicianPanelTab>("inicio");
   useEffect(() => {
     // Both canonical and isolated LP2 routes remain functional. Hash changes
@@ -104,6 +111,9 @@ export function TechnicianAreaPage() {
   const baseMunicipality = officialBaseCities.find((city) => city.id === form.base_city_ibge_id) ?? null;
   const bairroCatalog = neighborhoodCatalogFor({ city: form.city, uf: form.state_uf, municipalityIbgeId: form.base_city_ibge_id });
   const currentStatus = roles.includes("tecnico") && profileOwnerId === user?.id ? status : null;
+  const profileGuidance = technicianProfileEnrichment({
+    ...form, avatar_path: avatarPath, coverage_city_ids: savedCoverageIds,
+  });
   const profileReady = Boolean(user && roles.includes("tecnico")
     && profileOwnerId === user.id && !profileLoading && !profileError);
   const persistedCity = user && persistedCityRef.current?.ownerId === user.id
@@ -128,6 +138,7 @@ export function TechnicianAreaPage() {
   }
   function updateRegistration(nextForm: typeof form) {
     writeDraft(nextForm, step); // Input event, before the route or browser tab changes.
+    setValidationIssue(null);
     setForm(nextForm);
   }
 
@@ -298,9 +309,29 @@ export function TechnicianAreaPage() {
 
   const catalog = { categories, services, catalogLoading, catalogError: Boolean(catalogError),
     servicesLoading, servicesError: Boolean(servicesError) };
+  const catalogReady = !catalogLoading && !catalogError && !servicesLoading && !servicesError;
+  const visibleCategories = matchingRegistrationCategories(categories, form.specialties, categoryQuery);
+  const availableServiceCount = services.filter((service) => form.specialties.includes(service.category_slug)).length;
+  const visibleServices = matchingRegistrationServices(services, form.specialties, serviceQuery);
+  const reconciledSelections = catalogReady ? reconcileRegistrationSelections(form, catalog) : null;
+  const staleSelections = Boolean(reconciledSelections && (
+    reconciledSelections.specialties.length !== form.specialties.length ||
+    reconciledSelections.service_slugs.length !== form.service_slugs.length));
+  function toggleCategory(slug: string) {
+    const specialties = form.specialties.includes(slug)
+      ? form.specialties.filter((item) => item !== slug) : [...form.specialties, slug];
+    const next = { ...form, specialties };
+    updateRegistration(catalogReady ? { ...next, ...reconcileRegistrationSelections(next, catalog) } : next);
+  }
+  const profileChecklist = [
+    { step: 1, label: "Nome e município", ready: registrationStepError(1, form, catalog, persistedCity) === null, essential: true },
+    { step: 2, label: "Especialidades e serviços", ready: registrationStepError(2, form, catalog) === null, essential: true },
+    { step: 3, label: "Apresentação profissional", ready: form.bio.trim().length >= 80 && !publicTextProblem(form.bio, "bio"), essential: false },
+  ] as const;
   function moveToStep(next: RegistrationStep) {
     writeDraft(form, next); // Preserve wizard stage before React renders.
     setMsg(null);
+    setValidationIssue(null);
     setStep(next);
     // Focus the heading rather than jumping the viewport unexpectedly while typing.
     if (typeof window !== "undefined") {
@@ -309,7 +340,7 @@ export function TechnicianAreaPage() {
   }
   function advance() {
     const validation = registrationStepError(step, form, catalog, persistedCity);
-    if (validation) { setMsg(validation); return; }
+    if (validation) { setValidationIssue(validation); return; }
     if (step < 3) moveToStep((step + 1) as RegistrationStep);
   }
 
@@ -323,11 +354,15 @@ export function TechnicianAreaPage() {
 
   async function save(e: FormEvent) {
     e.preventDefault();
+    const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLElement | null;
+    if (!shouldSubmitTechnicianWizard(step, submitter?.dataset["wizardAction"] ?? null)) return;
     if (!user || !profileReady || saving) return;
-    if (step < 3) { advance(); return; }
-    const firstError = registrationStepError(1, form, catalog, persistedCity);
-    const serviceError = registrationStepError(2, form, catalog);
-    if (firstError || serviceError) { setMsg(firstError || serviceError); return; }
+    const reviewIssue = registrationReviewIssue(form, catalog, persistedCity);
+    if (reviewIssue) {
+      moveToStep(reviewIssue.step);
+      setValidationIssue(reviewIssue.message);
+      return;
+    }
     const publicTextError = publicTextProblem(form.bio, "bio")
       || publicTextProblem(form.display_name, "identity")
       || publicTextProblem(form.region, "identity")
@@ -471,6 +506,28 @@ export function TechnicianAreaPage() {
             <p className="mt-2 text-sm text-muted-foreground">
               Cadastro gratuito: informe nome, cidade, especialidades e pelo menos um serviço executado. Ao publicar, seu perfil entra na busca automaticamente, sem certificação de capacidade técnica pelo portal.
             </p>
+            <section aria-labelledby="eut-enriquecimento-titulo" className="mt-6 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
+              <h2 id="eut-enriquecimento-titulo" className="text-lg font-bold text-foreground">Valorize sua apresentação profissional</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {profileGuidance.complete} de {profileGuidance.total} tópicos informados. Complete no seu ritmo: foto,
+                apresentação e cobertura são opcionais. Este guia não é nota, certificação ou posição na busca.
+              </p>
+              <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+                {profileGuidance.entries.map((item) => (
+                  <li key={item.label} className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                    <span className="min-w-0 font-medium text-foreground">{item.label}</span>
+                    {item.complete ? <span className="shrink-0 text-xs font-semibold text-emerald-700 dark:text-emerald-300">Informado</span> :
+                      <a href={technicianTabHref(item.tab)} className="shrink-0 font-semibold text-primary underline-offset-2 hover:underline"
+                        onClick={() => {
+                          setPanelTab(item.tab);
+                          if (item.tab === "perfil") moveToStep(item.label === "Apresentação detalhada" ? 3 :
+                            item.label === "Especialidades e serviços" ? 2 : 1);
+                        }}>{item.help}</a>}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 text-xs text-muted-foreground">Informações digitadas podem estar em rascunho. Uma edição só está salva quando o servidor confirma a gravação.</p>
+            </section>
             {currentStatus === "aprovado" && profileId && (
               <Link to="/tecnicos/$tecnicoId" params={{ tecnicoId: profileSlug || profileId }}
                 className="mt-3 inline-flex min-h-11 items-center rounded-md border border-primary px-4 text-sm font-semibold text-primary">
@@ -481,6 +538,7 @@ export function TechnicianAreaPage() {
               {([
                 { tab: "perfil", title: "Meu perfil profissional", detail: "Nome, cidade, especialidades e serviços", icon: UserRound },
                 { tab: "cobertura", title: "Regiões atendidas", detail: "Até cinco cidades validadas e raio", icon: MapPin },
+                { tab: "operacao", title: "Condições de atendimento", detail: "Ferramentas, locomoção, períodos e km", icon: MapPin },
                 { tab: "foto", title: "Foto pública", detail: avatarPath ? "Foto associada ao perfil" : "Adicionar minha foto com consentimento", icon: Camera },
                 { tab: "solicitacoes", title: "Solicitações", detail: "Disponibilidade e pedidos autorizados", icon: Inbox },
               ] as const).map((card) => {
@@ -495,7 +553,7 @@ export function TechnicianAreaPage() {
             </div>
             <p className="mt-6 rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm text-foreground">
               <ShieldCheck className="mr-2 inline h-5 w-5 text-primary" aria-hidden="true" />
-              Seu cadastro é gratuito. Informe seus dados profissionais e publique diretamente.
+              Seu cadastro é gratuito. A publicação depende dos dados profissionais que você confirmar.
               O portal não certifica sua capacidade técnica e não divulga seu contato privado sem autorização.
             </p>
                 </div>
@@ -546,6 +604,28 @@ export function TechnicianAreaPage() {
                     : step === 2 ? "Selecione categorias e pelo menos um serviço que você realmente executa. Sem certificação automática."
                     : "Confira tudo antes de publicar. Somente o servidor pode autorizar seu perfil público."}
                 </p>
+                {validationIssue && <p role="alert" className="mt-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-foreground">{validationIssue}</p>}
+                <div className="mt-5 rounded-xl border border-border bg-muted/25 p-3 sm:p-4" aria-label="Checklist do perfil profissional">
+                  <p className="text-xs font-semibold text-foreground">
+                    {profileChecklist.filter(item => item.ready).length} de 3 itens preparados
+                    <span className="ml-2 font-normal text-muted-foreground">Dois essenciais e uma apresentação recomendada.</span>
+                  </p>
+                  <ul className="mt-3 flex flex-wrap gap-2 text-xs">
+                    {profileChecklist.map(item => (
+                      <li key={item.label}>
+                        <button
+                          type="button"
+                          onClick={() => moveToStep(item.step)}
+                          aria-label={`Ir para ${item.label.toLowerCase()}`}
+                          aria-current={step === item.step ? "step" : undefined}
+                          className={`rounded-full border px-3 py-1.5 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${item.ready ? "border-primary/30 bg-primary/10 text-foreground" : "border-border bg-background text-muted-foreground"}`}
+                        >
+                          {item.ready ? "✓ " : "○ "}{item.label}{!item.essential ? " (opcional)" : ""}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
               {step === 1 && (
                 <div className="grid gap-4">
@@ -646,49 +726,124 @@ export function TechnicianAreaPage() {
               )}
               {step === 2 && (
                 <div className="grid gap-4">
+              {staleSelections && reconciledSelections && (
+                <div role="alert" className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-foreground">
+                  <p>Algumas categorias ou serviços do seu rascunho não estão mais disponíveis. Os itens válidos serão preservados.</p>
+                  <button type="button" onClick={() => updateRegistration({ ...form, ...reconciledSelections })}
+                    className="mt-3 min-h-11 rounded-lg border border-amber-500/50 bg-background px-4 font-semibold">
+                    Remover opções indisponíveis
+                  </button>
+                </div>
+              )}
               <fieldset>
                 <legend className="text-sm font-medium text-foreground">Especialidades</legend>
                 {catalogLoading && <p className="mt-2 text-sm text-muted-foreground">Carregando categorias…</p>}
                 {catalogError && <p role="alert" className="mt-2 text-sm text-destructive">Não foi possível carregar o catálogo. Recarregue a página.</p>}
+                <label htmlFor="eut-wizard-category-search" className="mt-3 block text-sm font-medium text-foreground">Buscar especialidade</label>
+                <input id="eut-wizard-category-search" type="search" value={categoryQuery} maxLength={80}
+                  onChange={(event) => setCategoryQuery(event.target.value)}
+                  placeholder="Ex.: informática, elétrica, celulares" className={input} />
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <p role="status">{visibleCategories.length} de {categories.length} especialidade(s) exibida(s) · {form.specialties.length} selecionada(s)</p>
+                  {categoryQuery.trim() && <button type="button" onClick={() => setCategoryQuery("")}
+                    className="min-h-10 rounded-lg border border-input px-3 font-semibold text-primary">Limpar busca de especialidades</button>}
+                </div>
+                {categoryQuery.trim() && form.specialties.length > 0 && (
+                  <p className="mt-1 text-xs text-muted-foreground">Suas especialidades selecionadas permanecem visíveis durante a busca.</p>
+                )}
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {categories.map((c) => {
+                  {visibleCategories.map((c) => {
                     const on = form.specialties.includes(c.slug);
                     return (
                       <button type="button" key={c.slug} aria-pressed={on}
-                        onClick={() => updateRegistration({ ...form, specialties: on ? form.specialties.filter((s) => s !== c.slug) : [...form.specialties, c.slug], service_slugs: on ? form.service_slugs.filter((slug) => services.find((service) => service.slug === slug)?.category_slug !== c.slug) : form.service_slugs })}
+                        onClick={() => toggleCategory(c.slug)}
                         className={`min-h-11 rounded-full border px-4 text-sm ${on ? "border-primary bg-primary text-primary-foreground" : "border-input text-foreground"}`}>
                         {c.label}
                       </button>
                     );
                   })}
                 </div>
+                {!catalogLoading && !catalogError && visibleCategories.length === 0 && (
+                  <p className="mt-2 text-sm text-muted-foreground">Nenhuma especialidade corresponde à busca. Limpe o filtro para ver todas as opções.</p>
+                )}
               </fieldset>
               <fieldset>
                 <legend className="text-sm font-medium text-foreground">Serviços que você realmente executa</legend>
-                <p className="mt-1 text-xs text-muted-foreground">Selecione os serviços que você realmente executa dentro das categorias. Seu perfil completo pode ser publicado automaticamente; o portal não certifica competência técnica.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Marque somente os serviços que você realmente executa. Os termos ajudam o cliente a entender seu trabalho; a publicação só ocorre após sua revisão final.</p>
+                <p className="mt-2 text-xs font-semibold text-primary" role="status">
+                  {form.specialties.length} especialidade(s) e {form.service_slugs.length} serviço(s) selecionado(s)
+                </p>
                 {servicesLoading && <p className="mt-2 text-sm text-muted-foreground">Carregando serviços…</p>}
                 {servicesError && <p role="alert" className="mt-2 text-sm text-destructive">Serviços indisponíveis. Recarregue a página.</p>}
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {services.filter((service) => form.specialties.includes(service.category_slug)).map((service) => (
-                    <label key={service.slug} className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
-                      <input type="checkbox" className="h-4 w-4" checked={form.service_slugs.includes(service.slug)}
-                        onChange={(e) => updateRegistration({ ...form, service_slugs: e.target.checked ? [...form.service_slugs, service.slug] : form.service_slugs.filter((slug) => slug !== service.slug) })} />
-                      <span>{service.label}</span>
-                    </label>
+                <label htmlFor="eut-wizard-service-search" className="mt-3 block text-sm font-medium text-foreground">Buscar serviço</label>
+                <input id="eut-wizard-service-search" type="search" value={serviceQuery} maxLength={80}
+                  onChange={(event) => setServiceQuery(event.target.value)}
+                  placeholder="Ex.: instalação, manutenção, Wi-Fi" className={input} />
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <p role="status">{visibleServices.length} de {availableServiceCount} serviço(s) exibido(s) · {form.service_slugs.length} selecionado(s)</p>
+                  {serviceQuery.trim() && <button type="button" onClick={() => setServiceQuery("")}
+                    className="min-h-10 rounded-lg border border-input px-3 font-semibold text-primary">Limpar busca</button>}
+                </div>
+                {form.service_slugs.length > 0 && (
+                  <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-3" role="group" aria-label="Serviços selecionados">
+                    <p className="text-xs font-semibold text-foreground">Seus serviços selecionados · {form.service_slugs.length}</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {selectedRegistrationServices(services, form.service_slugs).map((service) => (
+                        <button key={service.slug} type="button" aria-label={`Remover serviço: ${service.label}`}
+                          onClick={() => updateRegistration({ ...form, service_slugs: form.service_slugs.filter((slug) => slug !== service.slug) })}
+                          className="min-h-11 rounded-full border border-primary/30 bg-background px-3 py-2 text-left text-xs font-medium text-foreground hover:bg-accent">
+                          {service.label} <span aria-hidden="true">×</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="mt-3 space-y-4">
+                  {groupRegistrationServices(visibleServices, categories).map((group) => (
+                    <div key={group.categorySlug} role="group" aria-label={`Serviços de ${group.categoryLabel}`}
+                      className="rounded-xl border border-border bg-muted/15 p-3 sm:p-4">
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <h3 className="text-sm font-bold text-foreground">{group.categoryLabel}</h3>
+                        <span className="text-xs text-muted-foreground">{group.services.length} opções nesta área</span>
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {group.services.map((service) => (
+                          <label key={service.slug} className="flex min-h-11 items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm">
+                            <input type="checkbox" className="h-4 w-4" checked={form.service_slugs.includes(service.slug)}
+                              onChange={(e) => updateRegistration({ ...form, service_slugs: e.target.checked ? [...form.service_slugs, service.slug] : form.service_slugs.filter((slug) => slug !== service.slug) })} />
+                            <span>{service.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
+                {!servicesLoading && !servicesError && availableServiceCount === 0 && <p className="mt-2 text-sm text-muted-foreground">Selecione uma especialidade acima para ver os serviços disponíveis.</p>}
+                {!servicesLoading && !servicesError && availableServiceCount > 0 && visibleServices.length === 0 && <p className="mt-2 text-sm text-muted-foreground">Nenhum serviço corresponde à busca. Limpe o filtro para ver todas as opções.</p>}
               </fieldset>
                 </div>
               )}
               {step === 3 && (
                 <div className="grid gap-4">
                   <div className="rounded-xl border border-border bg-muted/25 p-4 text-sm">
-                    <p className="font-semibold text-foreground">{form.display_name.trim()}</p>
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <p className="font-semibold text-foreground">{form.display_name.trim()}</p>
+                      <button type="button" onClick={() => moveToStep(1)}
+                        className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm font-semibold text-primary hover:bg-accent">
+                        Editar dados
+                      </button>
+                    </div>
                     <p className="mt-1 text-muted-foreground">
                       {form.city.trim()}/{form.state_uf}
                       {safeNeighborhood(form.neighborhood, form.city) ? ` · ${safeNeighborhood(form.neighborhood, form.city)}` : ""}
                     </p>
-                    <p className="mt-3 font-semibold text-foreground">Especialidades escolhidas</p>
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-semibold text-foreground">Especialidades escolhidas</p>
+                      <button type="button" onClick={() => moveToStep(2)}
+                        className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm font-semibold text-primary hover:bg-accent">
+                        Editar serviços
+                      </button>
+                    </div>
                     <p className="mt-1 text-muted-foreground">
                       {categories.filter((category) => form.specialties.includes(category.slug))
                         .map((category) => category.label).join(", ")}
@@ -708,13 +863,31 @@ export function TechnicianAreaPage() {
                   <textarea maxLength={1000} rows={4} className={input} value={form.bio}
                     aria-invalid={Boolean(publicTextProblem(form.bio, "bio"))}
                     onChange={(e) => updateRegistration({ ...form, bio: e.target.value })}
-                    placeholder="Descreva sua experiência, serviços e modo de atendimento. Não informe contatos." />
+                    placeholder="Conte o que costuma resolver, os equipamentos atendidos e como organiza seu atendimento. Não informe contatos." />
                 </label>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  Uma descrição original com seus serviços e experiência ajuda o cliente a escolher. Recomendamos pelo menos 80 caracteres, mas a apresentação é opcional.
+                  <span className="ml-1 tabular-nums">{form.bio.trim().length}/1000</span>
+                </p>
+                <p className="mt-3 text-sm font-semibold text-foreground">Quer enriquecer seu currículo público?</p>
+                <p className="mt-1 text-xs text-muted-foreground">Adicione tópicos opcionais e descreva apenas o que você realmente possui ou faz. Nenhuma resposta é preenchida automaticamente.</p>
+                <div className="mt-2 flex flex-wrap gap-2" aria-label="Tópicos opcionais da apresentação">
+                  {PUBLIC_PROFILE_TOPICS.map((topic) => (
+                    <button key={topic.id} type="button"
+                      disabled={publicProfileHasTopic(form.bio, topic.id) ||
+                        addPublicProfileTopic(form.bio, topic.id) === form.bio}
+                      onClick={() => updateRegistration({ ...form, bio: addPublicProfileTopic(form.bio, topic.id) })}
+                      className="min-h-11 rounded-lg border border-primary/30 bg-background px-3 text-xs font-semibold text-primary hover:bg-accent disabled:opacity-50">
+                      {publicProfileHasTopic(form.bio, topic.id) ? "Incluído: " : "+ "}{topic.label}
+                    </button>
+                  ))}
+                </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Sem números, telefones, WhatsApp, e-mails, arrobas, links ou redes sociais, mesmo separados por espaços ou linhas.
-                  Seus contatos ficam apenas no campo privado do técnico.
+                  Não inclua números, preços, quilômetros, telefone, WhatsApp, e-mail, links, redes sociais ou documentos neste texto público.
+                  Valores de deslocamento, SLA e comprovantes exigem campos próprios e proteção específica; não são definidos aqui.
                 </p>
                 {publicTextProblem(form.bio, "bio") && <p role="alert" className="mt-2 text-sm text-destructive">{publicTextProblem(form.bio, "bio")}</p>}
+                <TechnicianBioPreview bio={form.bio} />
               </div>
                 </div>
               )}
@@ -727,12 +900,12 @@ export function TechnicianAreaPage() {
                   </button>
                 )}
                 {step < 3 ? (
-                  <button type="button" onClick={advance} disabled={saving || !profileReady}
+                  <button key="wizard-continue" type="button" onClick={advance} disabled={saving || !profileReady}
                     className="min-h-12 flex-1 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">
                     Continuar <span aria-hidden="true">→</span>
                   </button>
                 ) : (
-                  <button type="submit" disabled={saving || !profileReady || catalogLoading || catalogError || servicesLoading || servicesError || categories.length === 0}
+                  <button key="wizard-publish" type="submit" data-wizard-action="publish" disabled={saving || !profileReady || catalogLoading || catalogError || servicesLoading || servicesError || categories.length === 0}
                     className="min-h-12 flex-1 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">
                     {saving ? "Publicando…" : currentStatus === "aprovado" ? "Atualizar meu perfil público" : "Publicar meu perfil gratuitamente"}
                   </button>
@@ -751,12 +924,25 @@ export function TechnicianAreaPage() {
                   <p className="mt-2 text-sm text-muted-foreground">Defina as localidades oficiais onde atua. O raio é declarado e não informa a localização exata da sua residência.</p>
                   {currentStatus === "aprovado" && profileId ? (
                     <TechnicianCoverageEditor userId={user.id} baseMunicipality={baseMunicipality}
-                      savedCityIds={savedCoverageIds} savedRadius={savedRadius} />
+                      savedCityIds={savedCoverageIds} savedRadius={savedRadius}
+                      onSaved={(cityIds, radius) => { setSavedCoverageIds(cityIds); setSavedRadius(radius); }} />
                   ) : (
                     <div className="mt-5 rounded-xl border border-border bg-muted/30 p-5">
                       <p className="text-sm text-foreground">Publique primeiro seu perfil profissional com uma cidade-base válida para liberar o editor de regiões.</p>
                       <a href={technicianTabHref("perfil")} onClick={() => setPanelTab("perfil")} className="mt-3 inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground">Completar meu perfil</a>
                     </div>
+                  )}
+                </section>
+              )}
+              {panelTab === "operacao" && (
+                <section aria-labelledby="area-operacao-titulo">
+                  <h2 id="area-operacao-titulo" className="text-2xl font-bold text-foreground">Condições de atendimento</h2>
+                  <p className="mt-2 text-sm text-muted-foreground">Declare equipamentos, transporte, horários usuais e valores de deslocamento. Estas informações são opcionais e não representam garantia de prazo ou orçamento fechado.</p>
+                  {currentStatus === "aprovado" && profileId ? (
+                    <TechnicianOperationsEditor key={profileId} technicianId={profileId}
+                      coverageCityIds={savedCoverageIds} mode="technician" />
+                  ) : (
+                    <p className="mt-5 rounded-xl border border-border bg-muted/30 p-5 text-sm text-foreground">Publique seu perfil e confirme sua cobertura antes de editar as condições operacionais.</p>
                   )}
                 </section>
               )}
@@ -805,7 +991,7 @@ export function TechnicianAreaPage() {
                 <section aria-labelledby="area-seguranca-titulo" className="space-y-5">
                   <div>
                     <h2 id="area-seguranca-titulo" className="text-2xl font-bold text-foreground">Minha segurança e contatos</h2>
-                    <p className="mt-2 text-sm text-muted-foreground">Seu telefone fica privado e pode ser alterado ou removido aqui. Nenhum contato completo é mostrado automaticamente no perfil público.</p>
+                    <p className="mt-2 text-sm text-muted-foreground">O telefone fica em sua área privada e não é mostrado automaticamente no perfil público. Não há confirmação adicional de e-mail ou telefone para concluir o cadastro.</p>
                   </div>
                   <TechnicianPrivateContact userId={user.id} />
                   <div className="rounded-xl border border-border bg-muted/30 p-5">

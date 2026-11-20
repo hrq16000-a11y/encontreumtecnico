@@ -49,6 +49,7 @@ vi.mock("@/lib/public-seo-graph.functions", () => ({
   getPublicGraphSnapshot: seoMocks.publicGraph,
 }));
 import { publicSitemapPartResponse } from "@/lib/public-sitemap-http";
+import { EMPTY_OPERATIONS } from "@/lib/technician-operations-contract";
 import { getApprovedTechnician } from "./technicians.functions";
 
 const id = "12345678-1234-4234-8234-123456789abc";
@@ -148,9 +149,27 @@ describe("public technician profile lookup", () => {
     };
     mocks.query.maybeSingle.mockResolvedValue({ data: profile, error: null });
     const result = await getApprovedTechnician({ data: { id } });
-    expect(result).toEqual({ ...profile, online_now: false, pioneer_bronze: false, referral_highlight: false, coverage_cities: [] });
+    expect(result).toEqual({ ...profile, online_now: false, pioneer_bronze: false, referral_highlight: false, coverage_cities: [], operations: null });
+    expect(mocks.client.rpc).toHaveBeenCalledWith("eut_public_technician_operations", { _technician_id: id });
     const selectedFields = String(mocks.query.select.mock.calls[0]?.[0]);
     expect(selectedFields).not.toMatch(/phone|email|contact|password/i);
+  });
+
+  it("refuses extra private keys from an operational RPC even for an eligible professional", async () => {
+    const profile = { id, public_slug: "qa-structured", display_name: "Técnica sintética",
+      city: "Curitiba", state_uf: "PR", specialties: [], service_slugs: [],
+      coverage_city_ids: [4106902] };
+    mocks.query.maybeSingle.mockResolvedValue({ data: profile, error: null });
+    mocks.client.rpc.mockImplementation((name: string, args?: { _ids?: string[] }) => Promise.resolve({
+      data: name === "eut_public_eligible_technician_ids"
+        ? (args?._ids ?? []).map(technician_id => ({ technician_id }))
+        : name === "eut_public_technician_operations"
+          ? { ...EMPTY_OPERATIONS, equipment: ["notebook"], phone: "contato-privado" } : [],
+      error: null,
+    }));
+    const result = await getApprovedTechnician({ data: { id } });
+    expect(result?.operations).toBeNull();
+    expect(JSON.stringify(result)).not.toContain("contato-privado");
   });
 });
 

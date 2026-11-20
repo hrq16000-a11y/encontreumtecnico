@@ -1,21 +1,40 @@
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { openFreeHelp } from "@/lib/free-search-help";
 import {
-  ArrowLeft, ArrowRight, ArrowUpRight, BadgeInfo, BriefcaseBusiness, Check,
-  ChevronRight, Handshake, LockKeyhole, MapPin,
+  ArrowLeft, ArrowRight, ArrowUpRight, BadgeInfo, BriefcaseBusiness, CalendarDays, CarFront, Check,
+  ChevronRight, Copy, Handshake, LockKeyhole, MapPin,
   MessageSquareText, MonitorCheck, Navigation, Sparkles, Wrench,
 } from "lucide-react";
 import type { PublicTechnician } from "@/lib/technicians.functions";
+import { parseProfessionalBio } from "@/lib/technician-profile-enrichment";
 import { TechnicianAvatar } from "@/components/technician-avatar";
 import { PublicProfileConnections, type PublicSeoLinks } from "@/components/public-seo-discovery";
 import { formatPublicLocation, placeKey } from "@/lib/location-labels";
 import { categoryLabel, useActiveCategories } from "@/hooks/use-active-categories";
 import { serviceLabel, useActiveServices } from "@/hooks/use-active-services";
+import { centsToBrl, EQUIPMENT, hasDeclaredTechnicianOperations, TRANSPORT, WINDOWS } from "@/lib/technician-operations-contract";
+
+const searchableService = (value: string) => value.normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
 
 /** Presentation only: uses fields from the published and sanitized technician
  * profile. Never loads or guesses private contacts, ratings or endorsements.
  */
 export function PublicTechnicianProfile({ technician: t, links }: { technician: PublicTechnician; links?: PublicSeoLinks }) {
+  const [shareStatus, setShareStatus] = useState<"copied" | "unavailable" | null>(null);
+  const [serviceFilter, setServiceFilter] = useState("");
+  async function copyPublicProfileUrl() {
+    // Share only the public route: never forward tracking or auth query parameters.
+    const publicUrl = `${window.location.origin}${window.location.pathname}`;
+    if (!navigator.clipboard?.writeText) { setShareStatus("unavailable"); return; }
+    try {
+      await navigator.clipboard.writeText(publicUrl);
+      setShareStatus("copied");
+    } catch {
+      setShareStatus("unavailable");
+    }
+  }
   const { categories } = useActiveCategories();
   const { services } = useActiveServices();
   const location = formatPublicLocation(t);
@@ -24,6 +43,33 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
     all.findIndex(x => placeKey(x.name) === placeKey(c.name) && x.uf === c.uf) === i);
   const topCategories = t.specialties.slice(0, 4);
   const extraCategories = Math.max(0, t.specialties.length - topCategories.length);
+  const operations = t.operations && hasDeclaredTechnicianOperations(t.operations) ? t.operations : null;
+  const cityLabel = (id: number) => (t.coverage_cities ?? []).find(city => city.id === id);
+  const professionalBio = parseProfessionalBio(t.bio);
+  const serviceOptions = t.service_slugs.map(slug => {
+    const service = services.find(item => item.slug === slug);
+    const category = service && categories.find(item => item.slug === service.category_slug);
+    return { slug, label: serviceLabel(slug, services), categorySlug: category?.slug ?? null };
+  });
+  const activeServiceFilter = serviceOptions.length >= 6 ? serviceFilter.trim() : "";
+  const filteredServices = activeServiceFilter
+    ? serviceOptions.filter(item => searchableService(item.label).includes(searchableService(activeServiceFilter)))
+    : serviceOptions;
+  // Only trust active catalog relationships; keep unrecognized legacy slugs visible.
+  const serviceGroups: { key: string; label: string; items: typeof serviceOptions }[] = [];
+  for (const item of filteredServices) {
+    const key = item.categorySlug ?? "__sem_categoria__";
+    const group = serviceGroups.find(existing => existing.key === key);
+    if (group) group.items.push(item);
+    else serviceGroups.push({
+      key,
+      label: item.categorySlug
+        ? categories.find(category => category.slug === item.categorySlug)?.label ?? item.categorySlug
+        : "Outros serviços declarados",
+      items: [item],
+    });
+  }
+  const showGroupHeadings = new Set(serviceOptions.map(item => item.categorySlug ?? "__sem_categoria__")).size > 1;
 
   return (
     <div className="relative min-h-screen overflow-clip bg-gradient-to-b from-accent/60 via-background to-background pb-28 lg:pb-10">
@@ -76,7 +122,14 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
                     className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/25 bg-white/10 px-5 text-sm font-semibold text-white transition-colors hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white motion-reduce:transition-none">
                     Conhecer os serviços <ArrowRight aria-hidden="true" className="h-4 w-4" />
                   </a>
+                  <button type="button" onClick={() => { void copyPublicProfileUrl(); }}
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/25 bg-white/10 px-5 text-sm font-semibold text-white transition-colors hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white motion-reduce:transition-none">
+                    <Copy aria-hidden="true" className="h-4 w-4" /> Copiar link do perfil
+                  </button>
                 </div>
+                {shareStatus && <p role="status" aria-live="polite" className="mt-2 text-sm text-white/85">
+                  {shareStatus === "copied" ? "Link público copiado para compartilhar." : "Copie o endereço desta página pelo navegador."}
+                </p>}
               </div>
             </div>
             <div className="rounded-2xl border border-white/15 bg-white/[0.08] p-5 backdrop-blur-sm">
@@ -102,13 +155,14 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
           )}
         </section>
 
-        <nav aria-label="Seções deste perfil" className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+        <nav aria-label="Seções deste perfil" className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-5 sm:gap-3">
           {([
             { href: "#especialidades", label: "Especialidades", icon: BriefcaseBusiness },
             { href: "#servicos", label: "Serviços", icon: Wrench },
             { href: "#atendimento", label: "Cobertura", icon: MapPin },
+            ...(operations ? [{ href: "#condicoes", label: "Condições", icon: Navigation }] : []),
             { href: "#sobre", label: "Sobre", icon: BadgeInfo },
-          ] as const).map(({ href, label, icon: Icon }) => (
+          ]).map(({ href, label, icon: Icon }) => (
             <a key={href} href={href} className="group flex min-h-16 items-center gap-2.5 rounded-2xl border border-border bg-card/95 px-3.5 py-3 text-sm font-bold text-foreground shadow-sm transition-[transform,border-color,box-shadow] duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transform-none motion-reduce:transition-none sm:px-4">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Icon aria-hidden="true" className="h-[18px] w-[18px]" /></span>
               <span className="min-w-0 flex-1">{label}</span>
@@ -125,7 +179,19 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
                 <div><p className="text-xs font-bold uppercase tracking-[.17em] text-primary">Áreas de atuação</p><h2 id="titulo-areas" className="mt-1 text-xl font-bold text-card-foreground sm:text-2xl">Especialidades informadas</h2></div>
               </div>
               <div className="mt-5 flex flex-wrap gap-2">
-                {t.specialties.length ? t.specialties.map(slug => <span key={slug} className="rounded-xl border border-border bg-muted/60 px-3 py-2 text-sm font-medium text-foreground">{categoryLabel(slug, categories)}</span>) : <p className="text-sm text-muted-foreground">Ainda não há especialidades informadas neste perfil.</p>}
+                {t.specialties.length ? t.specialties.map(slug => {
+                  const label = categoryLabel(slug, categories);
+                  const active = categories.some(category => category.slug === slug);
+                  return active ? (
+                    <Link key={slug} to="/tecnicos" search={{ especialidade: slug, cidade: "", regiao: "" }}
+                      aria-label={`Buscar técnicos de ${label}`}
+                      className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-primary/25 bg-primary/5 px-3 py-2 text-sm font-medium text-primary transition-colors hover:border-primary/50 hover:bg-primary/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none">
+                      {label} <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+                    </Link>
+                  ) : (
+                    <span key={slug} className="rounded-xl border border-border bg-muted/60 px-3 py-2 text-sm font-medium text-foreground">{label}</span>
+                  );
+                }) : <p className="text-sm text-muted-foreground">Ainda não há especialidades informadas neste perfil.</p>}
               </div>
             </section>
             <section id="servicos" aria-labelledby="titulo-servicos" className="eut-card-lift scroll-mt-24 rounded-[24px] border border-border bg-card p-6 shadow-sm sm:p-8">
@@ -134,11 +200,45 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
                 <div><p className="text-xs font-bold uppercase tracking-[.17em] text-primary">O que este profissional informa realizar</p><h2 id="titulo-servicos" className="mt-1 text-xl font-bold text-card-foreground sm:text-2xl">Serviços disponíveis no perfil</h2></div>
               </div>
               {t.service_slugs.length ? (
-                <ul className="mt-5 grid gap-3 sm:grid-cols-2">
-                  {t.service_slugs.map(slug => <li key={slug} className="flex min-h-14 items-start gap-3 rounded-xl border border-border bg-accent/40 p-3.5 text-sm font-medium leading-5 text-foreground transition-[border-color,background-color,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:bg-accent motion-reduce:transform-none motion-reduce:transition-none"><span aria-hidden="true" className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"><Check className="h-4 w-4" /></span><span>{serviceLabel(slug, services)}</span></li>)}
-                </ul>
+                <>
+                  {serviceOptions.length >= 6 && <div className="mt-5">
+                    <label htmlFor="filtro-servicos-perfil" className="block text-sm font-semibold text-foreground">Encontrar serviço neste perfil</label>
+                    <input id="filtro-servicos-perfil" type="search" value={serviceFilter}
+                      onChange={event => setServiceFilter(event.target.value)}
+                      placeholder="Ex.: manutenção, Wi-Fi"
+                      className="mt-2 min-h-11 w-full rounded-xl border border-input bg-background px-4 py-2 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" />
+                  </div>}
+                  {activeServiceFilter && <p role="status" className="mt-3 text-xs text-muted-foreground">
+                    {filteredServices.length} de {serviceOptions.length} serviços correspondem à busca.
+                  </p>}
+                  {filteredServices.length ? <div className="mt-5 space-y-5">
+                    {serviceGroups.map(group => <div key={group.key}
+                      role={showGroupHeadings ? "group" : undefined}
+                      aria-label={showGroupHeadings ? `Serviços de ${group.label}` : undefined}>
+                      {showGroupHeadings && <h3 className="mb-3 text-sm font-bold text-foreground">{group.label}</h3>}
+                      <ul className="grid gap-3 sm:grid-cols-2">
+                        {group.items.map(({ slug, label }) => <li key={slug}>
+                      <button type="button"
+                        onClick={() => openFreeHelp({ mode: "direct", technicianId: t.id, technicianName: t.display_name, service: label })}
+                        aria-label={`Solicitar atendimento para ${label}`}
+                        className="group flex min-h-16 w-full items-center gap-3 rounded-xl border border-border bg-accent/40 p-3.5 text-left text-sm font-medium leading-5 text-foreground transition-[border-color,background-color,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transform-none motion-reduce:transition-none">
+                        <span aria-hidden="true" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"><Check className="h-4 w-4" /></span>
+                        <span className="min-w-0 flex-1 break-words">{label}</span>
+                        <span className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-primary">Pedir <ArrowUpRight aria-hidden="true" className="h-4 w-4" /></span>
+                      </button>
+                        </li>)}
+                      </ul>
+                    </div>)}
+                  </div> : <div className="mt-4 rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+                    Nenhum serviço deste perfil corresponde ao termo.
+                    <button type="button" onClick={() => setServiceFilter("")}
+                      className="mt-2 block min-h-11 rounded-lg px-3 font-semibold text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                      Limpar filtro
+                    </button>
+                  </div>}
+                </>
               ) : <p className="mt-4 text-sm text-muted-foreground">Os serviços específicos ainda não foram detalhados.</p>}
-              <p className="mt-5 border-t border-border pt-4 text-xs leading-5 text-muted-foreground">A descrição dos serviços é responsabilidade do profissional. Confirme os detalhes diretamente antes de contratar.</p>
+              <p className="mt-5 border-t border-border pt-4 text-xs leading-5 text-muted-foreground">Selecione um serviço para descrevê-lo no atendimento seguro, sem liberar telefone. Os serviços são declarados pelo profissional; confirme os detalhes antes de contratar.</p>
             </section>
             <section id="atendimento" aria-labelledby="titulo-atendimento"
               className="eut-card-lift scroll-mt-24 rounded-[24px] border border-border bg-card p-6 shadow-sm sm:p-8">
@@ -164,8 +264,12 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
                   </h3>
                   <ul className="mt-3 flex flex-wrap gap-2">
                     {additionalCities.map(city => (
-                      <li key={city.id} className="rounded-full border border-primary/20 bg-primary/5 px-3 py-2 text-sm font-medium text-primary transition-colors hover:border-primary/40 hover:bg-primary/10 motion-reduce:transition-none">
-                        {city.name}/{city.uf}
+                      <li key={city.id}>
+                        <Link to="/tecnicos" search={{ especialidade: "Todas", cidade: city.name, regiao: "", uf: city.uf }}
+                          aria-label={`Ver técnicos em ${city.name}/${city.uf}`}
+                          className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-2 text-sm font-medium text-primary transition-colors hover:border-primary/40 hover:bg-primary/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none">
+                          {city.name}/{city.uf} <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+                        </Link>
                       </li>
                     ))}
                   </ul>
@@ -188,15 +292,63 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
                 </Link>
               </div>
             </section>
+            {operations && <section id="condicoes" aria-labelledby="titulo-condicoes"
+              className="eut-card-lift scroll-mt-24 rounded-[24px] border border-border bg-card p-6 shadow-sm sm:p-8">
+              <div className="flex items-start gap-3">
+                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Navigation className="h-5 w-5" aria-hidden="true" /></span>
+                <div><p className="text-xs font-bold uppercase tracking-[.17em] text-primary">Dados opcionais declarados</p>
+                  <h2 id="titulo-condicoes" className="mt-1 text-xl font-bold text-card-foreground sm:text-2xl">Como costuma atender</h2></div>
+              </div>
+              <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2">
+                {operations.equipment.length > 0 && <div><dt className="font-bold text-foreground">Ferramentas e equipamentos</dt><dd className="mt-1 text-muted-foreground">{EQUIPMENT.filter(option => operations.equipment.includes(option.code)).map(option => option.label).join(" · ")}</dd></div>}
+                {operations.transport_mode && <div><dt className="font-bold text-foreground">Locomoção</dt><dd className="mt-1 text-muted-foreground">{TRANSPORT.find(option => option.code === operations.transport_mode)?.label}</dd></div>}
+                {operations.service_windows.length > 0 && <div><dt className="font-bold text-foreground">Períodos habituais</dt><dd className="mt-1 text-muted-foreground">{WINDOWS.filter(option => operations.service_windows.includes(option.code)).map(option => option.label).join(" · ")}</dd></div>}
+                {operations.can_travel && <div><dt className="font-bold text-foreground">Viagens</dt><dd className="mt-1 text-muted-foreground">Declara disponibilidade para viajar</dd></div>}
+                {operations.eta_business_minutes != null && <div><dt className="font-bold text-foreground">Estimativa em horário comercial</dt><dd className="mt-1 text-muted-foreground">{operations.eta_business_minutes} minutos após confirmação, sujeito à agenda</dd></div>}
+                {operations.eta_outside_minutes != null && <div><dt className="font-bold text-foreground">Estimativa fora do horário comercial</dt><dd className="mt-1 text-muted-foreground">{operations.eta_outside_minutes} minutos após confirmação, sujeito à agenda</dd></div>}
+                {operations.free_city_ids.length > 0 && <div><dt className="font-bold text-foreground">Cidades declaradas sem taxa de deslocamento</dt><dd className="mt-1 text-muted-foreground">{operations.free_city_ids.map(cityLabel).filter(city => city != null).map(city => `${city.name}/${city.uf}`).join(" · ")}</dd></div>}
+                {operations.paid_city_ids.length > 0 && <div><dt className="font-bold text-foreground">Cidades com possível cobrança de deslocamento</dt><dd className="mt-1 text-muted-foreground">{operations.paid_city_ids.map(cityLabel).filter(city => city != null).map(city => `${city.name}/${city.uf}`).join(" · ")}</dd></div>}
+                {operations.free_km != null && <div><dt className="font-bold text-foreground">Faixa sem cobrança</dt><dd className="mt-1 text-muted-foreground">Até {operations.free_km} km declarados</dd></div>}
+                {operations.km_rate_cents != null && <div><dt className="font-bold text-foreground">Deslocamento estimado</dt><dd className="mt-1 text-muted-foreground">R$ {centsToBrl(operations.km_rate_cents)} por km{operations.km_threshold != null ? ` até ${operations.km_threshold} km` : ""}{operations.km_rate_after_cents != null && operations.km_threshold != null ? `; depois R$ ${centsToBrl(operations.km_rate_after_cents)} por km` : ""}</dd></div>}
+              </dl>
+              <p className="mt-5 border-t border-border pt-4 text-xs leading-5 text-muted-foreground">São condições informadas pelo profissional, sem verificação de posse, escala, prazo ou distância pela plataforma. Confirme agenda, rota e orçamento antes do serviço. A taxa de acesso ao contato do portal é independente dos valores de deslocamento.</p>
+            </section>}
             <section id="sobre" aria-labelledby="titulo-sobre" className="eut-card-lift scroll-mt-24 rounded-[24px] border border-border bg-card p-6 shadow-sm sm:p-8">
               <div className="flex items-start gap-3">
                 <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><BadgeInfo className="h-5 w-5" aria-hidden="true" /></span>
                 <div><p className="text-xs font-bold uppercase tracking-[.17em] text-primary">Apresentação pessoal</p><h2 id="titulo-sobre" className="mt-1 text-xl font-bold text-card-foreground sm:text-2xl">Sobre o profissional</h2></div>
               </div>
-              {t.bio ? (
+              {professionalBio.introduction || professionalBio.sections.length > 0 ? (
                 <>
-                  <p className="mt-5 whitespace-pre-line text-sm leading-7 text-foreground sm:text-base">{t.bio}</p>
-                  <p className="mt-4 text-xs text-muted-foreground">Texto fornecido pelo titular do perfil.</p>
+                  {professionalBio.introduction && (
+                    <p className="mt-5 whitespace-pre-line text-sm leading-7 text-foreground sm:text-base">
+                      {professionalBio.introduction}
+                    </p>
+                  )}
+                  {professionalBio.sections.length > 0 && (
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2" aria-label="Detalhes profissionais declarados">
+                      {professionalBio.sections.map(({ id, label, text }) => {
+                        const Icon = {
+                          experience: BriefcaseBusiness,
+                          tools: Wrench,
+                          mobility: CarFront,
+                          schedule: CalendarDays,
+                        }[id];
+                        return (
+                          <section key={id} className="min-w-0 rounded-2xl border border-border bg-accent/40 p-4">
+                            <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+                              <Icon aria-hidden="true" className="h-4 w-4 shrink-0 text-primary" />
+                              {label}
+                            </h3>
+                            <p className="mt-2 whitespace-pre-line break-words text-sm leading-6 text-foreground">{text}</p>
+                          </section>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <p className="mt-4 text-xs text-muted-foreground">
+                    Informações declaradas pelo titular. Confirme ferramentas, deslocamento e horários antes de solicitar atendimento.
+                  </p>
                 </>
               ) : (
                 <p className="mt-5 text-sm leading-7 text-muted-foreground">

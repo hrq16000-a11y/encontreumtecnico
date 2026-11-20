@@ -3,17 +3,19 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { BRAZIL_STATES } from "@/lib/service-taxonomy";
 import { useMunicipalities, normalizedCityText, type Municipality } from "@/hooks/use-municipalities";
+import { technicianCoverageWasPersisted } from "@/lib/technician-coverage-verification";
 
 const db = supabase as unknown as SupabaseClient;
 const RADII = [5, 10, 20, 30, 50, 75, 100, 150, 200, 300] as const;
 
 export function TechnicianCoverageEditor({
-  userId, baseMunicipality, savedCityIds, savedRadius,
+  userId, baseMunicipality, savedCityIds, savedRadius, onSaved,
 }: {
   userId: string;
   baseMunicipality: Municipality | null;
   savedCityIds: number[];
   savedRadius: number | null;
+  onSaved?: (cityIds: number[], radius: number | null) => void;
 }) {
   const activeUser = useRef(userId);
   activeUser.current = userId;
@@ -74,7 +76,15 @@ export function TechnicianCoverageEditor({
       if (error || data?.state !== "salvo") {
         setMessage("Não foi possível salvar. Confirme a cidade-base no cadastro e tente novamente.");
       } else {
-        setMessage("Raio e cidades salvos no perfil público. As distâncias são aproximadas.");
+        const { data: persisted, error: readError } = await db.from("technicians")
+          .select("coverage_city_ids,service_radius_km").eq("user_id", owner).maybeSingle();
+        if (activeUser.current !== owner) return;
+        if (readError || !technicianCoverageWasPersisted(codes, radius, persisted)) {
+          setMessage("O servidor respondeu, mas não confirmou todas as cidades e o raio gravados. Recarregue sua ficha antes de repetir a edição.");
+          return;
+        }
+        setMessage("Raio e cidades salvos e conferidos no servidor. As distâncias são aproximadas.");
+        onSaved?.(codes, radius);
       }
     } catch {
       if (activeUser.current === owner) setMessage("Falha de conexão. Nenhuma nova região foi confirmada.");

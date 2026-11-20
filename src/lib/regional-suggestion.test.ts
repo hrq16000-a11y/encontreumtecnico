@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseVercelRegion, getSavedRegionalHint, rememberRegionalHint } from "./regional-suggestion";
+import { automaticRegionalRankingArea, parseVercelRegion, getSavedRegionalHint, rememberRegionalHint } from "./regional-suggestion";
 
 describe("Contexto regional sem dados precisos", () => {
   it("aceita município brasileiro por IP e nunca inventa bairro", () => {
@@ -19,5 +19,17 @@ describe("Contexto regional sem dados precisos", () => {
     expect(rememberRegionalHint({ city: "Pinhais", uf: "PR", neighborhood: "Centro", source: "gps" }, storage, now)).toBe(true);
     expect(rememberRegionalHint({ city: "Curitiba", uf: "PR", neighborhood: "", source: "ip" }, storage, now + 1)).toBe(false);
     expect(getSavedRegionalHint(storage, now + 1)?.city).toBe("Pinhais");
+  });
+  it("usa IP só para ordenar resultados sem filtros manuais, nunca GPS ou bairro presumido", () => {
+    const empty = { uf: "", cidade: "", bairro: "", regiao: "" };
+    const ip = parseVercelRegion({ country: "BR", state: "PR", city: "Curitiba" });
+    expect(automaticRegionalRankingArea(empty, ip)).toEqual({ uf: "PR", cidade: "Curitiba", bairro: "" });
+    expect(automaticRegionalRankingArea({ ...empty, uf: "SC" }, ip)).toBeNull();
+    expect(automaticRegionalRankingArea({ ...empty, cidade: "Tubarão" }, ip)).toBeNull();
+    expect(automaticRegionalRankingArea({ ...empty, bairro: "Centro" }, ip)).toBeNull();
+    expect(automaticRegionalRankingArea({ ...empty, regiao: "Zona Norte" }, ip)).toBeNull();
+    expect(automaticRegionalRankingArea(empty, { city: "Curitiba", uf: "PR", neighborhood: "Centro", source: "gps" })).toBeNull();
+    expect(automaticRegionalRankingArea(empty, null)).toBeNull();
+    expect(automaticRegionalRankingArea(empty, { city: "Cidade fictícia", uf: "XX", neighborhood: "", source: "ip" })).toBeNull();
   });
 });

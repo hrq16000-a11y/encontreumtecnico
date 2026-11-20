@@ -12,10 +12,11 @@ import { buildPublicSitemapXml, SITE } from "./public-sitemap";
 const source: GraphProfile[] = [
   { public_slug: "tecnica-curitiba", display_name: "Técnica Curitibana", city: "Curitiba",
     state_uf: "PR", specialties: ["cftv", "redes", "categoria-inativa"],
-    service_slugs: ["instalacao-cameras", "wifi"], updated_at: "2026-11-10T10:00:00Z" },
+    service_slugs: ["instalacao-cameras", "wifi"], updated_at: "2026-11-10T10:00:00Z",
+    avatar_path: "avatars/00000000-0000-4000-8000-000000000001/00000000-0000-4000-8000-000000000002.webp" },
   { public_slug: "tecnico-cftv", display_name: "Especialista CFTV", city: "Curitiba",
     state_uf: "PR", specialties: ["cftv"], service_slugs: ["instalacao-cameras"],
-    updated_at: "2026-11-11T10:00:00Z" },
+    updated_at: "2026-11-11T10:00:00Z", avatar_path: "https://example.org/photo.png" },
   { public_slug: "rede-sao-paulo", display_name: "Redes SP", city: "São Paulo",
     state_uf: "SP", specialties: ["redes"], service_slugs: ["wifi"],
     updated_at: "2026-11-09T10:00:00Z" },
@@ -62,6 +63,15 @@ describe("Grafo público de interlinks indexáveis", () => {
     expect(graph.categories.find(c => c.slug === "cftv")?.count).toBe(3);
     expect(profilesInCategory(graph, "cftv")).toHaveLength(3);
     expect(profilesInCategory(graph, "categoria-inativa")).toHaveLength(0);
+  });
+
+  it("inclui somente avatares públicos no formato validado, sem URLs arbitrárias", () => {
+    expect(graph.profiles[0]?.avatar_path).toBe(source[0]?.avatar_path);
+    expect(graph.profiles[1]?.avatar_path).toBeNull();
+    expect(graph.profiles[2]?.avatar_path).toBeNull();
+    const loader = readFileSync("src/lib/public-seo-graph.functions.ts", "utf8");
+    expect(loader).toContain("state_uf,avatar_path,specialties");
+    expect(loader).not.toContain("auth.users");
   });
 
   it("relaciona perfis por cidade, categoria ou serviço, nunca aleatoriamente nem ao próprio", () => {
