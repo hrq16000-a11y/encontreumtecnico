@@ -93,6 +93,58 @@ BEGIN
 END $$;
 ROLLBACK;
 
+-- Rejeitado: OWNER não pode editar pela função SECURITY DEFINER, embora
+-- haja uma linha operacional existente. ADMIN com motivo pode editar e auditar.
+-- Todo o cenário é revertido: status, versão, perfil e log voltam ao fixture.
+BEGIN;
+UPDATE public.technicians SET status='rejeitado'
+ WHERE id='10000000-0000-4000-8000-000000000001'
+   AND status='aprovado';
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','20000000-0000-4000-8000-000000000001',true);
+DO $rejected_owner$
+DECLARE
+ t uuid:='10000000-0000-4000-8000-000000000001';
+ v jsonb; denied boolean:=false;
+BEGIN
+ v:=public.eut_technician_operations_get(t);
+ IF v->'profile' IS NULL THEN RAISE EXCEPTION 'fixture rejeitado sem perfil'; END IF;
+ BEGIN
+   PERFORM public.eut_technician_operations_save(
+     t,v->'profile',(v->>'updated_at')::timestamptz,NULL);
+ EXCEPTION WHEN insufficient_privilege THEN denied:=true;
+ END;
+ IF NOT denied THEN RAISE EXCEPTION 'titular rejeitado editou via SECURITY DEFINER'; END IF;
+ IF (SELECT count(*) FROM public.eut_admin_management_log)<>2 THEN
+   RAISE EXCEPTION 'tentativa rejeitada criou evento indevido'; END IF;
+END
+$rejected_owner$;
+SELECT set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000001',true);
+DO $rejected_admin$
+DECLARE
+ t uuid:='10000000-0000-4000-8000-000000000001';
+ v jsonb; saved jsonb; denied boolean:=false;
+BEGIN
+ v:=public.eut_technician_operations_get(t);
+ BEGIN
+   PERFORM public.eut_technician_operations_save(
+     t,v->'profile',(v->>'updated_at')::timestamptz,NULL);
+ EXCEPTION WHEN invalid_parameter_value THEN denied:=true;
+ END;
+ IF NOT denied THEN RAISE EXCEPTION 'admin editou rejeitado sem motivo'; END IF;
+ saved:=public.eut_technician_operations_save(
+   t,v->'profile',(v->>'updated_at')::timestamptz,
+   'Ajuste administrativo motivado para homologacao isolada');
+ IF saved->>'ok'<>'true' THEN RAISE EXCEPTION 'admin motivado recusado em rejeitado'; END IF;
+ IF (SELECT count(*) FROM public.eut_admin_management_log
+   WHERE action='technician_operations_admin_updated')<>2 THEN
+   RAISE EXCEPTION 'falta auditoria da edicao administrativa rejeitada'; END IF;
+ IF (SELECT status FROM public.technicians WHERE id=t)<>'rejeitado' THEN
+   RAISE EXCEPTION 'admin alterou moderacao ao editar condicoes'; END IF;
+END
+$rejected_admin$;
+ROLLBACK;
+
 -- Depois das recusas: um único registro; 2 suspensos; 2 logs válidos; papéis intactos.
 DO $$ BEGIN
  IF (SELECT count(*) FROM eut_profile_ops.technician_operations)<>1 OR
