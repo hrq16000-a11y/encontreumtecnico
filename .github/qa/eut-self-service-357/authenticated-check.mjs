@@ -2,6 +2,7 @@
 // Nao usa service_role no frontend, nao le o Supabase oficial, zero dados reais.
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 
 const root = '.github/qa/eut-self-service-357';
 const result = execFileSync('supabase', ['status', '-o', 'env'], {
@@ -87,11 +88,39 @@ const mine = (who) => request('/rest/v1/technicians?select=id,user_id,display_na
   token: who.token,
 });
 const psqlSingle = (statement) => sql(statement);
+const functionNames = [
+  'public.eut_admin_enable_my_technician_role()',
+  'public.eut_my_private_contact()',
+  'public.eut_publish_my_technician(text,text,text,text[],text[],text,text,text)',
+  'public.eut_remove_my_private_contact()',
+  'public.eut_save_my_private_contact(text,boolean)',
+  'public.eut_set_my_presence(boolean)',
+  'public.eut_set_my_technician_avatar(text)',
+  'public.eut_set_my_technician_coverage(integer,integer[])',
+];
+const functionList = functionNames.map((signature) => `('${signature}')`).join(',');
+const functionSnapshot = () => sql(`WITH expected(signature) AS (VALUES ${functionList})
+  SELECT string_agg(expected.signature || '=' || md5(pg_get_functiondef(to_regprocedure(expected.signature))) ||
+    ':' || coalesce(p.proacl::text,'NULL') || ':' || p.prosecdef::text, '|' ORDER BY expected.signature)
+  FROM expected JOIN pg_proc p ON p.oid=to_regprocedure(expected.signature)`);
+const policySnapshot = () => sql(`SELECT string_agg(c.oid::regclass::text || ':' ||
+  c.relrowsecurity::text || ':' || coalesce(p.polname,'-') || ':' ||
+  coalesce(pg_get_expr(p.polqual,p.polrelid),'NULL') || ':' ||
+  coalesce(pg_get_expr(p.polwithcheck,p.polrelid),'NULL'), '|' ORDER BY c.oid::regclass::text,p.polname)
+  FROM pg_class c LEFT JOIN pg_policy p ON p.polrelid=c.oid
+  WHERE c.oid IN ('public.technicians'::regclass,'public.user_roles'::regclass,
+    'public.eut_technician_private_contacts'::regclass,'public.eut_admin_management_log'::regclass)`);
+const rowSnapshot = () => sql(`SELECT (SELECT count(*) FROM public.technicians)::text || ':' ||
+  (SELECT count(*) FROM public.eut_technician_private_contacts)::text || ':' ||
+  (SELECT count(*) FROM public.eut_qa_historical_request)::text || ':' ||
+  (SELECT count(*) FROM public.eut_admin_management_log)::text`);
 
 // Testemunha anterior: auth.uid() e papel tecnico NAO bastam para a RPC antiga.
 const oldDenied = await publish(users.owner);
 ensure(oldDenied.status >= 400, 'a RPC anterior nao exigiu a prova adicional');
 ensure(sql('SELECT count(*) FROM public.technicians') === '1', 'a RPC anterior gravou ficha inesperada');
+const originalFunctions = functionSnapshot();
+const originalPolicies = policySnapshot();
 console.log('PASS 1: contrato antigo rejeita sessao sem atestacao adicional.');
 
 // Testa o SQL proposto SEM MODIFICACAO, em Postgres local com funcoes reais.
@@ -183,12 +212,21 @@ ensure(suspendedEdit.status === 200 && suspendedEdit.data?.state === 'bloqueado_
 ensure(suspendedDelete.status >= 400 &&
   psqlSingle(`SELECT md5(row_to_json(t)::text) FROM public.technicians t WHERE user_id='${users.suspended.id}'`) === suspendedBefore,
   'suspenso foi alterado');
+const suspendedPhone = await rpc('eut_save_my_private_contact', users.suspended, {
+  _phone: '41988887777', _allow_paid_contact: true,
+});
+ensure(suspendedPhone.status >= 400 &&
+  sql(`SELECT count(*) FROM public.eut_technician_private_contacts WHERE user_id='${users.suspended.id}'`) === '0',
+  'suspenso gravou ou ativou contato comercial');
+ensure((await rpc('eut_my_private_contact', users.suspended)).status === 200 &&
+  (await rpc('eut_remove_my_private_contact', users.suspended)).status === 200,
+  'suspenso perdeu acesso de privacidade ao proprio contato');
 ensure((await publish(users.blocked)).status >= 400, 'conta bloqueada publicou');
 ensure((await rpc('eut_remove_my_technician_profile', users.blocked)).status >= 400,
   'conta bloqueada excluiu');
 ensure(sql(`SELECT count(*) FROM public.technicians WHERE user_id IN ('${users.blocked.id}','${users.client.id}')`) === '0',
   'negativas gravaram perfis');
-console.log('PASS 6: suspensos, bloqueados e cliente preservados (sem mutacoes).');
+console.log('PASS 6: suspensos nao gravam contato; leitura/remocao propria, bloqueados e cliente preservados.');
 
 const recreated = await publish(users.owner, 'Técnico republicado sintético');
 ensure(recreated.status === 200 && recreated.data?.technician_id === ownId &&
@@ -197,4 +235,62 @@ ensure(recreated.status === 200 && recreated.data?.technician_id === ownId &&
 ensure(sql(`SELECT count(*) FROM public.technicians WHERE user_id='${users.owner.id}'`) === '1',
   'republicacao duplicou ficha');
 console.log('PASS 7: republicacao e releitura da mesma ficha, sem outro cadastro.');
-console.log('RESULTADO: 7 grupos PASS; GoTrue real, PostgREST e PostgreSQL locais; sem SQL/usuarios externos.');
+
+// Rollback integral em UMA transacao local, a partir do snapshot das 8 RPCs.
+// A verificacao de hashes ocorre antes de qualquer CREATE/DROP; drift aborta.
+const patchedFunctions = functionSnapshot();
+ensure(patchedFunctions !== originalFunctions &&
+  sql("SELECT to_regprocedure('public.eut_remove_my_technician_profile()') IS NOT NULL") === 't',
+  'patch nao alterou as RPCs esperadas');
+const rollbackPairs = functionNames.map((signature) => {
+  const hash = sql(`SELECT md5(pg_get_functiondef(to_regprocedure('${signature}')))`);
+  ensure(/^[0-9a-f]{32}$/.test(hash), `hash ausente: ${signature}`);
+  return `('${signature}','${hash}')`;
+}).join(',');
+const savedDefinitions = readFileSync(`${root}/baseline.sql`, 'utf8')
+  .replace(/^BEGIN;\s*$/m, '').replace(/^COMMIT;\s*$/m, '');
+const rollback = `BEGIN;
+DO $rollback$
+DECLARE row_expected record;
+BEGIN
+  IF to_regprocedure('public.eut_remove_my_technician_profile()') IS NULL THEN
+    RAISE EXCEPTION 'Rollback: funcao de exclusao ausente';
+  END IF;
+  FOR row_expected IN SELECT * FROM (VALUES ${rollbackPairs}) AS v(signature,hash) LOOP
+    IF md5(pg_get_functiondef(to_regprocedure(row_expected.signature))) IS DISTINCT FROM row_expected.hash THEN
+      RAISE EXCEPTION 'Rollback: drift detectado em %', row_expected.signature;
+    END IF;
+  END LOOP;
+END $rollback$;
+${savedDefinitions}
+REVOKE ALL ON FUNCTION public.eut_remove_my_technician_profile() FROM PUBLIC, anon, authenticated;
+DROP FUNCTION public.eut_remove_my_technician_profile();
+COMMIT;`;
+const runRollback = (script) => execFileSync('psql', ['-X','-v','ON_ERROR_STOP=1'], {
+  env: { ...process.env, PGHOST: '127.0.0.1', PGPORT: '54322',
+    PGUSER: 'postgres', PGPASSWORD: 'postgres', PGDATABASE: 'postgres' },
+  input: script, encoding: 'utf8', stdio: ['pipe','pipe','pipe'],
+});
+const beforeRollbackRows = rowSnapshot();
+let driftRejected = false;
+try {
+  runRollback(rollback.replace(rollbackPairs.match(/[0-9a-f]{32}/)[0], '00000000000000000000000000000000'));
+} catch (error) {
+  driftRejected = /drift detectado/.test(String(error.stderr));
+}
+ensure(driftRejected && functionSnapshot() === patchedFunctions &&
+  sql("SELECT to_regprocedure('public.eut_remove_my_technician_profile()') IS NOT NULL") === 't',
+  'rollback com drift alterou esquema parcialmente');
+console.log('PASS 8: rollback com hash divergente abortou sem modificacao parcial.');
+
+runRollback(rollback);
+sql("NOTIFY pgrst, 'reload schema'");
+await new Promise(resolve => setTimeout(resolve, 1300));
+ensure(functionSnapshot() === originalFunctions && policySnapshot() === originalPolicies,
+  'rollback nao restaurou hashes, grants ou RLS originais');
+ensure(rowSnapshot() === beforeRollbackRows &&
+  sql("SELECT to_regprocedure('public.eut_remove_my_technician_profile()') IS NULL") === 't',
+  'rollback removeu dados, deixou funcao nova ou alterou historicos');
+ensure((await publish(users.owner)).status >= 400, 'RPC antiga nao foi restaurada');
+console.log('PASS 9: rollback atomico restaura oito RPCs/grants/RLS, remove exclusao e preserva historicos.');
+console.log('RESULTADO: 9 grupos PASS; GoTrue real, PostgREST e PostgreSQL locais; sem SQL/usuarios externos.');

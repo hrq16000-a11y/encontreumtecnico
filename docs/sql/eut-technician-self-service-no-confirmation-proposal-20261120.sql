@@ -46,6 +46,27 @@ BEGIN
     revised_def := pg_catalog.replace(revised_def,
       'Confirme sua identidade antes de habilitar o perfil técnico',
       'Conta indisponível para ativação do perfil técnico');
+
+    -- A remocao do bloqueio por e-mail nao pode permitir habilitar ou trocar
+    -- telefone comercial em ficha suspensa/rejeitada. A consulta e a remocao
+    -- do proprio contato continuam disponiveis por privacidade.
+    IF entry.signature = 'public.eut_save_my_private_contact(text,boolean)' THEN
+      IF pg_catalog.strpos(revised_def, '  if _allow_paid_contact is null then') = 0 THEN
+        RAISE EXCEPTION 'Ancora de protecao do contato mudou: %', entry.signature;
+      END IF;
+      revised_def := pg_catalog.replace(revised_def,
+        '  if _allow_paid_contact is null then',
+        $guard$  if exists (
+    select 1 from public.technicians t
+    where t.user_id = v_user
+      and t.status in ('suspenso'::public.approval_status, 'rejeitado'::public.approval_status)
+    for update
+  ) then
+    raise exception 'Ficha suspensa ou rejeitada: contato privado protegido'
+      using errcode = '42501';
+  end if;
+  if _allow_paid_contact is null then$guard$);
+    END IF;
     definitions := pg_catalog.array_append(definitions, revised_def);
   END LOOP;
   -- Escrita apenas apos TODAS as oito definicoes terem passado o preflight.
