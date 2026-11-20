@@ -33,3 +33,10 @@ export function readPendingFilter(id: string, current: string, storage?: Storage
 export function clearPendingFilter(id: string, storage?: Storage): void {
   try { const k = key(id); if (k) store(storage)?.removeItem(k); } catch { /* storage disabled */ }
 }
+
+/** Explicit directory reset must discard same-tab text for every locality filter.
+ * Normal navigation and background-tab recovery remain unchanged.
+ */
+export function clearDirectoryPendingFilters(storage?: Storage): void {
+  for (const id of VALID) clearPendingFilter(id, storage);
+}
