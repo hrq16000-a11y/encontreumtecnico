@@ -35,6 +35,11 @@ export function TechnicianEmailOtpVerification({ userId, email }: {
         setFeedback("Sua sessão mudou. Entre novamente na conta técnica antes de continuar.");
         return;
       }
+      const { data: challenge, error: beginError } = await db.rpc("eut_begin_technician_email_otp");
+      if (beginError || challenge?.ok !== true) {
+        setFeedback("O servidor não iniciou a prova de e-mail. Confira a sessão e tente novamente.");
+        return;
+      }
       // Nunca criar outro usuário; o provedor envia o link ao e-mail da sessão.
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim(),
