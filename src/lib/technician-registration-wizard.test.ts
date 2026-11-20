@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { reconcileRegistrationSelections, registrationStepError, type TechnicianRegistrationForm } from "./technician-registration-wizard";
+import { matchingRegistrationServices, reconcileRegistrationSelections, registrationStepError, type TechnicianRegistrationForm } from "./technician-registration-wizard";
 
 const catalog = {
   categories: [{ slug: "redes" }, { slug: "computadores" }],
@@ -12,6 +12,19 @@ const form: TechnicianRegistrationForm = {
   specialties: ["redes"], service_slugs: ["wifi"],
 };
 describe("Cadastro guiado mobile", () => {
+  it("filtra serviços sem acento e preserva as escolhas fora da busca", () => {
+    const available = [
+      { slug: "rede-wifi", category_slug: "redes", label: "Instalação de Wi-Fi" },
+      { slug: "cabos", category_slug: "redes", label: "Cabeamento óptico" },
+      { slug: "notebook", category_slug: "computadores", label: "Reparo de notebook" },
+    ];
+    const chosen = ["rede-wifi", "cabos"];
+    expect(matchingRegistrationServices(available, ["redes"], "INSTALACAO").map((item) => item.slug)).toEqual(["rede-wifi"]);
+    expect(matchingRegistrationServices(available, ["redes"], "optico").map((item) => item.slug)).toEqual(["cabos"]);
+    expect(matchingRegistrationServices(available, ["redes"], "").map((item) => item.slug)).toEqual(chosen);
+    expect(matchingRegistrationServices(available, ["redes"], "notebook")).toEqual([]);
+    expect(chosen).toEqual(["rede-wifi", "cabos"]);
+  });
   it("permite retirar serviços e categorias desativados sem perder escolhas válidas", () => {
     const previous = {
       specialties: ["redes", "computadores", "categoria-antiga"],
@@ -67,6 +80,8 @@ describe("Cadastro guiado mobile", () => {
     expect(route).toContain("registrationStepError(2, form, catalog)");
     expect(route).toContain('onClick={() => toggleCategory(c.slug)}');
     expect(route).toContain("Remover opções indisponíveis");
+    expect(route).toContain('id="eut-wizard-service-search"');
+    expect(route).toContain("visibleServices.map((service)");
     expect(route).toContain("persistedCityRef.current = { ownerId: owner, state_uf: loadedForm.state_uf, city: loadedForm.city }");
     expect(route).toContain('role="progressbar"');
     expect(route).toContain('bottom-[calc(3.5rem+env(safe-area-inset-bottom))]');

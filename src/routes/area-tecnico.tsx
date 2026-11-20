@@ -31,7 +31,7 @@ import { clearProtectedDraft, readProtectedDraft, saveProtectedDraft } from "@/l
 import { saveTechnicianDraftImmediately } from "@/lib/technician-live-draft";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
-import { reconcileRegistrationSelections, registrationStepError, type RegistrationStep } from "@/lib/technician-registration-wizard";
+import { matchingRegistrationServices, reconcileRegistrationSelections, registrationStepError, type RegistrationStep } from "@/lib/technician-registration-wizard";
 import { hydrateTechnicianOfficialCity } from "@/lib/technician-official-city-hydration";
 import { publicTextProblem } from "@/lib/public-profile-text";
 import { technicianPublishErrorMessage } from "@/lib/technician-publish-error";
@@ -82,6 +82,7 @@ export function TechnicianAreaPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [step, setStep] = useState<RegistrationStep>(1);
+  const [serviceQuery, setServiceQuery] = useState("");
   const [panelTab, setPanelTab] = useState<TechnicianPanelTab>("inicio");
   useEffect(() => {
     // Both canonical and isolated LP2 routes remain functional. Hash changes
@@ -303,6 +304,8 @@ export function TechnicianAreaPage() {
   const catalog = { categories, services, catalogLoading, catalogError: Boolean(catalogError),
     servicesLoading, servicesError: Boolean(servicesError) };
   const catalogReady = !catalogLoading && !catalogError && !servicesLoading && !servicesError;
+  const availableServiceCount = services.filter((service) => form.specialties.includes(service.category_slug)).length;
+  const visibleServices = matchingRegistrationServices(services, form.specialties, serviceQuery);
   const reconciledSelections = catalogReady ? reconcileRegistrationSelections(form, catalog) : null;
   const staleSelections = Boolean(reconciledSelections && (
     reconciledSelections.specialties.length !== form.specialties.length ||
@@ -713,8 +716,17 @@ export function TechnicianAreaPage() {
                 <p className="mt-1 text-xs text-muted-foreground">Selecione os serviços que você realmente executa dentro das categorias. Seu perfil completo pode ser publicado automaticamente; o portal não certifica competência técnica.</p>
                 {servicesLoading && <p className="mt-2 text-sm text-muted-foreground">Carregando serviços…</p>}
                 {servicesError && <p role="alert" className="mt-2 text-sm text-destructive">Serviços indisponíveis. Recarregue a página.</p>}
+                <label htmlFor="eut-wizard-service-search" className="mt-3 block text-sm font-medium text-foreground">Buscar serviço</label>
+                <input id="eut-wizard-service-search" type="search" value={serviceQuery} maxLength={80}
+                  onChange={(event) => setServiceQuery(event.target.value)}
+                  placeholder="Ex.: instalação, manutenção, Wi-Fi" className={input} />
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <p role="status">{visibleServices.length} de {availableServiceCount} serviço(s) exibido(s) · {form.service_slugs.length} selecionado(s)</p>
+                  {serviceQuery.trim() && <button type="button" onClick={() => setServiceQuery("")}
+                    className="min-h-10 rounded-lg border border-input px-3 font-semibold text-primary">Limpar busca</button>}
+                </div>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {services.filter((service) => form.specialties.includes(service.category_slug)).map((service) => (
+                  {visibleServices.map((service) => (
                     <label key={service.slug} className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
                       <input type="checkbox" className="h-4 w-4" checked={form.service_slugs.includes(service.slug)}
                         onChange={(e) => updateRegistration({ ...form, service_slugs: e.target.checked ? [...form.service_slugs, service.slug] : form.service_slugs.filter((slug) => slug !== service.slug) })} />
@@ -722,6 +734,8 @@ export function TechnicianAreaPage() {
                     </label>
                   ))}
                 </div>
+                {!servicesLoading && !servicesError && availableServiceCount === 0 && <p className="mt-2 text-sm text-muted-foreground">Selecione uma especialidade acima para ver os serviços disponíveis.</p>}
+                {!servicesLoading && !servicesError && availableServiceCount > 0 && visibleServices.length === 0 && <p className="mt-2 text-sm text-muted-foreground">Nenhum serviço corresponde à busca. Limpe o filtro para ver todas as opções.</p>}
               </fieldset>
                 </div>
               )}
