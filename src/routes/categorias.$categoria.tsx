@@ -1,6 +1,7 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { PageShell } from "@/components/page-placeholder";
 import { PublicSeoDirectory } from "@/components/public-seo-discovery";
+import { PublicServiceLogistics } from "@/components/public-service-logistics";
 import { getSeoCategory } from "@/lib/public-seo-graph.functions";
 import { SITE } from "@/lib/public-sitemap";
 
@@ -43,5 +44,8 @@ function CategorySeoPage() {
       context={{ kind: "category", label: category.label }}
       profiles={profiles} cities={cities}
     />
+    <div className="mx-auto max-w-6xl px-4 pb-12 sm:px-6">
+      <PublicServiceLogistics categorySlug={category.slug} categoryName={category.label} />
+    </div>
   </PageShell>;
 }
