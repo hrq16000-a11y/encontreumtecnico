@@ -46,11 +46,30 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
   const operations = t.operations && hasDeclaredTechnicianOperations(t.operations) ? t.operations : null;
   const cityLabel = (id: number) => (t.coverage_cities ?? []).find(city => city.id === id);
   const professionalBio = parseProfessionalBio(t.bio);
-  const serviceOptions = t.service_slugs.map(slug => ({ slug, label: serviceLabel(slug, services) }));
+  const serviceOptions = t.service_slugs.map(slug => {
+    const service = services.find(item => item.slug === slug);
+    const category = service && categories.find(item => item.slug === service.category_slug);
+    return { slug, label: serviceLabel(slug, services), categorySlug: category?.slug ?? null };
+  });
   const activeServiceFilter = serviceOptions.length >= 6 ? serviceFilter.trim() : "";
   const filteredServices = activeServiceFilter
     ? serviceOptions.filter(item => searchableService(item.label).includes(searchableService(activeServiceFilter)))
     : serviceOptions;
+  // Only trust active catalog relationships; keep unrecognized legacy slugs visible.
+  const serviceGroups: { key: string; label: string; items: typeof serviceOptions }[] = [];
+  for (const item of filteredServices) {
+    const key = item.categorySlug ?? "__sem_categoria__";
+    const group = serviceGroups.find(existing => existing.key === key);
+    if (group) group.items.push(item);
+    else serviceGroups.push({
+      key,
+      label: item.categorySlug
+        ? categories.find(category => category.slug === item.categorySlug)?.label ?? item.categorySlug
+        : "Outros serviços declarados",
+      items: [item],
+    });
+  }
+  const showGroupHeadings = new Set(serviceOptions.map(item => item.categorySlug ?? "__sem_categoria__")).size > 1;
 
   return (
     <div className="relative min-h-screen overflow-clip bg-gradient-to-b from-accent/60 via-background to-background pb-28 lg:pb-10">
@@ -192,8 +211,13 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
                   {activeServiceFilter && <p role="status" className="mt-3 text-xs text-muted-foreground">
                     {filteredServices.length} de {serviceOptions.length} serviços correspondem à busca.
                   </p>}
-                  {filteredServices.length ? <ul className="mt-5 grid gap-3 sm:grid-cols-2">
-                    {filteredServices.map(({ slug, label }) => <li key={slug}>
+                  {filteredServices.length ? <div className="mt-5 space-y-5">
+                    {serviceGroups.map(group => <div key={group.key}
+                      role={showGroupHeadings ? "group" : undefined}
+                      aria-label={showGroupHeadings ? `Serviços de ${group.label}` : undefined}>
+                      {showGroupHeadings && <h3 className="mb-3 text-sm font-bold text-foreground">{group.label}</h3>}
+                      <ul className="grid gap-3 sm:grid-cols-2">
+                        {group.items.map(({ slug, label }) => <li key={slug}>
                       <button type="button"
                         onClick={() => openFreeHelp({ mode: "direct", technicianId: t.id, technicianName: t.display_name, service: label })}
                         aria-label={`Solicitar atendimento para ${label}`}
@@ -202,8 +226,10 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
                         <span className="min-w-0 flex-1 break-words">{label}</span>
                         <span className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-primary">Pedir <ArrowUpRight aria-hidden="true" className="h-4 w-4" /></span>
                       </button>
-                    </li>)}
-                  </ul> : <div className="mt-4 rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+                        </li>)}
+                      </ul>
+                    </div>)}
+                  </div> : <div className="mt-4 rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
                     Nenhum serviço deste perfil corresponde ao termo.
                     <button type="button" onClick={() => setServiceFilter("")}
                       className="mt-2 block min-h-11 rounded-lg px-3 font-semibold text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
