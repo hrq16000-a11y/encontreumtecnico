@@ -47,16 +47,38 @@ AS $$
 DECLARE
   v_used integer;
   v_rows integer;
+  v_state text;
+  v_expires_at timestamptz;
 BEGIN
   IF _at IS NULL OR _tab_hash !~ '^[0-9a-f]{64}$'
     OR _op NOT IN ('start','beat','leave') THEN
     RAISE EXCEPTION 'invalid synthetic lease transition' USING ERRCODE = '22023';
   END IF;
 
+  -- Serialize every operation for one tab across independent HTTP instances.
+  -- The network-budget lock below is acquired only for a genuinely new tab.
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('pr344-tab:' || _tab_hash, 0)
+  );
+
   IF _op = 'start' THEN
     IF _bucket_hash IS NULL OR _bucket_hash !~ '^[0-9a-f]{64}$' THEN
       RAISE EXCEPTION 'invalid synthetic budget' USING ERRCODE = '22023';
     END IF;
+
+    SELECT l.state, l.expires_at INTO v_state, v_expires_at
+      FROM public.pr344_http_synthetic_leases AS l
+     WHERE l.tab_hash = _tab_hash FOR UPDATE;
+    IF FOUND THEN
+      -- An active retry is a no-op and does not consume an abuse quota slot.
+      -- Expired/revoked keys never regain presence by replaying start.
+      IF v_state = 'active' AND v_expires_at > _at THEN RETURN 'ok'; END IF;
+      RETURN 'gone';
+    END IF;
+
+    PERFORM pg_catalog.pg_advisory_xact_lock(
+      pg_catalog.hashtextextended('pr344-bucket:' || _bucket_hash, 0)
+    );
     INSERT INTO public.pr344_http_synthetic_budgets AS b (bucket_hash, used, purge_after)
     VALUES (_bucket_hash, 1, _at + interval '2 minutes')
     ON CONFLICT (bucket_hash) DO UPDATE
@@ -65,16 +87,10 @@ BEGIN
     RETURNING used INTO v_used;
     IF v_used IS NULL THEN RETURN 'rate'; END IF;
 
-    INSERT INTO public.pr344_http_synthetic_leases AS l
+    INSERT INTO public.pr344_http_synthetic_leases
       (tab_hash, state, expires_at, purge_after, last_beat_at)
     VALUES (_tab_hash, 'active', _at + interval '75 seconds',
-            _at + interval '75 seconds', _at)
-    ON CONFLICT (tab_hash) DO UPDATE
-      SET expires_at = greatest(l.expires_at, excluded.expires_at),
-          purge_after = greatest(l.purge_after, excluded.purge_after)
-      WHERE l.state = 'active' AND l.expires_at > _at;
-    GET DIAGNOSTICS v_rows = ROW_COUNT;
-    IF v_rows = 0 THEN RETURN 'gone'; END IF;
+            _at + interval '75 seconds', _at);
     RETURN 'ok';
   END IF;
 

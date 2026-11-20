@@ -6,6 +6,14 @@ on:
       - '.github/workflows/eut-pr344-http-leases-isolated.yml'
       - 'qa/pr344-http-leases-local.sql'
       - 'qa/pr344-http-leases-isolated.test.mjs'
+      - 'src/components/consented-visitor-presence.tsx'
+      - 'src/components/consented-visitor-presence.test.tsx'
+      - 'src/components/admin-live-presence.tsx'
+      - 'src/components/admin-live-presence.test.tsx'
+      - 'src/lib/visitor-http-presence.ts'
+      - 'src/lib/visitor-http-presence.test.ts'
+      - 'src/lib/visitor-realtime-private-contract.test.ts'
+      - 'src/routes/__root.tsx'
 
 permissions:
   contents: read
@@ -54,6 +62,9 @@ jobs:
       - name: Install pinned JavaScript dependencies
         run: bun install --frozen-lockfile
 
+      - name: Only affected HTTP consumer and disabled-by-default contract tests
+        run: bunx vitest run src/components/consented-visitor-presence.test.tsx src/components/admin-live-presence.test.tsx src/lib/visitor-http-presence.test.ts src/lib/visitor-realtime-private-contract.test.ts
+
       - name: Start new disposable Supabase localhost
         shell: bash
         run: |
@@ -98,8 +109,8 @@ jobs:
           echo "PR344_TEST_PEPPER=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
           echo "LOCAL-ONLY: keys obtained from the disposable stack"
 
-      - name: Actual HTTP + Postgres leases — eight independent synthetic gates
-        run: timeout --signal=TERM --kill-after=5s 180s node --test qa/pr344-http-leases-isolated.test.mjs
+      - name: HTTP lease regression — only affected concurrency and new idempotency gates
+        run: timeout --signal=TERM --kill-after=5s 180s node --test --test-name-pattern='^L(4|5|6|9|10):' qa/pr344-http-leases-isolated.test.mjs
 
       - name: Destroy isolated stack even when a gate fails
         if: always()

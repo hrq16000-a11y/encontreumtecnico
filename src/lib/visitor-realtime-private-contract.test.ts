@@ -17,11 +17,15 @@ describe("presença privada preparada, sem alterar políticas existentes", () =>
     expect(sql.match(/eut-consented-visitor-tabs-v2-private/g)?.length).toBe(2);
   });
 
-  it("usa somente canal privado e exige ativação explícita após a política", () => {
-    expect(publisher).toContain("config: { private: true }");
-    expect(observer).toContain("config: { private: true }");
-    expect(root).toContain("PRIVATE_VISITOR_PRESENCE_ENABLED && !hasRouteError");
-    expect(readFileSync("src/lib/visitor-realtime-presence.ts", "utf8"))
-      .toContain('env["VITE_EUT_PRIVATE_REALTIME_PRESENCE"] === "enabled"');
+  it("prepara somente HTTP e requer duas flags desligadas por padrão", () => {
+    const adapter = readFileSync("src/lib/visitor-http-presence.ts", "utf8");
+    expect(publisher).not.toContain("supabase.channel(");
+    expect(observer).not.toContain("supabase.channel(");
+    expect(publisher).toContain('sendPresenceLease("leave", previous, true)');
+    expect(observer).toContain("readAdminPresenceCount(data.session.access_token)");
+    expect(root).toContain("HTTP_PRESENCE_READY && !hasRouteError");
+    expect(adapter).toContain('env["VITE_EUT_HTTP_PRESENCE_INGEST"] === "enabled"');
+    expect(adapter).toContain('env["VITE_EUT_HTTP_PRESENCE_ADMIN_READ"] === "enabled"');
+    expect(adapter).toContain("HTTP_PRESENCE_INGEST_ENABLED && HTTP_PRESENCE_ADMIN_READ_ENABLED");
   });
 });

@@ -299,3 +299,52 @@ test('L8: physical purge and fail-closed storage outage', async () => {
   } finally { storageUnavailable = false; }
   console.log('PASS L8: explicit cleanup removes expired rows; unavailable never returns false zero');
 });
+
+test('L9: repeated start remains idempotent and spends only one quota slot', async () => {
+  at(2100);
+  const sameTab = tab();
+  assert.equal((await call(rootA, { op: 'start', tabToken: sameTab, consent: true })).status, 204);
+  for (let attempt = 0; attempt < 9; attempt++) {
+    assert.equal((await call(attempt % 2 ? rootA : rootB, {
+      op: 'start', tabToken: sameTab, consent: true,
+    })).status, 204);
+  }
+  for (let fresh = 0; fresh < 4; fresh++) {
+    assert.equal((await call(fresh % 2 ? rootB : rootA, {
+      op: 'start', tabToken: tab(), consent: true,
+    })).status, 204);
+  }
+  assert.equal((await call(rootB, { op: 'start', tabToken: tab(), consent: true })).status, 429);
+  assert.equal(await count(rootA), 5);
+  assert.equal(await count(rootB), 5);
+  const bucketHash = digest(`bucket:127.0.0.1:${Math.floor(now.getTime() / 60000)}`);
+  const budget = await service.from('pr344_http_synthetic_budgets')
+    .select('used').eq('bucket_hash', bucketHash).single();
+  assert.ifError(budget.error);
+  assert.equal(budget.data.used, 5);
+  at(2200);
+  assert.equal((await call(rootA, { op: 'start', tabToken: sameTab, consent: true })).status, 410);
+  console.log('PASS L9: nine retries did not spend quota; expired start cannot revive a lease');
+});
+
+test('L10: concurrent first starts from independent instances reserve only one slot', async () => {
+  at(2400);
+  const sharedTab = tab();
+  const started = await Promise.all(Array.from({ length: 12 }, (_, i) =>
+    call(i % 2 ? rootA : rootB, { op: 'start', tabToken: sharedTab, consent: true })));
+  assert.ok(started.every((res) => res.status === 204));
+  assert.equal(await count(rootA), 1);
+  for (let fresh = 0; fresh < 4; fresh++) {
+    assert.equal((await call(fresh % 2 ? rootB : rootA, {
+      op: 'start', tabToken: tab(), consent: true,
+    })).status, 204);
+  }
+  assert.equal((await call(rootB, { op: 'start', tabToken: tab(), consent: true })).status, 429);
+  assert.equal(await count(rootB), 5);
+  const bucketHash = digest(`bucket:127.0.0.1:${Math.floor(now.getTime() / 60000)}`);
+  const budget = await service.from('pr344_http_synthetic_budgets')
+    .select('used').eq('bucket_hash', bucketHash).single();
+  assert.ifError(budget.error);
+  assert.equal(budget.data.used, 5);
+  console.log('PASS L10: twelve concurrent attempts for one tab charged once across both hosts');
+});

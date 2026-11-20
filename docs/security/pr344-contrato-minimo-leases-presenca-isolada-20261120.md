@@ -69,4 +69,14 @@ Não armazenar email, telefone, Auth UUID, IP, user-agent, URL, cidade, localiza
 
 **NO-GO até todos os gates novos passarem e houver autorização explícita para qualquer schema/infraestrutura oficial.** Preservar os resultados do workflow 44679755391; nenhuma reexecução de WebSocket, SQL oficial, merge, deploy ou configuração global nesta rodada.
 
+## Adaptação HTTP preparada, ainda desligada
+
+- O contrato sintético passou nos oito gates HTTP do workflow [44691731708](https://github.com/hrq16000-a11y/encontreumtecnico/actions/runs/44691731708). Essa prova não é autorização de ativação.
+- O `start` sintético foi alterado para serializar operações pela chave de aba antes da verificação do lease; uma repetição ativa não consome quota de novas abas. Os cenários novos L9/L10, além dos afetados L4/L5/L6, exigem prova em runner descartável.
+- Os consumidores foram preparados para `/api/presence/leases` e `/api/admin/presence/count`, mas **os handlers e o armazenamento oficiais não foram criados**. A ausência de endpoint deve falhar fechado.
+- As duas flags de build `VITE_EUT_HTTP_PRESENCE_INGEST` e `VITE_EUT_HTTP_PRESENCE_ADMIN_READ` precisam valer `enabled` simultaneamente; ambas ficam desabilitadas quando ausentes. A flag Realtime legada não habilita mais os consumidores da PR.
+- Nenhum consumidor anônimo usa WebSocket no adaptador HTTP. A leitura do painel continua dependendo de autenticação/papel comprovados pelo **servidor**, e não da UI.
+
+**NO-GO mantido:** falta integração e homologação do servidor real, limpeza física periódica e autorização explícita antes de qualquer SQL, merge, deploy ou configuração global oficial.
+
 Referências: [Supabase — segurança do Data API](https://supabase.com/docs/guides/api/securing-your-api), [Supabase — RLS](https://supabase.com/docs/guides/database/postgres/row-level-security), [revisão de viabilidade PR #344](./pr344-presenca-consentida-ingestao-servidor-20261120.md).
