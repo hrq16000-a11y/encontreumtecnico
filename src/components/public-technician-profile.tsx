@@ -173,10 +173,22 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
               </div>
               {t.service_slugs.length ? (
                 <ul className="mt-5 grid gap-3 sm:grid-cols-2">
-                  {t.service_slugs.map(slug => <li key={slug} className="flex min-h-14 items-start gap-3 rounded-xl border border-border bg-accent/40 p-3.5 text-sm font-medium leading-5 text-foreground transition-[border-color,background-color,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:bg-accent motion-reduce:transform-none motion-reduce:transition-none"><span aria-hidden="true" className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"><Check className="h-4 w-4" /></span><span>{serviceLabel(slug, services)}</span></li>)}
+                  {t.service_slugs.map(slug => {
+                    const label = serviceLabel(slug, services);
+                    return <li key={slug}>
+                      <button type="button"
+                        onClick={() => openFreeHelp({ mode: "direct", technicianId: t.id, technicianName: t.display_name, service: label })}
+                        aria-label={`Solicitar atendimento para ${label}`}
+                        className="group flex min-h-16 w-full items-center gap-3 rounded-xl border border-border bg-accent/40 p-3.5 text-left text-sm font-medium leading-5 text-foreground transition-[border-color,background-color,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transform-none motion-reduce:transition-none">
+                        <span aria-hidden="true" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"><Check className="h-4 w-4" /></span>
+                        <span className="min-w-0 flex-1 break-words">{label}</span>
+                        <span className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-primary">Pedir <ArrowUpRight aria-hidden="true" className="h-4 w-4" /></span>
+                      </button>
+                    </li>;
+                  })}
                 </ul>
               ) : <p className="mt-4 text-sm text-muted-foreground">Os serviços específicos ainda não foram detalhados.</p>}
-              <p className="mt-5 border-t border-border pt-4 text-xs leading-5 text-muted-foreground">A descrição dos serviços é responsabilidade do profissional. Confirme os detalhes diretamente antes de contratar.</p>
+              <p className="mt-5 border-t border-border pt-4 text-xs leading-5 text-muted-foreground">Selecione um serviço para descrevê-lo no atendimento seguro, sem liberar telefone. Os serviços são declarados pelo profissional; confirme os detalhes antes de contratar.</p>
             </section>
             <section id="atendimento" aria-labelledby="titulo-atendimento"
               className="eut-card-lift scroll-mt-24 rounded-[24px] border border-border bg-card p-6 shadow-sm sm:p-8">

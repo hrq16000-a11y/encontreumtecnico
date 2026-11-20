@@ -165,9 +165,10 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
           <h3 className="text-xl font-extrabold text-foreground">O que você precisa?</h3>
           {context.technicianName && <p className="rounded-xl bg-primary/10 p-3 text-sm font-semibold text-primary">Profissional selecionado: {context.technicianName}. A equipe receberá sua preferência, sem compartilhar telefones privados.</p>}
           <label className="block text-sm font-semibold text-foreground">Tipo de serviço
-            <select className={input} value={services.includes(service) ? service : (service ? "Outro serviço" : "")}
+            <select className={input} value={service}
               onChange={e => {preserve({service:e.target.value});setService(e.target.value)}}>
               <option value="">Escolha a categoria</option>
+              {service && !services.includes(service) && <option value={service}>Serviço selecionado: {service}</option>}
               {services.map(value => <option key={value} value={value}>{value}</option>)}
             </select>
           </label>

@@ -23,6 +23,14 @@ vi.mock("@/lib/assistance-draft", () => ({
 afterEach(cleanup);
 
 describe("Localidade do atendimento guiado", () => {
+  it("mantém o serviço específico vindo do perfil selecionado, sem trocá-lo por Outro serviço", () => {
+    render(<AssistanceFunnel context={{ mode: "direct", technicianId: "00000000-0000-4000-8000-000000000001", technicianName: "Profissional de teste", service: "Formatação de notebooks" }} onClose={vi.fn()} />);
+    const select = screen.getByRole("combobox", { name: "Tipo de serviço" }) as HTMLSelectElement;
+    expect(select.value).toBe("Formatação de notebooks");
+    expect(screen.getByRole("option", { name: "Serviço selecionado: Formatação de notebooks" })).toBeTruthy();
+    fireEvent.change(select, { target: { value: "Computadores e notebooks" } });
+    expect(select.value).toBe("Computadores e notebooks");
+  });
   it("pré-seleciona município IBGE e permite corrigir UF e cidade sem texto livre", async () => {
     render(<AssistanceFunnel context={{ mode: "managed", city: "Curitiba", uf: "PR" }} onClose={vi.fn()} />);
     fireEvent.change(screen.getByRole("combobox", { name: "Tipo de serviço" }), {
