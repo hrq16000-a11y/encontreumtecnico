@@ -92,7 +92,8 @@ BEGIN
  v_owner := v_technician.user_id=v_uid AND public.has_role(v_uid,'tecnico'::public.app_role);
  v_admin_edit := v_admin AND (NOT v_owner OR v_reason <> '');
  IF NOT v_admin AND NOT v_owner THEN RAISE EXCEPTION 'Sem permissão' USING ERRCODE='42501'; END IF;
- IF v_owner AND NOT v_admin_edit AND (v_technician.status='suspenso'::public.approval_status
+ IF v_owner AND NOT v_admin_edit AND (v_technician.status IN
+   ('suspenso'::public.approval_status, 'rejeitado'::public.approval_status)
    OR NOT public.eut_account_operational()) THEN
    RAISE EXCEPTION 'Conta sem permissão operacional' USING ERRCODE='42501'; END IF;
  IF v_admin_edit AND pg_catalog.char_length(v_reason) NOT BETWEEN 8 AND 400 THEN
