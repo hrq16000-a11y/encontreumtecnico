@@ -4,6 +4,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
 import { rankTechniciansByDeclaredArea } from "@/lib/technician-local-ranking";
+import { collectPublicDirectoryPages, publicDirectoryPage } from "@/lib/public-directory-pagination";
 import { automaticRegionalRankingArea, parseVercelRegion } from "@/lib/regional-suggestion";
 import { isValidTechnicianId, isValidTechnicianSlug } from "@/lib/technician-id";
 import { sanitizePublicTechnician } from "@/lib/public-profile-text";
@@ -31,6 +32,27 @@ export type PublicTechnician = {
 };
 
 const COLUMNS = "id, public_slug, display_name, specialties, service_slugs, city, state_uf, neighborhood, region, bio, avatar_path, service_radius_km, coverage_city_ids";
+const PUBLIC_BATCH = 500;
+const ADMIN_BATCH = 200; // The existing public admin RPC caps _limit at 200.
+const DIRECTORY_CEILING = 50_000;
+const ENRICHMENT_BATCH = 250;
+
+function batches<T>(items: readonly T[], size = ENRICHMENT_BATCH): T[][] {
+  const output: T[][] = [];
+  for (let i = 0; i < items.length; i += size) output.push(items.slice(i, i + size));
+  return output;
+}
+
+async function mapBatches<T, U>(items: readonly T[], read: (part: T[]) => Promise<U>): Promise<U[]> {
+  const groups = batches(items);
+  const results: U[] = [];
+  // Modest concurrency keeps nationwide directories from making thousands of
+  // sequential calls, without flooding the shared public Supabase project.
+  for (let index = 0; index < groups.length; index += 4) {
+    results.push(...await Promise.all(groups.slice(index, index + 4).map(read)));
+  }
+  return results;
+}
 
 // Owner-authorized technicians can be listed without creating fake Auth accounts.
 // The database RPC exposes public fields only and checks private moderation state.
@@ -55,6 +77,7 @@ async function listAdminPublished(filters: {
   slug?: string | undefined; category?: string | undefined; service?: string | undefined;
   uf?: string | undefined; city?: string | undefined; region?: string | undefined;
   neighborhood?: string | undefined; offset?: number; limit?: number;
+  hydrateCoverage?: boolean;
 }): Promise<PublicTechnician[]> {
   // No neighborhood was supplied for these imports; never invent a match.
   if (filters.neighborhood) return [];
@@ -72,12 +95,13 @@ async function listAdminPublished(filters: {
   );
   if (error) throw new Error("Não foi possível consultar o catálogo de técnicos.");
   const rows = z.array(adminPublicRow).parse(data);
-  return withCoverageCities(rows.map((r) => ({
+  const sanitized = rows.map((r) => ({
     ...sanitizePublicTechnician(r),
     online_now: false,
     pioneer_bronze: false,
     referral_highlight: false,
-  })));
+  }));
+  return filters.hydrateCoverage === false ? sanitized : withCoverageCities(sanitized);
 }
 
 // Links e classificação por IA anteriores usavam rótulos, não identificadores.
@@ -113,12 +137,13 @@ async function withOnlineStatus(
   if (!rows.length) return [];
   try {
     // Anonymous access is limited to online signals for these already-public IDs.
-    const { data, error } = await (publicClient() as unknown as SupabaseClient)
-      .rpc("eut_online_published_ids", { _technician_ids: rows.map((row) => row.id) });
-    if (error) throw error;
-    const onlineIds = new Set(
-      (Array.isArray(data) ? data : []).map((row: { technician_id: string }) => row.technician_id),
-    );
+    const dataSets = await mapBatches(rows.map(row => row.id), async (ids) => {
+      const { data, error } = await (publicClient() as unknown as SupabaseClient)
+        .rpc("eut_online_published_ids", { _technician_ids: ids });
+      if (error) throw error;
+      return Array.isArray(data) ? data as Array<{ technician_id: string }> : [];
+    });
+    const onlineIds = new Set(dataSets.flat().map(item => item.technician_id));
     return rows.map((row) => ({
       ...row,
       online_now: onlineIds.has(row.id),
@@ -133,12 +158,13 @@ async function withOnlineStatus(
 async function withPioneerBadges(rows: PublicTechnician[]): Promise<PublicTechnician[]> {
   if (!rows.length) return [];
   try {
-    const { data, error } = await (publicClient() as unknown as SupabaseClient)
-      .from("eut_pioneer_badges").select("technician_id")
-      .in("technician_id", rows.map((row) => row.id));
-    if (error) throw error;
-    const ids = new Set((Array.isArray(data) ? data : [])
-      .map((badge: { technician_id: string }) => badge.technician_id));
+    const dataSets = await mapBatches(rows.map(row => row.id), async (group) => {
+      const { data, error } = await (publicClient() as unknown as SupabaseClient)
+        .from("eut_pioneer_badges").select("technician_id").in("technician_id", group);
+      if (error) throw error;
+      return Array.isArray(data) ? data as Array<{ technician_id: string }> : [];
+    });
+    const ids = new Set(dataSets.flat().map(badge => badge.technician_id));
     return rows.map((row) => ({ ...row, pioneer_bronze: ids.has(row.id) }));
   } catch {
     return rows.map((row) => ({ ...row, pioneer_bronze: false }));
@@ -149,13 +175,13 @@ async function withPioneerBadges(rows: PublicTechnician[]): Promise<PublicTechni
 async function withReferralHighlights(rows: PublicTechnician[]): Promise<PublicTechnician[]> {
   if (!rows.length) return [];
   try {
-    const { data, error } = await (publicClient() as unknown as SupabaseClient)
-      .rpc("eut_public_referral_highlights", {
-        _technician_ids: rows.map((row) => row.id),
-      });
-    if (error) throw error;
-    const highlighted = new Set((Array.isArray(data) ? data : [])
-      .map((record: { technician_id: string }) => record.technician_id));
+    const dataSets = await mapBatches(rows.map(row => row.id), async (ids) => {
+      const { data, error } = await (publicClient() as unknown as SupabaseClient)
+        .rpc("eut_public_referral_highlights", { _technician_ids: ids });
+      if (error) throw error;
+      return Array.isArray(data) ? data as Array<{ technician_id: string }> : [];
+    });
+    const highlighted = new Set(dataSets.flat().map(record => record.technician_id));
     return rows.map((row) => ({ ...row, referral_highlight: highlighted.has(row.id) }));
   } catch {
     // A backend outage never grants an unverified spotlight.
@@ -168,12 +194,13 @@ async function withCoverageCities(rows: PublicTechnician[]): Promise<PublicTechn
   const codes = [...new Set(rows.flatMap((t) => t.coverage_city_ids ?? []))];
   if (!codes.length) return rows.map((row) => ({ ...row, coverage_cities: [] }));
   try {
-    const { data, error } = await (publicClient() as unknown as SupabaseClient)
-      .from("eut_ibge_municipalities").select("id,name,uf").in("id", codes.slice(0, 1000));
-    if (error) throw error;
-    const byCode = new Map((Array.isArray(data) ? data : []).map(
-      (city: { id: number; name: string; uf: string }) => [city.id, city],
-    ));
+    const dataSets = await mapBatches(codes, async (ids) => {
+      const { data, error } = await (publicClient() as unknown as SupabaseClient)
+        .from("eut_ibge_municipalities").select("id,name,uf").in("id", ids);
+      if (error) throw error;
+      return Array.isArray(data) ? data as Array<{ id: number; name: string; uf: string }> : [];
+    });
+    const byCode = new Map(dataSets.flat().map(city => [city.id, city] as const));
     return rows.map((row) => ({
       ...row,
       coverage_cities: (row.coverage_city_ids ?? []).flatMap((id) => {
@@ -202,19 +229,12 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
     const offset = (data.pagina - 1) * 100;
     const category = data.especialidade && data.especialidade !== "Todas"
       ? (LEGACY_CATEGORY_ALIASES[data.especialidade] ?? data.especialidade) : undefined;
-    let q = publicClient()
-      .from("technicians")
-      .select(COLUMNS)
-      .eq("status", "aprovado")
-      .order("created_at", { ascending: false })
-      .range(offset, offset + 99);
     if (data.especialidade && data.especialidade !== "Todas") {
       const slug = category!;
       const { data: active, error: catalogError } = await (publicClient() as unknown as SupabaseClient)
         .from("eut_service_categories").select("slug").eq("slug", slug).eq("active", true).maybeSingle();
       if (catalogError) throw new Error("Não foi possível validar a categoria selecionada.");
       if (!active) return [];
-      q = q.contains("specialties", [slug]);
     }
     if (data.servico) {
       const { data: offered, error: serviceError } = await (publicClient() as unknown as SupabaseClient)
@@ -222,36 +242,16 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
       if (serviceError) throw new Error("Não foi possível validar o serviço escolhido.");
       if (!offered) return [];
       if (data.especialidade && data.especialidade !== "Todas" && (LEGACY_CATEGORY_ALIASES[data.especialidade] ?? data.especialidade) !== offered.category_slug) return [];
-      q = q.contains("service_slugs", [data.servico]);
     }
     const uf = data.uf.toUpperCase();
     if (uf) {
       if (!/^(AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)$/.test(uf)) return [];
-      if (!regionalPriority) q = q.eq("state_uf", uf);
     }
     const bairro = clean(data.bairro);
-    if (bairro && !regionalPriority) q = q.ilike("neighborhood", `%${bairro}%`);
     const city = clean(data.cidade);
-    if (city && !regionalPriority) q = q.ilike("city", `%${city}%`);
     const region = clean(data.regiao);
-    if (region && !regionalPriority) q = q.ilike("region", `%${region}%`);
-    const { data: rows, error } = await q;
-    if (error) {
-      console.error("listApprovedTechnicians", error);
-      throw new Error("Não foi possível carregar os técnicos.");
-    }
-    const eligible = await readPublicEligibleRows(publicClient() as unknown as PublicEligibilityRpc, rows ?? []);
-    const published = await withCoverageCities(await withReferralHighlights(await withPioneerBadges(await withOnlineStatus(eligible.map(sanitizePublicTechnician)))));
-    const adminPublished = await listAdminPublished({
-      offset, limit: 100,
-      ...(category ? { category } : {}),
-      ...(data.servico ? { service: data.servico } : {}),
-      ...(!regionalPriority && uf ? { uf } : {}),
-      ...(!regionalPriority && city ? { city } : {}),
-      ...(!regionalPriority && region ? { region } : {}),
-      ...(!regionalPriority && bairro ? { neighborhood: bairro } : {}),
-    });
-    const unified = [...published, ...adminPublished];
+    let rankingArea: { uf: string; cidade: string; bairro: string } | null = regionalPriority
+      ? { uf, cidade: data.cidade, bairro: data.bairro } : null;
     if (!regionalPriority) {
       const approximateArea = automaticRegionalRankingArea(data, parseVercelRegion({
         country: getRequestHeader("x-vercel-ip-country") ?? null,
@@ -260,19 +260,59 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
       }));
       if (approximateArea) {
         try {
-          // Match the official municipality catalog before trusting an IP city name.
-          // This changes only result ordering, never filters, GPS, or public fields.
+          // Trust the coarse IP city only when it exists in the IBGE catalog.
           const { data: municipality, error: catalogError } = await (publicClient() as unknown as SupabaseClient)
             .from("eut_ibge_municipalities").select("id")
             .eq("uf", approximateArea.uf).ilike("name", approximateArea.cidade).limit(1);
-          if (!catalogError && municipality?.length) return rankTechniciansByDeclaredArea(unified, approximateArea);
-        } catch { /* No regional guess when the catalog is unavailable. */ }
+          if (!catalogError && municipality?.length) rankingArea = approximateArea;
+        } catch { /* The absence of an official match must not create a location. */ }
       }
-      return unified.sort((a,b) => Number(b.online_now)-Number(a.online_now) || Number(Boolean(b.referral_highlight))-Number(Boolean(a.referral_highlight)) || Number(Boolean(b.pioneer_bronze))-Number(Boolean(a.pioneer_bronze)));
     }
-    return rankTechniciansByDeclaredArea(unified, {
-      uf, cidade: data.cidade, bairro: data.bairro,
-    });
+    const globalRanking = rankingArea !== null;
+    const loadApprovedPage = async (pageOffset: number, limit: number) => {
+      let q = publicClient().from("technicians").select(COLUMNS)
+        .eq("status", "aprovado")
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: true });
+      if (category) q = q.contains("specialties", [category]);
+      if (data.servico) q = q.contains("service_slugs", [data.servico]);
+      if (!regionalPriority && uf) q = q.eq("state_uf", uf);
+      if (!regionalPriority && bairro) q = q.ilike("neighborhood", `%${bairro}%`);
+      if (!regionalPriority && city) q = q.ilike("city", `%${city}%`);
+      if (!regionalPriority && region) q = q.ilike("region", `%${region}%`);
+      const { data: rows, error } = await q.range(pageOffset, pageOffset + limit - 1);
+      if (error) {
+        console.error("listApprovedTechnicians", error);
+        throw new Error("Não foi possível carregar os técnicos.");
+      }
+      return rows ?? [];
+    };
+    // With a regional hint, ranking a single pre-paginated slice can exclude
+    // the closest technician entirely. Collect BOTH public sources first.
+    const adminFilters = {
+      ...(category ? { category } : {}),
+      ...(data.servico ? { service: data.servico } : {}),
+      ...(!regionalPriority && uf ? { uf } : {}),
+      ...(!regionalPriority && city ? { city } : {}),
+      ...(!regionalPriority && region ? { region } : {}),
+      ...(!regionalPriority && bairro ? { neighborhood: bairro } : {}),
+    };
+    const [rows, adminPublished] = await Promise.all([
+      globalRanking
+        ? collectPublicDirectoryPages(loadApprovedPage, PUBLIC_BATCH, DIRECTORY_CEILING)
+        : loadApprovedPage(offset, 100),
+      globalRanking
+        ? collectPublicDirectoryPages(
+          (pageOffset, limit) => listAdminPublished({ ...adminFilters, offset: pageOffset, limit, hydrateCoverage: false }),
+          ADMIN_BATCH, DIRECTORY_CEILING,
+        )
+        : listAdminPublished({ ...adminFilters, offset, limit: 100, hydrateCoverage: false }),
+    ]);
+    const eligible = await readPublicEligibleRows(publicClient() as unknown as PublicEligibilityRpc, rows);
+    const published = await withReferralHighlights(await withPioneerBadges(await withOnlineStatus(eligible.map(sanitizePublicTechnician))));
+    const unified = await withCoverageCities([...published, ...adminPublished]);
+    if (rankingArea) return publicDirectoryPage(rankTechniciansByDeclaredArea(unified, rankingArea), data.pagina);
+    return unified.sort((a,b) => Number(b.online_now)-Number(a.online_now) || Number(Boolean(b.referral_highlight))-Number(Boolean(a.referral_highlight)) || Number(Boolean(b.pioneer_bronze))-Number(Boolean(a.pioneer_bronze)));
   });
 
 export const getApprovedTechnician = createServerFn({ method: "GET" })

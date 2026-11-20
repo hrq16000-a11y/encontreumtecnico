@@ -50,8 +50,10 @@ jobs:
             '.eq("status", "aprovado")',
             '.contains("service_slugs"',
             'eut_online_published_ids',
-            'if (city && !regionalPriority)',
-            'if (bairro && !regionalPriority)'
+            'if (!regionalPriority && city)',
+            'if (!regionalPriority && bairro)',
+            'collectPublicDirectoryPages',
+            'publicDirectoryPage(rankTechniciansByDeclaredArea(unified, rankingArea), data.pagina)'
           ]) {
             if (!search.includes(term)) throw Error('Regional search contract missing: '+term);
           }
