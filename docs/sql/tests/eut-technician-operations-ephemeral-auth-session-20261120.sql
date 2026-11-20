@@ -115,8 +115,8 @@ BEGIN
  EXCEPTION WHEN insufficient_privilege THEN denied:=true;
  END;
  IF NOT denied THEN RAISE EXCEPTION 'titular rejeitado editou via SECURITY DEFINER'; END IF;
- IF (SELECT count(*) FROM public.eut_admin_management_log)<>2 THEN
-   RAISE EXCEPTION 'tentativa rejeitada criou evento indevido'; END IF;
+ IF public.eut_technician_operations_get(t) IS DISTINCT FROM v THEN
+   RAISE EXCEPTION 'tentativa rejeitada alterou perfil ou versao'; END IF;
 END
 $rejected_owner$;
 SELECT set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000001',true);
@@ -125,6 +125,8 @@ DECLARE
  t uuid:='10000000-0000-4000-8000-000000000001';
  v jsonb; saved jsonb; denied boolean:=false;
 BEGIN
+ IF (SELECT count(*) FROM public.eut_admin_management_log)<>2 THEN
+   RAISE EXCEPTION 'tentativa rejeitada criou auditoria indevida'; END IF;
  v:=public.eut_technician_operations_get(t);
  BEGIN
    PERFORM public.eut_technician_operations_save(
