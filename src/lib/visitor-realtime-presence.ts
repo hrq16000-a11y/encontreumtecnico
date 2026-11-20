@@ -2,7 +2,7 @@
  * Only enable after the two realtime.messages policies are verified in a safe
  * environment and then explicitly approved for production. Disabled by default.
  */
-export const PRIVATE_VISITOR_PRESENCE_ENABLED = import.meta.env.VITE_EUT_PRIVATE_REALTIME_PRESENCE === "enabled";
+export const PRIVATE_VISITOR_PRESENCE_ENABLED = import.meta.env["VITE_EUT_PRIVATE_REALTIME_PRESENCE"] === "enabled";
 /** Private, ephemeral channel; never publish a user ID, IP, path or location. */
 export const CONSENTED_VISITOR_CHANNEL = "eut-consented-visitor-tabs-v2-private";
 export const CONSENTED_VISITOR_KIND = "consented-visitor-tab";

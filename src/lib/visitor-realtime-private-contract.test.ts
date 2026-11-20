@@ -22,6 +22,6 @@ describe("presença privada preparada, sem alterar políticas existentes", () =>
     expect(observer).toContain("config: { private: true }");
     expect(root).toContain("PRIVATE_VISITOR_PRESENCE_ENABLED && !hasRouteError");
     expect(readFileSync("src/lib/visitor-realtime-presence.ts", "utf8"))
-      .toContain('VITE_EUT_PRIVATE_REALTIME_PRESENCE === "enabled"');
+      .toContain('env["VITE_EUT_PRIVATE_REALTIME_PRESENCE"] === "enabled"');
   });
 });
