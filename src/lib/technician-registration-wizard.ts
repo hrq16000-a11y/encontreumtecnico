@@ -38,15 +38,27 @@ export function shouldSubmitTechnicianWizard(step: RegistrationStep, action: str
   return step === 3 && action === "publish";
 }
 
+function foldRegistrationSearch(value: string): string {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR");
+}
+
+/** Search the catalog without hiding already-selected categories or changing the draft. */
+export function matchingRegistrationCategories<T extends { slug: string; label: string }>(
+  categories: readonly T[], selectedSlugs: readonly string[], query: string,
+): T[] {
+  const term = foldRegistrationSearch(query.trim());
+  return categories.filter((category) => selectedSlugs.includes(category.slug)
+    || !term || foldRegistrationSearch(`${category.label} ${category.slug}`).includes(term));
+}
+
 /** Filter only the visible service choices; never mutate a saved selection. */
 export function matchingRegistrationServices<T extends { slug: string; label: string; category_slug: string }>(
   services: readonly T[], selectedCategories: readonly string[], query: string,
 ): T[] {
-  const fold = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .toLocaleLowerCase("pt-BR");
-  const term = fold(query.trim());
+  const term = foldRegistrationSearch(query.trim());
   return services.filter((service) => selectedCategories.includes(service.category_slug) &&
-    (!term || fold(`${service.label} ${service.slug}`).includes(term)));
+    (!term || foldRegistrationSearch(`${service.label} ${service.slug}`).includes(term)));
 }
 
 /** Keep selected services visible, even while a search hides their checkboxes.

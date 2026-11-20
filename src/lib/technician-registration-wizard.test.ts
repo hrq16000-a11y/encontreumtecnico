@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { matchingRegistrationServices, selectedRegistrationServices, reconcileRegistrationSelections, registrationStepError, shouldSubmitTechnicianWizard, type TechnicianRegistrationForm } from "./technician-registration-wizard";
+import { matchingRegistrationCategories, matchingRegistrationServices, selectedRegistrationServices, reconcileRegistrationSelections, registrationStepError, shouldSubmitTechnicianWizard, type TechnicianRegistrationForm } from "./technician-registration-wizard";
 
 const catalog = {
   categories: [{ slug: "redes" }, { slug: "computadores" }],
@@ -12,6 +12,28 @@ const form: TechnicianRegistrationForm = {
   specialties: ["redes"], service_slugs: ["wifi"],
 };
 describe("Cadastro guiado mobile", () => {
+  it("busca especialidades sem acentos e mantém as já selecionadas acessíveis", () => {
+    const available = [
+      { slug: "informatica", label: "Informática" },
+      { slug: "eletrica", label: "Instalações elétricas" },
+      { slug: "celulares", label: "Conserto de celulares" },
+    ];
+    const selected = ["eletrica"];
+    expect(matchingRegistrationCategories(available, selected, "INFORMATICA").map((item) => item.slug))
+      .toEqual(["informatica", "eletrica"]);
+    expect(matchingRegistrationCategories(available, selected, "celular").map((item) => item.slug))
+      .toEqual(["eletrica", "celulares"]);
+    expect(matchingRegistrationCategories(available, [], "instalacoes").map((item) => item.slug))
+      .toEqual(["eletrica"]);
+    expect(matchingRegistrationCategories(available, [], "radio")).toEqual([]);
+    expect(matchingRegistrationCategories(available, selected, "")).toEqual(available);
+    expect(selected).toEqual(["eletrica"]);
+    const route = readFileSync("src/routes/area-tecnico.tsx", "utf8");
+    expect(route).toContain('id="eut-wizard-category-search"');
+    expect(route).toContain("visibleCategories.map((c)");
+    expect(route).toContain('onClick={() => setCategoryQuery("")}');
+    expect(route).toContain('onClick={() => toggleCategory(c.slug)}');
+  });
   it("mantém serviços selecionados visíveis e removíveis mesmo fora do filtro", () => {
     const available = [{ slug: "wifi", label: "Rede Wi-Fi" }, { slug: "cabos", label: "Cabeamento" }];
     const chosen = ["wifi", "cabos", "inativo", "wifi"];
