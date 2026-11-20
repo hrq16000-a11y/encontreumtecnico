@@ -127,7 +127,7 @@ describe("Perfil técnico premium sem prova social fabricada", () => {
       Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
       render(<PublicTechnicianProfile technician={profile} />);
       fireEvent.click(screen.getByRole("button", { name: "Copiar link do perfil" }));
-      await waitFor(() => expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/tecnico/jefferson-santana`));
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith("https://www.encontreumtecnico.com.br/tecnicos/jefferson-santana"));
       expect(screen.getByRole("status").textContent).toMatch(/Link público copiado/);
     } finally {
       window.history.replaceState(null, "", previousUrl);
@@ -135,6 +135,75 @@ describe("Perfil técnico premium sem prova social fabricada", () => {
       else Reflect.deleteProperty(navigator, "clipboard");
     }
   });
+  it("usa o compartilhamento nativo somente com a URL pública canônica", async () => {
+    const previousUrl = window.location.href;
+    const previousShare = Object.getOwnPropertyDescriptor(navigator, "share");
+    const previousClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    const share = vi.fn().mockResolvedValue(undefined);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    try {
+      window.history.replaceState(null, "", "/tecnicos/jefferson-santana?email=privado#sobre");
+      Object.defineProperty(navigator, "share", { configurable: true, value: share });
+      Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+      render(<PublicTechnicianProfile technician={profile} />);
+      fireEvent.click(screen.getByRole("button", { name: "Compartilhar perfil" }));
+      await waitFor(() => expect(share).toHaveBeenCalledWith({
+        title: "Perfil de Jefferson Santana — Encontre um Técnico",
+        url: "https://www.encontreumtecnico.com.br/tecnicos/jefferson-santana",
+      }));
+      expect(writeText).not.toHaveBeenCalled();
+    } finally {
+      window.history.replaceState(null, "", previousUrl);
+      if (previousShare) Object.defineProperty(navigator, "share", previousShare);
+      else Reflect.deleteProperty(navigator, "share");
+      if (previousClipboard) Object.defineProperty(navigator, "clipboard", previousClipboard);
+      else Reflect.deleteProperty(navigator, "clipboard");
+    }
+  });
+
+  it("permite compartilhar em navegadores sem API nativa pelo fallback de cópia", async () => {
+    const previousShare = Object.getOwnPropertyDescriptor(navigator, "share");
+    const previousClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    try {
+      Object.defineProperty(navigator, "share", { configurable: true, value: undefined });
+      Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+      render(<PublicTechnicianProfile technician={profile} />);
+      fireEvent.click(screen.getByRole("button", { name: "Compartilhar perfil" }));
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith(
+        "https://www.encontreumtecnico.com.br/tecnicos/jefferson-santana",
+      ));
+      expect(screen.getByRole("status").textContent).toContain("Link público copiado");
+    } finally {
+      if (previousShare) Object.defineProperty(navigator, "share", previousShare);
+      else Reflect.deleteProperty(navigator, "share");
+      if (previousClipboard) Object.defineProperty(navigator, "clipboard", previousClipboard);
+      else Reflect.deleteProperty(navigator, "clipboard");
+    }
+  });
+
+  it("não copia nada se o usuário cancelar a janela nativa de compartilhamento", async () => {
+    const previousShare = Object.getOwnPropertyDescriptor(navigator, "share");
+    const previousClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    const share = vi.fn().mockRejectedValue(Object.assign(new Error("cancelado"), { name: "AbortError" }));
+    const writeText = vi.fn();
+    try {
+      Object.defineProperty(navigator, "share", { configurable: true, value: share });
+      Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+      render(<PublicTechnicianProfile technician={profile} />);
+      fireEvent.click(screen.getByRole("button", { name: "Compartilhar perfil" }));
+      await waitFor(() => expect(share).toHaveBeenCalledTimes(1));
+      await Promise.resolve();
+      expect(writeText).not.toHaveBeenCalled();
+      expect(screen.queryByText(/Link público copiado/)).toBeNull();
+    } finally {
+      if (previousShare) Object.defineProperty(navigator, "share", previousShare);
+      else Reflect.deleteProperty(navigator, "share");
+      if (previousClipboard) Object.defineProperty(navigator, "clipboard", previousClipboard);
+      else Reflect.deleteProperty(navigator, "clipboard");
+    }
+  });
+
   it("mostra nome, localização, quantidades reais e solicitação protegida", () => {
     const { container } = render(<PublicTechnicianProfile technician={profile} />);
     expect(screen.getByRole("heading", { name: "Jefferson Santana" })).toBeTruthy();
