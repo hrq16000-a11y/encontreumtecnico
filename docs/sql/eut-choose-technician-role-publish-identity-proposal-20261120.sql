@@ -1,0 +1,17 @@
+-- EUT / PR #340 — DECISAO DE CONTRATO, SEM SQL EXECUTAVEL.
+--
+-- A proposta inicial de exigir confirmed_current_email() ANTES da atribuição
+-- do papel tecnico foi retirada. Ela criava uma dependência circular com a
+-- PR #343: eut_begin_technician_email_otp() só pode iniciar a comprovação
+-- para uma sessão que já possui papel tecnico.
+--
+-- Sequência segura mantida pelo contrato instalado:
+-- 1. Login com identidade de e-mail aceita pelo choose_account_type existente.
+-- 2. Escolha do papel tecnico (sem habilitar qualquer exposição pública).
+-- 3. Comprovação legítima de e-mail na área técnica, mediante sessão OTP da #343.
+-- 4. Publicação exclusivamente pela eut_publish_my_technician, cujo servidor
+--    continua exigindo confirmed_current_email() e as demais condições.
+--
+-- Contas de cliente, legado, papéis administrativos, telefones privados,
+-- RLS e contatos suspensos não são modificados por esta decisão.
+-- Este arquivo documenta a retirada da proposta conflitante. Nao executar.
