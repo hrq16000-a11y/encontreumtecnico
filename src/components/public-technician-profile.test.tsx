@@ -88,4 +88,29 @@ describe("Perfil técnico premium sem prova social fabricada", () => {
     expect(screen.queryByText("Pioneiro Bronze")).toBeNull();
     expect(screen.getByText("Destaque por indicações")).toBeTruthy();
   });
+  it("organiza a apresentação declarada em cartões legíveis sem fabricar documentos ou qualificações", () => {
+    const richBio = [
+      "Atendimento profissional em redes.",
+      "Minha experiência: Redes de pequenos escritórios.",
+      "Ferramentas e equipamentos: Testador de cabos.",
+      "Como me desloco para atender: Carro, mediante confirmação.",
+      "Horários em que costumo atender: Dias úteis.",
+    ].join("\n");
+    const { container } = render(<PublicTechnicianProfile technician={{ ...profile, bio: richBio }} />);
+    expect(screen.getByRole("heading", { name: "Ferramentas" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Deslocamento" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Disponibilidade" })).toBeTruthy();
+    expect(screen.getByText("Atendimento profissional em redes.")).toBeTruthy();
+    expect(screen.getByText("Testador de cabos.")).toBeTruthy();
+    expect(screen.getByText("Carro, mediante confirmação.")).toBeTruthy();
+    expect(container.textContent).not.toMatch(/habilitação certificada|garantia de chegada|\bCNH\b|\bASO\b/i);
+    expect(container.querySelector('a[href^="tel:"]')).toBeNull();
+  });
+
+  it("não exibe um atributo operacional que o técnico deixou vazio", () => {
+    render(<PublicTechnicianProfile technician={{ ...profile, bio: "Ferramentas e equipamentos: \nMinha experiência: Manutenção de computadores." }} />);
+    expect(screen.getByRole("heading", { name: "Experiência" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Ferramentas" })).toBeNull();
+  });
+
 });
