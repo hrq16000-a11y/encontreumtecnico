@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { openFreeHelp } from "@/lib/free-search-help";
 import { PublicTechnicianProfile } from "./public-technician-profile";
 import type { PublicTechnician } from "@/lib/technicians.functions";
@@ -42,6 +42,23 @@ const profile: PublicTechnician = {
 };
 
 describe("Perfil técnico premium sem prova social fabricada", () => {
+  it("compartilha somente a URL pública, sem parâmetros privados, e confirma a cópia", async () => {
+    const previousUrl = window.location.href;
+    const previousClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    try {
+      window.history.replaceState(null, "", "/tecnico/jefferson-santana?email=privado#sobre");
+      Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+      render(<PublicTechnicianProfile technician={profile} />);
+      fireEvent.click(screen.getByRole("button", { name: "Copiar link do perfil" }));
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/tecnico/jefferson-santana`));
+      expect(screen.getByRole("status").textContent).toMatch(/Link público copiado/);
+    } finally {
+      window.history.replaceState(null, "", previousUrl);
+      if (previousClipboard) Object.defineProperty(navigator, "clipboard", previousClipboard);
+      else Reflect.deleteProperty(navigator, "clipboard");
+    }
+  });
   it("mostra nome, localização, quantidades reais e solicitação protegida", () => {
     const { container } = render(<PublicTechnicianProfile technician={profile} />);
     expect(screen.getByRole("heading", { name: "Jefferson Santana" })).toBeTruthy();
@@ -106,4 +123,29 @@ describe("Perfil técnico premium sem prova social fabricada", () => {
     expect(screen.queryByText("Pioneiro Bronze")).toBeNull();
     expect(screen.getByText("Destaque por indicações")).toBeTruthy();
   });
+  it("organiza a apresentação declarada em cartões legíveis sem fabricar documentos ou qualificações", () => {
+    const richBio = [
+      "Atendimento profissional em redes.",
+      "Minha experiência: Redes de pequenos escritórios.",
+      "Ferramentas e equipamentos: Testador de cabos.",
+      "Como me desloco para atender: Carro, mediante confirmação.",
+      "Horários em que costumo atender: Dias úteis.",
+    ].join("\n");
+    const { container } = render(<PublicTechnicianProfile technician={{ ...profile, bio: richBio }} />);
+    expect(screen.getByRole("heading", { name: "Ferramentas" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Deslocamento" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Disponibilidade" })).toBeTruthy();
+    expect(screen.getByText("Atendimento profissional em redes.")).toBeTruthy();
+    expect(screen.getByText("Testador de cabos.")).toBeTruthy();
+    expect(screen.getByText("Carro, mediante confirmação.")).toBeTruthy();
+    expect(container.textContent).not.toMatch(/habilitação certificada|garantia de chegada|\bCNH\b|\bASO\b/i);
+    expect(container.querySelector('a[href^="tel:"]')).toBeNull();
+  });
+
+  it("não exibe um atributo operacional que o técnico deixou vazio", () => {
+    render(<PublicTechnicianProfile technician={{ ...profile, bio: "Ferramentas e equipamentos: \nMinha experiência: Manutenção de computadores." }} />);
+    expect(screen.getByRole("heading", { name: "Experiência" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Ferramentas" })).toBeNull();
+  });
+
 });

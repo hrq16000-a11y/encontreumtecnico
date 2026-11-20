@@ -32,6 +32,12 @@ export function reconcileRegistrationSelections(
   return { specialties, service_slugs: form.service_slugs.filter((slug) => activeServices.has(slug)) };
 }
 
+/** Navigation is never a publication intent, even if React changes the
+ * visible button while a click is being processed. */
+export function shouldSubmitTechnicianWizard(step: RegistrationStep, action: string | null): boolean {
+  return step === 3 && action === "publish";
+}
+
 /** Filter only the visible service choices; never mutate a saved selection. */
 export function matchingRegistrationServices<T extends { slug: string; label: string; category_slug: string }>(
   services: readonly T[], selectedCategories: readonly string[], query: string,
@@ -41,6 +47,17 @@ export function matchingRegistrationServices<T extends { slug: string; label: st
   const term = fold(query.trim());
   return services.filter((service) => selectedCategories.includes(service.category_slug) &&
     (!term || fold(`${service.label} ${service.slug}`).includes(term)));
+}
+
+/** Keep selected services visible, even while a search hides their checkboxes.
+ * Unknown catalog entries remain removable without silently changing the draft. */
+export function selectedRegistrationServices<T extends { slug: string; label: string }>(
+  services: readonly T[], selectedSlugs: readonly string[],
+): { slug: string; label: string }[] {
+  const labels = new Map(services.map((service) => [service.slug, service.label]));
+  return [...new Set(selectedSlugs)].map((slug) => ({
+    slug, label: labels.get(slug) ?? "Serviço indisponível",
+  }));
 }
 
 /** Mobile onboarding validates locally before advancing; only the server RPC

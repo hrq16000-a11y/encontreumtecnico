@@ -139,3 +139,20 @@ nem fator de ranking ou precificação.
   a gravação e não expõem mensagens SQL.
 - Ações de guia navegam diretamente à edição, foto e cobertura; não alteram
   status, regras de publicação ou dados de outros titulares.
+
+
+## R1.5 — apresentação pública estruturada (PR isolada de 20/11)
+
+- A apresentação profissional já editada pelo técnico pode conter os quatro
+  tópicos voluntários: experiência, ferramentas, deslocamento e horários.
+  No perfil público, conteúdo **realmente preenchido** aparece em cartões
+  acessíveis; tópicos vazios são omitidos e texto livre continua legível.
+- A implementação só organiza a `bio` já sanitizada na projeção pública
+  existente. Não cria campos, não infere equipamento, veículo, disponibilidade
+  ou competência, não consulta contatos, não introduz novas imagens ou preço.
+- Prova mínima: Vitest de interpretação de títulos, conteúdo multilinha e
+  títulos vazios; teste React de renderização e ausência de telefone/links
+  diretos. CI do GitHub e deploy exigem validação própria.
+- **Fora desta PR:** campos persistidos de SLA/ETA, valores/km, agenda,
+  disponibilidade confirmada, portfólio 5+20, dossiê/documentos e novos
+  direitos comerciais. Esses itens continuam no roteiro R2–R5.

@@ -1,11 +1,13 @@
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { openFreeHelp } from "@/lib/free-search-help";
 import {
-  ArrowLeft, ArrowRight, ArrowUpRight, BadgeInfo, BriefcaseBusiness, Check,
-  ChevronRight, Handshake, LockKeyhole, MapPin,
+  ArrowLeft, ArrowRight, ArrowUpRight, BadgeInfo, BriefcaseBusiness, CalendarDays, CarFront, Check,
+  ChevronRight, Copy, Handshake, LockKeyhole, MapPin,
   MessageSquareText, MonitorCheck, Navigation, Sparkles, Wrench,
 } from "lucide-react";
 import type { PublicTechnician } from "@/lib/technicians.functions";
+import { parseProfessionalBio } from "@/lib/technician-profile-enrichment";
 import { TechnicianAvatar } from "@/components/technician-avatar";
 import { PublicProfileConnections, type PublicSeoLinks } from "@/components/public-seo-discovery";
 import { formatPublicLocation, placeKey } from "@/lib/location-labels";
@@ -17,6 +19,18 @@ import { centsToBrl, EQUIPMENT, TRANSPORT, WINDOWS } from "@/lib/technician-oper
  * profile. Never loads or guesses private contacts, ratings or endorsements.
  */
 export function PublicTechnicianProfile({ technician: t, links }: { technician: PublicTechnician; links?: PublicSeoLinks }) {
+  const [shareStatus, setShareStatus] = useState<"copied" | "unavailable" | null>(null);
+  async function copyPublicProfileUrl() {
+    // Share only the public route: never forward tracking or auth query parameters.
+    const publicUrl = `${window.location.origin}${window.location.pathname}`;
+    if (!navigator.clipboard?.writeText) { setShareStatus("unavailable"); return; }
+    try {
+      await navigator.clipboard.writeText(publicUrl);
+      setShareStatus("copied");
+    } catch {
+      setShareStatus("unavailable");
+    }
+  }
   const { categories } = useActiveCategories();
   const { services } = useActiveServices();
   const location = formatPublicLocation(t);
@@ -27,6 +41,7 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
   const extraCategories = Math.max(0, t.specialties.length - topCategories.length);
   const operations = t.operations;
   const cityLabel = (id: number) => (t.coverage_cities ?? []).find(city => city.id === id);
+  const professionalBio = parseProfessionalBio(t.bio);
 
   return (
     <div className="relative min-h-screen overflow-clip bg-gradient-to-b from-accent/60 via-background to-background pb-28 lg:pb-10">
@@ -79,7 +94,14 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
                     className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/25 bg-white/10 px-5 text-sm font-semibold text-white transition-colors hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white motion-reduce:transition-none">
                     Conhecer os serviços <ArrowRight aria-hidden="true" className="h-4 w-4" />
                   </a>
+                  <button type="button" onClick={() => { void copyPublicProfileUrl(); }}
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/25 bg-white/10 px-5 text-sm font-semibold text-white transition-colors hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white motion-reduce:transition-none">
+                    <Copy aria-hidden="true" className="h-4 w-4" /> Copiar link do perfil
+                  </button>
                 </div>
+                {shareStatus && <p role="status" aria-live="polite" className="mt-2 text-sm text-white/85">
+                  {shareStatus === "copied" ? "Link público copiado para compartilhar." : "Copie o endereço desta página pelo navegador."}
+                </p>}
               </div>
             </div>
             <div className="rounded-2xl border border-white/15 bg-white/[0.08] p-5 backdrop-blur-sm">
@@ -218,10 +240,37 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
                 <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><BadgeInfo className="h-5 w-5" aria-hidden="true" /></span>
                 <div><p className="text-xs font-bold uppercase tracking-[.17em] text-primary">Apresentação pessoal</p><h2 id="titulo-sobre" className="mt-1 text-xl font-bold text-card-foreground sm:text-2xl">Sobre o profissional</h2></div>
               </div>
-              {t.bio ? (
+              {professionalBio.introduction || professionalBio.sections.length > 0 ? (
                 <>
-                  <p className="mt-5 whitespace-pre-line text-sm leading-7 text-foreground sm:text-base">{t.bio}</p>
-                  <p className="mt-4 text-xs text-muted-foreground">Texto fornecido pelo titular do perfil.</p>
+                  {professionalBio.introduction && (
+                    <p className="mt-5 whitespace-pre-line text-sm leading-7 text-foreground sm:text-base">
+                      {professionalBio.introduction}
+                    </p>
+                  )}
+                  {professionalBio.sections.length > 0 && (
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2" aria-label="Detalhes profissionais declarados">
+                      {professionalBio.sections.map(({ id, label, text }) => {
+                        const Icon = {
+                          experience: BriefcaseBusiness,
+                          tools: Wrench,
+                          mobility: CarFront,
+                          schedule: CalendarDays,
+                        }[id];
+                        return (
+                          <section key={id} className="min-w-0 rounded-2xl border border-border bg-accent/40 p-4">
+                            <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+                              <Icon aria-hidden="true" className="h-4 w-4 shrink-0 text-primary" />
+                              {label}
+                            </h3>
+                            <p className="mt-2 whitespace-pre-line break-words text-sm leading-6 text-foreground">{text}</p>
+                          </section>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <p className="mt-4 text-xs text-muted-foreground">
+                    Informações declaradas pelo titular. Confirme ferramentas, deslocamento e horários antes de solicitar atendimento.
+                  </p>
                 </>
               ) : (
                 <p className="mt-5 text-sm leading-7 text-muted-foreground">
