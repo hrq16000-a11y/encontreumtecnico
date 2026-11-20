@@ -8,6 +8,7 @@ import { SponsoredPublicSlot } from "@/components/sponsored-public-slot";
 import { useActiveCategories, categoryLabel } from "@/hooks/use-active-categories";
 import { useActiveServices, serviceLabel } from "@/hooks/use-active-services";
 import { DebouncedTextFilter } from "@/components/debounced-text-filter";
+import { clearDirectoryPendingFilters } from "@/lib/pending-search-filter";
 import { BRAZIL_STATES } from "@/lib/service-taxonomy";
 import { technicianSearchAfterUfChange } from "@/lib/technician-search-uf-transition";
 import { neighborhoodCatalogFor, neighborhoodOptions } from "@/lib/neighborhood-sources";
@@ -104,6 +105,7 @@ function TechniciansPage() {
   const navigate = useNavigate({ from: "/tecnicos/" });
   const lastRecorded = useRef("");
   const [consentRevision, setConsentRevision] = useState(0);
+  const [filterResetRevision, setFilterResetRevision] = useState(0);
   // Keep advanced controls mounted to preserve debounced drafts while collapsed.
   const [showAdvanced, setShowAdvanced] = useState(
     () => Boolean(search.servico || search.bairro || search.regiao || search.prioridade === "regiao"),
@@ -160,6 +162,14 @@ function TechniciansPage() {
   const update = (patch: Partial<typeof search>) =>
     navigate({ search: (prev) => ({ ...prev, ...patch, pagina: patch.pagina ?? 1 }), replace: true });
 
+  const clearAllFilters = () => {
+    // Cancel pending same-tab drafts before remounting the debounced fields.
+    // Otherwise a stale keystroke may repopulate a cleared search.
+    clearDirectoryPendingFilters();
+    setFilterResetRevision(value => value + 1);
+    update({ especialidade: "Todas", servico: "", uf: "", cidade: "", bairro: "", regiao: "", prioridade: "" });
+  };
+
   return (
     <PageShell>
       <section className="mx-auto max-w-6xl px-4 pb-12 pt-6 sm:pt-8">
@@ -209,7 +219,7 @@ function TechniciansPage() {
             </select>
           </div>
           <DebouncedTextFilter
-            key={`filtro-cidade-${search.uf}`}
+            key={`filtro-cidade-${search.uf}-${filterResetRevision}`}
             id="filtro-cidade"
             label="Cidade"
             value={search.cidade}
@@ -231,7 +241,7 @@ function TechniciansPage() {
             </button>
             {Boolean(search.especialidade !== "Todas" || search.servico || search.uf || search.cidade || search.bairro || search.regiao || search.prioridade) && (
               <button type="button"
-                onClick={() => update({ especialidade: "Todas", servico: "", uf: "", cidade: "", bairro: "", regiao: "", prioridade: "" })}
+                onClick={clearAllFilters}
                 className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                 <X className="h-4 w-4" aria-hidden="true" /> Limpar filtros
               </button>
@@ -250,7 +260,7 @@ function TechniciansPage() {
             </select>
           </div>
           <DebouncedTextFilter
-            key={`filtro-bairro-${search.uf}`}
+            key={`filtro-bairro-${search.uf}-${filterResetRevision}`}
             id="filtro-bairro"
             label="Bairro"
             list={bairroCatalog ? "eut-bairro-diretorio" : undefined}
@@ -267,7 +277,7 @@ function TechniciansPage() {
               target="_blank" rel="noopener noreferrer">prefeitura</a>; você pode digitar outra denominação.
           </div>}
           <DebouncedTextFilter
-            key={`filtro-regiao-${search.uf}`}
+            key={`filtro-regiao-${search.uf}-${filterResetRevision}`}
             id="filtro-regiao"
             label="Região"
             value={search.regiao}
