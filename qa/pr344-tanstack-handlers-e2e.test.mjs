@@ -107,6 +107,12 @@ if (outage) {
     console.log("ISOLATED: two synthetic Auth identities, actual TanStack server on loopback");
   });
 
+  test("H0: create fresh synthetic admin credentials for outage-only regression", () => {
+    assert.match(adminJwt, /^[^.\\s]+\\.[^.\\s]+\\.[^.\\s]+$/);
+    assert.equal(readFileSync(tokenFile, "utf8").trim(), adminJwt);
+    console.log("PASS H0: ephemeral admin JWT prepared without replaying H1-H4");
+  });
+
   test("H1: actual POST rejects missing consent, extra data and cross-origin", async () => {
     assert.equal((await readCount()).status, 200);
     assert.equal(await adminCount(), 0);
