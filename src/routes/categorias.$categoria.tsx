@@ -40,6 +40,7 @@ function CategorySeoPage() {
     <PublicSeoDirectory
       heading={`Técnicos de ${category.label}`}
       summary={`${category.count} perfil(is) publicado(s) com esta categoria declarada. Veja as cidades-base informadas e compare profissionais que oferecem serviços nesta área.`}
+      context={{ kind: "category", label: category.label }}
       profiles={profiles} cities={cities}
     />
   </PageShell>;
