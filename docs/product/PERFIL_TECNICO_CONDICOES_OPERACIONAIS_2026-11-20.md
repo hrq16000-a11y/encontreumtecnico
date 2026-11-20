@@ -112,9 +112,11 @@ real 9/9 é comprovado separadamente pelo run #44772676346, não por esta fixtur
    assinaturas de `public.has_role(uuid,app_role)`, `public.eut_account_operational()`,
    `public.eut_public_eligible_technician_ids(uuid[])`, as colunas canônicas e o
    tipo de auditoria; inspecionar permissões atuais sem expor registros privados.
-3. **Homologação real isolada**: executar os 9 cenários acima num Auth/PostgREST
-   local efêmero com JWTs legítimos e sem chaves de produção. Não criar branch Supabase
-   paga sem aprovação do proprietário. Sem ambiente isolado, permanece **NO-GO**.
+3. **Homologação real isolada já aprovada**: reaproveitar o run #44772676346
+   com GoTrue/PostgREST e 9/9 cenários, desde que o contrato SQL permaneça no
+   blob canônico e suas dependências continuem compatíveis. Reexecutar somente
+   cenários afetados por eventual correção do gate de ficha rejeitada. Não criar
+   branch Supabase paga sem autorização.
 4. **Revisão SQL**: confirmar schema `eut_profile_ops` fora dos schemas expostos na
    Data API, `SECURITY DEFINER` interno com `search_path=''`, revogação de acesso
    direto, função de elegibilidade pública, auditoria e invariantes de concorrência.
@@ -187,3 +189,208 @@ Preflight oficial somente leitura (20/11/2026, Postgres 17.11):
    merge documental e deployment são decisões separadas; não repetir releases.
 
 A presente PR #383 não executa SQL oficial nem altera a policy já mais segura.
+
+
+## Checklist final de ativação do contrato #368 (somente preparo; NÃO EXECUTAR agora)
+
+**Estado em 20/11/2026:** NO-GO para SQL oficial, merge de #383 e deploy.
+A PR #383 reúne preflight, evidências e este checklist. O contrato da #368 está
+na main como proposta, não como objetos implantados no Supabase. Os comandos
+abaixo são exemplos de execução **futura e separadamente autorizada**;
+nenhum comando de escrita desta seção deve ser executado sem autorização
+específica sobre o projeto EUT `pqtzhctvjbfcunmrvxne`.
+
+### A. Identidade, congelamento e pré-condições (ordem obrigatória)
+
+- [x] Contrato Git: blob `63d777c6058d6a5184917530fcc2b0ab330b8bbb`
+  do arquivo `docs/sql/eut-technician-operations-contract-proposal-20261120.sql`;
+  SHA-256 registrado `be6e5144bf4afd0c99884218c75fec93f87e8e66b63d629444f32df3e58d2d54`.
+  **Reconferir os dois hashes** contra o arquivo exato imediatamente antes de aplicar.
+- [x] Provas isoladas reaproveitáveis: Auth real + PostgREST 9/9 no
+  [run #44772676346](https://github.com/hrq16000-a11y/encontreumtecnico/actions/runs/44772676346);
+  workflow PostgreSQL descartável da PR #383 verde. Não repetir provas inalteradas.
+- [x] Preflight oficial SELECT: PostgreSQL 17.11, 7 fichas canônicas, 2 badges
+  Pioneiros, RLS ativa em técnicos/contatos; acesso direto a contatos privados
+  negado a `anon`/`authenticated`; 2 policies UPDATE canônicas. Nenhuma
+  linha canônica estava `suspenso` na consulta; **isso não autoriza alterar
+  cadastros privados bloqueados, históricos ou fichas suspensas em outras tabelas**.
+- [x] Ausência dos novos objetos: schema `eut_profile_ops`, tabela
+  `technician_operations` e as três wrappers `public.eut_*operations*`.
+- [x] Dependências detectadas: `public.has_role(uuid,app_role)`,
+  `public.eut_account_operational()`,
+  `public.eut_public_eligible_technician_ids(uuid[])`; colunas
+  `technicians.id/user_id/status/coverage_city_ids` e auditoria existentes.
+- [ ] **GATE BLOQUEANTE — ficha rejeitada:** a função proposta
+  `eut_profile_ops.private_save`, por ser `SECURITY DEFINER`, recusa
+  explicitamente `suspenso` mas ainda não recusa `rejeitado` no caminho do
+  titular. A policy RLS de `public.technicians` não substitui essa checagem.
+  Antes de instalar, exigir decisão e correção revisada que também rejeite
+  `rejeitado` para edição pelo titular, preserve edição administrativa
+  motivada e revalide **apenas os cenários alterados** no QA isolado.
+  Essa correção modifica o SQL canônico e **exige novo hash e revisão**;
+  nunca aplicar silenciosamente a versão anterior.
+- [ ] Confirmar no painel de Data API que **somente**
+  `public`/`graphql_public` (ou a lista vigente aprovada) são expostos;
+  `eut_profile_ops` não pode ser exposto. Verificar a configuração de
+  exposição automática de novas tabelas/funções antes da criação.
+- [ ] Reconferir com SELECT pré-execução que não surgiram schema/tabela/RPCs
+  homônimos, alterações de grants/policies, mudanças em funções
+  `SECURITY DEFINER`, gatilhos ou alterações na elegibilidade pública.
+  Diferença = NO-GO, sem adaptar SQL às cegas.
+- [ ] Confirmar conta/projeto corretos, operador com permissão mínima,
+  autorização SQL **específica**, janela controlada, hash final congelado,
+  baseline agregado/anônimo e capacidade de executar o rollback não destrutivo.
+  Nenhuma chave de produção ou telefone deve ser anexada a logs.
+- [ ] Manter estado atual de Pioneiros, preços de contato, contatos privados,
+  bloqueios e suspensões. A ativação não pode criar, liberar ou reativar fichas.
+
+**SELECT de pré-condições** — somente leitura, usar imediatamente antes da
+autorização/aplicação, evitando divulgar linhas pessoais:
+
+```sql
+SELECT
+  to_regnamespace('eut_profile_ops') IS NULL AS schema_ainda_ausente,
+  to_regclass('eut_profile_ops.technician_operations') IS NULL AS tabela_ainda_ausente,
+  to_regprocedure('public.eut_technician_operations_get(uuid)') IS NULL AS get_ainda_ausente,
+  to_regprocedure('public.eut_technician_operations_save(uuid,jsonb,timestamptz,text)') IS NULL AS save_ainda_ausente,
+  to_regprocedure('public.eut_public_technician_operations(uuid)') IS NULL AS public_ainda_ausente,
+  to_regprocedure('public.has_role(uuid,public.app_role)') IS NOT NULL AS role_ok,
+  to_regprocedure('public.eut_account_operational()') IS NOT NULL AS operacional_ok,
+  to_regprocedure('public.eut_public_eligible_technician_ids(uuid[])') IS NOT NULL AS elegibilidade_ok,
+  (SELECT relrowsecurity FROM pg_class WHERE oid='public.technicians'::regclass) AS tecnicos_rls,
+  (SELECT relrowsecurity FROM pg_class WHERE oid='public.eut_technician_private_contacts'::regclass) AS contatos_rls,
+  NOT has_table_privilege('anon','public.eut_technician_private_contacts','SELECT') AS anon_sem_contato,
+  NOT has_table_privilege('authenticated','public.eut_technician_private_contacts','SELECT') AS auth_sem_contato;
+SELECT policyname,cmd,permissive,roles,qual,with_check
+FROM pg_catalog.pg_policies
+WHERE schemaname='public' AND tablename='technicians' AND cmd='UPDATE'
+ORDER BY policyname;
+```
+
+As primeiras cinco colunas devem ser `true` **antes** da implantação; os
+três helpers e os dois RLS/negações de contato também devem estar `true`.
+Conferir as duas policies pela expressão completa do preflight da #383,
+inclusive proteção de `rejeitado`. Uma simples contagem de policies
+não prova autorização segura.
+
+### B. Ordem de execução FUTURA (somente após todos os gates)
+
+1. Congelar a `main`/PR vigente, arquivo **revisado**, novos SHA e
+   autorização formal do proprietário para o projeto correto. Não usar
+   `release:`, Vercel, merge ou deploy para instalar o banco.
+2. Reexecutar **apenas SELECTs de preflight** e a inspeção manual da Data API;
+   confirmar que o SQL revisado ainda cria somente schema interno, tabela com
+   RLS, funções privadas, wrappers explícitas e grants estritos.
+3. Aplicar **uma única vez** o arquivo SQL operacional revisado e autorizado,
+   exatamente na ordem transacional `BEGIN ... COMMIT` em que foi aprovado.
+   Não reaplicar um arquivo que não é idempotente; não executar também o antigo
+   `ALTER POLICY` da PR #383. Não interpolar credenciais, IDs reais ou
+   payloads de usuários no script.
+4. Registrar apenas resultado de execução, horário, identidade do projeto,
+   hash efetivamente instalado e contagens agregadas de objetos.
+   Falha antes de `COMMIT` => confirmar rollback integral, não repetir
+   automaticamente nem fazer edição manual improvisada.
+5. Fazer os pós-checks estruturais abaixo; só então homologar sessões reais
+   autorizadas, com uma ficha de QA consentida, sem tocar em suspensos,
+   rejeitados, Pioneiros, telefones nem pedidos pagos. **Nenhum teste de
+   produção deve se apoiar no `service_role` para fingir um titular/admin.**
+6. Habilitação pública somente depois de passagem de todos os critérios e
+   decisão específica de release. A UI já integrada falha fechada enquanto
+   as RPCs não existirem ou não forem acessíveis.
+
+### C. Pós-checks estruturais e funcionais (não são aprovação automática)
+
+**SELECT de metadados** a ser executado após a implantação autorizada:
+
+```sql
+SELECT
+  to_regclass('eut_profile_ops.technician_operations') IS NOT NULL AS tabela_criada,
+  (SELECT relrowsecurity FROM pg_class
+   WHERE oid=to_regclass('eut_profile_ops.technician_operations')) AS rls_nova_tabela,
+  NOT has_table_privilege('anon','eut_profile_ops.technician_operations','SELECT') AS anon_sem_select,
+  NOT has_table_privilege('authenticated','eut_profile_ops.technician_operations','SELECT') AS auth_sem_select,
+  NOT has_table_privilege('anon','eut_profile_ops.technician_operations','INSERT,UPDATE,DELETE') AS anon_sem_escrita,
+  NOT has_table_privilege('authenticated','eut_profile_ops.technician_operations','INSERT,UPDATE,DELETE') AS auth_sem_escrita,
+  to_regprocedure('public.eut_technician_operations_get(uuid)') IS NOT NULL AS get_existe,
+  to_regprocedure('public.eut_technician_operations_save(uuid,jsonb,timestamptz,text)') IS NOT NULL AS save_existe,
+  to_regprocedure('public.eut_public_technician_operations(uuid)') IS NOT NULL AS public_existe;
+SELECT p.proname, p.prosecdef AS definer, p.proconfig AS configuracao,
+  has_function_privilege('anon',p.oid,'EXECUTE') AS anon_exec,
+  has_function_privilege('authenticated',p.oid,'EXECUTE') AS auth_exec
+FROM pg_catalog.pg_proc p
+JOIN pg_catalog.pg_namespace n ON n.oid=p.pronamespace
+WHERE (n.nspname='public' AND p.proname IN (
+  'eut_technician_operations_get','eut_technician_operations_save',
+  'eut_public_technician_operations'))
+ OR (n.nspname='eut_profile_ops' AND p.proname IN (
+  'private_get','private_save','public_get','safe_projection'))
+ORDER BY n.nspname,p.proname;
+```
+
+Esperado: tabela RLS `true`; nenhum acesso direto de
+`anon`/`authenticated` à tabela; wrappers públicas
+`SECURITY INVOKER`, GET/SAVE privados acessíveis **somente a autenticados**,
+GET público acessível a `anon` e `authenticated`; funções internas
+`SECURITY DEFINER` somente onde previsto, `search_path=''`, grants
+explícitos. Conferir que o schema interno **não foi exposto à Data API**,
+pois `has_schema_privilege` sozinho não mede exposição pela API.
+Confirmar que o SELECT de policies canônicas **não sofreu alteração**.
+
+**Provas funcionais mínimas por sessões autorizadas**: técnico lê vazio,
+grava e relê os 12 campos; admin altera com justificativa e auditoria
+antes/depois; edição com versão antiga produz conflito HTTP 409;
+terceiro/anônimo não leem nem gravam ficha privada; suspenso e rejeitado
+não editam; anônimo recebe `null` de ficha não elegível; projeção pública
+contém só as 12 chaves permitidas e nenhum telefone/e-mail/status;
+cidades fora da cobertura ou campos extras são recusados; taxas/km
+não alteram preço de acesso ao contato. Não alterar cadastros reais
+sem consentimento. Resultado ou evidência fora do esperado => NO-GO.
+
+**Integridade final**: comparar contagens agregadas e hashes de configuração
+com a linha de base; confirmar que nenhum cadastro, política, contato
+privado, Pioneiro, suspenso, preço ou compra foi modificado pela ativação.
+
+### D. Contenção e rollback NÃO destrutivos (somente quando autorizados)
+
+- **Antes do COMMIT**, qualquer falha na transação do contrato deve provocar
+  rollback da transação inteira. Confirmar ausência de novos objetos antes
+  de tentar novamente. Não fazer `DROP` corretivo em produção.
+- **Após COMMIT**, se algum pós-check falhar, primeiro interromper a liberação
+  e negar execução pelas **três wrappers novas**; conservar a tabela,
+  auditoria e fichas operacionais para correção/recuperação. A revogação de
+  acesso é uma **operação de produção futura e separadamente autorizada**,
+  não algo executado por este documento:
+
+```sql
+-- PLANO, NÃO EXECUTADO. Usar somente com autorização de contenção.
+BEGIN;
+REVOKE EXECUTE ON FUNCTION public.eut_technician_operations_get(uuid)
+  FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.eut_technician_operations_save(uuid,jsonb,timestamptz,text)
+  FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.eut_public_technician_operations(uuid)
+  FROM PUBLIC, anon, authenticated;
+COMMIT;
+```
+
+- Conferir após contenção que `has_function_privilege` é falso para
+  `anon`/`authenticated` nas wrappers, que o editor falha fechado
+  sem alterações repetidas, e que a busca pública e a gestão de técnicos
+  continuam funcionais **sem a seção opcional**.
+- Não apagar `eut_profile_ops.technician_operations`, auditoria,
+  `public.technicians`, contas, perfis históricos ou objetos de Storage.
+  Não usar `DROP ... CASCADE`, `DELETE`, `TRUNCATE`, mudança de
+  status, restauração automática ou rollback de dados reais.
+- Se houver necessidade posterior de reativar as wrappers, tratar como
+  **nova autorização**, nova prova de grants, identidade e QA afetado.
+  Rollback do banco e rollback do frontend são decisões separadas;
+  não repetir Vercel deployment automaticamente.
+
+### E. Decisão objetiva
+
+**GO somente quando**: pendência de `rejeitado` resolvida e testada,
+novo SQL/hash congelados, preflight oficial íntegro, schemas e grants
+revisados, prova Auth isolada válida para a versão final,
+pós-checks e recuperação definidos, e autorização **explícita**
+para a aplicação oficial. **Até lá: NO-GO** e nenhuma mudança no Supabase
+oficial além das consultas SELECT de metadados.
