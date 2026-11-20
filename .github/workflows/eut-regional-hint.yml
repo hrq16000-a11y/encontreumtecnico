@@ -43,7 +43,9 @@ jobs:
             if((server+'\n'+hook).includes(prohibited))throw Error('Unsafe location data access '+prohibited);
           }
           if(!cache.includes('sessionStorage')||!cache.includes('6 * 60 * 60 * 1000')||
-             !page.includes('Município sugerido por IP; confira antes de buscar.'))throw Error('Six-hour session privacy or city correction missing');
+             !page.includes('useRegionalSuggestion()')||!page.includes('cityEditedByUser.current')||
+             !page.includes('placeholder="Município')||page.includes('CustomerLocationButton'))
+            throw Error('Private six-hour coarse hint, silent suggestion or manual city correction missing');
           NODE
       - name: No WordPress live dependency
         run: node scripts/eut-wordpress-runtime-boundary.mjs
