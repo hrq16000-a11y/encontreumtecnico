@@ -328,7 +328,7 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
       const { error } = await supabase.rpc("choose_account_type", { _role: role });
       if (error) {
         setError(role === "tecnico" && error.code === "42501"
-          ? "A identidade desta conta ainda não atende à verificação exigida para publicar um perfil técnico. Mesmo que seu e-mail apareça confirmado, não crie outra conta: solicite ajuda para reverificar a titularidade."
+          ? "A identidade desta conta não foi autorizada para escolher o papel técnico. Não crie outra conta: solicite ajuda para reverificar a titularidade."
           : "O servidor recusou a escolha. Confirme sua identidade ou procure a recuperação manual se houver uma conta antiga vinculada a outra pessoa.");
       } else {
         clearSignupIntent();
@@ -488,6 +488,10 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
                   </button>
                 </>
               )}
+              {!canBootstrapOwner && !rolesError && <p className="text-left text-xs leading-5 text-muted-foreground">
+                Se escolher Técnico, você poderá concluir a comprovação por link na área técnica.
+                A escolha do papel não publica seu perfil: a publicação exige comprovação legítima do e-mail e os demais requisitos do servidor.
+              </p>}
               {canRecoverAdmin && (
                 <button type="button" disabled={busy || !termsAccepted} onClick={() => void recoverAdmin()}
                   className="min-h-11 rounded-md border border-primary px-4 py-2.5 text-sm font-medium text-primary disabled:opacity-60">
