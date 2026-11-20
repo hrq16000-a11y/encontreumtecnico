@@ -51,7 +51,7 @@ jobs:
           test "${VITE_EUT_HTTP_PRESENCE_ADMIN_READ}" = disabled
           test "${VITE_EUT_PRIVATE_REALTIME_PRESENCE}" = disabled
           node --check qa/pr344-tanstack-handlers-e2e.test.mjs
-          if grep -Ein 'https?://[^[:space:]]*supabase\\.co|encontreumtecnico\\.com\\.br' qa/pr344-tanstack-handlers-e2e.test.mjs; then
+          if grep -Ein 'https?://[^[:space:]]*supabase\.co|encontreumtecnico\.com\.br' qa/pr344-tanstack-handlers-e2e.test.mjs; then
             echo 'Hosted URLs are forbidden in this synthetic test' >&2
             exit 1
           fi
@@ -94,7 +94,7 @@ jobs:
           set -a
           source <(supabase status -o env)
           set +a
-          [[ "${API_URL:-}" =~ ^http://127\\.0\\.0\\.1:[0-9]+$ ]] || exit 1
+          [[ "${API_URL:-}" =~ ^http://127\.0\.0\.1:[0-9]+$ ]] || exit 1
           test -n "${ANON_KEY:-}"
           test -n "${SERVICE_ROLE_KEY:-}"
           test "$ANON_KEY" != "$SERVICE_ROLE_KEY"
@@ -119,8 +119,8 @@ jobs:
           test "$VITE_EUT_HTTP_PRESENCE_ADMIN_READ" = disabled
           # SERVER adapter flags only for this one disposable child process.
           # The permanent job flags and every browser VITE flag remain disabled.
-          PR344_HTTP_INGEST_ENABLED=enabled PR344_HTTP_ADMIN_READ_ENABLED=enabled \\
-            bunx vite --host 127.0.0.1 --port 4173 --strictPort \\
+          PR344_HTTP_INGEST_ENABLED=enabled PR344_HTTP_ADMIN_READ_ENABLED=enabled \
+            bunx vite --host 127.0.0.1 --port 4173 --strictPort \
             >"$RUNNER_TEMP/pr344-tanstack-vite.log" 2>&1 &
           echo "PR344_VITE_PID=$!" >> "$GITHUB_ENV"
           ready=0
