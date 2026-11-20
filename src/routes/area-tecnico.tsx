@@ -33,7 +33,7 @@ import { clearProtectedDraft, readProtectedDraft, saveProtectedDraft } from "@/l
 import { saveTechnicianDraftImmediately } from "@/lib/technician-live-draft";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
-import { matchingRegistrationServices, selectedRegistrationServices, reconcileRegistrationSelections, registrationStepError, shouldSubmitTechnicianWizard, type RegistrationStep } from "@/lib/technician-registration-wizard";
+import { matchingRegistrationCategories, matchingRegistrationServices, selectedRegistrationServices, reconcileRegistrationSelections, registrationStepError, shouldSubmitTechnicianWizard, type RegistrationStep } from "@/lib/technician-registration-wizard";
 import { hydrateTechnicianOfficialCity } from "@/lib/technician-official-city-hydration";
 import { publicTextProblem } from "@/lib/public-profile-text";
 import { technicianPublishErrorMessage } from "@/lib/technician-publish-error";
@@ -84,6 +84,7 @@ export function TechnicianAreaPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [step, setStep] = useState<RegistrationStep>(1);
+  const [categoryQuery, setCategoryQuery] = useState("");
   const [serviceQuery, setServiceQuery] = useState("");
   const [panelTab, setPanelTab] = useState<TechnicianPanelTab>("inicio");
   useEffect(() => {
@@ -306,6 +307,7 @@ export function TechnicianAreaPage() {
   const catalog = { categories, services, catalogLoading, catalogError: Boolean(catalogError),
     servicesLoading, servicesError: Boolean(servicesError) };
   const catalogReady = !catalogLoading && !catalogError && !servicesLoading && !servicesError;
+  const visibleCategories = matchingRegistrationCategories(categories, form.specialties, categoryQuery);
   const availableServiceCount = services.filter((service) => form.specialties.includes(service.category_slug)).length;
   const visibleServices = matchingRegistrationServices(services, form.specialties, serviceQuery);
   const reconciledSelections = catalogReady ? reconcileRegistrationSelections(form, catalog) : null;
@@ -728,8 +730,20 @@ export function TechnicianAreaPage() {
                 <legend className="text-sm font-medium text-foreground">Especialidades</legend>
                 {catalogLoading && <p className="mt-2 text-sm text-muted-foreground">Carregando categorias…</p>}
                 {catalogError && <p role="alert" className="mt-2 text-sm text-destructive">Não foi possível carregar o catálogo. Recarregue a página.</p>}
+                <label htmlFor="eut-wizard-category-search" className="mt-3 block text-sm font-medium text-foreground">Buscar especialidade</label>
+                <input id="eut-wizard-category-search" type="search" value={categoryQuery} maxLength={80}
+                  onChange={(event) => setCategoryQuery(event.target.value)}
+                  placeholder="Ex.: informática, elétrica, celulares" className={input} />
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <p role="status">{visibleCategories.length} de {categories.length} especialidade(s) exibida(s) · {form.specialties.length} selecionada(s)</p>
+                  {categoryQuery.trim() && <button type="button" onClick={() => setCategoryQuery("")}
+                    className="min-h-10 rounded-lg border border-input px-3 font-semibold text-primary">Limpar busca de especialidades</button>}
+                </div>
+                {categoryQuery.trim() && form.specialties.length > 0 && (
+                  <p className="mt-1 text-xs text-muted-foreground">Suas especialidades selecionadas permanecem visíveis durante a busca.</p>
+                )}
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {categories.map((c) => {
+                  {visibleCategories.map((c) => {
                     const on = form.specialties.includes(c.slug);
                     return (
                       <button type="button" key={c.slug} aria-pressed={on}
@@ -740,6 +754,9 @@ export function TechnicianAreaPage() {
                     );
                   })}
                 </div>
+                {!catalogLoading && !catalogError && visibleCategories.length === 0 && (
+                  <p className="mt-2 text-sm text-muted-foreground">Nenhuma especialidade corresponde à busca. Limpe o filtro para ver todas as opções.</p>
+                )}
               </fieldset>
               <fieldset>
                 <legend className="text-sm font-medium text-foreground">Serviços que você realmente executa</legend>
