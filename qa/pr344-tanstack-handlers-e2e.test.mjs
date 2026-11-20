@@ -108,7 +108,7 @@ if (outage) {
   });
 
   test("H0: create fresh synthetic admin credentials for outage-only regression", () => {
-    assert.match(adminJwt, /^[^.\\s]+\\.[^.\\s]+\\.[^.\\s]+$/);
+    assert.ok(adminJwt.split(".").length === 3 && adminJwt.length > 30);
     assert.equal(readFileSync(tokenFile, "utf8").trim(), adminJwt);
     console.log("PASS H0: ephemeral admin JWT prepared without replaying H1-H4");
   });
