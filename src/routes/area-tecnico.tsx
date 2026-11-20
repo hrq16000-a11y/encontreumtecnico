@@ -33,7 +33,7 @@ import { clearProtectedDraft, readProtectedDraft, saveProtectedDraft } from "@/l
 import { saveTechnicianDraftImmediately } from "@/lib/technician-live-draft";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
-import { matchingRegistrationCategories, matchingRegistrationServices, selectedRegistrationServices, reconcileRegistrationSelections, registrationStepError, shouldSubmitTechnicianWizard, type RegistrationStep } from "@/lib/technician-registration-wizard";
+import { matchingRegistrationCategories, matchingRegistrationServices, groupRegistrationServices, selectedRegistrationServices, reconcileRegistrationSelections, registrationStepError, shouldSubmitTechnicianWizard, type RegistrationStep } from "@/lib/technician-registration-wizard";
 import { hydrateTechnicianOfficialCity } from "@/lib/technician-official-city-hydration";
 import { publicTextProblem } from "@/lib/public-profile-text";
 import { technicianPublishErrorMessage } from "@/lib/technician-publish-error";
@@ -789,13 +789,24 @@ export function TechnicianAreaPage() {
                     </div>
                   </div>
                 )}
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {visibleServices.map((service) => (
-                    <label key={service.slug} className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
-                      <input type="checkbox" className="h-4 w-4" checked={form.service_slugs.includes(service.slug)}
-                        onChange={(e) => updateRegistration({ ...form, service_slugs: e.target.checked ? [...form.service_slugs, service.slug] : form.service_slugs.filter((slug) => slug !== service.slug) })} />
-                      <span>{service.label}</span>
-                    </label>
+                <div className="mt-3 space-y-4">
+                  {groupRegistrationServices(visibleServices, categories).map((group) => (
+                    <div key={group.categorySlug} role="group" aria-label={`Serviços de ${group.categoryLabel}`}
+                      className="rounded-xl border border-border bg-muted/15 p-3 sm:p-4">
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <h3 className="text-sm font-bold text-foreground">{group.categoryLabel}</h3>
+                        <span className="text-xs text-muted-foreground">{group.services.length} opções nesta área</span>
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {group.services.map((service) => (
+                          <label key={service.slug} className="flex min-h-11 items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm">
+                            <input type="checkbox" className="h-4 w-4" checked={form.service_slugs.includes(service.slug)}
+                              onChange={(e) => updateRegistration({ ...form, service_slugs: e.target.checked ? [...form.service_slugs, service.slug] : form.service_slugs.filter((slug) => slug !== service.slug) })} />
+                            <span>{service.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
                 {!servicesLoading && !servicesError && availableServiceCount === 0 && <p className="mt-2 text-sm text-muted-foreground">Selecione uma especialidade acima para ver os serviços disponíveis.</p>}
