@@ -1,0 +1,164 @@
+name: EUT PR344 — actual TanStack routes on disposable Supabase
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/eut-pr344-tanstack-routes-disposable.yml'
+      - 'qa/pr344-tanstack-handlers-e2e.test.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eut-pr344-tanstack-e2e-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  real-http-routes-local-only:
+    if: github.event.pull_request.number == 344
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_ACCESS_TOKEN: ''
+      PR344_LOCAL_ONLY: 'yes'
+      PR344_HTTP_INGEST_ENABLED: 'disabled'
+      PR344_HTTP_ADMIN_READ_ENABLED: 'disabled'
+      VITE_EUT_HTTP_PRESENCE_INGEST: 'disabled'
+      VITE_EUT_HTTP_PRESENCE_ADMIN_READ: 'disabled'
+      VITE_EUT_PRIVATE_REALTIME_PRESENCE: 'disabled'
+      PGHOST: '127.0.0.1'
+      PGPORT: '54322'
+      PGUSER: 'postgres'
+      PGPASSWORD: 'postgres'
+      PGDATABASE: 'postgres'
+      SUPABASE_YES: 'true'
+      PR344_HTTP_ALLOWED_ORIGIN: 'http://127.0.0.1:4173'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: supabase/setup-cli@v1
+        with:
+          version: '3.2.0'
+
+      - name: Restrict scope to localhost and validate test syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${PR344_LOCAL_ONLY}" = yes
+          test -z "${SUPABASE_ACCESS_TOKEN}"
+          test "${PR344_HTTP_INGEST_ENABLED}" = disabled
+          test "${PR344_HTTP_ADMIN_READ_ENABLED}" = disabled
+          test "${VITE_EUT_HTTP_PRESENCE_INGEST}" = disabled
+          test "${VITE_EUT_HTTP_PRESENCE_ADMIN_READ}" = disabled
+          test "${VITE_EUT_PRIVATE_REALTIME_PRESENCE}" = disabled
+          node --check qa/pr344-tanstack-handlers-e2e.test.mjs
+          if grep -Ein 'https?://[^[:space:]]*supabase\\.co|encontreumtecnico\\.com\\.br' qa/pr344-tanstack-handlers-e2e.test.mjs; then
+            echo 'Hosted URLs are forbidden in this synthetic test' >&2
+            exit 1
+          fi
+          supabase --version
+          supabase init --help >/dev/null
+          supabase start --help >/dev/null
+
+      - name: Install existing locked dependencies only
+        run: bun install --frozen-lockfile
+
+      - name: Start fresh ephemeral Supabase on runner loopback
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir="$(mktemp -d "$RUNNER_TEMP/pr344-tanstack-local-XXXXXX")"
+          echo "PR344_TEMP_STACK=$dir" >> "$GITHUB_ENV"
+          cd "$dir"
+          supabase init
+          test -f supabase/config.toml
+          supabase start >"$RUNNER_TEMP/pr344-supabase-start.log" 2>&1
+          echo "LOCAL-ONLY: disposable Supabase started"
+
+      - name: Apply existing synthetic schema ONLY to disposable localhost
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = 127.0.0.1
+          test "$PGPORT" = 54322
+          command -v psql >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+          psql -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/qa/pr344-http-leases-local.sql" >/dev/null
+          gate="$(psql -XAt -v ON_ERROR_STOP=1 -c "SELECT CASE WHEN c.relrowsecurity AND NOT has_table_privilege('anon','public.pr344_http_synthetic_leases','SELECT') AND NOT has_table_privilege('authenticated','public.pr344_http_synthetic_leases','SELECT') AND has_table_privilege('service_role','public.pr344_http_synthetic_leases','SELECT') THEN 'ok' ELSE 'bad' END FROM pg_class c WHERE c.oid='public.pr344_http_synthetic_leases'::regclass")"
+          test "$gate" = ok
+          echo "LOCAL-ONLY: private test lease table and RPC installed"
+
+      - name: Export ONLY ephemeral local credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$PR344_TEMP_STACK"
+          set -a
+          source <(supabase status -o env)
+          set +a
+          [[ "${API_URL:-}" =~ ^http://127\\.0\\.0\\.1:[0-9]+$ ]] || exit 1
+          test -n "${ANON_KEY:-}"
+          test -n "${SERVICE_ROLE_KEY:-}"
+          test "$ANON_KEY" != "$SERVICE_ROLE_KEY"
+          echo "::add-mask::$ANON_KEY"
+          echo "::add-mask::$SERVICE_ROLE_KEY"
+          {
+            echo "PR344_API_URL=$API_URL"
+            echo "PR344_ANON_KEY=$ANON_KEY"
+            echo "PR344_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+            echo "PR344_TEST_PEPPER=$(openssl rand -hex 32)"
+            echo "SUPABASE_URL=$API_URL"
+            echo "SUPABASE_PUBLISHABLE_KEY=$ANON_KEY"
+          } >> "$GITHUB_ENV"
+          echo "LOCAL-ONLY: synthetic credentials exported without values in logs"
+
+      - name: Start actual TanStack Start HTTP routes on loopback only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$PR344_API_URL" = "http://127.0.0.1:54321"
+          test "$VITE_EUT_HTTP_PRESENCE_INGEST" = disabled
+          test "$VITE_EUT_HTTP_PRESENCE_ADMIN_READ" = disabled
+          # SERVER adapter flags only for this one disposable child process.
+          # The permanent job flags and every browser VITE flag remain disabled.
+          PR344_HTTP_INGEST_ENABLED=enabled PR344_HTTP_ADMIN_READ_ENABLED=enabled \\
+            bunx vite --host 127.0.0.1 --port 4173 --strictPort \\
+            >"$RUNNER_TEMP/pr344-tanstack-vite.log" 2>&1 &
+          echo "PR344_VITE_PID=$!" >> "$GITHUB_ENV"
+          ready=0
+          for i in $(seq 1 75); do
+            code="$(curl --silent --max-time 4 --output /dev/null --write-out '%{http_code}' http://127.0.0.1:4173/api/admin/presence/count || true)"
+            if [ "$code" = 401 ]; then ready=1; break; fi
+            sleep 1
+          done
+          test "$ready" -eq 1 || { echo "Real TanStack admin route did not become healthy" >&2; tail -n 70 "$RUNNER_TEMP/pr344-tanstack-vite.log"; exit 1; }
+          echo "REAL HTTP ROUTES: TanStack server returned 401 for missing admin JWT"
+
+      - name: H1-H4 — only new real route E2E scenarios
+        run: timeout --signal=TERM --kill-after=5s 100s node --test qa/pr344-tanstack-handlers-e2e.test.mjs
+
+      - name: Stop the test database to verify real outage
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$PR344_TEMP_STACK"
+          supabase stop --no-backup >"$RUNNER_TEMP/pr344-supabase-stop.log" 2>&1
+          echo "LOCAL-ONLY: database unavailable for fail-closed route check"
+
+      - name: H5 — actual route response when local Auth/storage is unavailable
+        env:
+          PR344_E2E_OUTAGE: 'yes'
+        run: timeout --signal=TERM --kill-after=5s 35s node --test qa/pr344-tanstack-handlers-e2e.test.mjs
+
+      - name: Tear down the actual HTTP server and disposable Supabase on all outcomes
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "${PR344_VITE_PID:-}" ]; then
+            pkill -TERM -P "$PR344_VITE_PID" 2>/dev/null || true
+            kill "$PR344_VITE_PID" 2>/dev/null || true
+          fi
+          if [ -n "${PR344_TEMP_STACK:-}" ] && [ -f "$PR344_TEMP_STACK/supabase/config.toml" ]; then
+            cd "$PR344_TEMP_STACK"
+            supabase stop --no-backup >/dev/null 2>&1 || true
+          fi
+          rm -f "$RUNNER_TEMP/pr344-disposable-admin-jwt"
+          echo "LOCAL-ONLY: disposable stack and temporary auth token cleaned"
