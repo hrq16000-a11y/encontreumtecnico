@@ -71,8 +71,10 @@ describe("GPS informa município, mas nunca inventa bairro", () => {
     const home = readFileSync("src/routes/index.tsx", "utf8");
     const tech = readFileSync("src/routes/area-tecnico.tsx", "utf8");
     const button = readFileSync("src/components/customer-location-button.tsx", "utf8");
-    expect(home).toContain("Buscar técnicos em {city}/{locationUf}");
-    expect(home).toContain('prioridade: "regiao"');
+    expect(home).toContain("useRegionalSuggestion()");
+    expect(home).toContain('prioridade: locationUf ? "regiao" : ""');
+    expect(home).not.toContain("CustomerLocationButton");
+    expect(home).not.toContain("Município sugerido por IP");
     expect(tech).toContain('purpose="technician"');
     expect(tech).toContain("previewTechnicianAreaSuggestion(current, area, source)");
     expect(tech).toContain("if (requiresConfirmation &&");
