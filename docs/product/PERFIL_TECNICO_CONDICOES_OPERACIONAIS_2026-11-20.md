@@ -86,3 +86,41 @@ Status em 20/11/2026: **procedimento preparado, não executado**. O workflow Pos
 ### Evidências e critério de aprovação
 
 Guardar em artefato privado do job **somente**: SHA e hash do SQL, nomes dos casos, código HTTP/SQLSTATE, versão anterior/nova, resultado de comparação de JSON, totais de logs por ação e contagem das duas fichas sintéticas suspensas. Nunca anexar tokens, senhas, contatos, nomes reais ou payloads privados. O gate é **GO apenas com 9/9 cenários funcionais comprovados via sessões reais**, além dos checks do HEAD vigente e revisão do contrato `SECURITY DEFINER`/grants. Em qualquer falha: **NO-GO**, corrigir exclusivamente teste/contrato na PR e repetir só os casos afetados. Nenhuma autorização de SQL oficial, merge ou deploy é implícita.
+
+### Reforço do gate de banco (sem sessão real Supabase Auth)
+
+A fixture SQL passou a modelar `has_role` por uma tabela privada e protegida de papéis,
+e `eut_account_operational` por bloqueios persistidos no servidor descartável.
+O cliente **não** consegue se conceder admin com `eut.fixture.role`, `user_metadata` ou
+`app_metadata`. O arquivo `eut-technician-operations-ephemeral-auth-session-20261120.sql`
+exercita separadamente terceiro técnico, cliente com claims falsos, os dois titulares
+suspensos e releitura após edição administrativa com conflito de versão. O teste não
+inventa um token legítimo: `auth.uid()` ainda é simulado pelo banco. **Não marcar
+o gate Auth+PostgREST 9/9 como concluído por causa dessa aprovação isolada.**
+
+### Procedimento controlado de ativação — ainda sem autorização
+
+1. **Congelar SHA e SQL**: revalidar o HEAD da PR e comparar SHA-256 do arquivo
+   `docs/sql/eut-technician-operations-contract-proposal-20261120.sql` com
+   `7c9196c88ac2367b4c51d6ec5e88c3c7eff31154233b5eae518e3ec537ea12bc`.
+2. **Preflight somente leitura, quando especificamente autorizado**: confirmar as
+   assinaturas de `public.has_role(uuid,app_role)`, `public.eut_account_operational()`,
+   `public.eut_public_eligible_technician_ids(uuid[])`, as colunas canônicas e o
+   tipo de auditoria; inspecionar permissões atuais sem expor registros privados.
+3. **Homologação real isolada**: executar os 9 cenários acima num Auth/PostgREST
+   local efêmero com JWTs legítimos e sem chaves de produção. Não criar branch Supabase
+   paga sem aprovação do proprietário. Sem ambiente isolado, permanece **NO-GO**.
+4. **Revisão SQL**: confirmar schema `eut_profile_ops` fora dos schemas expostos na
+   Data API, `SECURITY DEFINER` interno com `search_path=''`, revogação de acesso
+   direto, função de elegibilidade pública, auditoria e invariantes de concorrência.
+5. **Decisão explícita e separada** do proprietário para: (a) aplicação do SQL
+   oficial, (b) merge da PR, (c) um deployment controlado. Checks verdes não são
+   aprovação automática.
+6. **Se autorizado futuramente**, aplicar a proposta SQL uma única vez em
+   transação, verificar grants/funções e salvamento/releitura com identidade
+   autorizada, inspecionar logs de erros sem telefones, e só depois liberar a UI.
+7. **Reversão segura**: desabilitar o acesso público pelas três wrappers RPC antes
+   de reverter a UI. Manter a tabela de condições e sua auditoria para recuperação;
+   não executar `DROP TABLE ... CASCADE` nem apagar novas fichas sem outro plano.
+
+Não há execução SQL no projeto oficial, envio de OTP, merge ou deployment nesta rodada.

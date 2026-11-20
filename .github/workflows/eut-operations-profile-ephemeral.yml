@@ -42,3 +42,5 @@ jobs:
         run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/eut-technician-operations-contract-proposal-20261120.sql
       - name: Test owner, admin, public, suspensions, audit and replay
         run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-technician-operations-ephemeral-assertions-20261120.sql
+      - name: Verify server-backed roles and negative authenticated sessions
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-technician-operations-ephemeral-auth-session-20261120.sql
