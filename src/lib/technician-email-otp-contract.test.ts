@@ -26,6 +26,8 @@ describe("Contrato auditável de titularidade de e-mail do técnico", () => {
     expect(sql).toContain("technician_email_otp_challenges");
     expect(sql).toContain("v_requested_email IS DISTINCT FROM v_email");
     expect(sql).toContain("v_sent_at NOT BETWEEN v_requested_at");
+    expect(sql).toContain("v_authenticated_at NOT BETWEEN v_sent_at");
+    expect(sql).not.toContain("v_sent_at NOT BETWEEN v_authenticated_at");
     expect(sql).toContain("bf0789e2b311454a6320ecdc5269e73f");
     expect(sql).toContain("i.provider='email'");
     expect(sql).toContain("i.provider='phone'");
