@@ -9,7 +9,7 @@ import {
 import { ADMIN_SECTIONS } from "./admin-sections";
 
 describe("navegação administrativa aditiva", () => {
-  it("organiza os 12 módulos existentes uma vez, sem criar rotas", () => {
+  it("organiza os módulos existentes, incluindo configurações, sem duplicar rotas", () => {
     const keys = ADMIN_NAV_GROUPS.flatMap((group) => [...group.keys]);
     expect(keys).toHaveLength(ADMIN_SECTIONS.length);
     expect(new Set(keys).size).toBe(keys.length);
