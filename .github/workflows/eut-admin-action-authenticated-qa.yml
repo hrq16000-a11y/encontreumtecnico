@@ -1,0 +1,47 @@
+name: EUT admin action authenticated isolated QA
+on:
+  pull_request:
+    paths:
+      - 'src/components/admin-technician-manager.tsx'
+      - 'src/lib/admin-technician-action-confirmation.ts'
+      - 'src/lib/admin-technician-action-confirmation.test.ts'
+      - '.github/qa/eut-admin-346/**'
+      - '.github/workflows/eut-admin-action-authenticated-qa.yml'
+permissions:
+  contents: read
+jobs:
+  authenticated-rpc:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: supabase/setup-cli@v1
+        with:
+          version: '2.81.3'
+      - name: Start isolated local Auth/PostgREST/Postgres only
+        working-directory: .github/qa/eut-admin-346
+        run: |
+          supabase start --help >/dev/null
+          supabase start -x realtime,storage-api,imgproxy,postgres-meta,studio,edge-runtime,logflare,vector,supavisor,mailpit
+      - name: Install synthetic tables and RLS
+        env:
+          PGHOST: '127.0.0.1'
+          PGPORT: '54322'
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: postgres
+        run: |
+          set -euo pipefail
+          command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+          psql -X -v ON_ERROR_STOP=1 -f .github/qa/eut-admin-346/fixture.sql
+          # Use the checked-in, existing audit trigger + RPC SQL verbatim, not a test reimplementation.
+          awk '/^CREATE TABLE IF NOT EXISTS public.eut_admin_management_log/{on=1} /^CREATE OR REPLACE FUNCTION eut_moderation.eut_audit_admin_legacy/{on=0} on{print}' \
+            docs/sql/eut-admin-management-actions-20261111.sql | psql -X -v ON_ERROR_STOP=1
+          awk '/^CREATE OR REPLACE FUNCTION public.eut_admin_technician_action\(/{on=1} /^CREATE OR REPLACE FUNCTION public.eut_admin_legacy_action\(/{on=0} on{print}' \
+            docs/sql/eut-admin-management-actions-20261111.sql | psql -X -v ON_ERROR_STOP=1
+          psql -X -v ON_ERROR_STOP=1 -c "NOTIFY pgrst, 'reload schema'"
+      - name: Authenticate synthetic owner and verify RPC, RLS, auditing and negatives
+        run: node --experimental-strip-types .github/qa/eut-admin-346/authenticated-check.mjs

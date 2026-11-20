@@ -16,7 +16,8 @@ describe("administrative public profile draft: owner and record isolation", () =
     expect(component).toContain("readAdminPublicDraft(adminOwnerId, technician.id, baseline)");
     expect(component).toContain("saveAdminPublicDraft(adminOwnerId, target.technician.id, baseline, next)");
     expect(component).toContain('if (target.action === "editar") clearAdminPublicDraft(adminOwnerId, target.technician.id)');
-    expect(component).toContain("Servidor não confirmou a atualização solicitada.");
+    expect(component).toContain("confirmedAdminTechnicianAction(");
+    expect(component).toContain("nenhuma ação será repetida automaticamente.");
     expect(component).toContain('setReason("");');
     expect(component).not.toContain("saveAdminPublicDraft(adminOwnerId, target.technician.id, baseline, reason)");
   });

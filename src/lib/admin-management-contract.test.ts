@@ -4,6 +4,7 @@ const sql = readFileSync("docs/sql/eut-admin-management-actions-20261111.sql", "
 const employers = readFileSync("docs/sql/eut-admin-legacy-employer-overlay-20261111.sql", "utf8");
 const admin = readFileSync("src/routes/admin.tsx", "utf8");
 const technicians = readFileSync("src/components/admin-technician-manager.tsx", "utf8");
+const technicianActionConfirmation = readFileSync("src/lib/admin-technician-action-confirmation.ts", "utf8");
 const catalogue = readFileSync("src/components/eut-admin-manager.tsx", "utf8");
 const legacy = readFileSync("src/components/legacy-review-queue.tsx", "utf8");
 const nav = readFileSync("src/components/admin-navigation.tsx", "utf8");
@@ -34,7 +35,9 @@ describe("Admin management hardening", () => {
     expect(sql).toContain("Acesso administrativo necessário");
     expect(sql).toContain("RETURNING * INTO row_after");
     expect(technicians).toContain('db.rpc("eut_admin_technician_action"');
-    expect(technicians).toContain("data.id !== target.technician.id");
+    expect(technicians).toContain("confirmedAdminTechnicianAction(");
+    expect(technicianActionConfirmation).toContain('row["id"] !== technicianId');
+    expect(technicianActionConfirmation).toContain('row["status"] === STATUS_AFTER_ACTION[action]');
     expect(technicians).toContain("setReload((value) => value + 1)");
     expect(technicians).toContain("window.confirm");
     expect(technicians).toContain("Dessuspender");
