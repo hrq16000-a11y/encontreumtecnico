@@ -26,6 +26,7 @@ const administrator = makeClient();
 
 const context = {
   visitorChannel: null,
+  visitorTracked: false,
   technicianChannel: null,
   adminChannel: null,
   visitorSnapshots: [],
@@ -117,6 +118,7 @@ test('P1/P2: anonymous visitor has no channel without consent; with consent publ
   await subscribe(channel);
   const result = await channel.track({ kind: visitorKind });
   assert.equal(result, 'ok', `anonymous TRACK was rejected: ${String(result)}`);
+  context.visitorTracked = true;
   console.log('P2: anonymous channel joined and TRACK acknowledged by server');
 });
 
@@ -140,14 +142,19 @@ test('P3: independent technician session cannot read visitor presence', async ()
 test('P4: independent administrator reads consented aggregate, visitor and technician cannot read admin marker', async () => {
   const channel = administrator.channel(topic, { config: { private: true } });
   context.adminChannel = channel;
+  // Realtime >=2.167 evaluates Presence SELECT only when the join asks for
+  // presence updates. A listener is required even for the admin read gate.
+  channel.on('presence', { event: 'sync' }, () => {});
   await subscribe(channel);
-  await waitUntil(() => countVisitorTabs(channel.presenceState()) === 1, 'admin to see one synthetic visitor');
-  assert.equal(countVisitorTabs(channel.presenceState()), 1);
+  console.log('P4_AUTH: synthetic administrator joined the private Presence read channel');
 
   const adminMarker = 'pr344-admin-private-proof';
   const result = await channel.track({ kind: adminMarker });
   assert.equal(result, 'ok');
   await waitUntil(() => statesHaveKind(channel.presenceState(), adminMarker), 'admin marker');
+  console.log('P4_AUTH: administrator TRACK and own Presence read succeeded');
+  await waitUntil(() => countVisitorTabs(channel.presenceState()) === 1, 'admin to see one synthetic visitor');
+  assert.equal(countVisitorTabs(channel.presenceState()), 1);
   await sleep(700);
 
   assert.equal(statesHaveKind(context.visitorChannel.presenceState(), adminMarker), false, 'visitor read admin presence');
@@ -160,6 +167,7 @@ test('P4: independent administrator reads consented aggregate, visitor and techn
 });
 
 test('P5: consent revocation untracks visitor and removes it from admin aggregate', async () => {
+  assert.equal(context.visitorTracked, true, 'BLOCKED: P2 anonymous TRACK never succeeded; cannot prove revocation');
   const result = await context.visitorChannel.untrack();
   assert.equal(result, 'ok');
   await waitUntil(() => countVisitorTabs(context.adminChannel.presenceState()) === 0, 'visitor revocation in admin state');
