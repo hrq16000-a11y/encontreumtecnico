@@ -102,7 +102,10 @@ o gate Auth+PostgREST 9/9 como concluído por causa dessa aprovação isolada.**
 
 1. **Congelar SHA e SQL**: revalidar o HEAD da PR e comparar SHA-256 do arquivo
    `docs/sql/eut-technician-operations-contract-proposal-20261120.sql` com
-   `7c9196c88ac2367b4c51d6ec5e88c3c7eff31154233b5eae518e3ec537ea12bc`.
+   `be6e5144bf4afd0c99884218c75fec93f87e8e66b63d629444f32df3e58d2d54`.
+   Este digest corresponde ao blob Git `63d777c6058d6a5184917530fcc2b0ab330b8bbb`
+   publicado na `main` (a versão com conflito HTTP `PT409`); o hash anterior
+   antecedia essa correção e não deve liberar a aplicação oficial.
 2. **Preflight somente leitura, quando especificamente autorizado**: confirmar as
    assinaturas de `public.has_role(uuid,app_role)`, `public.eut_account_operational()`,
    `public.eut_public_eligible_technician_ids(uuid[])`, as colunas canônicas e o
@@ -122,5 +125,17 @@ o gate Auth+PostgREST 9/9 como concluído por causa dessa aprovação isolada.**
 7. **Reversão segura**: desabilitar o acesso público pelas três wrappers RPC antes
    de reverter a UI. Manter a tabela de condições e sua auditoria para recuperação;
    não executar `DROP TABLE ... CASCADE` nem apagar novas fichas sem outro plano.
+
+### Gate adicional: ficha suspensa não pode ser restaurada pelo titular
+
+O preflight oficial detectou que a policy permissiva `"Owner edits back to pending"`
+conferia o **novo** status `pendente`, mas não rejeitava o **antigo** `suspenso`.
+O ajuste mínimo fica exclusivamente no rascunho
+`docs/sql/eut-technician-suspension-resubmission-guard-proposal-20261120.sql`:
+adiciona `status <> 'suspenso'` ao `USING` da policy do titular, sem alterar seu
+`WITH CHECK`. A policy administrativa separada `"Admin moderates"` permanece intacta.
+Este rascunho não foi aplicado oficialmente; antes da ativação é necessário
+revalidar policies, grants, dependências e rotas SECURITY DEFINER que possam
+alterar status sem passar pelo RLS. O teste sintético de RLS não substitui esse gate.
 
 Não há execução SQL no projeto oficial, envio de OTP, merge ou deployment nesta rodada.
