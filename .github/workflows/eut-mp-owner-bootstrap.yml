@@ -1,0 +1,42 @@
+name: EUT MP owner bootstrap isolated PostgreSQL 17
+on:
+  pull_request:
+    paths:
+      - 'docs/sql/eut-owner-bootstrap-reconcile-20261120.sql'
+      - 'tests/payments/mp-owner-bootstrap-ephemeral-fixture.sql'
+      - 'tests/payments/mp-owner-bootstrap-ci.sh'
+      - '.github/workflows/eut-mp-owner-bootstrap.yml'
+permissions:
+  contents: read
+jobs:
+  synthetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: eut_fixture
+          POSTGRES_PASSWORD: fixture_only
+          POSTGRES_DB: eut_fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U eut_fixture -d eut_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: eut_fixture
+      PGPASSWORD: fixture_only
+      PGDATABASE: eut_fixture
+    steps:
+      - uses: actions/checkout@v4
+      - name: PostgreSQL client
+        run: |
+          command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+          psql --version
+      - name: Isolated bootstrap reconciliation tests
+        run: bash tests/payments/mp-owner-bootstrap-ci.sh
