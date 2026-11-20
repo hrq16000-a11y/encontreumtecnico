@@ -144,6 +144,16 @@ describe("Perfil técnico premium sem prova social fabricada", () => {
     expect(screen.queryByText("Texto fornecido pelo titular do perfil.")).toBeNull();
   });
 
+  it("omite seção de condições quando não há declaração operacional", () => {
+    const { rerender } = render(<PublicTechnicianProfile technician={{ ...profile, operations: EMPTY_OPERATIONS }} />);
+    expect(screen.queryByRole("heading", { name: "Como costuma atender" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Condições" })).toBeNull();
+    rerender(<PublicTechnicianProfile technician={{ ...profile,
+      operations: { ...EMPTY_OPERATIONS, free_km: 0 },
+    }} />);
+    expect(screen.getByRole("heading", { name: "Como costuma atender" })).toBeTruthy();
+    expect(screen.getByText(/Até 0 km declarados/)).toBeTruthy();
+  });
   it("renderiza somente condições estruturadas sem expor contato privado ou prometer SLA", () => {
     const { container } = render(<PublicTechnicianProfile technician={{ ...profile,
       coverage_city_ids: [4204608], coverage_cities: [{ id: 4204608, name: "Criciúma", uf: "SC" }],
