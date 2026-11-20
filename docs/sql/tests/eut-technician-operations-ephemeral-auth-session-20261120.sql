@@ -88,7 +88,7 @@ BEGIN
    RAISE EXCEPTION 'releitura da edição admin divergente'; END IF;
  old_at:=(v->>'updated_at')::timestamptz - interval '1 second';
  BEGIN PERFORM public.eut_technician_operations_save(target,v->'profile',old_at,NULL);
- EXCEPTION WHEN serialization_failure THEN denied:=true; END;
+ EXCEPTION WHEN SQLSTATE 'PT409' THEN denied:=true; END;
  IF NOT denied THEN RAISE EXCEPTION 'conflito de versão não recusado'; END IF;
 END $$;
 ROLLBACK;
