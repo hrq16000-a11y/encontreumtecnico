@@ -74,6 +74,16 @@ export function validateTechnicianOperations(input: unknown, coverageCityIds: re
 /** Recover an editor draft when coverage shrank, without persisting any change.
  * Only out-of-coverage municipality classifications are removed; the RPC
  * remains responsible for owner/admin authorization, concurrency and audit. */
+/** An all-empty stored draft is not a public claim of availability or price. */
+export function hasDeclaredTechnicianOperations(operations: TechnicianOperations): boolean {
+  return operations.equipment.length > 0 || operations.transport_mode !== null ||
+    operations.can_travel || operations.service_windows.length > 0 ||
+    operations.eta_business_minutes !== null || operations.eta_outside_minutes !== null ||
+    operations.free_city_ids.length > 0 || operations.paid_city_ids.length > 0 ||
+    operations.free_km !== null || operations.km_threshold !== null ||
+    operations.km_rate_cents !== null || operations.km_rate_after_cents !== null;
+}
+
 export function reconcileTechnicianOperationsCoverage(
   input: unknown, coverageCityIds: readonly number[],
 ): { draft: TechnicianOperations; removedCityIds: number[] } | null {
