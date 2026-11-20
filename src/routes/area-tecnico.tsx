@@ -309,7 +309,7 @@ export function TechnicianAreaPage() {
   const catalogReady = !catalogLoading && !catalogError && !servicesLoading && !servicesError;
   const visibleCategories = matchingRegistrationCategories(categories, form.specialties, categoryQuery);
   const availableServiceCount = services.filter((service) => form.specialties.includes(service.category_slug)).length;
-  const visibleServices = matchingRegistrationServices(services, form.specialties, serviceQuery);
+  const visibleServices = matchingRegistrationServices(services, form.specialties, serviceQuery, categories);
   const reconciledSelections = catalogReady ? reconcileRegistrationSelections(form, catalog) : null;
   const staleSelections = Boolean(reconciledSelections && (
     reconciledSelections.specialties.length !== form.specialties.length ||
@@ -771,10 +771,10 @@ export function TechnicianAreaPage() {
                 </p>
                 {servicesLoading && <p className="mt-2 text-sm text-muted-foreground">Carregando serviços…</p>}
                 {servicesError && <p role="alert" className="mt-2 text-sm text-destructive">Serviços indisponíveis. Recarregue a página.</p>}
-                <label htmlFor="eut-wizard-service-search" className="mt-3 block text-sm font-medium text-foreground">Buscar serviço</label>
+                <label htmlFor="eut-wizard-service-search" className="mt-3 block text-sm font-medium text-foreground">Buscar serviço ou especialidade</label>
                 <input id="eut-wizard-service-search" type="search" value={serviceQuery} maxLength={80}
                   onChange={(event) => setServiceQuery(event.target.value)}
-                  placeholder="Ex.: instalação, manutenção, Wi-Fi" className={input} />
+                  placeholder="Ex.: elétrica, manutenção, Wi-Fi" className={input} />
                 <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
                   <p role="status">{visibleServices.length} de {availableServiceCount} serviço(s) exibido(s) · {form.service_slugs.length} selecionado(s)</p>
                   {serviceQuery.trim() && <button type="button" onClick={() => setServiceQuery("")}
