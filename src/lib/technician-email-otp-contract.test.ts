@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 
 const sql = readFileSync(resolve(process.cwd(),
   "docs/sql/eut-technician-email-otp-proof-20261120.sql"), "utf8");
+const rollbackSql = readFileSync(resolve(process.cwd(),
+  "docs/sql/eut-technician-email-otp-proof-rollback-20261120.sql"), "utf8");
 
 describe("Contrato auditável de titularidade de e-mail do técnico", () => {
   it("mantém o histórico atual e não aceita autoconfirmação isolada", () => {
@@ -38,5 +40,13 @@ describe("Contrato auditável de titularidade de e-mail do técnico", () => {
     expect(sql).toContain("REVOKE ALL ON FUNCTION public.eut_begin_technician_email_otp() FROM PUBLIC, anon, authenticated");
     expect(sql).not.toMatch(/(?:UPDATE|DELETE FROM)\s+auth\.users\b/i);
     expect(sql).not.toMatch(/(?:UPDATE|DELETE FROM)\s+public\.technicians\b/i);
+  });
+  it("oferece rollback sem apagar provas privadas ou contas", () => {
+    expect(rollbackSql).toContain("REVOKE ALL ON FUNCTION public.eut_begin_technician_email_otp()");
+    expect(rollbackSql).toContain("REVOKE ALL ON FUNCTION public.eut_attest_technician_email_otp()");
+    expect(rollbackSql).toContain("CREATE OR REPLACE FUNCTION eut_migration.confirmed_current_email()");
+    expect(rollbackSql).toContain("bf0789e2b311454a6320ecdc5269e73f");
+    expect(rollbackSql).not.toMatch(/^DROP TABLE/im);
+    expect(rollbackSql).not.toMatch(/^DELETE FROM/im);
   });
 });
