@@ -16,7 +16,7 @@ vi.mock("@/hooks/use-active-categories", () => ({
 }));
 vi.mock("@/hooks/use-active-services", () => ({
   useActiveServices: () => ({ services: [] }),
-  serviceLabel: (slug: string) => slug,
+  serviceLabel: (slug: string) => slug === "manutencao" ? "Manutenção" : slug,
 }));
 
 afterEach(() => cleanup());
@@ -42,6 +42,25 @@ const profile: PublicTechnician = {
 };
 
 describe("Perfil técnico premium sem prova social fabricada", () => {
+  it("filtra listas grandes de serviços sem perder a ação específica nem esconder a lista por padrão", () => {
+    render(<PublicTechnicianProfile technician={{ ...profile, service_slugs: [
+      "wifi", "notebooks", "impressao", "cabeamento", "manutencao", "cftv", "redes",
+    ] }} />);
+    expect(screen.getAllByRole("button", { name: /Solicitar atendimento para / })).toHaveLength(7);
+    const filter = screen.getByRole("searchbox", { name: "Encontrar serviço neste perfil" });
+    fireEvent.change(filter, { target: { value: "MANUTENCAO" } });
+    expect(screen.getAllByRole("button", { name: /Solicitar atendimento para / })).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Solicitar atendimento para Manutenção" }));
+    expect(openFreeHelp).toHaveBeenCalledWith(expect.objectContaining({ service: "Manutenção", technicianId: profile.id }));
+    fireEvent.change(filter, { target: { value: "inexistente" } });
+    expect(screen.getByText(/Nenhum serviço deste perfil corresponde/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Limpar filtro" }));
+    expect(screen.getAllByRole("button", { name: /Solicitar atendimento para / })).toHaveLength(7);
+  });
+  it("não acrescenta filtro a perfis com poucos serviços", () => {
+    render(<PublicTechnicianProfile technician={profile} />);
+    expect(screen.queryByRole("searchbox", { name: "Encontrar serviço neste perfil" })).toBeNull();
+  });
   it("abre o atendimento com o serviço específico escolhido e a ficha técnica correta", () => {
     render(<PublicTechnicianProfile technician={profile} />);
     fireEvent.click(screen.getByRole("button", { name: "Solicitar atendimento para wifi" }));
