@@ -72,6 +72,19 @@ export function selectedRegistrationServices<T extends { slug: string; label: st
   }));
 }
 
+/** Send a failed final review back to the first required field group, without
+ * submitting or changing the technician's saved selections. */
+export function registrationReviewIssue(
+  form: TechnicianRegistrationForm,
+  catalog: RegistrationCatalog,
+  persistedCity: PersistedTechnicianCity | null = null,
+): { step: 1 | 2; message: string } | null {
+  const identityError = registrationStepError(1, form, catalog, persistedCity);
+  if (identityError) return { step: 1, message: identityError };
+  const servicesError = registrationStepError(2, form, catalog);
+  return servicesError ? { step: 2, message: servicesError } : null;
+}
+
 /** Mobile onboarding validates locally before advancing; only the server RPC
  * can approve/publicly publish a technician, on the final review step. */
 export function registrationStepError(

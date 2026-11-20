@@ -33,7 +33,7 @@ import { clearProtectedDraft, readProtectedDraft, saveProtectedDraft } from "@/l
 import { saveTechnicianDraftImmediately } from "@/lib/technician-live-draft";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
-import { matchingRegistrationCategories, matchingRegistrationServices, selectedRegistrationServices, reconcileRegistrationSelections, registrationStepError, shouldSubmitTechnicianWizard, type RegistrationStep } from "@/lib/technician-registration-wizard";
+import { matchingRegistrationCategories, matchingRegistrationServices, selectedRegistrationServices, reconcileRegistrationSelections, registrationReviewIssue, registrationStepError, shouldSubmitTechnicianWizard, type RegistrationStep } from "@/lib/technician-registration-wizard";
 import { hydrateTechnicianOfficialCity } from "@/lib/technician-official-city-hydration";
 import { publicTextProblem } from "@/lib/public-profile-text";
 import { technicianPublishErrorMessage } from "@/lib/technician-publish-error";
@@ -82,6 +82,7 @@ export function TechnicianAreaPage() {
   const [profileError, setProfileError] = useState(false);
   const [reloadCounter, setReloadCounter] = useState(0);
   const [msg, setMsg] = useState<string | null>(null);
+  const [validationIssue, setValidationIssue] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [step, setStep] = useState<RegistrationStep>(1);
   const [categoryQuery, setCategoryQuery] = useState("");
@@ -138,6 +139,7 @@ export function TechnicianAreaPage() {
   }
   function updateRegistration(nextForm: typeof form) {
     writeDraft(nextForm, step); // Input event, before the route or browser tab changes.
+    setValidationIssue(null);
     setForm(nextForm);
   }
 
@@ -328,6 +330,7 @@ export function TechnicianAreaPage() {
   function moveToStep(next: RegistrationStep) {
     writeDraft(form, next); // Preserve wizard stage before React renders.
     setMsg(null);
+    setValidationIssue(null);
     setStep(next);
     // Focus the heading rather than jumping the viewport unexpectedly while typing.
     if (typeof window !== "undefined") {
@@ -336,7 +339,7 @@ export function TechnicianAreaPage() {
   }
   function advance() {
     const validation = registrationStepError(step, form, catalog, persistedCity);
-    if (validation) { setMsg(validation); return; }
+    if (validation) { setValidationIssue(validation); return; }
     if (step < 3) moveToStep((step + 1) as RegistrationStep);
   }
 
@@ -353,9 +356,12 @@ export function TechnicianAreaPage() {
     const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLElement | null;
     if (!shouldSubmitTechnicianWizard(step, submitter?.dataset["wizardAction"] ?? null)) return;
     if (!user || !profileReady || saving) return;
-    const firstError = registrationStepError(1, form, catalog, persistedCity);
-    const serviceError = registrationStepError(2, form, catalog);
-    if (firstError || serviceError) { setMsg(firstError || serviceError); return; }
+    const reviewIssue = registrationReviewIssue(form, catalog, persistedCity);
+    if (reviewIssue) {
+      moveToStep(reviewIssue.step);
+      setValidationIssue(reviewIssue.message);
+      return;
+    }
     const publicTextError = publicTextProblem(form.bio, "bio")
       || publicTextProblem(form.display_name, "identity")
       || publicTextProblem(form.region, "identity")
@@ -596,6 +602,7 @@ export function TechnicianAreaPage() {
                     : step === 2 ? "Selecione categorias e pelo menos um serviço que você realmente executa. Sem certificação automática."
                     : "Confira tudo antes de publicar. Somente o servidor pode autorizar seu perfil público."}
                 </p>
+                {validationIssue && <p role="alert" className="mt-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-foreground">{validationIssue}</p>}
                 <div className="mt-5 rounded-xl border border-border bg-muted/25 p-3 sm:p-4" aria-label="Checklist do perfil profissional">
                   <p className="text-xs font-semibold text-foreground">
                     {profileChecklist.filter(item => item.ready).length} de 3 itens preparados
