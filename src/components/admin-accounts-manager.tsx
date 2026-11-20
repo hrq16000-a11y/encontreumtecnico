@@ -70,6 +70,11 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
   useEffect(() => {
     let active = true;
     setLoading(true);
+    // Never leave controls for the previous filter/page actionable during a new read.
+    setSnapshot(null);
+    setSelection(null);
+    setSelectedIds(new Set());
+    setBulkAction(null);
     void (async () => {
       try {
         const { data, error: queryError } = await db.rpc("eut_admin_accounts_snapshot", {
