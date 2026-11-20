@@ -103,7 +103,7 @@ export function TechnicianOperationsEditor({ technicianId, coverageCityIds, mode
       });
       if (activeId.current !== owner) return;
       if (error || data?.ok !== true || data.technician_id !== owner || !data.updated_at) {
-        setFeedback(error?.code === "40001"
+        setFeedback(error?.code === "40001" || error?.code === "PT409"
           ? "Outra sessão alterou esta ficha. Recarregue antes de editar; não repetimos a gravação."
           : "A gravação não foi confirmada. Nenhuma ação será repetida automaticamente.");
         return;

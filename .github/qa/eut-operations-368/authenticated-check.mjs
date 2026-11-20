@@ -62,9 +62,8 @@ function rejectInvalid(result, label) {
     label + ': esperado erro de validacao, HTTP ' + result.status);
 }
 function rejectStale(result, label) {
-  // SQLSTATE 40001 pode ser convertido em HTTP 500 pelo PostgREST local.
-  assert([400, 409, 500].includes(result.status),
-    label + ': esperada rejeicao de revisao, HTTP ' + result.status);
+  assert.equal(result.status, 409,
+    label + ': conflito de revisao deve ser HTTP 409 sem retentativa');
 }
 const rpc = (name, token, body = {}) =>
   request('/rest/v1/rpc/' + name, { method: 'POST', token, body });

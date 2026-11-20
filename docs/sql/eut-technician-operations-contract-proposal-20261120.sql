@@ -133,7 +133,9 @@ BEGIN
  IF (v_old.technician_id IS NULL AND _expected_updated_at IS NOT NULL) OR
     (v_old.technician_id IS NOT NULL AND
       (_expected_updated_at IS NULL OR v_old.updated_at IS DISTINCT FROM _expected_updated_at)) THEN
-    RAISE EXCEPTION 'Ficha alterada em outra sessão' USING ERRCODE='40001'; END IF;
+    -- HTTP 409 explicito para o cliente PostgREST; 40001 pode acionar
+    -- retentativa interna da transacao e esgotar o timeout do navegador.
+    RAISE EXCEPTION 'Ficha alterada em outra sessão' USING ERRCODE='PT409'; END IF;
  INSERT INTO eut_profile_ops.technician_operations (
    technician_id,equipment,transport_mode,can_travel,service_windows,eta_business_minutes,
    eta_outside_minutes,free_city_ids,paid_city_ids,free_km,km_threshold,km_rate_cents,

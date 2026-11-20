@@ -22,7 +22,7 @@ BEGIN
  THEN RAISE EXCEPTION 're-read'; END IF;
  rejected:=false;
  BEGIN PERFORM public.eut_technician_operations_save(t,d,NULL,NULL);
- EXCEPTION WHEN serialization_failure THEN rejected:=true; END;
+ EXCEPTION WHEN SQLSTATE 'PT409' THEN rejected:=true; END;
  IF NOT rejected THEN RAISE EXCEPTION 'optimistic conflict accepted'; END IF;
  rejected:=false;
  BEGIN PERFORM public.eut_technician_operations_save(t,d||'{"phone":"private"}'::jsonb,ts,NULL);
