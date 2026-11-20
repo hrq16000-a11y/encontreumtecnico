@@ -10,6 +10,23 @@ describe("enriquecimento privado e voluntário do perfil técnico", () => {
     expect(result).not.toMatch(/whatsapp|telefone|R\$|km|carro|notebook/i);
   });
 
+  it("permite informar formação e cursos sem presumir diploma ou certificação", () => {
+    const headingOnly = addPublicProfileTopic("", "training");
+    expect(headingOnly).toBe("Minha formação e cursos: ");
+    expect(publicProfileHasTopic(headingOnly, "training")).toBe(true);
+    expect(parseProfessionalBio(headingOnly).sections).toEqual([]);
+    const declared = "Atuo com redes.\\nMinha formação e cursos: Curso livre de redes e cabeamento.";
+    expect(addPublicProfileTopic(declared, "training")).toBe(declared);
+    expect(parseProfessionalBio(declared)).toEqual({
+      introduction: "Atuo com redes.",
+      sections: [{ id: "training", label: "Formação e cursos", text: "Curso livre de redes e cabeamento." }],
+    });
+    const input = { display_name: "Técnico Teste", city: "Curitiba", state_uf: "PR",
+      specialties: ["redes"], service_slugs: ["wifi"], avatar_path: null, coverage_city_ids: [] };
+    expect(technicianProfileEnrichment({ ...input, bio: headingOnly }).entries[2].complete).toBe(false);
+    expect(technicianProfileEnrichment({ ...input, bio: declared }).entries[2].complete).toBe(true);
+  });
+
   it("preserva o texto integral quando não houver espaço ou já existir o título", () => {
     const long = "x".repeat(990);
     expect(addPublicProfileTopic(long, "experience")).toBe(long);
