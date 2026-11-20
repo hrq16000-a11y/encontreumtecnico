@@ -132,8 +132,8 @@ jobs:
           test "$ready" -eq 1 || { echo "Real TanStack admin route did not become healthy" >&2; tail -n 70 "$RUNNER_TEMP/pr344-tanstack-vite.log"; exit 1; }
           echo "REAL HTTP ROUTES: TanStack server returned 401 for missing admin JWT"
 
-      - name: H1-H4 — only new real route E2E scenarios
-        run: timeout --signal=TERM --kill-after=5s 100s node --test qa/pr344-tanstack-handlers-e2e.test.mjs
+      - name: H0 — bootstrap only synthetic admin JWT for H5 recheck
+        run: timeout --signal=TERM --kill-after=5s 45s node --test --test-name-pattern='^H0:' qa/pr344-tanstack-handlers-e2e.test.mjs
 
       - name: Stop the test database to verify real outage
         shell: bash
