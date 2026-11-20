@@ -71,7 +71,10 @@ export function parseProfessionalBio(bio: string | null | undefined): {
   const flush = () => {
     if (!current) return;
     const text = current.lines.join("\n").trim();
-    if (text) sections.push({ id: current.id, label: current.label, text });
+    if (!text) return;
+    const existing = sections.find((item) => item.id === current!.id);
+    if (existing) existing.text += "\n" + text;
+    else sections.push({ id: current.id, label: current.label, text });
   };
 
   for (const rawLine of (bio ?? "").replace(/\r\n?/g, "\n").split("\n")) {
