@@ -1,6 +1,6 @@
 # Encontre um Técnico — contrato operacional estruturado (micro-rodada)
 
-Status: **proposta em código, sem implantação no Supabase oficial nem publicação**.
+Status em 20/11/2026: **interface integrada (#368 e #386), contrato SQL ainda NÃO instalado no Supabase oficial**. A interface falha fechada até as RPCs existirem. Nenhuma migração deve ser inferida do merge ou do deployment.
 Base de desenvolvimento: `main` após a PR #360 (`eed3ce74`).
 
 ## O que entra nesta rodada
@@ -116,9 +116,10 @@ o gate Auth+PostgREST 9/9 como concluído por causa dessa aprovação isolada.**
 4. **Revisão SQL**: confirmar schema `eut_profile_ops` fora dos schemas expostos na
    Data API, `SECURITY DEFINER` interno com `search_path=''`, revogação de acesso
    direto, função de elegibilidade pública, auditoria e invariantes de concorrência.
-5. **Decisão explícita e separada** do proprietário para: (a) aplicação do SQL
-   oficial, (b) merge da PR, (c) um deployment controlado. Checks verdes não são
-   aprovação automática.
+5. **Decisão específica do proprietário para o SQL oficial**. As PRs #368 e
+   #386 já foram integradas, portanto não devem ser mescladas ou publicadas
+   novamente. A PR #383 permanece independente, somente documental/de
+   homologação; sua integração não aplica nem autoriza migração ou deployment.
 6. **Se autorizado futuramente**, aplicar a proposta SQL uma única vez em
    transação, verificar grants/funções e salvamento/releitura com identidade
    autorizada, inspecionar logs de erros sem telefones, e só depois liberar a UI.
@@ -126,16 +127,59 @@ o gate Auth+PostgREST 9/9 como concluído por causa dessa aprovação isolada.**
    de reverter a UI. Manter a tabela de condições e sua auditoria para recuperação;
    não executar `DROP TABLE ... CASCADE` nem apagar novas fichas sem outro plano.
 
-### Gate adicional: ficha suspensa não pode ser restaurada pelo titular
+### Gate de policy vigente — suspensos E rejeitados, sem mudança SQL
 
-O preflight oficial detectou que a policy permissiva `"Owner edits back to pending"`
-conferia o **novo** status `pendente`, mas não rejeitava o **antigo** `suspenso`.
-O ajuste mínimo fica exclusivamente no rascunho
-`docs/sql/eut-technician-suspension-resubmission-guard-proposal-20261120.sql`:
-adiciona `status <> 'suspenso'` ao `USING` da policy do titular, sem alterar seu
-`WITH CHECK`. A policy administrativa separada `"Admin moderates"` permanece intacta.
-Este rascunho não foi aplicado oficialmente; antes da ativação é necessário
-revalidar policies, grants, dependências e rotas SECURITY DEFINER que possam
-alterar status sem passar pelo RLS. O teste sintético de RLS não substitui esse gate.
+Preflight oficial somente leitura (20/11/2026, Postgres 17.11):
+- A policy permissiva `"Owner edits back to pending"` **já contém** no `USING`
+  `status <> ALL (ARRAY['suspenso', 'rejeitado'])`; o `WITH CHECK` continua
+  exigindo `status = 'pendente'` e `auth.uid() = user_id`.
+- A policy distinta `"Admin moderates"` autoriza moderação autenticada pelo
+  papel `admin`. Foram identificadas exatamente duas policies UPDATE.
+- O rascunho anterior de `ALTER POLICY`, que bloqueava só `suspenso`, está
+  **obsoleto e seria uma regressão** por retirar a trava contra `rejeitado`.
+  Não executar esse `ALTER` no Supabase oficial. O arquivo
+  `docs/sql/eut-technician-suspension-resubmission-guard-proposal-20261120.sql`
+  agora é **somente uma asserção de preflight, sem DDL/DML**.
+- A fixture PostgreSQL descartável verifica que titulares das duas fichas
+  suspensas e de uma rejeitada não recuperam `pendente`; a edição válida do
+  titular continua disponível; o administrador pode moderar conforme as roles.
+- Consultas ao banco oficial encontraram 7 fichas na tabela `technicians`,
+  nenhuma no estado `suspenso` nessa tabela na inspeção; isso **não** equivale
+  a dizer que contatos ou bloqueios privados foram removidos. Nenhum desses
+  registros foi alterado.
 
-Não há execução SQL no projeto oficial, envio de OTP, merge ou deployment nesta rodada.
+### Gate de funções privilegiadas e editor compartilhado
+
+- A função `eut_publish_my_technician` trata `suspenso` e `rejeitado`
+  como restritos. A RPC `eut_remove_my_technician_profile` também recusa
+  mudança de ficha restrita; avatar e cobertura exigem perfil aprovado.
+- A moderação administrativa e a função de contatos privados têm caminhos
+  `SECURITY DEFINER`: policy RLS sozinha não é prova suficiente. Antes de
+  liberar operações novas, testar os caminhos administrativos/negativos usando
+  sessões reais e justificar qualquer retorno de status com auditoria.
+- A PR #386 integrou a reconciliação **local** quando um município é retirado
+  da cobertura, sem gravação automática, preservando transporte, equipamentos,
+  horários, ETA e preços declarados. O mesmo editor atende o titular e o admin;
+  no perfil público declarações vazias são omitidas.
+- O Supabase oficial ainda **não possui** `eut_profile_ops` nem as três RPCs
+  `eut_technician_operations_get`, `eut_technician_operations_save` e
+  `eut_public_technician_operations`. Portanto gravação/leitura real desses
+  novos campos **continua NO-GO**, mesmo que os testes estáticos passem.
+
+### Pré-condições restantes para ativação (SEM autorização implícita)
+
+1. Revalidar o arquivo canônico da #368, **sem modificar** seu blob Git
+   `63d777c6058d6a5184917530fcc2b0ab330b8bbb` e digest SHA-256 registrado
+   `be6e5144bf4afd0c99884218c75fec93f87e8e66b63d629444f32df3e58d2d54`.
+2. Confirmar schema interno fora da Data API, RLS da tabela privada, grants
+   restritos, elegibilidade pública, versão otimista e log de auditoria.
+3. Completar os **9/9 cenários Auth + PostgREST real** em ambiente descartável
+   sem segredos e sem dados oficiais. PostgreSQL de fixture não substitui esse gate.
+4. Verificar as funções `SECURITY DEFINER` com identidade técnica suspensa,
+   rejeitada, terceiro, admin legítimo e anônimo, inclusive moderação e
+   contatos privados. Proteger os registros atualmente restritos.
+5. Somente após essas provas, solicitar **autorização específica** para executar
+   o contrato SQL operacional no Supabase oficial, uma única vez. SQL oficial,
+   merge documental e deployment são decisões separadas; não repetir releases.
+
+A presente PR #383 não executa SQL oficial nem altera a policy já mais segura.
