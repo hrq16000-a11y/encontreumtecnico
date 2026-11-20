@@ -41,6 +41,14 @@ const profile: PublicTechnician = {
 };
 
 describe("Perfil técnico premium sem prova social fabricada", () => {
+  it("abre o atendimento com o serviço específico escolhido e a ficha técnica correta", () => {
+    render(<PublicTechnicianProfile technician={profile} />);
+    fireEvent.click(screen.getByRole("button", { name: "Solicitar atendimento para wifi" }));
+    expect(openFreeHelp).toHaveBeenCalledWith({
+      mode: "direct", technicianId: profile.id, technicianName: profile.display_name, service: "wifi",
+    });
+    expect(screen.queryByRole("link", { name: /telefone|WhatsApp/i })).toBeNull();
+  });
   it("interliga municípios adicionais ao filtro oficial sem inferir localização precisa", () => {
     render(<PublicTechnicianProfile technician={{ ...profile, coverage_cities: [
       { id: 4207304, name: "Imbituba", uf: "SC" },
