@@ -35,7 +35,8 @@ export function ConsentedVisitorPresence({ pathname }: { pathname: string }) {
         return;
       }
       closing = false;
-      const next = supabase.channel(CONSENTED_VISITOR_CHANNEL);
+      // Authorization is enforced by realtime.messages, not by client UI.
+      const next = supabase.channel(CONSENTED_VISITOR_CHANNEL, { config: { private: true } });
       channel = next;
       next.subscribe((status) => {
         if (closing || channel !== next) return;

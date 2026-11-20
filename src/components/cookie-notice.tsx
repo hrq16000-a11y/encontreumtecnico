@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { PRIVATE_VISITOR_PRESENCE_ENABLED } from "@/lib/visitor-realtime-presence";
 
 const KEY = "eut-cookie-consent";
 type Consent = { necessary: true; functional: boolean; analytics: boolean; advertising: boolean; presence: boolean };
@@ -48,7 +49,7 @@ export function CookieNotice() {
         <p className="text-sm font-semibold text-foreground">Valorizamos sua privacidade</p>
         <p className="mt-1 text-sm text-muted-foreground">
           Cookies necessários mantêm as funções essenciais. Opções separadas permitem recursos funcionais, análises,
-          presença anônima (pausada até autorização de acesso) e publicidade aprovada (incluindo Google AdSense);
+          presença anônima {PRIVATE_VISITOR_PRESENCE_ENABLED ? "consentida" : "(pausada até autorização de acesso)"} e publicidade aprovada (incluindo Google AdSense);
           você pode escolher as categorias e mudar de preferência a qualquer momento.{" "}
           <Link to="/cookies" className="text-primary underline">Política de cookies</Link>
           {" · "}
@@ -68,7 +69,9 @@ export function CookieNotice() {
             </label>
             <label className="flex items-start gap-2 text-foreground">
               <input type="checkbox" checked={presence} onChange={(e) => setPresence(e.target.checked)} />
-              <span>Presença online (pausada): sua preferência fica salva, mas nenhuma aba é contabilizada enquanto o acesso administrativo ao canal não estiver protegido. Você pode desativar a opção a qualquer momento.</span>
+              <span>{PRIVATE_VISITOR_PRESENCE_ENABLED
+                ? "Presença online: contabiliza apenas a sua aba enquanto estiver visível e você permitir. Você pode desativar a opção a qualquer momento."
+                : "Presença online (pausada): sua preferência fica salva, mas nenhuma aba é contabilizada enquanto o acesso administrativo ao canal não estiver protegido. Você pode desativar a opção a qualquer momento."}</span>
             </label>
             <label className="flex items-center gap-2 text-foreground">
               <input type="checkbox" checked={advertising} onChange={(e) => setAdvertising(e.target.checked)} /> Publicidade (AdSense e campanhas aprovadas)

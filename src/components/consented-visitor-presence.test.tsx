@@ -30,7 +30,7 @@ describe("publicador de presença temporária", () => {
     render(<ConsentedVisitorPresence pathname="/" />);
     localStorage.setItem("eut-cookie-consent", '{"presence":true}');
     act(() => { window.dispatchEvent(new Event("eut-consent-changed")); });
-    expect(fake.connect).toHaveBeenCalledWith("eut-consented-visitor-tabs-v1");
+    expect(fake.connect).toHaveBeenCalledWith("eut-consented-visitor-tabs-v2-private", { config: { private: true } });
     const callback = fake.channel.subscribe.mock.calls[0]?.[0] as (status: string) => void;
     act(() => { callback("SUBSCRIBED"); });
     expect(fake.channel.track).toHaveBeenCalledWith({ kind: "consented-visitor-tab" });
