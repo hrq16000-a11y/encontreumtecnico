@@ -16,7 +16,6 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { FriendlyErrorState } from "../components/friendly-error-state";
 import { PageShell } from "../components/page-placeholder";
 import { AdSenseLoader } from "../components/adsense-loader";
-import { ConsentedVisitorPresence } from "../components/consented-visitor-presence";
 import { isGuideDetailHeadMatch } from "../lib/guide-font-loading";
 import { isStandaloneVisualRoute } from "../lib/shared-shell-routing";
 
@@ -134,7 +133,6 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ConsentedVisitorPresence pathname={pathname} />
       {isStandaloneVisualRoute(pathname) || hasRouteError ? (
         // LP2 and Home2 intentionally own their themes and navigation.
         <Outlet />
