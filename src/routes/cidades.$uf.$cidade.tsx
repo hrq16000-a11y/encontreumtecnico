@@ -40,6 +40,7 @@ function CitySeoPage() {
     <PublicSeoDirectory
       heading={`Técnicos em ${city.name}/${city.uf}`}
       summary={`${city.count} perfil(is) publicado(s) que informam ${city.name}/${city.uf} como cidade-base. Explore profissionais e especialidades declaradas. A cobertura fora da cidade-base depende do perfil individual.`}
+      context={{ kind: "city", label: `${city.name}/${city.uf}` }}
       profiles={profiles} categories={categories}
     />
   </PageShell>;
