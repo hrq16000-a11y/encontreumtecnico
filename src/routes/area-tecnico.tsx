@@ -309,10 +309,10 @@ export function TechnicianAreaPage() {
     updateRegistration(catalogReady ? { ...next, ...reconcileRegistrationSelections(next, catalog) } : next);
   }
   const profileChecklist = [
-    { label: "Nome e município", ready: registrationStepError(1, form, catalog, persistedCity) === null, essential: true },
-    { label: "Especialidades e serviços", ready: registrationStepError(2, form, catalog) === null, essential: true },
-    { label: "Apresentação profissional", ready: form.bio.trim().length >= 80 && !publicTextProblem(form.bio, "bio"), essential: false },
-  ];
+    { step: 1, label: "Nome e município", ready: registrationStepError(1, form, catalog, persistedCity) === null, essential: true },
+    { step: 2, label: "Especialidades e serviços", ready: registrationStepError(2, form, catalog) === null, essential: true },
+    { step: 3, label: "Apresentação profissional", ready: form.bio.trim().length >= 80 && !publicTextProblem(form.bio, "bio"), essential: false },
+  ] as const;
   function moveToStep(next: RegistrationStep) {
     writeDraft(form, next); // Preserve wizard stage before React renders.
     setMsg(null);
@@ -568,8 +568,16 @@ export function TechnicianAreaPage() {
                   </p>
                   <ul className="mt-3 flex flex-wrap gap-2 text-xs">
                     {profileChecklist.map(item => (
-                      <li key={item.label} className={`rounded-full border px-3 py-1.5 ${item.ready ? "border-primary/30 bg-primary/10 text-foreground" : "border-border bg-background text-muted-foreground"}`}>
-                        {item.ready ? "✓ " : "○ "}{item.label}{!item.essential ? " (opcional)" : ""}
+                      <li key={item.label}>
+                        <button
+                          type="button"
+                          onClick={() => moveToStep(item.step)}
+                          aria-label={`Ir para ${item.label.toLowerCase()}`}
+                          aria-current={step === item.step ? "step" : undefined}
+                          className={`rounded-full border px-3 py-1.5 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${item.ready ? "border-primary/30 bg-primary/10 text-foreground" : "border-border bg-background text-muted-foreground"}`}
+                        >
+                          {item.ready ? "✓ " : "○ "}{item.label}{!item.essential ? " (opcional)" : ""}
+                        </button>
                       </li>
                     ))}
                   </ul>
