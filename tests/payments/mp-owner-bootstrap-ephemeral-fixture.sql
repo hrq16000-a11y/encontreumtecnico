@@ -2,8 +2,12 @@
 CREATE SCHEMA auth;
 CREATE SCHEMA eut_migration;
 CREATE SCHEMA eut_moderation;
-CREATE ROLE anon NOLOGIN;
-CREATE ROLE authenticated NOLOGIN;
+DO $roles$
+BEGIN
+ IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF;
+ IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF;
+END;
+$roles$;
 CREATE TYPE public.app_role AS ENUM ('admin','cliente','tecnico');
 CREATE TABLE auth.users(id uuid PRIMARY KEY,email text NOT NULL,email_confirmed_at timestamptz);
 CREATE TABLE auth.identities(
