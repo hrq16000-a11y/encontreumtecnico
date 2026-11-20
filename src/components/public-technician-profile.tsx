@@ -3,7 +3,7 @@ import { useState } from "react";
 import { openFreeHelp } from "@/lib/free-search-help";
 import {
   ArrowLeft, ArrowRight, ArrowUpRight, BadgeInfo, BriefcaseBusiness, CalendarDays, CarFront, Check,
-  ChevronRight, Copy, GraduationCap, Handshake, LockKeyhole, MapPin,
+  ChevronRight, Copy, GraduationCap, Handshake, LockKeyhole, MapPin, Share2,
   MessageSquareText, MonitorCheck, Navigation, Sparkles, Wrench,
 } from "lucide-react";
 import type { PublicTechnician } from "@/lib/technicians.functions";
@@ -24,15 +24,36 @@ const searchableService = (value: string) => value.normalize("NFD")
 export function PublicTechnicianProfile({ technician: t, links }: { technician: PublicTechnician; links?: PublicSeoLinks }) {
   const [shareStatus, setShareStatus] = useState<"copied" | "unavailable" | null>(null);
   const [serviceFilter, setServiceFilter] = useState("");
+  // Only the server-approved public slug is shared, never URL queries, fragments,
+  // private contacts or preview hostnames.
+  const publicProfileUrl = () =>
+    `https://www.encontreumtecnico.com.br/tecnicos/${encodeURIComponent(t.public_slug)}`;
+
   async function copyPublicProfileUrl() {
-    // Share only the public route: never forward tracking or auth query parameters.
-    const publicUrl = `${window.location.origin}${window.location.pathname}`;
     if (!navigator.clipboard?.writeText) { setShareStatus("unavailable"); return; }
     try {
-      await navigator.clipboard.writeText(publicUrl);
+      await navigator.clipboard.writeText(publicProfileUrl());
       setShareStatus("copied");
     } catch {
       setShareStatus("unavailable");
+    }
+  }
+
+  async function sharePublicProfileUrl() {
+    if (typeof navigator.share !== "function") {
+      await copyPublicProfileUrl();
+      return;
+    }
+    setShareStatus(null);
+    try {
+      await navigator.share({
+        title: `Perfil de ${t.display_name} — Encontre um Técnico`,
+        url: publicProfileUrl(),
+      });
+    } catch (error) {
+      // Cancelling the system share sheet is not an error or a reason to copy.
+      if (error && typeof error === "object" && "name" in error && error.name === "AbortError") return;
+      await copyPublicProfileUrl();
     }
   }
   const { categories } = useActiveCategories();
@@ -131,6 +152,10 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
                   <button type="button" onClick={() => { void copyPublicProfileUrl(); }}
                     className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/25 bg-white/10 px-5 text-sm font-semibold text-white transition-colors hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white motion-reduce:transition-none">
                     <Copy aria-hidden="true" className="h-4 w-4" /> Copiar link do perfil
+                  </button>
+                  <button type="button" onClick={() => { void sharePublicProfileUrl(); }}
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/25 bg-white/10 px-5 text-sm font-semibold text-white transition-colors hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white motion-reduce:transition-none">
+                    <Share2 aria-hidden="true" className="h-4 w-4" /> Compartilhar perfil
                   </button>
                 </div>
                 {shareStatus && <p role="status" aria-live="polite" className="mt-2 text-sm text-white/85">
