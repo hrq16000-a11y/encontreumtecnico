@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { registrationStepError, type TechnicianRegistrationForm } from "./technician-registration-wizard";
+import { reconcileRegistrationSelections, registrationStepError, type TechnicianRegistrationForm } from "./technician-registration-wizard";
 
 const catalog = {
   categories: [{ slug: "redes" }, { slug: "computadores" }],
@@ -12,6 +12,23 @@ const form: TechnicianRegistrationForm = {
   specialties: ["redes"], service_slugs: ["wifi"],
 };
 describe("Cadastro guiado mobile", () => {
+  it("permite retirar serviços e categorias desativados sem perder escolhas válidas", () => {
+    const previous = {
+      specialties: ["redes", "computadores", "categoria-antiga"],
+      service_slugs: ["wifi", "formatacao", "servico-antigo", "orfao"],
+    };
+    expect(reconcileRegistrationSelections(previous, catalog)).toEqual({
+      specialties: ["redes", "computadores"], service_slugs: ["wifi", "formatacao"],
+    });
+    expect(previous.service_slugs).toContain("servico-antigo");
+    expect(registrationStepError(2, { ...form, ...previous }, catalog)).toMatch(/catálogo/);
+    expect(registrationStepError(2, { ...form, ...reconcileRegistrationSelections(previous, catalog) }, catalog)).toBeNull();
+  });
+  it("ao retirar uma categoria preserva somente os serviços das categorias restantes", () => {
+    expect(reconcileRegistrationSelections({
+      specialties: ["computadores"], service_slugs: ["wifi", "formatacao", "invisivel"],
+    }, catalog)).toEqual({ specialties: ["computadores"], service_slugs: ["formatacao"] });
+  });
   it("bloqueia avanço sem nome, estado ou cidade", () => {
     expect(registrationStepError(1, { ...form, display_name: " " }, catalog)).toMatch(/nome público/);
     expect(registrationStepError(1, { ...form, state_uf: "" }, catalog)).toMatch(/UF/);
@@ -48,6 +65,8 @@ describe("Cadastro guiado mobile", () => {
     expect(route).toContain('activationDb.rpc("eut_publish_my_technician"');
     expect(route).toContain("registrationStepError(1, form, catalog, persistedCity)");
     expect(route).toContain("registrationStepError(2, form, catalog)");
+    expect(route).toContain('onClick={() => toggleCategory(c.slug)}');
+    expect(route).toContain("Remover opções indisponíveis");
     expect(route).toContain("persistedCityRef.current = { ownerId: owner, state_uf: loadedForm.state_uf, city: loadedForm.city }");
     expect(route).toContain('role="progressbar"');
     expect(route).toContain('bottom-[calc(3.5rem+env(safe-area-inset-bottom))]');

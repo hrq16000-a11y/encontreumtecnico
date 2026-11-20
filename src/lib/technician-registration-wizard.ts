@@ -19,6 +19,19 @@ export type RegistrationCatalog = {
   servicesError: boolean;
 };
 
+/** Reconcile a saved wizard draft against the currently active catalog.
+ * Only the technician's local selection changes; no server record is written. */
+export function reconcileRegistrationSelections(
+  form: Pick<TechnicianRegistrationForm, "specialties" | "service_slugs">,
+  catalog: Pick<RegistrationCatalog, "categories" | "services">,
+): Pick<TechnicianRegistrationForm, "specialties" | "service_slugs"> {
+  const activeCategories = new Set(catalog.categories.map((category) => category.slug));
+  const specialties = form.specialties.filter((slug) => activeCategories.has(slug));
+  const activeServices = new Set(catalog.services
+    .filter((service) => specialties.includes(service.category_slug)).map((service) => service.slug));
+  return { specialties, service_slugs: form.service_slugs.filter((slug) => activeServices.has(slug)) };
+}
+
 /** Mobile onboarding validates locally before advancing; only the server RPC
  * can approve/publicly publish a technician, on the final review step. */
 export function registrationStepError(

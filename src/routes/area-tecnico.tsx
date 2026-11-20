@@ -31,7 +31,7 @@ import { clearProtectedDraft, readProtectedDraft, saveProtectedDraft } from "@/l
 import { saveTechnicianDraftImmediately } from "@/lib/technician-live-draft";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
-import { registrationStepError, type RegistrationStep } from "@/lib/technician-registration-wizard";
+import { reconcileRegistrationSelections, registrationStepError, type RegistrationStep } from "@/lib/technician-registration-wizard";
 import { hydrateTechnicianOfficialCity } from "@/lib/technician-official-city-hydration";
 import { publicTextProblem } from "@/lib/public-profile-text";
 import { technicianPublishErrorMessage } from "@/lib/technician-publish-error";
@@ -297,6 +297,17 @@ export function TechnicianAreaPage() {
 
   const catalog = { categories, services, catalogLoading, catalogError: Boolean(catalogError),
     servicesLoading, servicesError: Boolean(servicesError) };
+  const catalogReady = !catalogLoading && !catalogError && !servicesLoading && !servicesError;
+  const reconciledSelections = catalogReady ? reconcileRegistrationSelections(form, catalog) : null;
+  const staleSelections = Boolean(reconciledSelections && (
+    reconciledSelections.specialties.length !== form.specialties.length ||
+    reconciledSelections.service_slugs.length !== form.service_slugs.length));
+  function toggleCategory(slug: string) {
+    const specialties = form.specialties.includes(slug)
+      ? form.specialties.filter((item) => item !== slug) : [...form.specialties, slug];
+    const next = { ...form, specialties };
+    updateRegistration(catalogReady ? { ...next, ...reconcileRegistrationSelections(next, catalog) } : next);
+  }
   function moveToStep(next: RegistrationStep) {
     writeDraft(form, next); // Preserve wizard stage before React renders.
     setMsg(null);
@@ -644,6 +655,15 @@ export function TechnicianAreaPage() {
               )}
               {step === 2 && (
                 <div className="grid gap-4">
+              {staleSelections && reconciledSelections && (
+                <div role="alert" className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-foreground">
+                  <p>Algumas categorias ou serviços do seu rascunho não estão mais disponíveis. Os itens válidos serão preservados.</p>
+                  <button type="button" onClick={() => updateRegistration({ ...form, ...reconciledSelections })}
+                    className="mt-3 min-h-11 rounded-lg border border-amber-500/50 bg-background px-4 font-semibold">
+                    Remover opções indisponíveis
+                  </button>
+                </div>
+              )}
               <fieldset>
                 <legend className="text-sm font-medium text-foreground">Especialidades</legend>
                 {catalogLoading && <p className="mt-2 text-sm text-muted-foreground">Carregando categorias…</p>}
@@ -653,7 +673,7 @@ export function TechnicianAreaPage() {
                     const on = form.specialties.includes(c.slug);
                     return (
                       <button type="button" key={c.slug} aria-pressed={on}
-                        onClick={() => updateRegistration({ ...form, specialties: on ? form.specialties.filter((s) => s !== c.slug) : [...form.specialties, c.slug], service_slugs: on ? form.service_slugs.filter((slug) => services.find((service) => service.slug === slug)?.category_slug !== c.slug) : form.service_slugs })}
+                        onClick={() => toggleCategory(c.slug)}
                         className={`min-h-11 rounded-full border px-4 text-sm ${on ? "border-primary bg-primary text-primary-foreground" : "border-input text-foreground"}`}>
                         {c.label}
                       </button>
