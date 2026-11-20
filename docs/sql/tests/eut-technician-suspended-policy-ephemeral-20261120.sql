@@ -7,13 +7,14 @@ CREATE POLICY "Owner reads own" ON public.technicians FOR SELECT TO authenticate
 CREATE POLICY "Admin reads all" ON public.technicians FOR SELECT TO authenticated
   USING (public.has_role(auth.uid(), 'admin'::public.app_role));
 CREATE POLICY "Owner edits back to pending" ON public.technicians FOR UPDATE TO authenticated
-  USING (auth.uid() = user_id)
+  USING ((auth.uid() = user_id) AND
+    (status NOT IN ('suspenso'::public.approval_status, 'rejeitado'::public.approval_status)))
   WITH CHECK ((auth.uid() = user_id) AND (status = 'pendente'::public.approval_status));
 CREATE POLICY "Admin moderates" ON public.technicians FOR UPDATE TO authenticated
   USING (public.has_role(auth.uid(), 'admin'::public.app_role))
   WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
 
--- Executa o rascunho EXATAMENTE como seria inspecionado, apenas no fixture.
+-- Valida somente o contrato atual: não altera a policy já protegida.
 \i docs/sql/eut-technician-suspension-resubmission-guard-proposal-20261120.sql
 
 -- Ambos os titulares suspensos tentam status pendente: nenhum UPDATE possível.
@@ -43,6 +44,25 @@ BEGIN
  WHERE id='10000000-0000-4000-8000-000000000003';
  GET DIAGNOSTICS changed = ROW_COUNT;
  IF changed <> 0 THEN RAISE EXCEPTION 'titular restaurou segundo suspenso'; END IF;
+END;
+$test$;
+ROLLBACK;
+
+-- A versão oficial também impede restaurar uma ficha rejeitada pelo titular.
+-- A transição de aprovado para rejeitado aqui ocorre apenas no fixture e é revertida.
+BEGIN;
+UPDATE public.technicians SET status='rejeitado'
+WHERE id='10000000-0000-4000-8000-000000000001';
+SET LOCAL ROLE authenticated;
+SELECT pg_catalog.set_config('request.jwt.claim.sub',
+ '20000000-0000-4000-8000-000000000001',true);
+DO $test$
+DECLARE changed integer;
+BEGIN
+ UPDATE public.technicians SET status='pendente'
+ WHERE id='10000000-0000-4000-8000-000000000001';
+ GET DIAGNOSTICS changed = ROW_COUNT;
+ IF changed <> 0 THEN RAISE EXCEPTION 'titular restaurou ficha rejeitada'; END IF;
 END;
 $test$;
 ROLLBACK;
