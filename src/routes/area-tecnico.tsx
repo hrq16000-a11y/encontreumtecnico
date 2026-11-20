@@ -12,6 +12,7 @@ import { BRAZIL_STATES, validMunicipality } from "@/lib/service-taxonomy";
 import { useMunicipalities } from "@/hooks/use-municipalities";
 import { MunicipalityPicker } from "@/components/municipality-picker";
 import { TechnicianCoverageEditor } from "@/components/technician-coverage-editor";
+import { TechnicianOperationsEditor } from "@/components/technician-operations-editor";
 import { TechnicianAvatarEditor } from "@/components/technician-avatar-editor";
 import { LegacyAccountActivation } from "@/components/legacy-account-activation";
 import { LegacyProfileImport } from "@/components/legacy-profile-import";
@@ -521,6 +522,7 @@ export function TechnicianAreaPage() {
               {([
                 { tab: "perfil", title: "Meu perfil profissional", detail: "Nome, cidade, especialidades e serviços", icon: UserRound },
                 { tab: "cobertura", title: "Regiões atendidas", detail: "Até cinco cidades validadas e raio", icon: MapPin },
+                { tab: "operacao", title: "Condições de atendimento", detail: "Ferramentas, locomoção, períodos e km", icon: MapPin },
                 { tab: "foto", title: "Foto pública", detail: avatarPath ? "Foto associada ao perfil" : "Adicionar minha foto com consentimento", icon: Camera },
                 { tab: "solicitacoes", title: "Solicitações", detail: "Disponibilidade e pedidos autorizados", icon: Inbox },
               ] as const).map((card) => {
@@ -838,6 +840,18 @@ export function TechnicianAreaPage() {
                       <p className="text-sm text-foreground">Publique primeiro seu perfil profissional com uma cidade-base válida para liberar o editor de regiões.</p>
                       <a href={technicianTabHref("perfil")} onClick={() => setPanelTab("perfil")} className="mt-3 inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground">Completar meu perfil</a>
                     </div>
+                  )}
+                </section>
+              )}
+              {panelTab === "operacao" && (
+                <section aria-labelledby="area-operacao-titulo">
+                  <h2 id="area-operacao-titulo" className="text-2xl font-bold text-foreground">Condições de atendimento</h2>
+                  <p className="mt-2 text-sm text-muted-foreground">Declare equipamentos, transporte, horários usuais e valores de deslocamento. Estas informações são opcionais e não representam garantia de prazo ou orçamento fechado.</p>
+                  {currentStatus === "aprovado" && profileId ? (
+                    <TechnicianOperationsEditor key={profileId} technicianId={profileId}
+                      coverageCityIds={savedCoverageIds} mode="technician" />
+                  ) : (
+                    <p className="mt-5 rounded-xl border border-border bg-muted/30 p-5 text-sm text-foreground">Publique seu perfil e confirme sua cobertura antes de editar as condições operacionais.</p>
                   )}
                 </section>
               )}
