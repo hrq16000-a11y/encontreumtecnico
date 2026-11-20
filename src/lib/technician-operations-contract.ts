@@ -71,6 +71,27 @@ export function validateTechnicianOperations(input: unknown, coverageCityIds: re
   return parsed.data;
 }
 
+/** Recover an editor draft when coverage shrank, without persisting any change.
+ * Only out-of-coverage municipality classifications are removed; the RPC
+ * remains responsible for owner/admin authorization, concurrency and audit. */
+export function reconcileTechnicianOperationsCoverage(
+  input: unknown, coverageCityIds: readonly number[],
+): { draft: TechnicianOperations; removedCityIds: number[] } | null {
+  const parsed = technicianOperationsSchema.safeParse(input);
+  if (!parsed.success) return null;
+  const covered = new Set(coverageCityIds);
+  const removedCityIds = [...new Set([...parsed.data.free_city_ids, ...parsed.data.paid_city_ids]
+    .filter(id => !covered.has(id)))];
+  return {
+    draft: {
+      ...parsed.data,
+      free_city_ids: parsed.data.free_city_ids.filter(id => covered.has(id)),
+      paid_city_ids: parsed.data.paid_city_ids.filter(id => covered.has(id)),
+    },
+    removedCityIds,
+  };
+}
+
 export function sameTechnicianOperations(a: TechnicianOperations, b: unknown): boolean {
   const parsed = technicianOperationsSchema.safeParse(b);
   if (!parsed.success) return false;
