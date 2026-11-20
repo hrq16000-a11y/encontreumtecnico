@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { matchingRegistrationCategories, matchingRegistrationServices, groupRegistrationServices, selectedRegistrationServices, reconcileRegistrationSelections, registrationStepError, shouldSubmitTechnicianWizard, type TechnicianRegistrationForm } from "./technician-registration-wizard";
+import { matchingRegistrationCategories, matchingRegistrationServices, groupRegistrationServices, selectedRegistrationServices, reconcileRegistrationSelections, registrationReviewIssue, registrationStepError, shouldSubmitTechnicianWizard, type TechnicianRegistrationForm } from "./technician-registration-wizard";
 
 const catalog = {
   categories: [{ slug: "redes" }, { slug: "computadores" }],
@@ -189,5 +189,22 @@ describe("Cadastro guiado mobile", () => {
   it("etapa de revisão ainda exige consistência de localidade e serviços", () => {
     expect(registrationStepError(3, form, catalog)).toBeNull();
     expect(registrationStepError(3, { ...form, specialties: ["invalid"] }, catalog)).toMatch(/catálogo/);
+  });
+
+  it("devolve a etapa exata que precisa de correção antes de publicar", () => {
+    expect(registrationReviewIssue(form, catalog)).toBeNull();
+    expect(registrationReviewIssue({ ...form, display_name: "", service_slugs: [] }, catalog))
+      .toMatchObject({ step: 1, message: expect.stringMatching(/nome público/) });
+    expect(registrationReviewIssue({ ...form, service_slugs: [] }, catalog))
+      .toMatchObject({ step: 2, message: expect.stringMatching(/serviço/) });
+    expect(registrationReviewIssue({ ...form, base_city_ibge_id: null }, catalog))
+      .toMatchObject({ step: 1, message: expect.stringMatching(/cidade-base/) });
+    expect(registrationReviewIssue({ ...form, base_city_ibge_id: null }, catalog,
+      { state_uf: "PR", city: "Curitiba" })).toBeNull();
+    const route = readFileSync("src/routes/area-tecnico.tsx", "utf8");
+    expect(route).toContain("moveToStep(reviewIssue.step)");
+    expect(route).toContain("setValidationIssue(reviewIssue.message)");
+    expect(route).toContain('validationIssue && <p role="alert"');
+    expect(route).toContain("writeDraft(form, next)");
   });
 });
