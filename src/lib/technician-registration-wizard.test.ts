@@ -158,12 +158,20 @@ describe("Cadastro guiado mobile", () => {
 
   it("permite voltar diretamente da revisão aos dados ou serviços sem publicar", () => {
     const route = readFileSync("src/routes/area-tecnico.tsx", "utf8");
-    const review = route.split("{step === 3 && (")[1]?.split("<TechnicianEmailOtpVerification")[0] ?? "";
+    const review = route.split("{step === 3 && (")[1] ?? "";
     expect(review).toContain('type="button" onClick={() => moveToStep(1)}');
     expect(review).toContain('type="button" onClick={() => moveToStep(2)}');
     expect(review).toContain("Editar dados");
     expect(review).toContain("Editar serviços");
     expect(route).toContain("writeDraft(form, next)");
+  });
+
+  it("não exige OTP adicional nem confirmação de telefone no cadastro publicado", () => {
+    const route = readFileSync("src/routes/area-tecnico.tsx", "utf8");
+    expect(route).not.toContain("TechnicianEmailOtpVerification");
+    expect(route).not.toContain("PioneerPhoneVerification");
+    expect(route).toContain('activationDb.rpc("eut_publish_my_technician"');
+    expect(route).toContain('<TechnicianPrivateContact userId={user.id} />');
   });
 
   it("permite navegar pelo checklist entre as etapas sem submeter ou perder o rascunho", () => {
