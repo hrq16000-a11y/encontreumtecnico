@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { brlToCents, centsToBrl, EMPTY_OPERATIONS, EQUIPMENT, sameTechnicianOperations,
-  technicianOperationsSchema, TRANSPORT, validateTechnicianOperations, WINDOWS,
+  reconcileTechnicianOperationsCoverage, technicianOperationsSchema, TRANSPORT, validateTechnicianOperations, WINDOWS,
   type TechnicianOperations } from "@/lib/technician-operations-contract";
 
 const db = supabase as unknown as SupabaseClient;
@@ -28,6 +28,7 @@ export function TechnicianOperationsEditor({ technicianId, coverageCityIds, mode
   const [available, setAvailable] = useState(false);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [coverageNotice, setCoverageNotice] = useState<string | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -35,6 +36,7 @@ export function TechnicianOperationsEditor({ technicianId, coverageCityIds, mode
     setLoading(true);
     setAvailable(false);
     setFeedback(null);
+    setCoverageNotice(null);
     setDraft(EMPTY_OPERATIONS);
     setExpectedAt(null);
     setRate(""); setAfterRate(""); setReason("");
@@ -50,16 +52,20 @@ export function TechnicianOperationsEditor({ technicianId, coverageCityIds, mode
         setFeedback("O contrato operacional ainda não está disponível ou não foi possível validar a sessão. Nenhuma ficha foi alterada.");
         return;
       }
-      const profile = result.data.profile === null ? EMPTY_OPERATIONS
-        : validateTechnicianOperations(result.data.profile, coverageCityIds);
-      if (!profile) {
+      const reconciled = result.data.profile === null
+        ? { draft: EMPTY_OPERATIONS, removedCityIds: [] as number[] }
+        : reconcileTechnicianOperationsCoverage(result.data.profile, coverageCityIds);
+      if (!reconciled) {
         setFeedback("O servidor retornou dados operacionais incompatíveis. Nenhuma edição foi iniciada.");
         return;
       }
-      setDraft(profile);
+      setDraft(reconciled.draft);
+      if (reconciled.removedCityIds.length) {
+        setCoverageNotice(`A cobertura mudou: ${reconciled.removedCityIds.length} município(s) já não constam na lista atendida. Removemos essas classificações apenas do formulário. Confira as condições e salve conscientemente; nenhum dado foi gravado automaticamente.`);
+      }
       setExpectedAt(result.data.updated_at ?? null);
-      setRate(centsToBrl(profile.km_rate_cents));
-      setAfterRate(centsToBrl(profile.km_rate_after_cents));
+      setRate(centsToBrl(reconciled.draft.km_rate_cents));
+      setAfterRate(centsToBrl(reconciled.draft.km_rate_after_cents));
       setCities((places.data ?? []) as Municipality[]);
       setAvailable(true);
     })().catch(() => { if (live) setFeedback("Falha de conexão ao consultar a ficha operacional."); })
@@ -122,6 +128,7 @@ export function TechnicianOperationsEditor({ technicianId, coverageCityIds, mode
       setExpectedAt(data.updated_at);
       setDraft(valid);
       setReason("");
+      setCoverageNotice(null);
       setFeedback("Condições operacionais salvas e relidas no servidor. São declarações, não garantia de chegada.");
     } catch {
       if (activeId.current === owner) setFeedback("Falha de conexão. Recarregue e confirme antes de repetir a edição.");
@@ -135,6 +142,7 @@ export function TechnicianOperationsEditor({ technicianId, coverageCityIds, mode
     {feedback || "Esta ficha não está disponível para edição operacional."}
   </p>;
   return <form onSubmit={save} className="mt-4 grid gap-5" aria-label="Condições operacionais do técnico">
+    {coverageNotice && <p role="alert" className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-foreground">{coverageNotice}</p>}
     <div className="rounded-xl border border-border p-4">
       <h3 className="font-bold text-foreground">Ferramentas disponíveis</h3>
       <p className="mt-1 text-xs text-muted-foreground">Marque somente equipamentos reais. Não informe número de série ou património.</p>
