@@ -42,6 +42,37 @@ describe("HTML renderizado pelo servidor, sem hidratação nem dependência do n
     expect(html).not.toContain("contato protegido");
   });
 
+  it("interliga apenas especialidades com perfis reais e conteúdo editorial publicado", () => {
+    const html = renderToStaticMarkup(<PublicSeoDirectory
+      heading="Técnicos em Curitiba/PR"
+      summary="Perfis públicos"
+      context={{ kind: "city", label: "Curitiba/PR" }}
+      profiles={graph.profiles}
+      categories={[
+        ...graph.categories,
+        { slug: "categoria-nao-editorial", label: "Sem guia", count: 1, updated_at: null },
+      ]}
+    />);
+    expect(html).toContain("Como preparar um pedido de serviço em Curitiba/PR");
+    expect(html).toContain("Diferencie queda da internet de falha de cobertura interna");
+    expect(html).toContain('href="/servicos/redes"');
+    expect(html).not.toContain('href="/servicos/categoria-nao-editorial"');
+    expect(html).not.toMatch(/wa\.me|href="tel:|contact_phone|data-ad-slot/i);
+  });
+
+  it("categoria real aponta para orientações próprias, não para cidades inventadas", () => {
+    const html = renderToStaticMarkup(<PublicSeoDirectory
+      heading="Técnicos de redes"
+      summary="Perfis públicos"
+      context={{ kind: "category", label: "Redes de computadores", slug: "redes" }}
+      profiles={graph.profiles}
+      cities={graph.cities}
+    />);
+    expect(html).toContain('href="/servicos/redes"');
+    expect(html).toContain('href="/cidades/pr/curitiba"');
+    expect(html).not.toContain('href="/servicos/software"');
+  });
+
   it("perfil só liga a outro técnico existente, nunca cria URL fictícia", () => {
     const related = relatedGraphProfiles(graph, graph.profiles[0]!, 6);
     const html = renderToStaticMarkup(<PublicProfileConnections links={{

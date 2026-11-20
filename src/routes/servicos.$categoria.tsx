@@ -1,4 +1,5 @@
 import { AdSensePublicUnit } from "@/components/adsense-public-unit";
+import { PublicServiceLogistics } from "@/components/public-service-logistics";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { PageShell } from "@/components/page-placeholder";
 import { GuideSectionVisual } from "@/components/guide-section-visual";
@@ -192,6 +193,8 @@ function ServiceCategoryPage() {
             <p className="mt-2 text-sm leading-7 text-muted-foreground">{professionalContext.trainingHint}</p>
           </div>
         </section>
+
+        <PublicServiceLogistics categorySlug={category.slug} categoryName={category.name} />
 
         <article id="orientacoes-da-especialidade" className="eut-guide-stable-type mt-10 scroll-mt-28">
           <div className="max-w-4xl">
