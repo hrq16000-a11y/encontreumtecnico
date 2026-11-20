@@ -41,8 +41,10 @@ BEGIN
       AND t.tgfoid=to_regprocedure('eut_migration.revoke_technician_email_otp_on_email_change()')
       AND NOT t.tgisinternal
       AND t.tgenabled='O'
-      AND lower(pg_get_triggerdef(t.oid)) LIKE '%after update of email on auth.users%'
-      AND lower(pg_get_triggerdef(t.oid)) LIKE '%old.email is distinct from new.email%'
+      AND t.tgtype=17 -- AFTER UPDATE, FOR EACH ROW
+      -- Hash verificado no PostgreSQL oficial após o apply da PR #343.
+      -- Inclui os casts canônicos de OLD/NEW que pg_get_triggerdef adiciona.
+      AND md5(pg_get_triggerdef(t.oid))='2b19145824c802b022a7cbbfb7b305db'
   ) THEN RAISE EXCEPTION 'Rollback abortado: trigger OTP mudou; revisar antes de remover'
     USING ERRCODE='P0001';
   END IF;
