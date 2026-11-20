@@ -303,7 +303,7 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
           verified.city_ibge_id !== cityId ||
           (verified.ddd ?? null) !== (ddd || null) ||
           (verified.region_approx ?? null) !== (region.trim() || null) ||
-          verified.admin_active !== payload.admin_active ||
+          verified.admin_active !== payload["admin_active"] ||
           !sameSlugs(verified.category_slugs, categories) ||
           !sameSlugs(verified.service_slugs, services) ||
           (phoneAction !== "keep" && (verified.contact_last4 ?? null) !== expectedLast4)) {
