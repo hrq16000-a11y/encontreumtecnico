@@ -69,7 +69,7 @@ describe("moderação administrativa em lote", () => {
     let finishRead: () => void = () => {};
     render(<AdminAccountsManager />);
     expect(await screen.findByText("Cliente Um")).toBeTruthy();
-    fireEvent.click(screen.getAllByRole("button", { name: "Banir conta" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Banir conta" })[0]!);
     expect(screen.getByRole("form", { name: "Confirmar alteração de conta" })).toBeTruthy();
     mockDb.delayNextSnapshot = new Promise<void>((resolve) => { finishRead = resolve; });
 
