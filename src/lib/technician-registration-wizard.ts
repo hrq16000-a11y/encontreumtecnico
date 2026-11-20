@@ -43,6 +43,17 @@ export function matchingRegistrationServices<T extends { slug: string; label: st
     (!term || fold(`${service.label} ${service.slug}`).includes(term)));
 }
 
+/** Keep selected services visible, even while a search hides their checkboxes.
+ * Unknown catalog entries remain removable without silently changing the draft. */
+export function selectedRegistrationServices<T extends { slug: string; label: string }>(
+  services: readonly T[], selectedSlugs: readonly string[],
+): { slug: string; label: string }[] {
+  const labels = new Map(services.map((service) => [service.slug, service.label]));
+  return [...new Set(selectedSlugs)].map((slug) => ({
+    slug, label: labels.get(slug) ?? "Serviço indisponível",
+  }));
+}
+
 /** Mobile onboarding validates locally before advancing; only the server RPC
  * can approve/publicly publish a technician, on the final review step. */
 export function registrationStepError(
