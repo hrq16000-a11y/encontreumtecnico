@@ -1,6 +1,7 @@
 import { validMunicipality } from "./service-taxonomy";
 
 export type RegistrationStep = 1 | 2 | 3;
+export type PersistedTechnicianCity = { state_uf: string; city: string };
 export type TechnicianRegistrationForm = {
   display_name: string;
   state_uf: string;
@@ -24,6 +25,7 @@ export function registrationStepError(
   step: RegistrationStep,
   form: TechnicianRegistrationForm,
   catalog: RegistrationCatalog,
+  persistedCity: PersistedTechnicianCity | null = null,
 ): string | null {
   if (step === 1) {
     if (form.display_name.trim().length < 2 || form.display_name.trim().length > 80) {
@@ -32,11 +34,15 @@ export function registrationStepError(
     if (!validMunicipality(form.state_uf, form.city)) {
       return "Selecione a UF e uma cidade válida do catálogo de municípios onde você atende.";
     }
-    // The guided live form must contain a chosen official IBGE municipality ID.
-    // Older unit-test fixtures may omit this optional field, but DB validation
-    // always enforces an official municipality name before publication.
+    // The RPC persists only the UF/name, not this temporary picker ID. When
+    // re-editing a verified server row, do not block a different field just
+    // because the official catalog could not rehydrate the unchanged city.
+    // A new account or any change of UF/city still needs an official selection.
+    const unchangedSavedCity = persistedCity !== null &&
+      form.state_uf === persistedCity.state_uf &&
+      form.city.trim() === persistedCity.city.trim();
     if ("base_city_ibge_id" in form && (!Number.isInteger(form.base_city_ibge_id)
-        || (form.base_city_ibge_id ?? 0) < 1000000)) {
+        || (form.base_city_ibge_id ?? 0) < 1000000) && !unchangedSavedCity) {
       return "Selecione sua cidade-base na lista oficial de municípios.";
     }
     return null;

@@ -18,6 +18,18 @@ describe("Cadastro guiado mobile", () => {
     expect(registrationStepError(1, { ...form, city: "" }, catalog)).toMatch(/cidade/);
     expect(registrationStepError(1, form, catalog)).toBeNull();
   });
+  it("reabre uma cidade já persistida mesmo se o catálogo IBGE não puder hidratar o ID", () => {
+    const editing = { ...form, base_city_ibge_id: null };
+    const savedCity = { state_uf: "PR", city: "Curitiba" };
+    // Hoje a cidade do banco só volta como texto; exigir um novo ID bloqueia
+    // indevidamente a edição de nome/bio/serviços sem mudança de município.
+    expect(registrationStepError(1, editing, catalog)).toMatch(/cidade-base/);
+    expect(registrationStepError(1, editing, catalog, savedCity)).toBeNull();
+    expect(registrationStepError(1, { ...editing, city: "Londrina" }, catalog, savedCity)).toMatch(/cidade-base/);
+    expect(registrationStepError(1, { ...editing, state_uf: "SC" }, catalog, savedCity)).toMatch(/cidade-base/);
+    expect(registrationStepError(1, editing, catalog, { state_uf: "PR", city: "Londrina" })).toMatch(/cidade-base/);
+    expect(registrationStepError(1, { ...editing, city: "" }, catalog, savedCity)).toMatch(/cidade/);
+  });
   it("não permite publicar categoria vazia, catálogo indisponível ou serviço sem relação", () => {
     expect(registrationStepError(2, { ...form, specialties: [] }, catalog)).toMatch(/especialidade/);
     expect(registrationStepError(2, form, { ...catalog, catalogLoading: true })).toMatch(/categorias/);
@@ -34,8 +46,9 @@ describe("Cadastro guiado mobile", () => {
     expect(route).toContain('if (step < 3) { advance(); return; }');
     expect(route).toContain('type="submit"');
     expect(route).toContain('activationDb.rpc("eut_publish_my_technician"');
-    expect(route).toContain("registrationStepError(1, form, catalog)");
+    expect(route).toContain("registrationStepError(1, form, catalog, persistedCity)");
     expect(route).toContain("registrationStepError(2, form, catalog)");
+    expect(route).toContain("persistedCityRef.current = { ownerId: owner, state_uf: loadedForm.state_uf, city: loadedForm.city }");
     expect(route).toContain('role="progressbar"');
     expect(route).toContain('bottom-[calc(3.5rem+env(safe-area-inset-bottom))]');
     // The old mixed accordion was replaced by separate protected workspaces.
