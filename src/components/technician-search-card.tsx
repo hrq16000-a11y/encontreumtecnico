@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowUpRight, BriefcaseBusiness, Camera, MapPin, Sparkles, Wrench } from "lucide-react";
+import { ArrowUpRight, BriefcaseBusiness, MapPin, Sparkles, Wrench } from "lucide-react";
 import type { PublicTechnician } from "@/lib/technicians.functions";
 import { TechnicianAvatar } from "@/components/technician-avatar";
 import { hasPublicTechnicianPhoto } from "@/lib/public-avatar-path";
@@ -28,7 +28,6 @@ export function TechnicianSearchCard({ technician: t, categories, services, loca
   const moreCities = Math.max(0, additionalCities.length - declaredCities.length);
   const location = formatPublicLocation(t);
   const hasPhoto = hasPublicTechnicianPhoto(t.avatar_path);
-  const hasDetailedArea = Boolean(t.neighborhood?.trim() || t.region?.trim());
   // Public-field enrichment, not proof that a private wizard or address is 100% complete.
   const enrichedProfile = hasPhoto && Boolean(t.bio?.trim()) && Boolean(t.city.trim()) &&
     Boolean(t.state_uf) && t.specialties.length > 0 && t.service_slugs.length > 0;
@@ -68,25 +67,11 @@ export function TechnicianSearchCard({ technician: t, categories, services, loca
         </div>
       </div>
       <div className="relative -mt-4 flex flex-1 flex-col rounded-t-[22px] bg-card px-5 pb-5 pt-5 sm:px-6">
+        {(t.online_now || t.referral_highlight || localMatch) && (
         <div className="flex flex-wrap gap-1.5">
           {t.online_now && (
             <span title="Atividade recente, sem garantia de disponibilidade" className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/35 bg-emerald-500/10 px-3 py-1 text-[11px] font-bold text-emerald-800 dark:text-emerald-300">
               <span aria-hidden="true" className="h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/15 motion-safe:animate-pulse" /> Atividade recente
-            </span>
-          )}
-          {hasPhoto && (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-[11px] font-bold text-sky-800 dark:text-sky-300">
-              <Camera className="h-3.5 w-3.5" aria-hidden="true" /> Com foto
-            </span>
-          )}
-          {enrichedProfile && (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-[11px] font-bold text-sky-800 dark:text-sky-300">
-              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Perfil enriquecido
-            </span>
-          )}
-          {hasDetailedArea && (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/60 px-3 py-1 text-[11px] font-semibold text-foreground">
-              <MapPin className="h-3.5 w-3.5" aria-hidden="true" /> Região detalhada
             </span>
           )}
           {t.referral_highlight && (
@@ -100,6 +85,7 @@ export function TechnicianSearchCard({ technician: t, categories, services, loca
             </span>
           )}
         </div>
+        )}
 
         <div className="mt-4">
           <p className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[.13em] text-muted-foreground">
