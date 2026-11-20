@@ -38,6 +38,17 @@ export function shouldSubmitTechnicianWizard(step: RegistrationStep, action: str
   return step === 3 && action === "publish";
 }
 
+/** Filter only the visible service choices; never mutate a saved selection. */
+export function matchingRegistrationServices<T extends { slug: string; label: string; category_slug: string }>(
+  services: readonly T[], selectedCategories: readonly string[], query: string,
+): T[] {
+  const fold = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR");
+  const term = fold(query.trim());
+  return services.filter((service) => selectedCategories.includes(service.category_slug) &&
+    (!term || fold(`${service.label} ${service.slug}`).includes(term)));
+}
+
 /** Mobile onboarding validates locally before advancing; only the server RPC
  * can approve/publicly publish a technician, on the final review step. */
 export function registrationStepError(

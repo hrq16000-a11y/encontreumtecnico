@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
-import { PublicSeoDirectory } from "./public-seo-discovery";
+import { PublicSeoDirectory, PublicProfileConnections } from "./public-seo-discovery";
 import type { GraphProfile } from "@/lib/public-seo-graph";
 
 vi.mock("@/components/technician-avatar", () => ({
@@ -30,6 +30,23 @@ describe("Diretórios públicos de cidades e categorias", () => {
     expect(container.querySelector('a[href="/contato"]')).not.toBeNull();
     expect(screen.getByText("Quais serviços encontro em Curitiba/PR?")).toBeTruthy();
     expect(container.querySelector('[aria-current="page"]')?.textContent).toBe("Curitiba/PR");
+    expect(container.querySelector('a[href^="tel:"], a[href^="mailto:"], a[href*="wa.me"]')).toBeNull();
+  });
+
+  it("mostra foto pública ou iniciais nos perfis relacionados, preservando os links e a privacidade", () => {
+    const { container } = render(<PublicProfileConnections links={{
+      city: { name: "Curitiba", uf: "PR", slug: "curitiba", count: 2, updated_at: null },
+      categories: [{ slug: "redes", label: "Redes de computadores", count: 2, updated_at: null }],
+      related: [
+        { ...profiles[0]!, relation: "Mesmo município", relevance: 10 },
+        { ...profiles[1]!, relation: "Categoria em comum", relevance: 4 },
+      ],
+    }} />);
+    expect(screen.getByRole("img", { name: "Avatar de Ana Redes" }).getAttribute("data-avatar")).toBe(photoPath);
+    expect(screen.getByRole("img", { name: "Avatar de Bruno Redes" }).getAttribute("data-avatar")).toBe("iniciais");
+    expect(container.querySelector('a[href="/tecnicos/ana-redes"]')).not.toBeNull();
+    expect(container.querySelector('a[href="/cidades/pr/curitiba"]')).not.toBeNull();
+    expect(container.querySelector('a[href="/categorias/redes"]')).not.toBeNull();
     expect(container.querySelector('a[href^="tel:"], a[href^="mailto:"], a[href*="wa.me"]')).toBeNull();
   });
 

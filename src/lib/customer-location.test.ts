@@ -71,8 +71,10 @@ describe("GPS informa município, mas nunca inventa bairro", () => {
     const home = readFileSync("src/routes/index.tsx", "utf8");
     const tech = readFileSync("src/routes/area-tecnico.tsx", "utf8");
     const button = readFileSync("src/components/customer-location-button.tsx", "utf8");
-    expect(home).toContain("Buscar técnicos em {city}/{locationUf}");
-    expect(home).toContain('prioridade: "regiao"');
+    expect(home).toContain("useRegionalSuggestion()");
+    expect(home).toContain('prioridade: locationUf ? "regiao" : ""');
+    expect(home).not.toContain("CustomerLocationButton");
+    expect(home).not.toContain("Município sugerido por IP");
     expect(tech).toContain('purpose="technician"');
     expect(tech).toContain("previewTechnicianAreaSuggestion(current, area, source)");
     expect(tech).toContain("if (requiresConfirmation &&");
@@ -96,6 +98,10 @@ describe("GPS informa município, mas nunca inventa bairro", () => {
     expect(locator).toContain('https://api.bigdatacloud.net/data/reverse-geocode-client');
     expect(locator).not.toMatch(/localStorage|sessionStorage|\.from\(|console\.log|service_role/);
     expect(client).toContain('city: area.city, region: area.neighborhood');
-    expect(directory).toContain('bairro: area.neighborhood');
+    // The public directory now ranks by server-side coarse IP municipality.
+    // GPS remains an opt-in feature elsewhere, never a prerequisite for search.
+    expect(directory).not.toContain("CustomerLocationButton");
+    expect(directory).not.toContain('bairro: area.neighborhood');
+    expect(directory).toContain('label="Cidade"');
   });
 });

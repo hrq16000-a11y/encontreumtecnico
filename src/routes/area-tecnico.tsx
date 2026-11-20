@@ -31,11 +31,13 @@ import { clearProtectedDraft, readProtectedDraft, saveProtectedDraft } from "@/l
 import { saveTechnicianDraftImmediately } from "@/lib/technician-live-draft";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
-import { reconcileRegistrationSelections, registrationStepError, shouldSubmitTechnicianWizard, type RegistrationStep } from "@/lib/technician-registration-wizard";
+import { matchingRegistrationServices, reconcileRegistrationSelections, registrationStepError, shouldSubmitTechnicianWizard, type RegistrationStep } from "@/lib/technician-registration-wizard";
 import { hydrateTechnicianOfficialCity } from "@/lib/technician-official-city-hydration";
 import { publicTextProblem } from "@/lib/public-profile-text";
 import { technicianPublishErrorMessage } from "@/lib/technician-publish-error";
 import { technicianPublicationWasPersisted } from "@/lib/technician-publication-verification";
+import { addPublicProfileTopic, PUBLIC_PROFILE_TOPICS, publicProfileHasTopic,
+  technicianProfileEnrichment } from "@/lib/technician-profile-enrichment";
 import { TechnicianPanelNavigation } from "@/components/technician-panel-navigation";
 import { technicianTabFromHash, technicianTabHref, type TechnicianPanelTab } from "@/lib/technician-panel-navigation";
 import { ArrowRight, ShieldCheck, MapPin, UserRound, Inbox, Camera } from "lucide-react";
@@ -80,6 +82,7 @@ export function TechnicianAreaPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [step, setStep] = useState<RegistrationStep>(1);
+  const [serviceQuery, setServiceQuery] = useState("");
   const [panelTab, setPanelTab] = useState<TechnicianPanelTab>("inicio");
   useEffect(() => {
     // Both canonical and isolated LP2 routes remain functional. Hash changes
@@ -105,6 +108,9 @@ export function TechnicianAreaPage() {
   const baseMunicipality = officialBaseCities.find((city) => city.id === form.base_city_ibge_id) ?? null;
   const bairroCatalog = neighborhoodCatalogFor({ city: form.city, uf: form.state_uf, municipalityIbgeId: form.base_city_ibge_id });
   const currentStatus = roles.includes("tecnico") && profileOwnerId === user?.id ? status : null;
+  const profileGuidance = technicianProfileEnrichment({
+    ...form, avatar_path: avatarPath, coverage_city_ids: savedCoverageIds,
+  });
   const profileReady = Boolean(user && roles.includes("tecnico")
     && profileOwnerId === user.id && !profileLoading && !profileError);
   const persistedCity = user && persistedCityRef.current?.ownerId === user.id
@@ -298,6 +304,8 @@ export function TechnicianAreaPage() {
   const catalog = { categories, services, catalogLoading, catalogError: Boolean(catalogError),
     servicesLoading, servicesError: Boolean(servicesError) };
   const catalogReady = !catalogLoading && !catalogError && !servicesLoading && !servicesError;
+  const availableServiceCount = services.filter((service) => form.specialties.includes(service.category_slug)).length;
+  const visibleServices = matchingRegistrationServices(services, form.specialties, serviceQuery);
   const reconciledSelections = catalogReady ? reconcileRegistrationSelections(form, catalog) : null;
   const staleSelections = Boolean(reconciledSelections && (
     reconciledSelections.specialties.length !== form.specialties.length ||
@@ -487,6 +495,28 @@ export function TechnicianAreaPage() {
             <p className="mt-2 text-sm text-muted-foreground">
               Cadastro gratuito: informe nome, cidade, especialidades e pelo menos um serviço executado. Ao publicar, seu perfil entra na busca automaticamente, sem certificação de capacidade técnica pelo portal.
             </p>
+            <section aria-labelledby="eut-enriquecimento-titulo" className="mt-6 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
+              <h2 id="eut-enriquecimento-titulo" className="text-lg font-bold text-foreground">Valorize sua apresentação profissional</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {profileGuidance.complete} de {profileGuidance.total} tópicos informados. Complete no seu ritmo: foto,
+                apresentação e cobertura são opcionais. Este guia não é nota, certificação ou posição na busca.
+              </p>
+              <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+                {profileGuidance.entries.map((item) => (
+                  <li key={item.label} className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                    <span className="min-w-0 font-medium text-foreground">{item.label}</span>
+                    {item.complete ? <span className="shrink-0 text-xs font-semibold text-emerald-700 dark:text-emerald-300">Informado</span> :
+                      <a href={technicianTabHref(item.tab)} className="shrink-0 font-semibold text-primary underline-offset-2 hover:underline"
+                        onClick={() => {
+                          setPanelTab(item.tab);
+                          if (item.tab === "perfil") moveToStep(item.label === "Apresentação detalhada" ? 3 :
+                            item.label === "Especialidades e serviços" ? 2 : 1);
+                        }}>{item.help}</a>}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 text-xs text-muted-foreground">Informações digitadas podem estar em rascunho. Uma edição só está salva quando o servidor confirma a gravação.</p>
+            </section>
             {currentStatus === "aprovado" && profileId && (
               <Link to="/tecnicos/$tecnicoId" params={{ tecnicoId: profileSlug || profileId }}
                 className="mt-3 inline-flex min-h-11 items-center rounded-md border border-primary px-4 text-sm font-semibold text-primary">
@@ -716,8 +746,17 @@ export function TechnicianAreaPage() {
                 </p>
                 {servicesLoading && <p className="mt-2 text-sm text-muted-foreground">Carregando serviços…</p>}
                 {servicesError && <p role="alert" className="mt-2 text-sm text-destructive">Serviços indisponíveis. Recarregue a página.</p>}
+                <label htmlFor="eut-wizard-service-search" className="mt-3 block text-sm font-medium text-foreground">Buscar serviço</label>
+                <input id="eut-wizard-service-search" type="search" value={serviceQuery} maxLength={80}
+                  onChange={(event) => setServiceQuery(event.target.value)}
+                  placeholder="Ex.: instalação, manutenção, Wi-Fi" className={input} />
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <p role="status">{visibleServices.length} de {availableServiceCount} serviço(s) exibido(s) · {form.service_slugs.length} selecionado(s)</p>
+                  {serviceQuery.trim() && <button type="button" onClick={() => setServiceQuery("")}
+                    className="min-h-10 rounded-lg border border-input px-3 font-semibold text-primary">Limpar busca</button>}
+                </div>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {services.filter((service) => form.specialties.includes(service.category_slug)).map((service) => (
+                  {visibleServices.map((service) => (
                     <label key={service.slug} className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
                       <input type="checkbox" className="h-4 w-4" checked={form.service_slugs.includes(service.slug)}
                         onChange={(e) => updateRegistration({ ...form, service_slugs: e.target.checked ? [...form.service_slugs, service.slug] : form.service_slugs.filter((slug) => slug !== service.slug) })} />
@@ -725,6 +764,8 @@ export function TechnicianAreaPage() {
                     </label>
                   ))}
                 </div>
+                {!servicesLoading && !servicesError && availableServiceCount === 0 && <p className="mt-2 text-sm text-muted-foreground">Selecione uma especialidade acima para ver os serviços disponíveis.</p>}
+                {!servicesLoading && !servicesError && availableServiceCount > 0 && visibleServices.length === 0 && <p className="mt-2 text-sm text-muted-foreground">Nenhum serviço corresponde à busca. Limpe o filtro para ver todas as opções.</p>}
               </fieldset>
                 </div>
               )}
@@ -774,9 +815,22 @@ export function TechnicianAreaPage() {
                   Uma descrição original com seus serviços e experiência ajuda o cliente a escolher. Recomendamos pelo menos 80 caracteres, mas a apresentação é opcional.
                   <span className="ml-1 tabular-nums">{form.bio.trim().length}/1000</span>
                 </p>
+                <p className="mt-3 text-sm font-semibold text-foreground">Quer enriquecer seu currículo público?</p>
+                <p className="mt-1 text-xs text-muted-foreground">Adicione tópicos opcionais e descreva apenas o que você realmente possui ou faz. Nenhuma resposta é preenchida automaticamente.</p>
+                <div className="mt-2 flex flex-wrap gap-2" aria-label="Tópicos opcionais da apresentação">
+                  {PUBLIC_PROFILE_TOPICS.map((topic) => (
+                    <button key={topic.id} type="button"
+                      disabled={publicProfileHasTopic(form.bio, topic.id) ||
+                        addPublicProfileTopic(form.bio, topic.id) === form.bio}
+                      onClick={() => updateRegistration({ ...form, bio: addPublicProfileTopic(form.bio, topic.id) })}
+                      className="min-h-11 rounded-lg border border-primary/30 bg-background px-3 text-xs font-semibold text-primary hover:bg-accent disabled:opacity-50">
+                      {publicProfileHasTopic(form.bio, topic.id) ? "Incluído: " : "+ "}{topic.label}
+                    </button>
+                  ))}
+                </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Sem números, telefones, WhatsApp, e-mails, arrobas, links ou redes sociais, mesmo separados por espaços ou linhas.
-                  Seus contatos ficam apenas no campo privado do técnico.
+                  Não inclua números, preços, quilômetros, telefone, WhatsApp, e-mail, links, redes sociais ou documentos neste texto público.
+                  Valores de deslocamento, SLA e comprovantes exigem campos próprios e proteção específica; não são definidos aqui.
                 </p>
                 {publicTextProblem(form.bio, "bio") && <p role="alert" className="mt-2 text-sm text-destructive">{publicTextProblem(form.bio, "bio")}</p>}
               </div>
@@ -811,7 +865,8 @@ export function TechnicianAreaPage() {
                   <p className="mt-2 text-sm text-muted-foreground">Defina as localidades oficiais onde atua. O raio é declarado e não informa a localização exata da sua residência.</p>
                   {currentStatus === "aprovado" && profileId ? (
                     <TechnicianCoverageEditor userId={user.id} baseMunicipality={baseMunicipality}
-                      savedCityIds={savedCoverageIds} savedRadius={savedRadius} />
+                      savedCityIds={savedCoverageIds} savedRadius={savedRadius}
+                      onSaved={(cityIds, radius) => { setSavedCoverageIds(cityIds); setSavedRadius(radius); }} />
                   ) : (
                     <div className="mt-5 rounded-xl border border-border bg-muted/30 p-5">
                       <p className="text-sm text-foreground">Publique primeiro seu perfil profissional com uma cidade-base válida para liberar o editor de regiões.</p>

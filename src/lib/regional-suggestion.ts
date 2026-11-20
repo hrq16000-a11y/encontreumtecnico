@@ -30,6 +30,18 @@ export function parseVercelRegion(headers: {
   return { city, uf, neighborhood: "", source: "ip" };
 }
 
+/** A manually selected place always wins over an approximate IP suggestion.
+ * Never silently turn an IP hint into a strict search filter or a GPS location.
+ */
+export function automaticRegionalRankingArea(
+  filters: { uf: string; cidade: string; bairro: string; regiao: string },
+  hint: RegionalSuggestion | null,
+): { uf: string; cidade: string; bairro: string } | null {
+  if (filters.uf.trim() || filters.cidade.trim() || filters.bairro.trim() || filters.regiao.trim() || hint?.source !== "ip") return null;
+  const area = normalize(hint);
+  return area ? { uf: area.uf, cidade: area.city, bairro: "" } : null;
+}
+
 function normalize(area: RegionalSuggestion): RegionalSuggestion | null {
   const city = cityText(area.city);
   const uf = area.uf?.toUpperCase() ?? "";
