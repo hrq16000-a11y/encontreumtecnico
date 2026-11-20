@@ -30,7 +30,8 @@ CREATE TABLE eut_migration.technician_email_otp_proofs (
   verified_email text NOT NULL,
   verified_at timestamptz NOT NULL,
   proof_session_id uuid NOT NULL,
-  proof_method text NOT NULL CHECK (proof_method IN ('otp', 'magiclink'))
+  proof_method text NOT NULL CHECK (proof_method IN ('otp', 'magiclink')),
+  revoked_at timestamptz
 );
 ALTER TABLE eut_migration.technician_email_otp_proofs ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE eut_migration.technician_email_otp_proofs FROM PUBLIC, anon, authenticated;
@@ -46,6 +47,29 @@ CREATE TABLE eut_migration.technician_email_otp_challenges (
 );
 ALTER TABLE eut_migration.technician_email_otp_challenges ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE eut_migration.technician_email_otp_challenges FROM PUBLIC, anon, authenticated;
+
+-- Toda mudança REAL do e-mail no Supabase Auth revoga a prova, mesmo se
+-- depois o usuário voltar ao endereço anterior. Não apaga o histórico da prova;
+-- o desafio pendente é descartado e nova comprovação legítima será necessária.
+CREATE OR REPLACE FUNCTION eut_migration.revoke_technician_email_otp_on_email_change()
+RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog'
+AS $function$
+BEGIN
+  UPDATE eut_migration.technician_email_otp_proofs p
+  SET revoked_at=coalesce(p.revoked_at,clock_timestamp())
+  WHERE p.user_id=NEW.id AND p.revoked_at IS NULL;
+  DELETE FROM eut_migration.technician_email_otp_challenges
+  WHERE user_id=NEW.id;
+  RETURN NEW;
+END;
+$function$;
+REVOKE ALL ON FUNCTION eut_migration.revoke_technician_email_otp_on_email_change()
+  FROM PUBLIC, anon, authenticated;
+CREATE TRIGGER eut_revoke_technician_email_otp_on_email_change
+AFTER UPDATE OF email ON auth.users
+FOR EACH ROW WHEN (OLD.email IS DISTINCT FROM NEW.email)
+EXECUTE FUNCTION eut_migration.revoke_technician_email_otp_on_email_change();
 
 CREATE OR REPLACE FUNCTION public.eut_begin_technician_email_otp()
 RETURNS jsonb
@@ -186,7 +210,8 @@ BEGIN
     SET verified_email=EXCLUDED.verified_email,
         verified_at=EXCLUDED.verified_at,
         proof_session_id=EXCLUDED.proof_session_id,
-        proof_method=EXCLUDED.proof_method;
+        proof_method=EXCLUDED.proof_method,
+        revoked_at=NULL;
   DELETE FROM eut_migration.technician_email_otp_challenges WHERE user_id=v_user;
 
   RETURN jsonb_build_object('ok',true,'verified',true);
@@ -232,6 +257,7 @@ AS $function$
           WHERE p.user_id=u.id
             AND p.verified_email=lower(btrim(u.email))
             AND p.verified_at <= now()
+            AND p.revoked_at IS NULL
         )
         AND EXISTS(
           SELECT 1 FROM auth.identities i
@@ -247,6 +273,7 @@ COMMIT;
 
 -- PÓS-CHECKS READ-ONLY OBRIGATÓRIOS APÓS AUTORIZAÇÃO E APPLY:
 -- 1) Conferir relrowsecurity nas tabelas privadas de provas E de desafios.
+--    Conferir também o trigger de revogação após atualização real de auth.users.email.
 -- 2) Conferir EXECUTE de anon/authenticated em begin e attest; por exemplo:
 --    SELECT has_function_privilege('anon','public.eut_attest_technician_email_otp()','EXECUTE'),
 --           has_function_privilege('authenticated','public.eut_attest_technician_email_otp()','EXECUTE');

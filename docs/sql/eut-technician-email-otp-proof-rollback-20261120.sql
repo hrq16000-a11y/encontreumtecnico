@@ -14,6 +14,11 @@ BEGIN
 END;
 $preflight$;
 
+-- Cortar a revogação automática e as novas provas sem apagar auditoria.
+DROP TRIGGER IF EXISTS eut_revoke_technician_email_otp_on_email_change ON auth.users;
+REVOKE ALL ON FUNCTION eut_migration.revoke_technician_email_otp_on_email_change()
+  FROM PUBLIC, anon, authenticated;
+
 -- Cortar a emissão de novas provas e a confirmação, sem apagar auditoria.
 REVOKE ALL ON FUNCTION public.eut_begin_technician_email_otp() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.eut_attest_technician_email_otp() FROM PUBLIC, anon, authenticated;

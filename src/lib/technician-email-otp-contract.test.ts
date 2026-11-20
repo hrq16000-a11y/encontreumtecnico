@@ -43,6 +43,14 @@ describe("Contrato auditável de titularidade de e-mail do técnico", () => {
     expect(sql).not.toMatch(/(?:UPDATE|DELETE FROM)\s+auth\.users\b/i);
     expect(sql).not.toMatch(/(?:UPDATE|DELETE FROM)\s+public\.technicians\b/i);
   });
+  it("revoga a prova antiga em toda mudança real de email, inclusive na volta ao anterior", () => {
+    expect(sql).toContain("AFTER UPDATE OF email ON auth.users");
+    expect(sql).toContain("OLD.email IS DISTINCT FROM NEW.email");
+    expect(sql).toContain("SET revoked_at=coalesce(p.revoked_at,clock_timestamp())");
+    expect(sql).toContain("AND p.revoked_at IS NULL");
+    expect(sql).toContain("revoked_at=NULL");
+    expect(rollbackSql).toContain("DROP TRIGGER IF EXISTS eut_revoke_technician_email_otp_on_email_change ON auth.users");
+  });
   it("oferece rollback sem apagar provas privadas ou contas", () => {
     expect(rollbackSql).toContain("REVOKE ALL ON FUNCTION public.eut_begin_technician_email_otp()");
     expect(rollbackSql).toContain("REVOKE ALL ON FUNCTION public.eut_attest_technician_email_otp()");
