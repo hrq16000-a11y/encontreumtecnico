@@ -237,6 +237,9 @@ export function AdminGlobalSearch() {
       return;
     }
     let current = true;
+    // Results from the previous term must not remain actionable while this one loads.
+    setRecords([]);
+    setUnavailable(false);
     setBusy(true);
     const timer = window.setTimeout(() => {
       void findRecords(term)

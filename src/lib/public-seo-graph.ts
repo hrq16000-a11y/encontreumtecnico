@@ -9,6 +9,7 @@ export type GraphProfile = {
   display_name: string;
   city: string;
   state_uf: string | null;
+  avatar_path?: string | null;
   specialties: string[] | null;
   service_slugs: string[] | null;
   updated_at?: string | null;
@@ -95,6 +96,10 @@ export function buildPublicGraph(
         ? "Profissional cadastrado" : raw.display_name.trim().slice(0, 120),
       city: raw.city,
       state_uf: raw.state_uf,
+      // Only the consented public avatar path; never an Auth/Google identity photo.
+      avatar_path: typeof raw.avatar_path === "string" &&
+        /^avatars\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(?:jpg|png|webp)$/.test(raw.avatar_path)
+        ? raw.avatar_path : null,
       specialties: [...new Set((raw.specialties ?? []).filter(validGraphSlug))].slice(0, 40),
       service_slugs: [...new Set((raw.service_slugs ?? []).filter(validGraphSlug))].slice(0, 60),
       updated_at: raw.updated_at ?? null,

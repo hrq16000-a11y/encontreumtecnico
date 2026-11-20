@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, UserRound, MapPinned, Camera, Inbox,
-  UsersRound, ShieldCheck, History,
+  UsersRound, ShieldCheck, History, CarFront,
 } from "lucide-react";
 import {
   TECHNICIAN_PANEL_TABS, technicianTabHref,
@@ -11,6 +11,7 @@ const ICONS = {
   inicio: LayoutDashboard,
   perfil: UserRound,
   cobertura: MapPinned,
+  operacao: CarFront,
   foto: Camera,
   solicitacoes: Inbox,
   indicacoes: UsersRound,

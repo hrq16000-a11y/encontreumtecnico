@@ -11,7 +11,6 @@ import { HomePublicProof } from "@/components/home-public-proof";
 import { HomeCommunityInvite } from "@/components/home-community-invite";
 import { HomeTechnicianJoin } from "@/components/home-technician-join";
 import { ProblemAssistant } from "../components/problem-assistant";
-import { CustomerLocationButton } from "@/components/customer-location-button";
 import { safeNeighborhood } from "@/lib/location-labels";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { readUiTextDraft, saveUiTextDraft } from "@/lib/unsent-ui-draft";
@@ -133,7 +132,7 @@ function HomePage() {
     if (!draftReady) return;
     saveUiTextDraft("home", { specialty, city, uf: locationUf, neighborhood: locationNeighborhood });
   }, [draftReady, specialty, city, locationUf, locationNeighborhood]);
-  const { area: suggestedRegion, loading: regionLoading } = useRegionalSuggestion();
+  const { area: suggestedRegion } = useRegionalSuggestion();
   useEffect(() => {
     // The user may edit while the lookup is pending; never override typed city.
     if (!draftReady || !suggestedRegion || city.trim() || cityEditedByUser.current) return;
@@ -210,38 +209,6 @@ function HomePage() {
               </button>
             </form>
             )}
-            <div className="mt-3 max-w-xl">
-              {!cityEditedByUser.current && <div aria-live="polite" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/20 bg-card/90 px-4 py-3 text-xs shadow-sm sm:text-sm">
-                <span className="flex items-start gap-2 text-foreground">
-                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-                  {suggestedRegion
-                    ? <span><strong>{city.trim() ? "Município sugerido por IP; confira antes de buscar." : "Localidade estimada; informe o município para buscar."}</strong></span>
-                    : <span className="text-muted-foreground">{regionLoading ? "Buscando sua região aproximada…" : "Informe sua cidade para buscar técnicos."}</span>}
-                </span>
-                {suggestedRegion && <button type="button" onClick={() => document.getElementById("busca-cidade")?.focus()} className="min-h-10 rounded-lg border border-primary/25 px-3 text-xs font-semibold text-primary hover:bg-accent">Corrigir cidade</button>}
-              </div>}
-              <CustomerLocationButton onLocated={(area, source) => {
-                if (source === "automatic" && city.trim()) return;
-                saveUiTextDraft("home", { specialty, city:area.city, uf:area.uf, neighborhood:safeNeighborhood(area.neighborhood,area.city) });
-                setCity(area.city);
-                setLocationUf(area.uf);
-                setLocationNeighborhood(safeNeighborhood(area.neighborhood, area.city));
-              }} />
-              {locationUf && city.trim() && (
-                <Link
-                  to="/tecnicos"
-                  search={{
-                    especialidade: specialty.trim() || "Todas",
-                    cidade: city.trim(), regiao: "",
-                    uf: locationUf, bairro: locationNeighborhood, prioridade: "regiao",
-                  }}
-                  className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-md border border-primary bg-card px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/5"
-                >
-                  <Search className="h-4 w-4" aria-hidden />
-                  Buscar técnicos em {city}/{locationUf}
-                </Link>
-              )}
-            </div>
             <ul className="mt-5 flex flex-wrap gap-2 text-xs text-muted-foreground">
               {CHIPS.map(({ i: I, t }) => (
                 <li key={t} className="inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-1.5 font-medium text-foreground shadow-sm">

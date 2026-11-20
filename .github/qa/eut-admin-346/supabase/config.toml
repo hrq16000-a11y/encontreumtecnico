@@ -1,0 +1,16 @@
+# Dedicated disposable local project. This is never linked to the hosted EUT database.
+project_id = "eut-admin-action-qa-346"
+
+[api]
+enabled = true
+port = 54321
+
+[db]
+port = 54322
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+
+[auth.email]
+enable_signup = true

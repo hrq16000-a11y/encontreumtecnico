@@ -43,14 +43,17 @@ jobs:
           const search=r('src/lib/technicians.functions.ts');
           const view=r('src/routes/tecnicos.index.tsx');
           const ranking=r('src/lib/technician-local-ranking.ts');
+          const regional=r('src/lib/regional-suggestion.ts');
           for (const term of [
             'data.prioridade === "regiao"',
             'rankTechniciansByDeclaredArea',
             '.eq("status", "aprovado")',
             '.contains("service_slugs"',
             'eut_online_published_ids',
-            'if (city && !regionalPriority)',
-            'if (bairro && !regionalPriority)'
+            'if (!regionalPriority && city)',
+            'if (!regionalPriority && bairro)',
+            'collectPublicDirectoryPages',
+            'publicDirectoryPage(rankTechniciansByDeclaredArea(unified, rankingArea), data.pagina)'
           ]) {
             if (!search.includes(term)) throw Error('Regional search contract missing: '+term);
           }
@@ -58,9 +61,14 @@ jobs:
             'Priorizar minha região',
             'prioridade: fallback',
             'localMatchLabel',
-            'não é localização GPS'
+            'label="Cidade"'
           ]) {
             if (!view.includes(term)) throw Error('Transparent ranking UI missing: '+term);
+          }
+          if (view.includes('CustomerLocationButton') ||
+              !search.includes('automaticRegionalRankingArea') ||
+              !regional.includes('hint?.source !== "ip"')) {
+            throw Error('No implicit GPS prompt; coarse IP ranking and manual city control required');
           }
           if (!ranking.includes('b.locationLevel - a.locationLevel') ||
               !ranking.includes('Number(b.technician.online_now)')) {

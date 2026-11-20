@@ -3,6 +3,7 @@ export const TECHNICIAN_PANEL_TABS = [
   { key: "inicio", label: "Visão geral", description: "Resumo e situação do cadastro" },
   { key: "perfil", label: "Meu perfil", description: "Dados, especialidades e serviços" },
   { key: "cobertura", label: "Regiões atendidas", description: "Municípios oficiais e raio" },
+  { key: "operacao", label: "Atendimento e deslocamento", description: "Equipamentos, locomoção, períodos e quilometragem" },
   { key: "foto", label: "Foto do perfil", description: "Avatar público com consentimento" },
   { key: "solicitacoes", label: "Solicitações", description: "Disponibilidade e pedidos recebidos" },
   { key: "indicacoes", label: "Indicações", description: "Convites e benefícios de destaque" },

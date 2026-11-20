@@ -6,15 +6,21 @@ const mockDb = vi.hoisted(() => ({
   accounts: [] as Array<Record<string, unknown>>,
   actions: [] as Array<Record<string, unknown>>,
   checks: [] as string[],
+  delayNextSnapshot: null as Promise<void> | null,
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     async rpc(name: string, args: Record<string, unknown>) {
       if (name === "eut_admin_accounts_snapshot") {
+        const pending = mockDb.delayNextSnapshot;
+        mockDb.delayNextSnapshot = null;
+        if (pending) await pending;
         const search = String(args["_search"] ?? "");
+        const filter = String(args["_filter"] ?? "todos");
         const rows = mockDb.accounts.filter((row) =>
-          !search || String(row["id"]) === search || String(row["full_name"]).toLowerCase().includes(search.toLowerCase()));
+          (!search || String(row["id"]) === search || String(row["full_name"]).toLowerCase().includes(search.toLowerCase())) &&
+          (filter !== "bloqueados" || row["blocked_account"] === true));
         if (search.includes("-")) mockDb.checks.push(search);
         return { data: {
           accounts: rows, total: rows.length, page: 0, page_size: 20,
@@ -51,6 +57,7 @@ beforeEach(() => {
   ];
   mockDb.actions = [];
   mockDb.checks = [];
+  mockDb.delayNextSnapshot = null;
   vi.spyOn(window, "confirm").mockReturnValue(true);
   window.history.replaceState({}, "", "/admin/clientes");
 });
@@ -58,6 +65,39 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe("moderação administrativa em lote", () => {
+  it("fecha a confirmação anterior durante a atualização de contas", async () => {
+    let finishRead: () => void = () => {};
+    render(<AdminAccountsManager />);
+    expect(await screen.findByText("Cliente Um")).toBeTruthy();
+    fireEvent.click(screen.getAllByRole("button", { name: "Banir conta" })[0]!);
+    expect(screen.getByRole("form", { name: "Confirmar alteração de conta" })).toBeTruthy();
+    mockDb.delayNextSnapshot = new Promise<void>((resolve) => { finishRead = resolve; });
+
+    fireEvent.click(screen.getByRole("button", { name: "Atualizar" }));
+    expect(screen.queryByRole("form", { name: "Confirmar alteração de conta" })).toBeNull();
+    expect(screen.queryByText("Cliente Um")).toBeNull();
+
+    finishRead();
+    expect(await screen.findByText("Cliente Um")).toBeTruthy();
+    expect(mockDb.actions).toHaveLength(0);
+  });
+
+  it("retira os cartões e ações anteriores enquanto um novo filtro é carregado", async () => {
+    let finishRead: () => void = () => {};
+    render(<AdminAccountsManager />);
+    expect(await screen.findByText("Cliente Um")).toBeTruthy();
+    mockDb.delayNextSnapshot = new Promise<void>((resolve) => { finishRead = resolve; });
+
+    fireEvent.click(screen.getByRole("button", { name: "Bloqueados" }));
+    expect(screen.getByText("Consultando contas…")).toBeTruthy();
+    expect(screen.queryByText("Cliente Um")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Banir conta" })).toBeNull();
+
+    finishRead();
+    expect(await screen.findByText(/Nenhuma conta neste filtro/)).toBeTruthy();
+    expect(mockDb.actions).toHaveLength(0);
+  });
+
   it("exclui administradores e confirma a persistência de cada conta no RPC", async () => {
     render(<AdminAccountsManager initialFilter="clientes" />);
     expect(await screen.findByText("Cliente Um")).toBeTruthy();

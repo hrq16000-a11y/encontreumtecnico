@@ -6,12 +6,12 @@ import {
 } from "./technician-panel-navigation";
 
 describe("Painel técnico navegável: abas profundas sem acessar dados de outro papel", () => {
-  it("define oito destinos únicos para as funcionalidades existentes", () => {
+  it("define nove destinos únicos para as funcionalidades existentes", () => {
     expect(TECHNICIAN_PANEL_TABS.map((tab) => tab.key)).toEqual([
-      "inicio", "perfil", "cobertura", "foto",
+      "inicio", "perfil", "cobertura", "operacao", "foto",
       "solicitacoes", "indicacoes", "configuracoes", "recuperacao",
     ]);
-    expect(new Set(TECHNICIAN_PANEL_TABS.map((tab) => tab.key)).size).toBe(8);
+    expect(new Set(TECHNICIAN_PANEL_TABS.map((tab) => tab.key)).size).toBe(9);
     for (const tab of TECHNICIAN_PANEL_TABS) {
       expect(technicianTabFromHash(technicianTabHref(tab.key))).toBe(tab.key);
       expect(technicianTabHref(tab.key)).toBe("#eut-tecnico-" + tab.key);
@@ -29,6 +29,7 @@ describe("Painel técnico navegável: abas profundas sem acessar dados de outro 
     expect(source).toContain("refreshRoles()");
     expect(source).toContain('panelTab === "perfil"');
     expect(source).toContain('panelTab === "cobertura"');
+    expect(source).toContain('panelTab === "operacao"');
     expect(source).toContain('panelTab === "foto"');
     expect(source).toContain('panelTab === "solicitacoes"');
     expect(source).toContain('panelTab === "indicacoes"');
@@ -42,7 +43,8 @@ describe("Painel técnico navegável: abas profundas sem acessar dados de outro 
     const source = readFileSync("src/routes/area-tecnico.tsx", "utf8");
     expect(source).toContain('<TechnicianDirectRequests userId={user.id} />');
     expect(source).toContain('<TechnicianPrivateContact userId={user.id} />');
-    expect(source).toContain('<PioneerPhoneVerification userId={user.id} />');
+    expect(source).not.toContain("PioneerPhoneVerification");
+    expect(source).not.toContain("TechnicianEmailOtpVerification");
     expect(source).toContain('<TechnicianCoverageEditor userId={user.id}');
     expect(source).toContain('<TechnicianAvatarEditor userId={user.id}');
     expect(source).toContain('<LegacyAccountActivation userId={user.id} role="tecnico" />');

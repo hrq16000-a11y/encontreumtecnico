@@ -1,0 +1,90 @@
+name: EUT OTP Auth local (isolado)
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/eut-otp-local-auth-qa.yml
+      - tests/otp-local/**
+      - docs/sql/eut-technician-email-otp-proof-20261120.sql
+      - docs/sql/eut-technician-email-otp-proof-rollback-20261120.sql
+      - supabase/migrations/**
+      - supabase/config.toml
+  workflow_dispatch:
+
+# Nenhum secret de repositório, token Supabase remoto ou ambiente de produção.
+permissions:
+  contents: read
+
+concurrency:
+  group: eut-otp-local-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  otp-local:
+    name: Auth real + Mailpit + SQL auditado (localhost)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      SUPABASE_ACCESS_TOKEN: ''
+      SUPABASE_DB_PASSWORD: ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 3.2.0
+      - name: Iniciar somente a pilha local descartável
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase --help >/dev/null
+          supabase start
+          supabase status -o env > "$RUNNER_TEMP/eut-otp-local.env"
+      - name: Executar desafio, e-mail OTP e verificações locais
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          source "$RUNNER_TEMP/eut-otp-local.env"
+          set +a
+
+          # Fail closed: todas as conexões SQL/Auth usadas abaixo são loopback.
+          node --input-type=module -e '
+            for (const [name, port] of [["API_URL", "54321"], ["DB_URL", "54322"]]) {
+              const url = new URL(process.env[name] || "");
+              if (!["127.0.0.1", "localhost"].includes(url.hostname) || url.port !== port) {
+                throw Error(`${name} não aponta para o Supabase local`);
+              }
+            }
+            if (!process.env.ANON_KEY || !process.env.SERVICE_ROLE_KEY) {
+              throw Error("Chaves efêmeras locais ausentes");
+            }
+          '
+          command -v psql >/dev/null
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f tests/otp-local/bootstrap.sql
+
+          # Extração literal da função oficial anterior, já preservada no rollback
+          # auditado da PR #343; não criar outra versão do contrato.
+          awk '
+            /^CREATE OR REPLACE FUNCTION eut_migration\.confirmed_current_email\(\)/ { copy=1 }
+            copy { print }
+            copy && /^\$function\$;/ { exit }
+          ' docs/sql/eut-technician-email-otp-proof-rollback-20261120.sql \
+            | psql "$DB_URL" -X -v ON_ERROR_STOP=1
+
+          baseline_hash="$(psql "$DB_URL" -X -tA -v ON_ERROR_STOP=1 -c \
+            "SELECT md5(pg_get_functiondef('eut_migration.confirmed_current_email()'::regprocedure))")"
+          test "$baseline_hash" = bf0789e2b311454a6320ecdc5269e73f || {
+            echo 'FAIL: hash do contrato anterior divergiu; não aplicar SQL auditado.' >&2
+            exit 1
+          }
+
+          # SQL da PR sem edições, exclusivamente no PostgreSQL local descartável.
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 \
+            -f docs/sql/eut-technician-email-otp-proof-20261120.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 \
+            -c "NOTIFY pgrst, 'reload schema'"
+          sleep 2
+          node tests/otp-local/auth-otp.mjs

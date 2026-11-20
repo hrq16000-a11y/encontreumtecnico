@@ -4,6 +4,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { TechnicianAvatar } from "@/components/technician-avatar";
 import { AdminTechnicianComprehensiveDraft } from "@/components/admin-technician-comprehensive-draft";
+import { TechnicianOperationsEditor } from "@/components/technician-operations-editor";
 import { publicTextProblem } from "@/lib/public-profile-text";
 import { clearAdminPublicDraft, readAdminPublicDraft, saveAdminPublicDraft, type AdminPublicFields } from "@/lib/admin-public-profile-draft";
 import { useActiveCategories } from "@/hooks/use-active-categories";
@@ -11,6 +12,7 @@ import { BRAZIL_STATES } from "@/lib/service-taxonomy";
 import { adminPageRange, cleanAdminSearch } from "@/lib/admin-technician-pagination";
 import type { PreparedEdit } from "@/lib/admin-technician-crud-intent";
 import { adminTechnicianChangePayload } from "@/lib/admin-technician-rpc-payload";
+import { confirmedAdminTechnicianAction } from "@/lib/admin-technician-action-confirmation";
 import { Check, Pencil, RotateCcw, ShieldAlert, UserRoundX, X } from "lucide-react";
 
 type Technician = Pick<Tables<"technicians">,
@@ -45,7 +47,9 @@ export function AdminTechnicianManager({
   const [draftSearch, setDraftSearch] = useState("");
   const [uf, setUf] = useState("");
   const [city, setCity] = useState("");
+  const [draftCity, setDraftCity] = useState("");
   const [neighborhood, setNeighborhood] = useState("");
+  const [draftNeighborhood, setDraftNeighborhood] = useState("");
   const [category, setCategory] = useState("");
   const [sort, setSort] = useState<"newest" | "oldest" | "name">("newest");
   const [page, setPage] = useState(0);
@@ -58,14 +62,32 @@ export function AdminTechnicianManager({
   const [readError, setReadError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
   const { categories } = useActiveCategories();
-  // Search only after typing settles. Every page is queried on the server.
+  // Free-text filters are applied together after typing settles. Every page
+  // remains queried on the server with the existing RLS and pagination.
   useEffect(() => {
     const id = window.setTimeout(() => {
       setPage(0);
       setSearch(draftSearch.trim());
+      setCity(draftCity.trim());
+      setNeighborhood(draftNeighborhood.trim());
     }, 300);
     return () => window.clearTimeout(id);
-  }, [draftSearch]);
+  }, [draftSearch, draftCity, draftNeighborhood]);
+
+  const hasActiveFilters = Boolean(draftSearch || draftCity || draftNeighborhood || uf || category || sort !== "newest");
+
+  function clearFilters() {
+    setDraftSearch("");
+    setDraftCity("");
+    setDraftNeighborhood("");
+    setSearch("");
+    setCity("");
+    setNeighborhood("");
+    setUf("");
+    setCategory("");
+    setSort("newest");
+    setPage(0);
+  }
 
   useEffect(() => {
     let active = true;
@@ -132,6 +154,7 @@ export function AdminTechnicianManager({
 
   const [target, setTarget] = useState<{ technician: Technician; action: Action } | null>(null);
   const [advanced, setAdvanced] = useState<Technician | null>(null);
+  const [operating, setOperating] = useState<Technician | null>(null);
   const [draft, setDraft] = useState({ display_name: "", bio: "", region: "" });
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -141,13 +164,14 @@ export function AdminTechnicianManager({
   useEffect(() => {
     setTarget(null);
     setAdvanced(null);
+    setOperating(null);
     setFeedback(null);
     setPage(0);
   }, [selectedTechnicianId]);
 
   useEffect(() => {
-    if (target || advanced) editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [target, advanced]);
+    if (target || advanced || operating) editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [target, advanced, operating]);
 
   function publicBaseline(technician: Technician): AdminPublicFields {
     return { display_name: technician.display_name, bio: technician.bio ?? "", region: technician.region ?? "" };
@@ -155,6 +179,7 @@ export function AdminTechnicianManager({
 
   function choose(technician: Technician, action: Action) {
     setAdvanced(null);
+    setOperating(null);
     const baseline = publicBaseline(technician);
     const recovered = action === "editar"
       ? readAdminPublicDraft(adminOwnerId, technician.id, baseline) : null;
@@ -199,8 +224,19 @@ export function AdminTechnicianManager({
         p_reason: reason.trim(),
       });
       if (error) throw error;
-      if (!data || data.id !== target.technician.id)
-        throw new Error("Servidor não confirmou a atualização solicitada.");
+      if (!confirmedAdminTechnicianAction(
+        data, target.technician.id, target.action, target.technician.status,
+        target.action === "editar" ? draft.display_name : target.technician.display_name,
+      )) {
+        // A divergent response may follow a committed write. Refresh first;
+        // never claim success or automatically retry an audited mutation.
+        setReload((value) => value + 1);
+        onUpdated?.();
+        setTarget(null);
+        setFeedback("A resposta do banco não confirmou o estado solicitado. " +
+          "Atualize e confira a ficha antes de tentar novamente; nenhuma ação será repetida automaticamente.");
+        return;
+      }
       if (target.action === "editar") clearAdminPublicDraft(adminOwnerId, target.technician.id);
       setReload((value) => value + 1);
       onUpdated?.();
@@ -265,12 +301,12 @@ export function AdminTechnicianManager({
         </select>
       </label>
       <label className="grid gap-1 text-xs font-semibold text-foreground">Município
-        <input value={city} maxLength={80} onChange={(e) => { setCity(e.target.value); setPage(0); }}
+        <input value={draftCity} maxLength={80} onChange={(e) => setDraftCity(e.target.value)}
           placeholder="Ex.: Curitiba" className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm" />
       </label>
       <label className="grid gap-1 text-xs font-semibold text-foreground">Bairro
-        <input value={neighborhood} maxLength={80}
-          onChange={(e) => { setNeighborhood(e.target.value); setPage(0); }}
+        <input value={draftNeighborhood} maxLength={80}
+          onChange={(e) => setDraftNeighborhood(e.target.value)}
           placeholder="Ex.: Centro" className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm" />
       </label>
       <label className="grid gap-1 text-xs font-semibold text-foreground">Especialidade
@@ -289,9 +325,15 @@ export function AdminTechnicianManager({
         </select>
       </label>
     </div>
+    {hasActiveFilters && <div className="mt-3 flex justify-end">
+      <button type="button" onClick={clearFilters}
+        className="min-h-11 rounded-lg border border-input px-4 text-sm font-semibold text-foreground hover:bg-accent">
+        Limpar busca e filtros
+      </button>
+    </div>}
     <div role="tablist" aria-label="Status dos técnicos" className="mt-4 flex gap-2 overflow-x-auto pb-2">
       {TABS.map((tab) => <button key={tab.key} type="button" role="tab"
-        aria-selected={status === tab.key} onClick={() => { setStatus(tab.key); setPage(0); setTarget(null); setAdvanced(null); }}
+        aria-selected={status === tab.key} onClick={() => { setStatus(tab.key); setPage(0); setTarget(null); setAdvanced(null); setOperating(null); }}
         className={"min-h-11 shrink-0 rounded-full border px-4 text-sm font-semibold " +
           (status === tab.key ? "border-primary bg-primary text-primary-foreground" : "border-input text-foreground hover:bg-accent")}>
         {tab.label} ({counts[tab.key] ?? "…"})
@@ -351,6 +393,17 @@ export function AdminTechnicianManager({
         onUpdated?.();
         setFeedback(message);
       }} />}
+    {operating && <section className="mt-5 rounded-2xl border-2 border-primary/30 bg-card p-5 shadow-sm" aria-label="Editar condições operacionais do técnico">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-bold text-foreground">Condições operacionais de {operating.display_name}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">A edição é auditada e exige uma justificativa. Contatos e estado de moderação ficam intactos.</p>
+        </div>
+        <button type="button" aria-label="Fechar condições operacionais" onClick={() => setOperating(null)} className="rounded-lg border border-input p-2"><X className="h-5 w-5" /></button>
+      </div>
+      <TechnicianOperationsEditor key={operating.id} technicianId={operating.id}
+        coverageCityIds={operating.coverage_city_ids ?? []} mode="admin" />
+    </section>}
     </div>
     {readError && <p role="alert" className="mt-4 rounded-lg border border-destructive/30 p-3 text-sm text-destructive">{readError}</p>}
     {loadingRows || rows === null ? <p role="status" className="mt-5 text-sm text-muted-foreground">Carregando página de técnicos…</p>
@@ -368,9 +421,13 @@ export function AdminTechnicianManager({
           </div>
           <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <button type="button" onClick={() => choose(technician, "editar")} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-input px-3 text-sm font-semibold text-foreground hover:bg-accent sm:w-auto"><Pencil className="h-4 w-4" /> Editar nome e apresentação</button>
-            <button type="button" onClick={() => { setTarget(null); setAdvanced(technician); }}
+            <button type="button" onClick={() => { setTarget(null); setOperating(null); setAdvanced(technician); }}
               className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-primary/40 px-3 text-sm font-semibold text-foreground hover:bg-accent sm:w-auto">
               Editar cidade, categorias e contato privado
+            </button>
+            <button type="button" onClick={() => { setTarget(null); setAdvanced(null); setOperating(technician); }}
+              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-primary/40 px-3 text-sm font-semibold text-foreground hover:bg-accent sm:w-auto">
+              Editar equipamentos, períodos e km
             </button>
             {technician.status === "aprovado" && <button type="button" onClick={() => choose(technician, "suspender")} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-amber-500/40 px-3 text-sm font-semibold text-foreground hover:bg-accent sm:w-auto"><ShieldAlert className="h-4 w-4" /> Suspender</button>}
             {technician.status === "suspenso" && <button type="button" onClick={() => choose(technician, "reativar")} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground sm:w-auto"><RotateCcw className="h-4 w-4" /> Dessuspender</button>}
@@ -386,10 +443,10 @@ export function AdminTechnicianManager({
       </p>
       <div className="flex gap-2">
         <button type="button" disabled={loadingRows || page === 0}
-          onClick={() => { setPage((p) => Math.max(0, p - 1)); setTarget(null); setAdvanced(null); }}
+          onClick={() => { setPage((p) => Math.max(0, p - 1)); setTarget(null); setAdvanced(null); setOperating(null); }}
           className="min-h-11 rounded-lg border border-input px-4 text-sm disabled:opacity-40">Anterior</button>
         <button type="button" disabled={loadingRows || page + 1 >= pages}
-          onClick={() => { setPage((p) => p + 1); setTarget(null); setAdvanced(null); }}
+          onClick={() => { setPage((p) => p + 1); setTarget(null); setAdvanced(null); setOperating(null); }}
           className="min-h-11 rounded-lg border border-input px-4 text-sm disabled:opacity-40">Próximo</button>
       </div>
     </nav>}
