@@ -141,10 +141,20 @@ BEGIN
  IF (SELECT count(*) FROM public.eut_admin_management_log
    WHERE action='technician_operations_admin_updated')<>2 THEN
    RAISE EXCEPTION 'falta auditoria da edicao administrativa rejeitada'; END IF;
- IF (SELECT status FROM public.technicians WHERE id=t)<>'rejeitado' THEN
-   RAISE EXCEPTION 'admin alterou moderacao ao editar condicoes'; END IF;
+
 END
 $rejected_admin$;
+-- A tabela canônica não tem SELECT direto para authenticated nesta fixture.
+-- A condição de moderação é verificada pelo usuário privilegiado do CI,
+-- nunca concedendo acesso adicional ao titular ou ao administrador via API.
+RESET ROLE;
+DO $check_status$
+BEGIN
+ IF (SELECT status FROM public.technicians
+     WHERE id='10000000-0000-4000-8000-000000000001')<>'rejeitado' THEN
+   RAISE EXCEPTION 'admin alterou moderacao ao editar condicoes'; END IF;
+END
+$check_status$;
 ROLLBACK;
 
 -- Depois das recusas: um único registro; 2 suspensos; 2 logs válidos; papéis intactos.
