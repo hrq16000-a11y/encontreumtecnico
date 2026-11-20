@@ -37,7 +37,7 @@ describe("Contrato de identidade técnico: escolha de papel precede comprovaçã
 
   it("preserva erro de autorização sem expor SQL ou criar outra conta", () => {
     expect(login).toContain('role === "tecnico" && error.code === "42501"');
-    expect(login).toContain("não crie outra conta");
+    expect(login).toMatch(/não crie outra conta/i);
     expect(login).not.toContain("auth.admin");
   });
 });
