@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { brlToCents, centsToBrl, EMPTY_OPERATIONS, sameTechnicianOperations,
-  reconcileTechnicianOperationsCoverage, technicianOperationsSchema, validateTechnicianOperations } from "./technician-operations-contract";
+  hasDeclaredTechnicianOperations, reconcileTechnicianOperationsCoverage, technicianOperationsSchema, validateTechnicianOperations } from "./technician-operations-contract";
 
 describe("contrato operacional tipado", () => {
   it("aceita dados profissionais controlados e sem dados pessoais", () => {
@@ -40,6 +40,11 @@ describe("contrato operacional tipado", () => {
     expect(reconcileTechnicianOperationsCoverage({
       ...EMPTY_OPERATIONS, free_city_ids: [4106902], paid_city_ids: [4106902],
     }, [4106902])).toBeNull();
+  });
+  it("mostra condições públicas só quando algo foi declarado, inclusive zero km", () => {
+    expect(hasDeclaredTechnicianOperations(EMPTY_OPERATIONS)).toBe(false);
+    expect(hasDeclaredTechnicianOperations({ ...EMPTY_OPERATIONS, km_rate_cents: 0 })).toBe(true);
+    expect(hasDeclaredTechnicianOperations({ ...EMPTY_OPERATIONS, transport_mode: "bicycle" })).toBe(true);
   });
   it("não converte valores decimais em floats e não altera taxa da plataforma", () => {
     expect(brlToCents("12,50")).toBe(1250);
