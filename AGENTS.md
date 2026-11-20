@@ -39,3 +39,7 @@
 - RiseClub (https://riseclub.tech/): referência conceitual para comunidade e aprendizagem. Não copiar cursos, artigos, dados de usuários, imagens ou elementos protegidos.
 - Prioridades locais: Home, `/tecnicos`, cards/perfis e painel administrativo 390/1440; preservar SSR, LCP, SEO, funis, dados reais e contatos privados.
 - Mudanças funcionais: micro-PR isolada com comparação visual e gates existentes. Esta diretriz não autoriza deploy, alteração de DNS, pagamentos, dados, Supabase ou RLS.
+
+## Inteligência compartilhada de skills (2026-11-20)
+
+Antes de adotar recursos externos de motion, React, QA mobile, acessibilidade ou SQL de auditoria, consultar `.agents/skills/shared-reference-intelligence/SKILL.md`. Aplicar somente competências pertinentes, sem instalar/executar código de terceiros; contratos e gates locais têm precedência. No 0WEB, aplicar a portfólios **novos**, sem retrabalhar os existentes por esta regra.
