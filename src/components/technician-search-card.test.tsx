@@ -4,10 +4,10 @@ import type { PublicTechnician } from "@/lib/technicians.functions";
 import { TechnicianSearchCard } from "./technician-search-card";
 
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ to, params, children, ...props }: {
-    to: string; params?: { tecnicoId: string }; children: React.ReactNode; [key: string]: unknown;
+  Link: ({ to, params, children, className, ...props }: {
+    to: string; params?: { tecnicoId: string }; children: React.ReactNode; className?: string; [key: string]: unknown;
   }) => <a href={to.replace("$tecnicoId", params?.tecnicoId || "")}
-    aria-label={typeof props["aria-label"] === "string" ? props["aria-label"] : undefined}>{children}</a>,
+    className={className} aria-label={typeof props["aria-label"] === "string" ? props["aria-label"] : undefined}>{children}</a>,
 }));
 vi.mock("@/components/technician-avatar", () => ({
   TechnicianAvatar: ({ name, avatarPath }: { name: string; avatarPath: string | null }) =>
@@ -34,8 +34,8 @@ const person: PublicTechnician = {
   online_now: false, pioneer_bronze: false, referral_highlight: false,
 };
 
-const categories: any[] = [];
-const services: any[] = [];
+const categories: never[] = [];
+const services: never[] = [];
 
 describe("Cartão do técnico publicado", () => {
   it("exibe foto real quando há avatar permitido, nome, região, serviços e rota amigável", () => {
@@ -46,6 +46,10 @@ describe("Cartão do técnico publicado", () => {
     expect(container.textContent).toContain("Tubarão/SC");
     expect(container.textContent).toContain("+1 áreas");
     expect(container.textContent).toContain("+1 serviços");
+    expect(screen.getByText("Com foto")).toBeTruthy();
+    expect(screen.getByText("Região detalhada")).toBeTruthy();
+    expect(screen.queryByText("Perfil enriquecido")).toBeNull();
+    expect(screen.getByRole("link").className).toContain("border-violet-400/45");
     expect(container.textContent).toContain("Ver perfil completo");
     expect(container.querySelector('a[href^="tel:"], a[href^="mailto:"], a[href*="wa.me"]')).toBeNull();
     expect(container.textContent).not.toMatch(/5 estrelas|avaliado por clientes|técnico verificado/i);
@@ -60,14 +64,31 @@ describe("Cartão do técnico publicado", () => {
     expect(screen.queryByText("Pioneiro Bronze")).toBeNull();
     expect(screen.getByText("Destaque por indicações")).toBeTruthy();
     expect(screen.getByText("Atividade recente")).toBeTruthy();
+    expect(screen.getByRole("link").className).toContain("border-emerald-400/75");
+  });
+
+  it("destaca o perfil enriquecido sem alegar conclusão do wizard ou endereço completo", () => {
+    const { container } = render(<TechnicianSearchCard technician={{ ...person, bio: "Atendimento em informática e redes." }} categories={categories} services={services} />);
+    expect(screen.getByText("Perfil enriquecido")).toBeTruthy();
+    expect(screen.getByRole("link").className).toContain("border-sky-400/65");
+    expect(container.textContent).not.toMatch(/100%|endereço completo|último acesso|certificado/i);
   });
 
   it("não inventa foto, cidade de cobertura ou atividade online ausentes", () => {
     const { container } = render(<TechnicianSearchCard
-      technician={{ ...person, avatar_path: null, coverage_cities: [], service_radius_km: null, online_now: false }}
+      technician={{ ...person, avatar_path: null, neighborhood: null, region: null, coverage_cities: [], service_radius_km: null, online_now: false }}
       categories={categories} services={services} />);
     expect(screen.getByRole("img", { name: "Avatar de Jefferson Santana" }).getAttribute("data-avatar")).toBe("sem-foto");
     expect(container.textContent).not.toContain("Cidades declaradas");
     expect(screen.queryByText("Atividade recente")).toBeNull();
+    expect(screen.queryByText("Com foto")).toBeNull();
+    expect(screen.queryByText("Região detalhada")).toBeNull();
+    expect(screen.getByRole("link").className).toContain("border-primary/20");
+  });
+
+  it("não destaca arquivo de foto com caminho inválido", () => {
+    render(<TechnicianSearchCard technician={{ ...person, avatar_path: "avatars/outro.jpg", bio: "Atendimento em informática." }} categories={categories} services={services} />);
+    expect(screen.queryByText("Com foto")).toBeNull();
+    expect(screen.queryByText("Perfil enriquecido")).toBeNull();
   });
 });

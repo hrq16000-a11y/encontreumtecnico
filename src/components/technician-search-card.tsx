@@ -1,7 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowUpRight, BriefcaseBusiness, MapPin, Radio, Sparkles, Wrench } from "lucide-react";
+import { ArrowUpRight, BriefcaseBusiness, Camera, MapPin, Sparkles, Wrench } from "lucide-react";
 import type { PublicTechnician } from "@/lib/technicians.functions";
 import { TechnicianAvatar } from "@/components/technician-avatar";
+import { hasPublicTechnicianPhoto } from "@/lib/public-avatar-path";
 import { formatPublicLocation, placeKey } from "@/lib/location-labels";
 import { useActiveCategories, categoryLabel } from "@/hooks/use-active-categories";
 import { useActiveServices, serviceLabel } from "@/hooks/use-active-services";
@@ -26,14 +27,31 @@ export function TechnicianSearchCard({ technician: t, categories, services, loca
   const declaredCities = additionalCities.slice(0, 2);
   const moreCities = Math.max(0, additionalCities.length - declaredCities.length);
   const location = formatPublicLocation(t);
+  const hasPhoto = hasPublicTechnicianPhoto(t.avatar_path);
+  const hasDetailedArea = Boolean(t.neighborhood?.trim() || t.region?.trim());
+  // Public-field enrichment, not proof that a private wizard or address is 100% complete.
+  const enrichedProfile = hasPhoto && Boolean(t.bio?.trim()) && Boolean(t.city.trim()) &&
+    Boolean(t.state_uf) && t.specialties.length > 0 && t.service_slugs.length > 0;
 
   return (
     <Link to="/tecnicos/$tecnicoId" params={{ tecnicoId: t.public_slug }}
       aria-label={"Ver perfil e serviços de " + t.display_name}
-      className="eut-card-lift group relative flex h-full min-w-0 flex-col overflow-hidden rounded-[26px] border border-primary/20 bg-card shadow-sm transition-[border-color,box-shadow] duration-200 hover:border-primary/60 hover:shadow-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none">
+      className={"eut-card-lift group relative flex h-full min-w-0 flex-col overflow-hidden rounded-[26px] border-2 bg-card transition-[border-color,box-shadow] duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none " +
+        (t.online_now
+          ? "border-emerald-400/75 shadow-[0_0_0_1px_rgba(16,185,129,0.2),0_12px_32px_-18px_rgba(16,185,129,0.7)] hover:border-emerald-300 hover:shadow-lg"
+          : enrichedProfile
+            ? "border-sky-400/65 shadow-[0_0_0_1px_rgba(56,189,248,0.18),0_12px_32px_-20px_rgba(56,189,248,0.6)] hover:border-sky-300 hover:shadow-lg"
+            : hasPhoto
+              ? "border-violet-400/45 shadow-sm hover:border-violet-400 hover:shadow-lg"
+              : "border-primary/20 shadow-sm hover:border-primary/60 hover:shadow-xl")}>
       <div className="relative isolate bg-gradient-to-br from-brand-navy via-[#194467] to-[#0c2d4e] px-5 pb-10 pt-6 text-brand-navy-foreground sm:px-6 sm:pt-7">
         <div aria-hidden="true" className="pointer-events-none absolute -right-10 -top-20 h-52 w-52 rounded-full bg-brand-glow/20 blur-3xl" />
         <Wrench aria-hidden="true" className="pointer-events-none absolute -right-3 top-6 h-24 w-24 rotate-[-20deg] text-white/10" strokeWidth={1} />
+        {(t.online_now || enrichedProfile || hasPhoto) && (
+          <span aria-hidden="true" className={"pointer-events-none absolute right-4 top-3 h-2.5 w-2.5 rounded-full ring-4 " +
+            (t.online_now ? "bg-emerald-300 ring-emerald-300/20" : enrichedProfile
+              ? "bg-sky-300 ring-sky-300/20" : "bg-violet-300 ring-violet-300/20")} />
+        )}
         <div className="relative flex min-w-0 items-start gap-4">
           <TechnicianAvatar name={t.display_name} avatarPath={t.avatar_path}
             className="h-[76px] w-[76px] shrink-0 rounded-2xl border-2 border-white/35 ring-4 ring-white/10 shadow-lg sm:h-[84px] sm:w-[84px]" />
@@ -52,8 +70,23 @@ export function TechnicianSearchCard({ technician: t, categories, services, loca
       <div className="relative -mt-4 flex flex-1 flex-col rounded-t-[22px] bg-card px-5 pb-5 pt-5 sm:px-6">
         <div className="flex flex-wrap gap-1.5">
           {t.online_now && (
-            <span title="Atividade recente, sem garantia de disponibilidade" className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[11px] font-bold text-primary">
-              <Radio className="h-3.5 w-3.5" aria-hidden="true" /> Atividade recente
+            <span title="Atividade recente, sem garantia de disponibilidade" className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/35 bg-emerald-500/10 px-3 py-1 text-[11px] font-bold text-emerald-800 dark:text-emerald-300">
+              <span aria-hidden="true" className="h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-emerald-500/15 motion-safe:animate-pulse" /> Atividade recente
+            </span>
+          )}
+          {hasPhoto && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-[11px] font-bold text-sky-800 dark:text-sky-300">
+              <Camera className="h-3.5 w-3.5" aria-hidden="true" /> Com foto
+            </span>
+          )}
+          {enrichedProfile && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-[11px] font-bold text-sky-800 dark:text-sky-300">
+              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Perfil enriquecido
+            </span>
+          )}
+          {hasDetailedArea && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/60 px-3 py-1 text-[11px] font-semibold text-foreground">
+              <MapPin className="h-3.5 w-3.5" aria-hidden="true" /> Região detalhada
             </span>
           )}
           {t.referral_highlight && (
