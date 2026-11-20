@@ -35,6 +35,23 @@ describe("Funil flutuante de atendimento", () => {
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
   });
+  it.each(["/area-tecnico", "/lp2/meu-perfil"])("não sobrepõe o rodapé sticky do Wizard em 390px (%s), sem desativar o atendimento", async (pathname) => {
+    routeState.pathname = pathname;
+    const previousWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    try {
+      render(<FreeSearchHelp />);
+      const trigger = screen.getByRole("button", { name: /preciso de ajuda/i });
+      // CSS hidden below md (768px); the desktop CTA remains available.
+      expect(trigger.className).toContain("hidden md:inline-flex");
+      expect(trigger.className).toContain("bottom-[calc(5.5rem+env(safe-area-inset-bottom))]");
+      act(() => openFreeHelp({ city: "Curitiba" }));
+      expect(screen.getByRole("dialog")).toBeTruthy();
+      expect((await screen.findByTestId("guided-funnel")).textContent).toContain("Curitiba");
+    } finally {
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: previousWidth });
+    }
+  });
   it("mantém o botão flutuante mobile quando a barra de atalhos não existe", () => {
     routeState.pathname = "/tecnicos/jefferson-santana-tubarao-sc";
     render(<FreeSearchHelp />);
