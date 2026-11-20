@@ -9,6 +9,7 @@ import { automaticRegionalRankingArea, parseVercelRegion } from "@/lib/regional-
 import { isValidTechnicianId, isValidTechnicianSlug } from "@/lib/technician-id";
 import { sanitizePublicTechnician } from "@/lib/public-profile-text";
 import { readPublicEligibleRows, type PublicEligibilityRpc } from "@/lib/public-eligibility";
+import { technicianOperationsSchema, type TechnicianOperations } from "@/lib/technician-operations-contract";
 
 export type PublicTechnician = {
   id: string;
@@ -25,6 +26,7 @@ export type PublicTechnician = {
   service_radius_km: number | null;
   coverage_city_ids: number[];
   coverage_cities?: Array<{ id: number; name: string; uf: string }>;
+  operations?: TechnicianOperations | null;
   covers_entire_state?: boolean;
   online_now: boolean;
   pioneer_bronze?: boolean;
@@ -340,5 +342,19 @@ export const getApprovedTechnician = createServerFn({ method: "GET" })
     if (!row) return null;
     const eligible = await readPublicEligibleRows(publicClient() as unknown as PublicEligibilityRpc, [row]);
     if (!eligible.length) return null; // Suspended/banned/not eligible => real 404 in route loader.
-    return (await withCoverageCities(await withReferralHighlights(await withPioneerBadges(await withOnlineStatus([sanitizePublicTechnician(eligible[0]!)])))))[0] ?? null;
+    const profile = (await withCoverageCities(await withReferralHighlights(await withPioneerBadges(await withOnlineStatus([sanitizePublicTechnician(eligible[0]!)])))))[0];
+    if (!profile) return null;
+    // Optional until the isolated SQL proposal passes its release gate. The server
+    // projects a strict allowlist; never forward unvalidated RPC JSON to the browser.
+    const { data: operations, error: operationsError } = await (publicClient() as unknown as SupabaseClient)
+      .rpc("eut_public_technician_operations", { _technician_id: profile.id });
+    if (operationsError) {
+      console.warn("public operational profile unavailable", operationsError.code ?? "unknown");
+    }
+    const permitted = operationsError ? null : technicianOperationsSchema.safeParse(operations);
+    const validCities = profile.coverage_city_ids ?? [];
+    const projected = permitted && permitted.success &&
+      [...permitted.data.free_city_ids, ...permitted.data.paid_city_ids].every(id => validCities.includes(id))
+      ? permitted.data : null;
+    return { ...profile, operations: projected };
   });

@@ -1,0 +1,16 @@
+# Stack descartavel para homologacao da PR #368. Nunca vincular ao projeto oficial.
+project_id = "eut-operations-auth-qa-368"
+
+[api]
+enabled = true
+port = 54321
+
+[db]
+port = 54322
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+
+[auth.email]
+enable_signup = true
