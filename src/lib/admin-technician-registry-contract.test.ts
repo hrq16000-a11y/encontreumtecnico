@@ -12,7 +12,8 @@ describe("cadastro administrativo sem conta artificial", () => {
     expect(editor).toContain("|| Boolean(existing && !identityLoaded)}");
     expect(editor).toContain('db.rpc("eut_admin_identity_get"');
     expect(editor).toContain('db.rpc("eut_admin_identity_save"');
-    expect(editor).toContain("hasIdentityFields");
+    expect(editor).toContain("shouldWriteTechnicianIdentity(identityPayload, originalIdentity, Boolean(existing))");
+    expect(editor).toContain("if (writeIdentity) {");
     expect(editor).toContain("A ficha profissional foi salva, mas e-mail/endereço não foram confirmados.");
     expect(editor).toContain('db.rpc("eut_admin_technician_record_archive"');
     expect(editor).toContain('code === "PGRST202"');

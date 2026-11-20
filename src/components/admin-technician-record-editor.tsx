@@ -6,6 +6,8 @@ import { normalizeBrazilPhoneE164 } from "@/lib/admin-technician-crud-intent";
 import { confirmedTechnicianArchiveResult } from "@/lib/admin-technician-archive-confirmation";
 import { publicTextProblem } from "@/lib/public-profile-text";
 import { AdminTechnicianCoverageEditor } from "@/components/admin-technician-coverage-editor";
+import { shouldWriteTechnicianIdentity, technicianIdentityPayload,
+  type TechnicianIdentityDraft, type TechnicianIdentityPayload } from "@/lib/admin-technician-identity-intent";
 
 const db = supabase as unknown as SupabaseClient;
 const field = "min-h-11 min-w-0 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground";
@@ -31,9 +33,8 @@ export type AdminTechnicianRegistryRecord = {
 
 type CatalogService = { slug: string; label: string; category_slug: string };
 type City = { id: number; name: string; uf: string };
-type IdentityField = "email" | "postal_code" | "street" | "number" | "complement" | "neighborhood" | "city" | "uf";
-type IdentityDraft = Record<IdentityField, string>;
-const emptyIdentity: IdentityDraft = {
+type IdentityField = keyof TechnicianIdentityDraft;
+const emptyIdentity: TechnicianIdentityDraft = {
   email: "", postal_code: "", street: "", number: "", complement: "",
   neighborhood: "", city: "", uf: "",
 };
@@ -80,7 +81,8 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
   const [originalPhone, setOriginalPhone] = useState("");
   const [phoneLoaded, setPhoneLoaded] = useState(!existing);
   const [phoneLoadError, setPhoneLoadError] = useState(false);
-  const [identity, setIdentity] = useState<IdentityDraft>(emptyIdentity);
+  const [identity, setIdentity] = useState<TechnicianIdentityDraft>(emptyIdentity);
+  const [originalIdentity, setOriginalIdentity] = useState<TechnicianIdentityPayload | null>(null);
   const [identityRevision, setIdentityRevision] = useState<string | null>(null);
   const [identityLoaded, setIdentityLoaded] = useState(!existing);
   const [identityLoadError, setIdentityLoadError] = useState(false);
@@ -140,12 +142,14 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
       if (rpcError || data?.ok !== true || data.available !== true) {
         throw new Error("Dados cadastrais indisponíveis");
       }
-      setIdentity({
+      const loadedIdentity = {
         email: data.email ?? "", postal_code: data.postal_code ?? "",
         street: data.street ?? "", number: data.number ?? "",
         complement: data.complement ?? "", neighborhood: data.neighborhood ?? "",
         city: data.city ?? "", uf: data.uf ?? "",
-      });
+      };
+      setIdentity(loadedIdentity);
+      setOriginalIdentity(technicianIdentityPayload(loadedIdentity));
       setIdentityRevision(data.updated_at ?? null);
       setIdentityLoaded(true);
     }).catch(() => {
@@ -234,15 +238,8 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
       (identity.postal_code.trim() && postalCode.length !== 8)) {
       setError("Confira o e-mail cadastral e o CEP de oito dígitos."); return;
     }
-    const identityPayload = {
-      email: email || null, postal_code: postalCode || null,
-      street: identity.street.trim() || null,
-      number: identity.number.trim() || null,
-      complement: identity.complement.trim() || null,
-      neighborhood: identity.neighborhood.trim() || null,
-      city: identity.city.trim() || null,
-      uf: identity.uf.trim().toUpperCase() || null,
-    };
+    const identityPayload = technicianIdentityPayload(identity);
+    const writeIdentity = shouldWriteTechnicianIdentity(identityPayload, originalIdentity, Boolean(existing));
     const normalizedPhone = phoneAction === "replace" ? normalizedPhoneDraft : null;
     const payload: Record<string, unknown> = {
       display_name: cleanedName, city_ibge_id: cityId,
@@ -268,8 +265,9 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
       if (writeError) throw writeError;
       if (data?.ok !== true || !data.technician_id || !data.updated_at)
         throw new Error("O banco não confirmou a gravação.");
-      const hasIdentityFields = Object.values(identityPayload).some((value) => value !== null);
-      if (existing || hasIdentityFields) {
+      // An unchanged e-mail/address must not create a separate identity write,
+      // audit entry or second possible failure after the professional save.
+      if (writeIdentity) {
         const { data: savedIdentity, error: identityError } = await db.rpc("eut_admin_identity_save", {
           _record_key: `registry:${data.technician_id}`,
           _expected_updated_at: identityRevision,
@@ -311,7 +309,7 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
           "Reabra a ficha antes de repetir a operação; nenhum contato será reenviado automaticamente.");
         return;
       }
-      if (existing || hasIdentityFields) {
+      if (writeIdentity) {
         const { data: verifiedIdentity, error: identityReadError } = await db.rpc(
           "eut_admin_identity_get", { _record_key: `registry:${data.technician_id}` },
         );
