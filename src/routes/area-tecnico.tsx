@@ -18,8 +18,7 @@ import { LegacyProfileImport } from "@/components/legacy-profile-import";
 import { TechnicianPresence } from "@/components/technician-presence";
 import { TechnicianMissions } from "@/components/technician-missions";
 import { TechnicianPrivateContact } from "@/components/technician-private-contact";
-import { TechnicianEmailOtpVerification } from "@/components/technician-email-otp-verification";
-import { PioneerPhoneVerification } from "@/components/pioneer-phone-verification";
+import { TechnicianProfileRemoval } from "@/components/technician-profile-removal";
 import { TechnicianDirectRequests } from "@/components/technician-direct-requests";
 import { CustomerLocationButton } from "@/components/customer-location-button";
 import { TechnicianCepSuggestion } from "@/components/technician-cep-suggestion";
@@ -194,9 +193,11 @@ export function TechnicianAreaPage() {
           setProfileError(true);
         } else if (data) {
           const loadedForm = {
-            display_name: data.display_name,
-            state_uf: data.state_uf ?? "",
-            city: data.city,
+            display_name: data.status === "pendente" && data.display_name === "Ficha excluída"
+              ? googleIdentityHint(user).fullName.slice(0, 80) : data.display_name,
+            state_uf: data.status === "pendente" && data.display_name === "Ficha excluída"
+              ? "" : data.state_uf ?? "",
+            city: data.status === "pendente" && data.display_name === "Ficha excluída" ? "" : data.city,
             neighborhood: data.neighborhood ?? "",
             region: data.region ?? "",
             bio: data.bio ?? "",
@@ -494,7 +495,7 @@ export function TechnicianAreaPage() {
             </div>
             <p className="mt-6 rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm text-foreground">
               <ShieldCheck className="mr-2 inline h-5 w-5 text-primary" aria-hidden="true" />
-              Seu cadastro é gratuito. A publicação depende dos dados profissionais que você confirmar.
+              Seu cadastro é gratuito. Informe seus dados profissionais e publique diretamente.
               O portal não certifica sua capacidade técnica e não divulga seu contato privado sem autorização.
             </p>
                 </div>
@@ -524,6 +525,7 @@ export function TechnicianAreaPage() {
             </details>
               )}
               {panelTab === "perfil" && (
+            <>
             <form onSubmit={save} className="mt-2 grid gap-4" noValidate>
               <div className="rounded-2xl border border-primary/20 bg-card p-4 shadow-sm sm:p-5">
                 <p className="text-xs font-semibold uppercase tracking-wide text-primary">Cadastro guiado · Passo {step} de 3</p>
@@ -716,7 +718,6 @@ export function TechnicianAreaPage() {
               </div>
                 </div>
               )}
-              <TechnicianEmailOtpVerification key={user.id} userId={user.id} email={user.email ?? ""} />
               {msg && <p role="alert" className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm text-foreground">{msg}</p>}
               <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 -mx-4 flex items-center gap-2 border-t border-border bg-background/95 px-4 py-3 pb-[calc(12px+env(safe-area-inset-bottom))] shadow-lg backdrop-blur sm:static sm:mx-0 sm:rounded-xl sm:border sm:shadow-none">
                 {step > 1 && (
@@ -738,6 +739,11 @@ export function TechnicianAreaPage() {
                 )}
               </div>
             </form>
+            {profileId && profileOwnerId === user.id && currentStatus !== "suspenso" && currentStatus !== "rejeitado" && (
+              <TechnicianProfileRemoval key={user.id} userId={user.id} profileId={profileId}
+                onRemoved={() => setReloadCounter((value) => value + 1)} />
+            )}
+            </>
               )}
               {panelTab === "cobertura" && (
                 <section aria-labelledby="area-cobertura-titulo">
@@ -799,10 +805,9 @@ export function TechnicianAreaPage() {
                 <section aria-labelledby="area-seguranca-titulo" className="space-y-5">
                   <div>
                     <h2 id="area-seguranca-titulo" className="text-2xl font-bold text-foreground">Minha segurança e contatos</h2>
-                    <p className="mt-2 text-sm text-muted-foreground">Telefone e confirmações ficam em sua área privada. Nenhum contato completo é mostrado automaticamente no perfil público.</p>
+                    <p className="mt-2 text-sm text-muted-foreground">Seu telefone fica privado e pode ser alterado ou removido aqui. Nenhum contato completo é mostrado automaticamente no perfil público.</p>
                   </div>
                   <TechnicianPrivateContact userId={user.id} />
-                  <PioneerPhoneVerification userId={user.id} />
                   <div className="rounded-xl border border-border bg-muted/30 p-5">
                     <h3 className="text-base font-bold text-foreground">Contratação direta, sem intermediação</h3>
                     <p className="mt-2 text-sm text-muted-foreground">

@@ -42,7 +42,8 @@ describe("Painel técnico navegável: abas profundas sem acessar dados de outro 
     const source = readFileSync("src/routes/area-tecnico.tsx", "utf8");
     expect(source).toContain('<TechnicianDirectRequests userId={user.id} />');
     expect(source).toContain('<TechnicianPrivateContact userId={user.id} />');
-    expect(source).toContain('<PioneerPhoneVerification userId={user.id} />');
+    expect(source).not.toContain("PioneerPhoneVerification");
+    expect(source).not.toContain("TechnicianEmailOtpVerification");
     expect(source).toContain('<TechnicianCoverageEditor userId={user.id}');
     expect(source).toContain('<TechnicianAvatarEditor userId={user.id}');
     expect(source).toContain('<LegacyAccountActivation userId={user.id} role="tecnico" />');
