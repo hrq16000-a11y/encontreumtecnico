@@ -59,6 +59,16 @@ describe("Cadastro guiado mobile", () => {
     expect(route).toContain("Já tinha cadastro no portal antigo? Recuperar meus dados");
   });
 
+  it("permite voltar diretamente da revisão aos dados ou serviços sem publicar", () => {
+    const route = readFileSync("src/routes/area-tecnico.tsx", "utf8");
+    const review = route.split("{step === 3 && (")[1]?.split("<TechnicianEmailOtpVerification")[0] ?? "";
+    expect(review).toContain('type="button" onClick={() => moveToStep(1)}');
+    expect(review).toContain('type="button" onClick={() => moveToStep(2)}');
+    expect(review).toContain("Editar dados");
+    expect(review).toContain("Editar serviços");
+    expect(route).toContain("writeDraft(form, next)");
+  });
+
   it("etapa de revisão ainda exige consistência de localidade e serviços", () => {
     expect(registrationStepError(3, form, catalog)).toBeNull();
     expect(registrationStepError(3, { ...form, specialties: ["invalid"] }, catalog)).toMatch(/catálogo/);
