@@ -67,9 +67,9 @@ function isExactBody(body) {
   return body.op === 'leave' || body.consent === true;
 }
 function makeServer() {
-  return createServer(async (req, res) => {
-    const host = req.headers.host;
-    const origin = `http://${host}`;
+  const server = createServer(async (req, res) => {
+    // Never trust the inbound Host header for the allowed origin.
+    const origin = `http://127.0.0.1:${server.address().port}`;
     const pathname = new URL(req.url ?? '/', origin).pathname;
     if (req.method === 'POST' && pathname === '/api/presence/leases') {
       if (req.headers.origin !== origin ||
@@ -117,6 +117,7 @@ function makeServer() {
     }
     return respond(res, 404);
   });
+  return server;
 }
 async function listen(server) {
   server.listen(0, '127.0.0.1');
