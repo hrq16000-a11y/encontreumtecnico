@@ -8,7 +8,6 @@ import { SponsoredPublicSlot } from "@/components/sponsored-public-slot";
 import { useActiveCategories, categoryLabel } from "@/hooks/use-active-categories";
 import { useActiveServices, serviceLabel } from "@/hooks/use-active-services";
 import { DebouncedTextFilter } from "@/components/debounced-text-filter";
-import { CustomerLocationButton } from "@/components/customer-location-button";
 import { BRAZIL_STATES } from "@/lib/service-taxonomy";
 import { technicianSearchAfterUfChange } from "@/lib/technician-search-uf-transition";
 import { neighborhoodCatalogFor, neighborhoodOptions } from "@/lib/neighborhood-sources";
@@ -18,8 +17,7 @@ import { canShowLegacyArchive } from "../lib/legacy-archive-filters";
 import { useEffect, useRef, useState } from "react";
 import { analyticsAllowed, recordSearch } from "@/lib/search-analytics";
 import { openFreeHelp } from "@/lib/free-search-help";
-import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
-import { ArrowRight, ChevronDown, ListFilter, MapPin, Search, ShieldCheck, SlidersHorizontal, UserRoundCheck, LifeBuoy, X } from "lucide-react";
+import { ChevronDown, ListFilter, Search, ShieldCheck, SlidersHorizontal, UserRoundCheck, LifeBuoy, X } from "lucide-react";
 
 /** Small contextual help inside *filtered directory results*, not a second blog.
  * Avoid importing the full editorial catalogue into the default search bundle.
@@ -76,10 +74,10 @@ export const Route = createFileRoute("/tecnicos/")({
   loader: ({ deps }) => listApprovedTechnicians({ data: deps }),
   head: () => ({
     meta: [
-      { title: "Técnicos de CFTV, informática e redes — Encontre um Técnico" },
-      { name: "description", content: "Consulte técnicos com perfil público de CFTV, informática, redes e impressoras. Filtre por serviço, UF, cidade e bairro." },
-      { property: "og:title", content: "Técnicos de CFTV, informática e redes — Encontre um Técnico" },
-      { property: "og:description", content: "Consulte técnicos com perfil público de CFTV, informática, redes e impressoras. Filtre por serviço, UF, cidade e bairro." },
+      { title: "Encontre técnico perto de você — Encontre um Técnico" },
+      { name: "description", content: "Procurando técnico perto de mim? Consulte profissionais de informática, CFTV e redes com prioridade à região aproximada, quando disponível. Filtre por cidade, UF ou serviço." },
+      { property: "og:title", content: "Encontre técnico perto de você — Encontre um Técnico" },
+      { property: "og:description", content: "Encontre técnicos por especialidade e cidade. Resultados regionais são priorizados quando há uma referência aproximada disponível." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { property: "og:url", content: "https://www.encontreumtecnico.com.br/tecnicos" },
@@ -155,8 +153,6 @@ function TechniciansPage() {
     return () => window.clearTimeout(popup);
   }, [technicians.length, searchArea, search.cidade, search.uf, search.bairro, search.servico]);
 
-  const { area: regionalHint } = useRegionalSuggestion();
-  const suggestedArea = !search.cidade.trim() && !search.uf ? regionalHint : null;
   const specialty = categories.some((c) => c.slug === search.especialidade)
     ? search.especialidade
     : "Todas";
@@ -170,22 +166,15 @@ function TechniciansPage() {
         <div className="relative isolate overflow-hidden rounded-[28px] border border-brand-glow/20 bg-gradient-to-br from-brand-navy via-[#173d61] to-brand-navy px-5 py-7 text-brand-navy-foreground shadow-soft sm:px-8 sm:py-9">
           <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-32 h-72 w-72 rounded-full bg-brand-glow/15 blur-3xl" />
           <span className="relative inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-widest text-brand-glow"><ListFilter className="h-4 w-4" aria-hidden="true" /> Diretório de profissionais</span>
-          <h1 className="relative mt-3 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">Encontre o técnico certo</h1>
+          <h1 className="relative mt-3 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">Encontre técnicos na sua região</h1>
           <p className="relative mt-3 max-w-2xl text-sm leading-6 text-white/85">
-            Escolha a especialidade e a cidade. Perfis são declarados pelos profissionais; não representam certificação nem garantia de atendimento.
+            A busca prioriza profissionais com atendimento na região aproximada, quando disponível. Você também pode escolher especialidade, cidade e estado.
           </p>
           <div className="relative mt-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold text-white/90">
             <ShieldCheck className="h-4 w-4 text-brand-glow" aria-hidden="true" /> Contatos particulares continuam protegidos
           </div>
         </div>
 
-        <div className="mt-4">
-          <CustomerLocationButton onLocated={(area, source) => {
-            if (source === "automatic" && (search.cidade.trim() || search.uf || search.bairro.trim())) return;
-            void update({ uf: area.uf, cidade: area.city, bairro: area.neighborhood,
-              regiao: "", prioridade: "regiao" });
-          }} />
-        </div>
         <section aria-label="Filtros da busca" className="mt-5 overflow-hidden rounded-2xl border border-primary/20 bg-card p-4 shadow-sm sm:p-5">
           <div className="flex items-center gap-2 text-sm font-extrabold text-card-foreground">
             <Search className="h-5 w-5 text-primary" aria-hidden="true" /> Encontre um profissional
@@ -297,33 +286,16 @@ function TechniciansPage() {
             />
             <span>
               <strong>Priorizar minha região</strong>
-              <span className="mt-1 block text-xs text-muted-foreground">
-                Mostra primeiro profissionais com bairro, município e UF correspondentes aos dados
-                informados e, depois, alternativas de outras regiões. A presença online desempata
-                profissionais na mesma faixa de localização.
-              </span>
+              <span className="mt-1 block text-xs text-muted-foreground">Exibe primeiro as áreas informadas e mantém alternativas de outras regiões.</span>
             </span>
           </label>
           {!hasDeclaredLocation && (
             <p className="text-xs text-muted-foreground">Informe o estado (UF) ou município para ativar.</p>
           )}
-          {prioritizeRegion && (
-            <p role="status" className="text-xs text-muted-foreground">
-              Afinidade por endereço declarado; não é localização GPS ou distância em quilômetros.
-            </p>
-          )}
         </div>
             </div>
           </div>
         </section>
-        {suggestedArea && (
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/20 bg-accent/50 px-4 py-3 text-sm">
-            <span><MapPin className="mr-1 inline h-4 w-4 text-primary" aria-hidden="true" />
-              Você pode estar perto de <strong>{suggestedArea.city}/{suggestedArea.uf}</strong>. Estimativa por IP, não localização exata.</span>
-            <Link to="/tecnicos" search={{especialidade:search.especialidade,cidade:suggestedArea.city,uf:suggestedArea.uf,bairro:suggestedArea.neighborhood,regiao:"",servico:search.servico,prioridade:"regiao"}}
-              className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 text-xs font-bold text-primary-foreground">Buscar na região <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
-          </div>
-        )}
         <SponsoredPublicSlot slotKey="search.top" routePath="/tecnicos" />
         <div aria-live="polite" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/20 bg-gradient-to-r from-brand-navy via-[#173d61] to-brand-navy px-5 py-4 text-brand-navy-foreground shadow-sm">
           <div className="flex items-center gap-3">
@@ -335,7 +307,6 @@ function TechniciansPage() {
               <p className="text-xs text-white/80">{searchArea || "Em todo o Brasil"} · {regionalGroups ? `${alternativesCount} ${alternativesCount === 1 ? "alternativa de outra localidade" : "alternativas de outras localidades"} em seções separadas` : "Perfis públicos declarados"}</p>
             </div>
           </div>
-          <span className="inline-flex items-center gap-2 text-xs font-semibold text-white/85"><ShieldCheck className="h-4 w-4" aria-hidden="true" /> Contatos protegidos</span>
         </div>
         <div className="mt-4">
           {(() => {
@@ -471,11 +442,6 @@ function TechniciansPage() {
             </Link>
           </aside>
         )}
-        <section aria-label="Transparência e confiança na busca" className="mt-6 grid gap-3 rounded-2xl border border-primary/15 bg-accent/50 p-4 sm:grid-cols-3">
-          <div className="flex items-start gap-3"><UserRoundCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" /><p className="text-sm text-foreground"><strong className="block">{localCount} perfil{localCount === 1 ? "" : "s"} {regionalGroups ? "da localidade" : "nesta busca"}</strong><span className="text-xs text-muted-foreground">{regionalGroups ? `${alternativesCount} alternativas separadas por região; somente perfis publicados.` : "Somente perfis publicados; resultados conforme os filtros aplicados."}</span></p></div>
-          <div className="flex items-start gap-3"><MapPin className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" /><p className="text-sm text-foreground"><strong className="block">Localidade informada</strong><span className="text-xs text-muted-foreground">Regiões declaradas pelos profissionais, sem localização inventada.</span></p></div>
-          <div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" /><p className="text-sm text-foreground"><strong className="block">Contato protegido</strong><span className="text-xs text-muted-foreground">Telefones particulares não aparecem na busca pública.</span></p></div>
-        </section>
 <p className="mx-auto my-5 w-full max-w-6xl px-4 text-sm leading-7 text-muted-foreground">Em dúvida sobre qual especialidade escolher? Os <a href="/guias" className="font-semibold text-primary underline underline-offset-2">guias de diagnóstico</a> ajudam a descrever o problema. Se precisar de atendimento presencial, consulte a <a href="/cobertura" className="font-semibold text-primary underline underline-offset-2">cobertura da rede</a> e confirme com o técnico se há taxa de visita.</p>
         <LegacyPublicArchive show={canShowLegacyArchive(search)} />
       </section>
