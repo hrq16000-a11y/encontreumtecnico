@@ -13,7 +13,7 @@ import { PublicProfileConnections, type PublicSeoLinks } from "@/components/publ
 import { formatPublicLocation, placeKey } from "@/lib/location-labels";
 import { categoryLabel, useActiveCategories } from "@/hooks/use-active-categories";
 import { serviceLabel, useActiveServices } from "@/hooks/use-active-services";
-import { centsToBrl, EQUIPMENT, TRANSPORT, WINDOWS } from "@/lib/technician-operations-contract";
+import { centsToBrl, EQUIPMENT, hasDeclaredTechnicianOperations, TRANSPORT, WINDOWS } from "@/lib/technician-operations-contract";
 
 const searchableService = (value: string) => value.normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
@@ -43,7 +43,7 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
     all.findIndex(x => placeKey(x.name) === placeKey(c.name) && x.uf === c.uf) === i);
   const topCategories = t.specialties.slice(0, 4);
   const extraCategories = Math.max(0, t.specialties.length - topCategories.length);
-  const operations = t.operations;
+  const operations = t.operations && hasDeclaredTechnicianOperations(t.operations) ? t.operations : null;
   const cityLabel = (id: number) => (t.coverage_cities ?? []).find(city => city.id === id);
   const professionalBio = parseProfessionalBio(t.bio);
   const serviceOptions = t.service_slugs.map(slug => {
