@@ -37,7 +37,7 @@ describe("prova de e-mail do técnico", () => {
     view();
     fireEvent.click(screen.getByRole("button", { name: "Enviar link ao meu e-mail" }));
     await waitFor(() => expect(mockAuth.signInWithOtp).toHaveBeenCalledTimes(1));
-    const request = mockAuth.signInWithOtp.mock.calls[0][0];
+    const request = mockAuth.signInWithOtp.mock.calls[0]![0];
     expect(request.email).toBe("tecnico@example.com");
     expect(request.options.shouldCreateUser).toBe(false);
     expect(request.options.emailRedirectTo).toMatch(/\/area-tecnico$/);
