@@ -38,10 +38,21 @@ describe("prova de e-mail do técnico", () => {
     fireEvent.click(screen.getByRole("button", { name: "Enviar link ao meu e-mail" }));
     await waitFor(() => expect(mockAuth.signInWithOtp).toHaveBeenCalledTimes(1));
     const request = mockAuth.signInWithOtp.mock.calls[0]![0];
+    expect(mockAuth.rpc).toHaveBeenCalledWith("eut_begin_technician_email_otp");
+    expect(mockAuth.rpc.mock.invocationCallOrder[0]).toBeLessThan(
+      mockAuth.signInWithOtp.mock.invocationCallOrder[0]!);
     expect(request.email).toBe("tecnico@example.com");
     expect(request.options.shouldCreateUser).toBe(false);
     expect(request.options.emailRedirectTo).toMatch(/\/area-tecnico$/);
     expect(screen.getByRole("status").textContent).toMatch(/rascunho.*não foi apagado/i);
+  });
+
+  it("não envia OTP quando o servidor recusa iniciar o desafio", async () => {
+    mockAuth.rpc.mockResolvedValueOnce({ data: null, error: { message: "sem papel técnico" } });
+    view();
+    fireEvent.click(screen.getByRole("button", { name: "Enviar link ao meu e-mail" }));
+    await waitFor(() => expect(screen.getByRole("status").textContent).toMatch(/não iniciou a prova/i));
+    expect(mockAuth.signInWithOtp).not.toHaveBeenCalled();
   });
 
   it("recusa solicitar link ou confirmar se a sessão pertence a outro usuário", async () => {
