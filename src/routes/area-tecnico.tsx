@@ -887,7 +887,6 @@ export function TechnicianAreaPage() {
               </div>
                 </div>
               )}
-              
               {msg && <p role="alert" className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm text-foreground">{msg}</p>}
               <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 -mx-4 flex items-center gap-2 border-t border-border bg-background/95 px-4 py-3 pb-[calc(12px+env(safe-area-inset-bottom))] shadow-lg backdrop-blur sm:static sm:mx-0 sm:rounded-xl sm:border sm:shadow-none">
                 {step > 1 && (
@@ -986,7 +985,6 @@ export function TechnicianAreaPage() {
                     <p className="mt-2 text-sm text-muted-foreground">O telefone fica em sua área privada e não é mostrado automaticamente no perfil público. Não há confirmação adicional de e-mail ou telefone para concluir o cadastro.</p>
                   </div>
                   <TechnicianPrivateContact userId={user.id} />
-                  
                   <div className="rounded-xl border border-border bg-muted/30 p-5">
                     <h3 className="text-base font-bold text-foreground">Contratação direta, sem intermediação</h3>
                     <p className="mt-2 text-sm text-muted-foreground">
