@@ -21,6 +21,10 @@ describe("Contrato auditável de titularidade de e-mail do técnico", () => {
     expect(sql).toContain("s.id=v_session AND s.user_id=v_user");
     expect(sql).toContain("v_authenticated_at NOT BETWEEN now()-interval '15 minutes'");
     expect(sql).toContain("u.recovery_sent_at");
+    expect(sql).toContain("technician_email_otp_challenges");
+    expect(sql).toContain("v_requested_email IS DISTINCT FROM v_email");
+    expect(sql).toContain("v_sent_at NOT BETWEEN v_requested_at");
+    expect(sql).toContain("bf0789e2b311454a6320ecdc5269e73f");
     expect(sql).toContain("i.provider='email'");
     expect(sql).toContain("i.provider='phone'");
     expect(sql).toContain("public.eut_account_operational()");
@@ -31,6 +35,7 @@ describe("Contrato auditável de titularidade de e-mail do técnico", () => {
     expect(sql).toContain("REVOKE ALL ON TABLE eut_migration.technician_email_otp_proofs FROM PUBLIC, anon, authenticated");
     expect(sql).toContain("REVOKE ALL ON FUNCTION public.eut_attest_technician_email_otp() FROM PUBLIC, anon, authenticated");
     expect(sql).toContain("GRANT EXECUTE ON FUNCTION public.eut_attest_technician_email_otp() TO authenticated");
+    expect(sql).toContain("REVOKE ALL ON FUNCTION public.eut_begin_technician_email_otp() FROM PUBLIC, anon, authenticated");
     expect(sql).not.toMatch(/(?:UPDATE|DELETE FROM)\s+auth\.users\b/i);
     expect(sql).not.toMatch(/(?:UPDATE|DELETE FROM)\s+public\.technicians\b/i);
   });
