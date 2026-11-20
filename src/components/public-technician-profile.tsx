@@ -52,8 +52,14 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
     return { slug, label: serviceLabel(slug, services), categorySlug: category?.slug ?? null };
   });
   const activeServiceFilter = serviceOptions.length >= 6 ? serviceFilter.trim() : "";
-  const filteredServices = activeServiceFilter
-    ? serviceOptions.filter(item => searchableService(item.label).includes(searchableService(activeServiceFilter)))
+  const normalizedServiceFilter = searchableService(activeServiceFilter);
+  const filteredServices = normalizedServiceFilter
+    ? serviceOptions.filter(item => {
+        // Only an active catalog relationship can make a category searchable.
+        const category = categories.find(category => category.slug === item.categorySlug);
+        return searchableService(item.label).includes(normalizedServiceFilter)
+          || Boolean(category && searchableService(category.label).includes(normalizedServiceFilter));
+      })
     : serviceOptions;
   // Only trust active catalog relationships; keep unrecognized legacy slugs visible.
   const serviceGroups: { key: string; label: string; items: typeof serviceOptions }[] = [];
