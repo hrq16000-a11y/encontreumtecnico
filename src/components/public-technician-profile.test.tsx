@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { openFreeHelp } from "@/lib/free-search-help";
 import { PublicTechnicianProfile } from "./public-technician-profile";
 import type { PublicTechnician } from "@/lib/technicians.functions";
@@ -15,7 +15,11 @@ vi.mock("@/hooks/use-active-categories", () => ({
   categoryLabel: (slug: string) => slug,
 }));
 vi.mock("@/hooks/use-active-services", () => ({
-  useActiveServices: () => ({ services: [] }),
+  useActiveServices: () => ({ services: [
+    { slug: "formatacao", category_slug: "computadores", label: "Formatação" },
+    { slug: "notebooks", category_slug: "computadores", label: "Notebooks" },
+    { slug: "wifi", category_slug: "redes", label: "Rede Wi-Fi" },
+  ] }),
   serviceLabel: (slug: string) => slug === "manutencao" ? "Manutenção" : slug,
 }));
 
@@ -42,6 +46,26 @@ const profile: PublicTechnician = {
 };
 
 describe("Perfil técnico premium sem prova social fabricada", () => {
+  it("agrupa serviços de múltiplas especialidades sem perder o pedido contextual", () => {
+    render(<PublicTechnicianProfile technician={profile} />);
+    const computadores = screen.getByRole("group", { name: "Serviços de Computadores" });
+    const redes = screen.getByRole("group", { name: "Serviços de Redes" });
+    expect(within(computadores).getByRole("button", { name: "Solicitar atendimento para formatacao" })).toBeTruthy();
+    expect(within(computadores).getByRole("button", { name: "Solicitar atendimento para notebooks" })).toBeTruthy();
+    fireEvent.click(within(redes).getByRole("button", { name: "Solicitar atendimento para wifi" }));
+    expect(openFreeHelp).toHaveBeenCalledWith({
+      mode: "direct", technicianId: profile.id, technicianName: profile.display_name, service: "wifi",
+    });
+  });
+  it("mantém serviços legados sem categoria reconhecida, sem atribuir qualificação fictícia", () => {
+    render(<PublicTechnicianProfile technician={{
+      ...profile, service_slugs: ["formatacao", "servico-legado", "wifi"],
+    }} />);
+    const outros = screen.getByRole("group", { name: "Serviços de Outros serviços declarados" });
+    fireEvent.click(within(outros).getByRole("button", { name: "Solicitar atendimento para servico-legado" }));
+    expect(openFreeHelp).toHaveBeenCalledWith(expect.objectContaining({ service: "servico-legado" }));
+    expect(screen.getAllByRole("button", { name: /Solicitar atendimento para/ })).toHaveLength(3);
+  });
   it("filtra listas grandes de serviços sem perder a ação específica nem esconder a lista por padrão", () => {
     render(<PublicTechnicianProfile technician={{ ...profile, service_slugs: [
       "wifi", "notebooks", "impressao", "cabeamento", "manutencao", "cftv", "redes",
