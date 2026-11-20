@@ -46,8 +46,8 @@ describe("Cartão do técnico publicado", () => {
     expect(container.textContent).toContain("Tubarão/SC");
     expect(container.textContent).toContain("+1 áreas");
     expect(container.textContent).toContain("+1 serviços");
-    expect(screen.getByText("Com foto")).toBeTruthy();
-    expect(screen.getByText("Região detalhada")).toBeTruthy();
+    expect(screen.queryByText("Com foto")).toBeNull();
+    expect(screen.queryByText("Região detalhada")).toBeNull();
     expect(screen.queryByText("Perfil enriquecido")).toBeNull();
     expect(screen.getByRole("link").className).toContain("border-violet-400/45");
     expect(container.textContent).toContain("Ver perfil completo");
@@ -67,9 +67,9 @@ describe("Cartão do técnico publicado", () => {
     expect(screen.getByRole("link").className).toContain("border-emerald-400/75");
   });
 
-  it("destaca o perfil enriquecido sem alegar conclusão do wizard ou endereço completo", () => {
+  it("destaca o perfil por contorno discreto sem revelar preenchimento de campos", () => {
     const { container } = render(<TechnicianSearchCard technician={{ ...person, bio: "Atendimento em informática e redes." }} categories={categories} services={services} />);
-    expect(screen.getByText("Perfil enriquecido")).toBeTruthy();
+    expect(screen.queryByText("Perfil enriquecido")).toBeNull();
     expect(screen.getByRole("link").className).toContain("border-sky-400/65");
     expect(container.textContent).not.toMatch(/100%|endereço completo|último acesso|certificado/i);
   });
