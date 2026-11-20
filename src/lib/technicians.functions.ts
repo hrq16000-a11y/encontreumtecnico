@@ -4,6 +4,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
 import { rankTechniciansByDeclaredArea } from "@/lib/technician-local-ranking";
+import { DEFAULT_DIRECTORY_DISPLAY, parseDirectoryDisplaySettings, type DirectoryDisplaySettings } from "@/lib/directory-display-settings";
 import { collectPublicDirectoryPages, publicDirectoryPage } from "@/lib/public-directory-pagination";
 import { automaticRegionalRankingArea, parseVercelRegion } from "@/lib/regional-suggestion";
 import { isValidTechnicianId, isValidTechnicianSlug } from "@/lib/technician-id";
@@ -217,12 +218,28 @@ async function withCoverageCities(rows: PublicTechnician[]): Promise<PublicTechn
 // Strip characters that would break PostgREST ilike filters.
 const clean = (s: string) => s.replace(/[%,()*\\]/g, " ").trim().slice(0, 80);
 
+async function readDirectorySettings(): Promise<DirectoryDisplaySettings> {
+  try {
+    const { data, error } = await (publicClient() as unknown as SupabaseClient)
+      .rpc("eut_public_directory_settings");
+    return error ? DEFAULT_DIRECTORY_DISPLAY : parseDirectoryDisplaySettings(data);
+  } catch { return DEFAULT_DIRECTORY_DISPLAY; }
+}
+
+export const getPublicDirectoryDisplaySettings = createServerFn({ method: "GET" })
+  .inputValidator(() => undefined)
+  .handler(async () => {
+    setResponseHeader("Cache-Control", "no-store");
+    return readDirectorySettings();
+  });
+
 export const listApprovedTechnicians = createServerFn({ method: "GET" })
   .inputValidator((d) =>
     z.object({ especialidade: z.string().max(80), cidade: z.string().max(80), regiao: z.string().max(80), servico: z.string().max(80).default(""), uf: z.string().max(2).default(""), bairro: z.string().max(80).default(""), prioridade: z.string().max(12).default(""), pagina: z.number().int().min(1).max(1000).default(1) }).parse(d),
   )
   .handler(async ({ data }): Promise<PublicTechnician[]> => {
     setResponseHeader("Cache-Control", "no-store");
+    const displaySettings = await readDirectorySettings();
     // "Priorizar minha região" is not a strict geography filter. It ranks
     // among approved matching professionals so other regions remain options.
     const regionalPriority = data.prioridade === "regiao" && Boolean(data.uf || data.cidade.trim());
@@ -252,7 +269,7 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
     const region = clean(data.regiao);
     let rankingArea: { uf: string; cidade: string; bairro: string } | null = regionalPriority
       ? { uf, cidade: data.cidade, bairro: data.bairro } : null;
-    if (!regionalPriority) {
+    if (!regionalPriority && displaySettings.auto_region) {
       const approximateArea = automaticRegionalRankingArea(data, parseVercelRegion({
         country: getRequestHeader("x-vercel-ip-country") ?? null,
         state: getRequestHeader("x-vercel-ip-country-region") ?? null,
@@ -311,8 +328,11 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
     const eligible = await readPublicEligibleRows(publicClient() as unknown as PublicEligibilityRpc, rows);
     const published = await withReferralHighlights(await withPioneerBadges(await withOnlineStatus(eligible.map(sanitizePublicTechnician))));
     const unified = await withCoverageCities([...published, ...adminPublished]);
-    if (rankingArea) return publicDirectoryPage(rankTechniciansByDeclaredArea(unified, rankingArea), data.pagina);
-    return unified.sort((a,b) => Number(b.online_now)-Number(a.online_now) || Number(Boolean(b.referral_highlight))-Number(Boolean(a.referral_highlight)) || Number(Boolean(b.pioneer_bronze))-Number(Boolean(a.pioneer_bronze)));
+    if (rankingArea) return publicDirectoryPage(rankTechniciansByDeclaredArea(unified, rankingArea, displaySettings), data.pagina);
+    return unified.sort((a,b) =>
+      Number(displaySettings.online_priority && b.online_now)-Number(displaySettings.online_priority && a.online_now) ||
+      Number(displaySettings.referral_priority && Boolean(b.referral_highlight))-Number(displaySettings.referral_priority && Boolean(a.referral_highlight)) ||
+      Number(displaySettings.pioneer_priority && Boolean(b.pioneer_bronze))-Number(displaySettings.pioneer_priority && Boolean(a.pioneer_bronze)));
   });
 
 export const getApprovedTechnician = createServerFn({ method: "GET" })

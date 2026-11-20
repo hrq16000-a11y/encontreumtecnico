@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { listApprovedTechnicians } from "../lib/technicians.functions";
+import { getPublicDirectoryDisplaySettings, listApprovedTechnicians } from "../lib/technicians.functions";
 import { TechnicianSearchCard } from "@/components/technician-search-card";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
@@ -71,7 +71,12 @@ const searchSchema = z.object({
 export const Route = createFileRoute("/tecnicos/")({
   validateSearch: zodValidator(searchSchema),
   loaderDeps: ({ search }) => search,
-  loader: ({ deps }) => listApprovedTechnicians({ data: deps }),
+  loader: async ({ deps }) => {
+    const [technicians, displaySettings] = await Promise.all([
+      listApprovedTechnicians({ data: deps }), getPublicDirectoryDisplaySettings(),
+    ]);
+    return { technicians, displaySettings };
+  },
   head: () => ({
     meta: [
       { title: "Encontre técnico perto de você — Encontre um Técnico" },
@@ -100,7 +105,7 @@ function TechniciansPage() {
   const search = Route.useSearch();
   const { categories, loading: catalogLoading } = useActiveCategories();
   const { services, loading: servicesLoading } = useActiveServices();
-  const technicians = Route.useLoaderData();
+  const { technicians, displaySettings } = Route.useLoaderData();
   const navigate = useNavigate({ from: "/tecnicos/" });
   const lastRecorded = useRef("");
   const [consentRevision, setConsentRevision] = useState(0);
@@ -319,6 +324,7 @@ function TechniciansPage() {
                       technician={t}
                       categories={categories}
                       services={services}
+                      displaySettings={displaySettings}
                       localMatch={prioritizeRegion ? localMatchLabel(t, {
                         uf: search.uf, cidade: search.cidade, bairro: search.bairro,
                       }) : null}

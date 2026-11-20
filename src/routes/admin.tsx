@@ -16,6 +16,7 @@ import { AdminAdvertisingManager } from "@/components/admin-advertising-manager"
 import { AdminNavigation, AdminShortcutLink } from "@/components/admin-navigation";
 import { AdminPublicExperience } from "@/components/admin-public-experience";
 import { AdminTechnicianUnifiedDirectory } from "@/components/admin-technician-unified-directory";
+import { AdminDirectoryDisplaySettings } from "@/components/admin-directory-display-settings";
 import { AdminOwnTechnicianRole } from "@/components/admin-own-technician-role";
 import { AdminMemberInvites } from "@/components/admin-member-invites";
 import { AdminAccountsManager } from "@/components/admin-accounts-manager";
@@ -123,6 +124,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             {section === "usuarios" && <AdminUsersHub adminOwnerId={user.id} />}
             {section === "contatos" && <section aria-label="Contatos administrativos"><AdminContactsDashboard adminId={user.id} /></section>}
             {section === "tecnicos" && <section aria-label="Gestão de técnicos">
+              <AdminDirectoryDisplaySettings />
               <AdminTechnicianUnifiedDirectory adminOwnerId={user.id} />
               <details className="mt-4 min-w-0 rounded-xl border border-border p-4">
                 <summary className="cursor-pointer text-sm font-semibold text-foreground">Operações complementares e ações em lote</summary>

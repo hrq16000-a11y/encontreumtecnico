@@ -4,6 +4,7 @@ const state = vi.hoisted(() => ({
   headers: {} as Record<string, string>,
   catalogValid: true,
   catalogLookups: 0,
+  directorySettings: null as Record<string, boolean> | null,
   adminProfiles: [] as Array<Record<string, unknown>>,
   revokedIds: new Set<string>(),
   pageRanges: [] as Array<[number, number]>,
@@ -51,7 +52,8 @@ vi.mock("@supabase/supabase-js", () => ({
       return query;
     },
     rpc: (name: string, args?: { _ids?: string[]; _offset?: number; _limit?: number }) => Promise.resolve({
-      data: name === "eut_public_eligible_technician_ids"
+      data: name === "eut_public_directory_settings" ? state.directorySettings
+        : name === "eut_public_eligible_technician_ids"
         ? (args?._ids ?? []).filter(id => !state.revokedIds.has(id)).map(technician_id => ({ technician_id }))
         : name === "eut_public_admin_technicians"
           ? state.adminProfiles.slice(args?._offset ?? 0, (args?._offset ?? 0) + (args?._limit ?? 200)) : [],
@@ -61,6 +63,7 @@ vi.mock("@supabase/supabase-js", () => ({
 }));
 
 import { listApprovedTechnicians } from "./technicians.functions";
+import { DEFAULT_DIRECTORY_DISPLAY } from "./directory-display-settings";
 
 const baseProfiles = state.profiles.slice();
 const uuid = (n: number) => {
@@ -85,6 +88,7 @@ beforeEach(() => {
   state.headers = { "x-vercel-ip-country": "BR", "x-vercel-ip-country-region": "PR", "x-vercel-ip-city": "Curitiba" };
   state.catalogValid = true;
   state.catalogLookups = 0;
+  state.directorySettings = null;
   state.profiles = baseProfiles.slice();
   state.adminProfiles = [];
   state.revokedIds.clear();
@@ -92,6 +96,15 @@ beforeEach(() => {
 });
 
 describe("ordenação regional automática do diretório", () => {
+  it("desativa a inferência regional somente quando o proprietário a configura", async () => {
+    state.directorySettings = { ...DEFAULT_DIRECTORY_DISPLAY, auto_region: false };
+    const result = await listApprovedTechnicians({ data: query() });
+    expect(result[0]?.city).toBe("Tubarão");
+    expect(state.catalogLookups).toBe(0);
+    // A intenção explícita do usuário continua priorizada independentemente do controle automático.
+    const explicit = await listApprovedTechnicians({ data: query({ cidade: "Curitiba", uf: "PR", prioridade: "regiao" }) });
+    expect(explicit[0]?.city).toBe("Curitiba");
+  });
   it("mostra primeiro o município aproximado válido sem expor IP ou exigir GPS", async () => {
     const results = await listApprovedTechnicians({ data: query() });
     expect(results.map(item => item.display_name)).toEqual(["Profissional local", "Profissional distante"]);
