@@ -10,6 +10,7 @@ import { useActiveServices, serviceLabel } from "@/hooks/use-active-services";
 import { DebouncedTextFilter } from "@/components/debounced-text-filter";
 import { BRAZIL_STATES } from "@/lib/service-taxonomy";
 import { technicianSearchAfterUfChange } from "@/lib/technician-search-uf-transition";
+import { directoryServiceChoices } from "@/lib/technician-directory-service-choices";
 import { neighborhoodCatalogFor, neighborhoodOptions } from "@/lib/neighborhood-sources";
 import { groupTechniciansByDeclaredArea, localMatchLabel } from "@/lib/technician-local-ranking";
 import { LegacyPublicArchive } from "../components/legacy-public-archive";
@@ -104,6 +105,7 @@ function TechniciansPage() {
   const navigate = useNavigate({ from: "/tecnicos/" });
   const lastRecorded = useRef("");
   const [consentRevision, setConsentRevision] = useState(0);
+  const [serviceQuery, setServiceQuery] = useState("");
   // Keep advanced controls mounted to preserve debounced drafts while collapsed.
   const [showAdvanced, setShowAdvanced] = useState(
     () => Boolean(search.servico || search.bairro || search.regiao || search.prioridade === "regiao"),
@@ -156,6 +158,7 @@ function TechniciansPage() {
   const specialty = categories.some((c) => c.slug === search.especialidade)
     ? search.especialidade
     : "Todas";
+  const directoryServiceOptions = directoryServiceChoices(services, categories, specialty, serviceQuery, search.servico);
 
   const update = (patch: Partial<typeof search>) =>
     navigate({ search: (prev) => ({ ...prev, ...patch, pagina: patch.pagina ?? 1 }), replace: true });
@@ -189,6 +192,7 @@ function TechniciansPage() {
               value={specialty}
               onChange={(e) => {
                 update({ especialidade: e.target.value, servico: "" });
+                setServiceQuery("");
                 trackFilter("especialidade", e.target.value);
               }}
               className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
@@ -239,15 +243,32 @@ function TechniciansPage() {
           </div>
           <div id="filtros-avancados" role="region" aria-label="Filtros avançados" className={showAdvanced ? "mt-3 grid gap-3 border-t border-border pt-4 sm:grid-cols-3" : "hidden"}>
           <div>
-            <label htmlFor="filtro-servico" className="text-xs font-medium text-muted-foreground">Serviço específico</label>
+            <label htmlFor="filtro-servico-busca" className="text-xs font-medium text-muted-foreground">Pesquisar serviço na lista</label>
+            <input id="filtro-servico-busca" type="search" value={serviceQuery}
+              onChange={(event) => setServiceQuery(event.target.value)}
+              placeholder="Ex.: instalação, Wi-Fi, computadores"
+              disabled={servicesLoading}
+              className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground" />
+            <label htmlFor="filtro-servico" className="mt-3 block text-xs font-medium text-muted-foreground">Serviço específico</label>
             <select id="filtro-servico" value={services.some((service) => service.slug === search.servico) ? search.servico : ""}
               onChange={(e) => { update({ servico: e.target.value }); trackFilter("servico", e.target.value); }}
               disabled={servicesLoading} className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
               <option value="">Todos os serviços</option>
-              {services.filter((service) => specialty === "Todas" || service.category_slug === specialty).map((service) => (
+              {directoryServiceOptions.map((service) => (
                 <option key={service.slug} value={service.slug}>{service.label}</option>
               ))}
             </select>
+            {serviceQuery.trim() && (
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                <p role="status" className="text-xs text-muted-foreground">
+                  {directoryServiceOptions.length} opções na lista. O serviço selecionado permanece disponível.
+                </p>
+                <button type="button" onClick={() => setServiceQuery("")}
+                  className="min-h-11 rounded-md px-2 text-xs font-semibold text-primary underline-offset-2 hover:underline">
+                  Limpar pesquisa de serviços
+                </button>
+              </div>
+            )}
           </div>
           <DebouncedTextFilter
             key={`filtro-bairro-${search.uf}`}
