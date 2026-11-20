@@ -23,8 +23,8 @@ describe("enriquecimento privado e voluntário do perfil técnico", () => {
     });
     const input = { display_name: "Técnico Teste", city: "Curitiba", state_uf: "PR",
       specialties: ["redes"], service_slugs: ["wifi"], avatar_path: null, coverage_city_ids: [] };
-    expect(technicianProfileEnrichment({ ...input, bio: headingOnly }).entries[2].complete).toBe(false);
-    expect(technicianProfileEnrichment({ ...input, bio: declared }).entries[2].complete).toBe(true);
+    expect(technicianProfileEnrichment({ ...input, bio: headingOnly }).entries[2]?.complete).toBe(false);
+    expect(technicianProfileEnrichment({ ...input, bio: declared }).entries[2]?.complete).toBe(true);
   });
 
   it("preserva o texto integral quando não houver espaço ou já existir o título", () => {
