@@ -96,6 +96,10 @@ describe("GPS informa município, mas nunca inventa bairro", () => {
     expect(locator).toContain('https://api.bigdatacloud.net/data/reverse-geocode-client');
     expect(locator).not.toMatch(/localStorage|sessionStorage|\.from\(|console\.log|service_role/);
     expect(client).toContain('city: area.city, region: area.neighborhood');
-    expect(directory).toContain('bairro: area.neighborhood');
+    // The public directory now ranks by server-side coarse IP municipality.
+    // GPS remains an opt-in feature elsewhere, never a prerequisite for search.
+    expect(directory).not.toContain("CustomerLocationButton");
+    expect(directory).not.toContain('bairro: area.neighborhood');
+    expect(directory).toContain('label="Cidade"');
   });
 });
