@@ -5,12 +5,12 @@ import { PublicTechnicianProfile } from "./public-technician-profile";
 import type { PublicTechnician } from "@/lib/technicians.functions";
 
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ to, params, search, children, ...rest }: { to: string; params?: { tecnicoId?: string }; search?: { cidade?: string; uf?: string }; children: React.ReactNode; className?: string; "aria-label"?: string }) =>
-    <a href={to.replace("$tecnicoId", params?.tecnicoId ?? "")} data-city={search?.cidade} data-uf={search?.uf} {...rest}>{children}</a>,
+  Link: ({ to, params, search, children, ...rest }: { to: string; params?: { tecnicoId?: string }; search?: { cidade?: string; uf?: string; especialidade?: string }; children: React.ReactNode; className?: string; "aria-label"?: string }) =>
+    <a href={to.replace("$tecnicoId", params?.tecnicoId ?? "")} data-city={search?.cidade} data-uf={search?.uf} data-specialty={search?.especialidade} {...rest}>{children}</a>,
 }));
 vi.mock("@/lib/free-search-help", () => ({ openFreeHelp: vi.fn() }));
 vi.mock("@/hooks/use-active-categories", () => ({
-  useActiveCategories: () => ({ categories: [] }),
+  useActiveCategories: () => ({ categories: [{ slug: "computadores", label: "Computadores", description: "" }, { slug: "redes", label: "Redes", description: "" }] }),
   categoryLabel: (slug: string) => slug,
 }));
 vi.mock("@/hooks/use-active-services", () => ({
@@ -83,6 +83,15 @@ describe("Perfil técnico premium sem prova social fabricada", () => {
     }));
     expect(container.textContent).not.toMatch(/5 estrelas|avaliado por clientes|técnico verificado/i);
     expect(container.textContent).not.toMatch(/\+55\d{10,11}/);
+  });
+
+  it("permite buscar pela especialidade ativa e mantém categoria legada sem link", () => {
+    render(<PublicTechnicianProfile technician={{ ...profile, specialties: ["computadores", "categoria-legada"] }} />);
+    const link = screen.getByRole("link", { name: "Buscar técnicos de computadores" });
+    expect(link.getAttribute("href")).toBe("/tecnicos");
+    expect(link.getAttribute("data-specialty")).toBe("computadores");
+    expect(screen.queryByRole("link", { name: /categoria-legada/i })).toBeNull();
+    expect(screen.getAllByText("categoria-legada").length).toBeGreaterThan(0);
   });
 
   it("oferece navegação acessível pelo perfil e mantém o contato fora do HTML público", () => {
