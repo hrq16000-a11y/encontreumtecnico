@@ -3,7 +3,7 @@ import { useState } from "react";
 import { openFreeHelp } from "@/lib/free-search-help";
 import {
   ArrowLeft, ArrowRight, ArrowUpRight, BadgeInfo, BriefcaseBusiness, CalendarDays, CarFront, Check,
-  ChevronRight, Copy, Handshake, LockKeyhole, MapPin,
+  ChevronRight, Copy, GraduationCap, Handshake, LockKeyhole, MapPin,
   MessageSquareText, MonitorCheck, Navigation, Sparkles, Wrench,
 } from "lucide-react";
 import type { PublicTechnician } from "@/lib/technicians.functions";
@@ -336,6 +336,7 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
                       {professionalBio.sections.map(({ id, label, text }) => {
                         const Icon = {
                           experience: BriefcaseBusiness,
+                          training: GraduationCap,
                           tools: Wrench,
                           mobility: CarFront,
                           schedule: CalendarDays,
