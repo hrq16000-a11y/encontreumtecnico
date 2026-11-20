@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { openFreeHelp } from "@/lib/free-search-help";
 import { PublicTechnicianProfile } from "./public-technician-profile";
 import type { PublicTechnician } from "@/lib/technicians.functions";
@@ -41,6 +41,23 @@ const profile: PublicTechnician = {
 };
 
 describe("Perfil técnico premium sem prova social fabricada", () => {
+  it("compartilha somente a URL pública, sem parâmetros privados, e confirma a cópia", async () => {
+    const previousUrl = window.location.href;
+    const previousClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    try {
+      window.history.replaceState(null, "", "/tecnico/jefferson-santana?email=privado#sobre");
+      Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+      render(<PublicTechnicianProfile technician={profile} />);
+      fireEvent.click(screen.getByRole("button", { name: "Copiar link do perfil" }));
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/tecnico/jefferson-santana`));
+      expect(screen.getByRole("status").textContent).toMatch(/Link público copiado/);
+    } finally {
+      window.history.replaceState(null, "", previousUrl);
+      if (previousClipboard) Object.defineProperty(navigator, "clipboard", previousClipboard);
+      else Reflect.deleteProperty(navigator, "clipboard");
+    }
+  });
   it("mostra nome, localização, quantidades reais e solicitação protegida", () => {
     const { container } = render(<PublicTechnicianProfile technician={profile} />);
     expect(screen.getByRole("heading", { name: "Jefferson Santana" })).toBeTruthy();

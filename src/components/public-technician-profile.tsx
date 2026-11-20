@@ -1,8 +1,9 @@
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { openFreeHelp } from "@/lib/free-search-help";
 import {
   ArrowLeft, ArrowRight, ArrowUpRight, BadgeInfo, BriefcaseBusiness, CalendarDays, CarFront, Check,
-  ChevronRight, Handshake, LockKeyhole, MapPin,
+  ChevronRight, Copy, Handshake, LockKeyhole, MapPin,
   MessageSquareText, MonitorCheck, Navigation, Sparkles, Wrench,
 } from "lucide-react";
 import type { PublicTechnician } from "@/lib/technicians.functions";
@@ -17,6 +18,18 @@ import { serviceLabel, useActiveServices } from "@/hooks/use-active-services";
  * profile. Never loads or guesses private contacts, ratings or endorsements.
  */
 export function PublicTechnicianProfile({ technician: t, links }: { technician: PublicTechnician; links?: PublicSeoLinks }) {
+  const [shareStatus, setShareStatus] = useState<"copied" | "unavailable" | null>(null);
+  async function copyPublicProfileUrl() {
+    // Share only the public route: never forward tracking or auth query parameters.
+    const publicUrl = `${window.location.origin}${window.location.pathname}`;
+    if (!navigator.clipboard?.writeText) { setShareStatus("unavailable"); return; }
+    try {
+      await navigator.clipboard.writeText(publicUrl);
+      setShareStatus("copied");
+    } catch {
+      setShareStatus("unavailable");
+    }
+  }
   const { categories } = useActiveCategories();
   const { services } = useActiveServices();
   const location = formatPublicLocation(t);
@@ -78,7 +91,14 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
                     className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/25 bg-white/10 px-5 text-sm font-semibold text-white transition-colors hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white motion-reduce:transition-none">
                     Conhecer os serviços <ArrowRight aria-hidden="true" className="h-4 w-4" />
                   </a>
+                  <button type="button" onClick={() => { void copyPublicProfileUrl(); }}
+                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/25 bg-white/10 px-5 text-sm font-semibold text-white transition-colors hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white motion-reduce:transition-none">
+                    <Copy aria-hidden="true" className="h-4 w-4" /> Copiar link do perfil
+                  </button>
                 </div>
+                {shareStatus && <p role="status" aria-live="polite" className="mt-2 text-sm text-white/85">
+                  {shareStatus === "copied" ? "Link público copiado para compartilhar." : "Copie o endereço desta página pelo navegador."}
+                </p>}
               </div>
             </div>
             <div className="rounded-2xl border border-white/15 bg-white/[0.08] p-5 backdrop-blur-sm">
