@@ -72,7 +72,9 @@ describe("Contrato auditável de titularidade de e-mail do técnico", () => {
     expect(rollbackSql).toContain("t.tgrelid='auth.users'::regclass");
     expect(rollbackSql).toContain("t.tgfoid=to_regprocedure('eut_migration.revoke_technician_email_otp_on_email_change()')");
     expect(rollbackSql).toContain("t.tgenabled='O'");
-    expect(rollbackSql).toContain("old.email is distinct from new.email");
+    expect(rollbackSql).toContain("t.tgtype=17");
+    expect(rollbackSql).toContain("md5(pg_get_triggerdef(t.oid))='2b19145824c802b022a7cbbfb7b305db'");
+    expect(sql).toContain("OLD.email IS DISTINCT FROM NEW.email");
     expect(rollbackSql.indexOf("DO $preflight$")).toBeLessThan(
       rollbackSql.indexOf("DROP TRIGGER IF EXISTS"));
     expect(rollbackSql).toContain("USING ERRCODE='P0001'");
