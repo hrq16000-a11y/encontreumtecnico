@@ -1,7 +1,7 @@
 # Encontre um Técnico — contrato operacional estruturado (micro-rodada)
 
-Status: **proposta em código, sem implantação no Supabase oficial nem publicação**.
-Base de desenvolvimento: `main` após a PR #360 (`eed3ce74`).
+Status em 20/11/2026: **PR #368 integrada ao código**, mas o contrato SQL operacional **não está instalado no Supabase EUT oficial**; sua ativação e publicação funcional permanecem pendentes.
+Base de desenvolvimento original: `main` após a PR #360 (`eed3ce74`). Integração da #368: `1c93fe779accbfe5240213810e01d3acbf707fd0`.
 
 ## O que entra nesta rodada
 
@@ -60,7 +60,8 @@ Nunca apagar uma ficha existente ou modificar os dois suspensos como parte de ro
 
 ## Homologação autenticada isolada — preparo do gate
 
-Status em 20/11/2026: **procedimento preparado, não executado**. O workflow PostgreSQL atual simula `auth.uid()` e papéis com variáveis de sessão; essa prova **não** substitui uma sessão real Supabase Auth + PostgREST. Este gate deve ocorrer antes de qualquer SQL oficial, merge ou publicação.
+Histórico: o workflow PostgreSQL isolado simula `auth.uid()` e papéis com variáveis de sessão; isoladamente isso **não** substitui o Auth real.
+**Homologação autenticada posteriormente comprovada:** em 20/11/2026 o job `authenticated-operations` da PR #368 passou **9/9 casos com sessões reais de GoTrue + PostgREST locais**, incluindo titular, administrador, terceiros, anônimo, suspensos, concorrência, auditoria e projeção pública. Evidência: [GitHub Actions — job 136414144510](https://github.com/hrq16000-a11y/encontreumtecnico/actions/runs/44772676346/job/136414144510). Não houve conexão ao Supabase oficial; o resultado não autoriza aplicação de SQL nem comprova uma edição real em produção.
 
 ### Pré-condições obrigatórias (NO-GO caso alguma falte)
 
@@ -98,29 +99,32 @@ suspensos e releitura após edição administrativa com conflito de versão. O t
 inventa um token legítimo: `auth.uid()` ainda é simulado pelo banco. **Não marcar
 o gate Auth+PostgREST 9/9 como concluído por causa dessa aprovação isolada.**
 
-### Procedimento controlado de ativação — ainda sem autorização
+### Procedimento de ativação auditada — preparação documental; NO-GO para executar
 
-1. **Congelar SHA e SQL**: revalidar o HEAD da PR e comparar SHA-256 do arquivo
-   `docs/sql/eut-technician-operations-contract-proposal-20261120.sql` com
-   `7c9196c88ac2367b4c51d6ec5e88c3c7eff31154233b5eae518e3ec537ea12bc`.
-2. **Preflight somente leitura, quando especificamente autorizado**: confirmar as
-   assinaturas de `public.has_role(uuid,app_role)`, `public.eut_account_operational()`,
-   `public.eut_public_eligible_technician_ids(uuid[])`, as colunas canônicas e o
-   tipo de auditoria; inspecionar permissões atuais sem expor registros privados.
-3. **Homologação real isolada**: executar os 9 cenários acima num Auth/PostgREST
-   local efêmero com JWTs legítimos e sem chaves de produção. Não criar branch Supabase
-   paga sem aprovação do proprietário. Sem ambiente isolado, permanece **NO-GO**.
-4. **Revisão SQL**: confirmar schema `eut_profile_ops` fora dos schemas expostos na
-   Data API, `SECURITY DEFINER` interno com `search_path=''`, revogação de acesso
-   direto, função de elegibilidade pública, auditoria e invariantes de concorrência.
-5. **Decisão explícita e separada** do proprietário para: (a) aplicação do SQL
-   oficial, (b) merge da PR, (c) um deployment controlado. Checks verdes não são
-   aprovação automática.
-6. **Se autorizado futuramente**, aplicar a proposta SQL uma única vez em
-   transação, verificar grants/funções e salvamento/releitura com identidade
-   autorizada, inspecionar logs de erros sem telefones, e só depois liberar a UI.
-7. **Reversão segura**: desabilitar o acesso público pelas três wrappers RPC antes
-   de reverter a UI. Manter a tabela de condições e sua auditoria para recuperação;
-   não executar `DROP TABLE ... CASCADE` nem apagar novas fichas sem outro plano.
+**Escopo congelado e integridade (20/11/2026):**
 
-Não há execução SQL no projeto oficial, envio de OTP, merge ou deployment nesta rodada.
+- PR #368 já integrada: commit de merge `1c93fe779accbfe5240213810e01d3acbf707fd0`; HEAD testado `24b10f3ff89d426cd64105fa509ad0e48aa4d467`.
+- Arquivo imutável desta aprovação: `docs/sql/eut-technician-operations-contract-proposal-20261120.sql`; blob Git SHA-1 `63d777c6058d6a5184917530fcc2b0ab330b8bbb`.
+- **SHA-256 do conteúdo bruto UTF-8, incluindo LF final:** `be6e5144bf4afd0c99884218c75fec93f87e8e66b63d629444f32df3e58d2d54`. Conferido por dois caminhos equivalentes (Contents API e arquivo raw GitHub); idêntico na PR #368, no merge e na `main` consultada em 20/11/2026.
+- SHA-256 **obsoleto e incorreto** na versão anterior deste documento: `7c9196c88ac2367b4c51d6ec5e88c3c7eff31154233b5eae518e3ec537ea12bc`. Apenas a referência documental é corrigida; **o SQL não foi editado**.
+- O operador deve verificar o arquivo obtido da revisão congelada com `sha256sum` antes de qualquer implantação futura. **Abortar** se o conteúdo ou o hash divergir, inclusive se surgir outra revisão do SQL.
+
+**Preflight de metadados no Supabase EUT oficial (somente leitura, 20/11/2026):**
+
+- Funções existentes: `public.has_role(_user_id uuid, _role app_role)` e `public.eut_account_operational()` (ambas `SECURITY DEFINER`, execução por `authenticated`, sem execução por `anon`); `public.eut_public_eligible_technician_ids(_ids uuid[])` (`SECURITY INVOKER`, execução por `anon` e `authenticated`). Tipos `app_role` (`admin`, `tecnico`, `cliente`) e `approval_status` (`pendente`, `aprovado`, `rejeitado`, `suspenso`) conferidos.
+- `public.technicians` tem `id uuid`, `user_id uuid`, `status approval_status`, `coverage_city_ids integer[]`. `public.eut_admin_management_log` possui os campos de auditoria usados no SQL e permite `target_type='technician'`. As duas tabelas estão com RLS habilitada (respectivamente 9 e 1 políticas no instante da inspeção). Não foram lidas fichas ou contatos privados.
+- **Ausentes:** schema `eut_profile_ops`, tabela `eut_profile_ops.technician_operations` e wrappers `public.eut_technician_operations_get`, `public.eut_technician_operations_save`, `public.eut_public_technician_operations`. Esta ausência é esperada antes da ativação e impede funcionamento operacional real no momento.
+- Pendências **antes de qualquer GO:** confirmar o conjunto de schemas expostos na Data API (o schema privado não pode ficar exposto); revisar owner e privilégios efetivos das funções `SECURITY DEFINER`, grants, dependências e a FK `ON DELETE CASCADE`; registrar novamente metadados e SHA no instante da operação para detectar mudanças concorrentes. Não alterar configurações nem políticas nesta etapa documental.
+
+**Ordem de execução autorizável futuramente (cada transição exige evidência):**
+
+1. **Congelamento:** registrar responsável, horário, commit, blob e SHA-256 acima, projeto EUT selecionado, diff do SQL e os metadados de função/RLS/grants. Verificar que não há objetos operacionais parciais ou conflito com funções preexistentes. Não usar segredos em logs; não acessar bancos de outros projetos.
+2. **Reutilizar provas:** usar os resultados já verdes da PR #368 (workflow local PostgreSQL + **9/9 GoTrue/PostgREST reais em ambiente descartável**, job acima). Repetir os casos afetados somente se SQL, autenticação, grants, RLS relacionados ou fixtures tiverem mudado; não fabricar cadastros, leads ou contatos na produção.
+3. **Gate de segurança:** revisão explícita de `SECURITY DEFINER`, `search_path`, USAGE no schema privado, revogação de acesso direto a `technician_operations`, EXECUTE individual nas três wrappers, elegibilidade canônica para anônimos, proteção dos dois suspensos e auditoria de titular/admin. O SQL proposto não altera RLS/status/preços existentes.
+4. **GO administrativo separado:** obter autorização **específica para aplicar exatamente este SQL no Supabase EUT oficial**, indicando hash, projeto e procedimento de interrupção. A PR #368 já foi mesclada; esta preparação **não autoriza SQL, novo merge, deployment ou OTP**. Sem autorização ou com hash divergente, **NO-GO**.
+5. **Aplicação única, somente após GO:** executar o arquivo congelado uma vez, pelo mecanismo aprovado e com proteção de erro; o próprio arquivo contém `BEGIN`/`COMMIT`. Não repetir às cegas se a sessão falhar: primeiro verificar catálogo/transação. Não executar mudanças de schema, grants ou settings não previstas no arquivo revisado.
+6. **Pós-checks sem expor dados:** verificar existência e assinatura das três wrappers, permissões de `anon`/`authenticated`, schema privado não exposto, RLS/políticas existentes iguais ao baseline, auditoria preservada, ausência de telefones/documentos na projeção, elegibilidade nula de suspensos e controle de versão. A verificação funcional com técnico real depende de sessão legítima e consentimento específico; **não** criar usuários, fichas ou solicitações artificiais no banco oficial.
+7. **Liberar UI em decisão independente:** a existência das RPCs não equivale a publicação da interface. Só considerar release controlado com gates do código, homologação visual 390/1440, SHA de produção e rollback conferidos. Não alterar a política permanente de deploy do Vercel.
+8. **Interrupção/reversão não destrutiva:** se falharem privilégios, privacidade, autorização ou auditoria, interromper publicação e bloquear a exposição pelas wrappers mediante operação **separadamente autorizada e auditada**, sem apagar `technician_operations` nem o log. Preservar os dados para reconciliação. Nunca usar `DROP TABLE ... CASCADE`, desfazer alterações de técnicos/suspensos ou alterar preços/contatos para contornar erros.
+
+**Resultado desta revisão documental:** integridade do arquivo e QA Auth isolado **comprovados**; requisitos de esquema e dados canônicos **presentes**; RPCs **ausentes**; autorização de SQL e homologação visual/ativação oficial **pendentes**. **NO-GO para execução agora.** Nenhum SQL de alteração, RLS, OTP, merge ou deployment foi efetuado nesta micro-rodada.
