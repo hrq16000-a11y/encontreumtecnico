@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { matchingRegistrationCategories, matchingRegistrationServices, selectedRegistrationServices, reconcileRegistrationSelections, registrationStepError, shouldSubmitTechnicianWizard, type TechnicianRegistrationForm } from "./technician-registration-wizard";
+import { matchingRegistrationCategories, matchingRegistrationServices, groupRegistrationServices, selectedRegistrationServices, reconcileRegistrationSelections, registrationStepError, shouldSubmitTechnicianWizard, type TechnicianRegistrationForm } from "./technician-registration-wizard";
 
 const catalog = {
   categories: [{ slug: "redes" }, { slug: "computadores" }],
@@ -34,6 +34,31 @@ describe("Cadastro guiado mobile", () => {
     expect(route).toContain('onClick={() => setCategoryQuery("")}');
     expect(route).toContain('onClick={() => toggleCategory(c.slug)}');
   });
+  it("agrupa serviços por especialidade sem alterar escolhas ou a ordem do catálogo", () => {
+    const choices = [
+      { slug: "wifi", category_slug: "redes", label: "Rede Wi-Fi" },
+      { slug: "notebook", category_slug: "computadores", label: "Notebook" },
+      { slug: "cabos", category_slug: "redes", label: "Cabeamento" },
+    ];
+    const categories = [
+      { slug: "computadores", label: "Computadores" },
+      { slug: "redes", label: "Redes" },
+      { slug: "eletrica", label: "Elétrica" },
+    ];
+    expect(groupRegistrationServices(choices, categories)).toEqual([
+      { categorySlug: "computadores", categoryLabel: "Computadores", services: [choices[1]] },
+      { categorySlug: "redes", categoryLabel: "Redes", services: [choices[0], choices[2]] },
+    ]);
+    expect(groupRegistrationServices(choices.filter((service) => service.slug === "cabos"), categories))
+      .toEqual([{ categorySlug: "redes", categoryLabel: "Redes", services: [choices[2]] }]);
+    expect(choices.map((service) => service.slug)).toEqual(["wifi", "notebook", "cabos"]);
+    const route = readFileSync("src/routes/area-tecnico.tsx", "utf8");
+    expect(route).toContain("groupRegistrationServices(visibleServices, categories).map((group)");
+    expect(route).toContain('aria-label={`Serviços de ${group.categoryLabel}`}');
+    expect(route).toContain("group.services.map((service)");
+    expect(route).toContain("form.service_slugs.includes(service.slug)");
+  });
+
   it("mantém serviços selecionados visíveis e removíveis mesmo fora do filtro", () => {
     const available = [{ slug: "wifi", label: "Rede Wi-Fi" }, { slug: "cabos", label: "Cabeamento" }];
     const chosen = ["wifi", "cabos", "inativo", "wifi"];
@@ -119,7 +144,7 @@ describe("Cadastro guiado mobile", () => {
     expect(route).toContain('onClick={() => toggleCategory(c.slug)}');
     expect(route).toContain("Remover opções indisponíveis");
     expect(route).toContain('id="eut-wizard-service-search"');
-    expect(route).toContain("visibleServices.map((service)");
+    expect(route).toContain("group.services.map((service)");
     expect(route).toContain("persistedCityRef.current = { ownerId: owner, state_uf: loadedForm.state_uf, city: loadedForm.city }");
     expect(route).toContain('role="progressbar"');
     expect(route).toContain('bottom-[calc(3.5rem+env(safe-area-inset-bottom))]');
