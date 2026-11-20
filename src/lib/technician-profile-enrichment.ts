@@ -4,7 +4,8 @@ import type { TechnicianPanelTab } from "./technician-panel-navigation";
 // Prices, distances, SLA and private documents need typed, permissioned fields.
 export const PUBLIC_PROFILE_TOPICS = [
   { id: "experience", label: "Experiência", prefix: "Minha experiência: " },
-  { id: "tools", label: "Ferramentas", prefix: "Ferramentas e equipamentos: " },
+  { id: "training", label: "Formação e cursos", prefix: "Minha formação e cursos: " },
+  { id: "tools", label: "Ferramentas", prefix: "Ferramentas e equipamentos: " }
   { id: "mobility", label: "Deslocamento", prefix: "Como me desloco para atender: " },
   { id: "schedule", label: "Disponibilidade", prefix: "Horários em que costumo atender: " },
 ] as const;
@@ -17,7 +18,7 @@ export function publicProfileHasTopic(bio: string, topicId: PublicProfileTopicId
   return bio.toLocaleLowerCase("pt-BR").includes(topic.prefix.trim().toLocaleLowerCase("pt-BR"));
 }
 
-/** Never invent equipment, experience, transport or availability. */
+/** Never invent qualifications, equipment, experience, transport or availability. */
 export function addPublicProfileTopic(bio: string, topicId: PublicProfileTopicId): string {
   const topic = PUBLIC_PROFILE_TOPICS.find((item) => item.id === topicId)!;
   if (publicProfileHasTopic(bio, topicId)) return bio;
