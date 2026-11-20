@@ -144,7 +144,7 @@ describe("Cadastro guiado mobile", () => {
     expect(route).toContain('onClick={() => toggleCategory(c.slug)}');
     expect(route).toContain("Remover opções indisponíveis");
     expect(route).toContain('id="eut-wizard-service-search"');
-    expect(route).toContain("visibleServices.map((service)");
+    expect(route).toContain("group.services.map((service)");
     expect(route).toContain("persistedCityRef.current = { ownerId: owner, state_uf: loadedForm.state_uf, city: loadedForm.city }");
     expect(route).toContain('role="progressbar"');
     expect(route).toContain('bottom-[calc(3.5rem+env(safe-area-inset-bottom))]');
