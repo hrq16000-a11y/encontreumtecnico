@@ -15,6 +15,28 @@ DECLARE
   stored_defs text[] := ARRAY[]::text[];
   definitions text[] := ARRAY[]::text[];
 BEGIN
+  -- A política de edição do titular precisa corresponder ao contrato oficial
+  -- auditado. A política administrativa deve continuar independente.
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_policies p
+    WHERE p.schemaname = 'public' AND p.tablename = 'technicians'
+      AND p.policyname = 'Owner edits back to pending'
+      AND p.cmd = 'UPDATE' AND p.permissive = 'PERMISSIVE'
+      AND p.roles = ARRAY['authenticated']::name[]
+      AND p.qual = '(auth.uid() = user_id)'
+      AND p.with_check = '((auth.uid() = user_id) AND (status = ''pendente''::approval_status))'
+  ) OR NOT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_policies p
+    WHERE p.schemaname = 'public' AND p.tablename = 'technicians'
+      AND p.policyname = 'Admin moderates'
+      AND p.cmd = 'UPDATE' AND p.permissive = 'PERMISSIVE'
+      AND p.roles = ARRAY['authenticated']::name[]
+      AND p.qual = 'has_role(auth.uid(), ''admin''::app_role)'
+      AND p.with_check = 'has_role(auth.uid(), ''admin''::app_role)'
+  ) THEN
+    RAISE EXCEPTION 'Politicas de edicao ou moderacao divergentes: interromper ativacao';
+  END IF;
+
   FOR entry IN SELECT * FROM (VALUES
     ('public.eut_admin_enable_my_technician_role()', 'af740e9d409d43155568b701a57ea76f'),
     ('public.eut_my_private_contact()', '93b3e8752ba858eff6c9167a1e42807b'),
@@ -75,6 +97,14 @@ BEGIN
   END LOOP;
 END;
 $patch$;
+
+-- Impede que o proprio titular retire a suspensao/rejeicao via UPDATE
+-- direto. Nao modifica "Admin moderates" nem o WITH CHECK original.
+ALTER POLICY "Owner edits back to pending" ON public.technicians
+  USING (
+    auth.uid() = user_id
+    AND status NOT IN ('suspenso'::public.approval_status, 'rejeitado'::public.approval_status)
+  );
 
 -- Exclusao solicitada pelo proprio titular: preserva a chave tecnica para
 -- historicos de solicitacao, pagamentos, moderacao e Pioneiros. Nao executa

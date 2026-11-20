@@ -97,9 +97,18 @@ REVOKE ALL ON public.technicians, public.user_roles,
   public.eut_technician_private_contacts, public.eut_admin_management_log,
   public.eut_qa_historical_request, public.eut_technician_presence
   FROM PUBLIC, anon, authenticated;
-GRANT SELECT ON public.technicians TO authenticated;
+GRANT SELECT, UPDATE ON public.technicians TO authenticated;
 CREATE POLICY self_select ON public.technicians FOR SELECT TO authenticated
   USING (auth.uid() = user_id);
+-- Politicas oficiais afetadas (copias somente para o teste local).
+CREATE POLICY "Admin reads all" ON public.technicians FOR SELECT TO authenticated
+  USING (public.has_role(auth.uid(), 'admin'::public.app_role));
+CREATE POLICY "Admin moderates" ON public.technicians FOR UPDATE TO authenticated
+  USING (public.has_role(auth.uid(), 'admin'::public.app_role))
+  WITH CHECK (public.has_role(auth.uid(), 'admin'::public.app_role));
+CREATE POLICY "Owner edits back to pending" ON public.technicians FOR UPDATE TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK ((auth.uid() = user_id) AND (status = 'pendente'::public.approval_status));
 REVOKE ALL ON FUNCTION public.eut_account_operational() FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.has_role(uuid,public.app_role) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.eut_account_operational() TO authenticated;

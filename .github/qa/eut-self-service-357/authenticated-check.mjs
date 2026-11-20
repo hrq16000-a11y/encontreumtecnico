@@ -57,7 +57,7 @@ const uuid = (id) => {
 };
 const nonce = randomUUID().slice(0, 8);
 const password = 'EUT_QA_357_local_Only!';
-const names = ['owner','other','suspended','blocked','client','admin'];
+const names = ['owner','other','suspended','rejected','blocked','client','admin'];
 const users = {};
 for (const name of names) {
   const email = `eut-357-${name}-${nonce}@example.invalid`;
@@ -118,7 +118,19 @@ const rowSnapshot = () => sql(`SELECT (SELECT count(*) FROM public.technicians):
 // Testemunha anterior: auth.uid() e papel tecnico NAO bastam para a RPC antiga.
 const oldDenied = await publish(users.owner);
 ensure(oldDenied.status >= 400, 'a RPC anterior nao exigiu a prova adicional');
-ensure(sql('SELECT count(*) FROM public.technicians') === '1', 'a RPC anterior gravou ficha inesperada');
+ensure(sql('SELECT count(*) FROM public.technicians') === '2', 'a RPC anterior gravou ficha inesperada');
+// Reproduz apenas em localhost o bypass original da politica de UPDATE.
+const originalSuspended = sql("SELECT status FROM public.technicians WHERE user_id='" + users.suspended.id + "'");
+ensure(originalSuspended === 'suspenso', 'fixture nao iniciou suspensa');
+const baselineStatusPatch = await request('/rest/v1/technicians?user_id=eq.' + users.suspended.id, {
+  token: users.suspended.token, method: 'PATCH',
+  body: { status: 'pendente', coverage_city_ids: [] },
+});
+ensure(baselineStatusPatch.status < 400 &&
+  sql("SELECT status FROM public.technicians WHERE user_id='" + users.suspended.id + "'") === 'pendente',
+  'baseline nao demonstrou a transicao RLS indevida');
+sql("UPDATE public.technicians SET status='suspenso' WHERE user_id='" + users.suspended.id + "'");
+console.log('PASS 1A: bypass anterior reproduzido apenas em fixture sintetica local.');
 const originalFunctions = functionSnapshot();
 const originalPolicies = policySnapshot();
 console.log('PASS 1: contrato antigo rejeita sessao sem atestacao adicional.');
@@ -127,6 +139,29 @@ console.log('PASS 1: contrato antigo rejeita sessao sem atestacao adicional.');
 psqlFile('docs/sql/eut-technician-self-service-no-confirmation-proposal-20261120.sql');
 sql("NOTIFY pgrst, 'reload schema'");
 await new Promise(resolve => setTimeout(resolve, 1300));
+ensure(policySnapshot() !== originalPolicies, 'a politica RLS de titular nao foi endurecida');
+const statusOf = (u) => sql("SELECT status FROM public.technicians WHERE user_id='" + u.id + "'");
+for (const [label, account, original] of [
+  ['suspenso', users.suspended, 'suspenso'],
+  ['rejeitado', users.rejected, 'rejeitado'],
+]) {
+  const before = sql("SELECT md5(row_to_json(t)::text) FROM public.technicians t WHERE user_id='" + account.id + "'");
+  const attempted = await request('/rest/v1/technicians?user_id=eq.' + account.id, {
+    token: account.token, method: 'PATCH',
+    body: { status: 'pendente', coverage_city_ids: [] },
+  });
+  ensure(attempted.status < 500 && statusOf(account) === original &&
+    sql("SELECT md5(row_to_json(t)::text) FROM public.technicians t WHERE user_id='" + account.id + "'") === before,
+    label + ' alterou a propria ficha restrita por UPDATE direto');
+}
+const adminChange = async (status) => request('/rest/v1/technicians?user_id=eq.' + users.suspended.id, {
+  token: users.admin.token, method: 'PATCH', body: { status, coverage_city_ids: [] },
+});
+ensure((await adminChange('pendente')).status < 400 && statusOf(users.suspended) === 'pendente',
+  'moderacao administrativa legitima foi indevidamente bloqueada');
+ensure((await adminChange('suspenso')).status < 400 && statusOf(users.suspended) === 'suspenso',
+  'administrador nao conseguiu restaurar a suspensao');
+console.log('PASS 1B: suspenso/rejeitado negados; moderacao administrativa preservada.');
 const anonDenied = await publish(null);
 ensure(anonDenied.status >= 400, 'anon criou ficha por RPC');
 const clientDenied = await publish(users.client);
@@ -143,10 +178,13 @@ ensure(read.status === 200 && read.data?.length === 1 && read.data[0].id === own
 const isolation = await mine(users.other);
 ensure(isolation.status === 200 && isolation.data?.length === 1 && isolation.data[0].user_id === users.other.id,
   'RLS expôs ficha de outra conta');
-const patchOther = await request(`/rest/v1/technicians?user_id=eq.${users.owner.id}`, {
+const beforeForeign = sql("SELECT display_name FROM public.technicians WHERE user_id='" + users.owner.id + "'");
+const patchOther = await request('/rest/v1/technicians?user_id=eq.' + users.owner.id, {
   token: users.other.token, method: 'PATCH', body: { display_name: 'Invasão' },
 });
-ensure(patchOther.status >= 400, 'UPDATE indevido em terceiro passou');
+ensure(patchOther.status < 500 &&
+  sql("SELECT display_name FROM public.technicians WHERE user_id='" + users.owner.id + "'") === beforeForeign,
+  'UPDATE indevido em terceiro modificou os dados');
 console.log('PASS 2: criar, ler e RLS: anon, cliente e alteracao de terceiros recusados.');
 
 const edited = await publish(users.owner, 'Técnico sintético atualizado');
@@ -249,10 +287,17 @@ const rollbackPairs = functionNames.map((signature) => {
 }).join(',');
 const savedDefinitions = readFileSync(`${root}/baseline.sql`, 'utf8')
   .replace(/^BEGIN;\s*$/m, '').replace(/^COMMIT;\s*$/m, '');
+const patchedOwnerPolicyHash = sql("SELECT md5(coalesce(qual,'') || '|' || coalesce(with_check,'')) FROM pg_policies WHERE schemaname='public' AND tablename='technicians' AND policyname='Owner edits back to pending'");
+ensure(/^[0-9a-f]{32}$/.test(patchedOwnerPolicyHash), 'hash de politica nao existe');
 const rollback = `BEGIN;
 DO $rollback$
 DECLARE row_expected record;
 BEGIN
+  IF (SELECT md5(coalesce(qual,'') || '|' || coalesce(with_check,'')) FROM pg_policies
+      WHERE schemaname='public' AND tablename='technicians'
+        AND policyname='Owner edits back to pending') IS DISTINCT FROM '${patchedOwnerPolicyHash}' THEN
+    RAISE EXCEPTION 'Rollback: policy drift detectado';
+  END IF;
   IF to_regprocedure('public.eut_remove_my_technician_profile()') IS NULL THEN
     RAISE EXCEPTION 'Rollback: funcao de exclusao ausente';
   END IF;
@@ -263,6 +308,8 @@ BEGIN
   END LOOP;
 END $rollback$;
 ${savedDefinitions}
+ALTER POLICY "Owner edits back to pending" ON public.technicians
+  USING (auth.uid() = user_id);
 REVOKE ALL ON FUNCTION public.eut_remove_my_technician_profile() FROM PUBLIC, anon, authenticated;
 DROP FUNCTION public.eut_remove_my_technician_profile();
 COMMIT;`;
@@ -282,6 +329,15 @@ ensure(driftRejected && functionSnapshot() === patchedFunctions &&
   sql("SELECT to_regprocedure('public.eut_remove_my_technician_profile()') IS NOT NULL") === 't',
   'rollback com drift alterou esquema parcialmente');
 console.log('PASS 8: rollback com hash divergente abortou sem modificacao parcial.');
+let policyDriftRejected = false;
+try {
+  runRollback(rollback.replace(patchedOwnerPolicyHash, '00000000000000000000000000000000'));
+} catch (error) {
+  policyDriftRejected = /policy drift detectado/.test(String(error.stderr));
+}
+ensure(policyDriftRejected && functionSnapshot() === patchedFunctions &&
+  policySnapshot() !== originalPolicies, 'rollback ignorou drift da politica');
+console.log('PASS 8A: rollback com drift de RLS abortou sem mutacao.');
 
 runRollback(rollback);
 sql("NOTIFY pgrst, 'reload schema'");
@@ -293,4 +349,4 @@ ensure(rowSnapshot() === beforeRollbackRows &&
   'rollback removeu dados, deixou funcao nova ou alterou historicos');
 ensure((await publish(users.owner)).status >= 400, 'RPC antiga nao foi restaurada');
 console.log('PASS 9: rollback atomico restaura oito RPCs/grants/RLS, remove exclusao e preserva historicos.');
-console.log('RESULTADO: 9 grupos PASS; GoTrue real, PostgREST e PostgreSQL locais; sem SQL/usuarios externos.');
+console.log('RESULTADO: 12 grupos PASS; GoTrue real, PostgREST e PostgreSQL locais; sem SQL/usuarios externos.');
