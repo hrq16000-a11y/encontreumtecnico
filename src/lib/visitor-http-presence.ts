@@ -36,9 +36,9 @@ export async function readAdminPresenceCount(accessToken: string): Promise<numbe
   const result: unknown = await response.json();
   if (!result || typeof result !== "object" || Array.isArray(result)) throw new Error("Invalid aggregate");
   const value = result as Record<string, unknown>;
-  if (typeof value.activeConsentedTabs !== "number" || !Number.isSafeInteger(value.activeConsentedTabs) || value.activeConsentedTabs < 0 ||
-      typeof value.checkedAt !== "string" || !Number.isFinite(Date.parse(value.checkedAt))) {
+  if (typeof value["activeConsentedTabs"] !== "number" || !Number.isSafeInteger(value["activeConsentedTabs"]) || value["activeConsentedTabs"] < 0 ||
+      typeof value["checkedAt"] !== "string" || !Number.isFinite(Date.parse(value["checkedAt"]))) {
     throw new Error("Invalid aggregate");
   }
-  return value.activeConsentedTabs;
+  return value["activeConsentedTabs"];
 }
