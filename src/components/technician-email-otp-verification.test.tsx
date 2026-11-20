@@ -1,6 +1,13 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { User, UserIdentity } from "@supabase/supabase-js";
+
+type MockUser = Pick<User, "id" | "email"> & Partial<Pick<User, "email_confirmed_at" | "identities">>;
+
+function identity(provider: "google" | "email", data: Record<string, unknown>) {
+  return { provider, identity_data: data } as unknown as UserIdentity;
+}
 
 const mockAuth = vi.hoisted(() => ({
   user: { id: "own-tech", email: "tecnico@example.com" },
@@ -20,9 +27,10 @@ vi.mock("@/integrations/supabase/client", () => ({
 
 import { TechnicianEmailOtpVerification } from "./technician-email-otp-verification";
 
-function view(email = "tecnico@example.com") {
-  render(<TechnicianEmailOtpVerification userId="own-tech" email={email} />);
-  fireEvent.click(screen.getByText("Verificar titularidade do meu e-mail para publicar"));
+function view(user: MockUser = { id: "own-tech", email: "tecnico@example.com" }) {
+  render(<TechnicianEmailOtpVerification user={user as User} />);
+  const summary = screen.queryByText("Verificar titularidade do meu e-mail para publicar");
+  if (summary) fireEvent.click(summary);
 }
 
 describe("prova de e-mail do técnico", () => {
@@ -32,6 +40,59 @@ describe("prova de e-mail do técnico", () => {
     mockAuth.rpc.mockReset().mockResolvedValue({ data: { ok: true, verified: true }, error: null });
   });
   afterEach(() => cleanup());
+
+  it("não apresenta OTP a titular Google já confirmado pelo contrato do servidor", () => {
+    view({
+      id: "own-tech", email: "tecnico@example.com", email_confirmed_at: "2026-11-20T12:00:00Z",
+      identities: [identity("google", {
+        email: "tecnico@example.com", email_verified: true,
+      })],
+    });
+    expect(screen.queryByText("Verificar titularidade do meu e-mail para publicar")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Enviar link ao meu e-mail" })).toBeNull();
+    expect(mockAuth.rpc).not.toHaveBeenCalled();
+    expect(mockAuth.signInWithOtp).not.toHaveBeenCalled();
+  });
+
+  it("preserva solicitação de OTP para identidade e-mail sem confirmação enviada", async () => {
+    view({
+      id: "own-tech", email: "tecnico@example.com", email_confirmed_at: "2026-11-20T12:00:00Z",
+      identities: [identity("email", { email: "tecnico@example.com" })],
+    });
+    expect(screen.getByRole("button", { name: "Enviar link ao meu e-mail" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Confirmar verificação" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Enviar link ao meu e-mail" }));
+    await waitFor(() => expect(mockAuth.signInWithOtp).toHaveBeenCalledTimes(1));
+    expect(mockAuth.rpc).toHaveBeenCalledWith("eut_begin_technician_email_otp");
+  });
+
+  it("não presume confirmação Google com e-mail divergente ou flag falsa", () => {
+    view({
+      id: "own-tech", email: "tecnico@example.com", email_confirmed_at: "2026-11-20T12:00:00Z",
+      identities: [identity("google", {
+        email: "outra@example.com", email_verified: true,
+      })],
+    });
+    expect(screen.getByRole("button", { name: "Enviar link ao meu e-mail" })).toBeEnabled();
+    cleanup();
+    view({
+      id: "own-tech", email: "tecnico@example.com", email_confirmed_at: "2026-11-20T12:00:00Z",
+      identities: [identity("google", {
+        email: "tecnico@example.com", email_verified: false,
+      })],
+    });
+    expect(screen.getByRole("button", { name: "Enviar link ao meu e-mail" })).toBeEnabled();
+  });
+
+  it("exige também email_confirmed_at antes de ocultar OTP para Google", () => {
+    view({
+      id: "own-tech", email: "tecnico@example.com",
+      identities: [identity("google", {
+        email: "tecnico@example.com", email_verified: "true",
+      })],
+    });
+    expect(screen.getByRole("button", { name: "Enviar link ao meu e-mail" })).toBeEnabled();
+  });
 
   it("envia link exclusivamente ao e-mail da própria sessão, sem criar contas", async () => {
     view();

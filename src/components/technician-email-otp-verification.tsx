@@ -1,20 +1,32 @@
 import { useState } from "react";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
 const db = supabase as unknown as SupabaseClient;
 
 type Action = "send" | "verify";
 
+/** Mesmo ramo Google de eut_migration.confirmed_current_email().
+ * É apenas apresentação: a autorização de publicação permanece no servidor.
+ */
+function hasConfirmedGoogleEmail(user: User) {
+  const accountEmail = user.email?.trim().toLowerCase();
+  return Boolean(accountEmail && user.email_confirmed_at && user.identities?.some((identity) =>
+    identity.provider === "google" &&
+    typeof identity.identity_data?.["email"] === "string" &&
+    identity.identity_data["email"].toLowerCase() === accountEmail &&
+    identity.identity_data?.["email_verified"] !== false &&
+    identity.identity_data?.["email_verified"] !== "false"));
+}
+
 /**
  * Confirmação de posse do e-mail sem conta duplicada, contatos ou dados
  * administrativos. A RPC rejeita sessões comuns: só um login pelo link/OTP
  * recente e pertencente ao próprio técnico pode gravar a prova privada.
  */
-export function TechnicianEmailOtpVerification({ userId, email }: {
-  userId: string;
-  email: string;
-}) {
+export function TechnicianEmailOtpVerification({ user }: { user: User }) {
+  const userId = user.id;
+  const email = user.email ?? "";
   const [action, setAction] = useState<Action | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [verified, setVerified] = useState(false);
@@ -80,6 +92,8 @@ export function TechnicianEmailOtpVerification({ userId, email }: {
       setAction(null);
     }
   }
+
+  if (hasConfirmedGoogleEmail(user)) return null;
 
   return <details className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm text-foreground">
     <summary className="min-h-10 cursor-pointer font-semibold">
