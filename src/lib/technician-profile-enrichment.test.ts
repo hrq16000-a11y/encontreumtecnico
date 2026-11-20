@@ -40,8 +40,8 @@ describe("enriquecimento privado e voluntário do perfil técnico", () => {
     const result = parseProfessionalBio(bio);
     expect(result.introduction).toBe("Atendo redes de empresas.");
     expect(result.sections.map(({ id }) => id)).toEqual(["experience", "tools", "mobility", "schedule"]);
-    expect(result.sections[1].text).toBe("Testador de cabos e notebook.");
-    expect(result.sections[3].text).toContain("eventualmente à noite");
+    expect(result.sections[1]?.text).toBe("Testador de cabos e notebook.");
+    expect(result.sections[3]?.text).toContain("eventualmente à noite");
   });
 
   it("omite títulos sem conteúdo e mantém a apresentação comum sem transformação", () => {
