@@ -237,6 +237,19 @@ describe("Perfil técnico premium sem prova social fabricada", () => {
     expect(container.querySelector('a[href^="tel:"]')).toBeNull();
   });
 
+  it("mostra formação e cursos só quando declarados, sem selo de certificação", () => {
+    const { rerender } = render(<PublicTechnicianProfile technician={{
+      ...profile, bio: "Minha formação e cursos: ",
+    }} />);
+    expect(screen.queryByRole("heading", { name: "Formação e cursos" })).toBeNull();
+    rerender(<PublicTechnicianProfile technician={{
+      ...profile, bio: "Minha formação e cursos: Curso livre de redes e cabeamento.",
+    }} />);
+    expect(screen.getByRole("heading", { name: "Formação e cursos" })).toBeTruthy();
+    expect(screen.getByText("Curso livre de redes e cabeamento.")).toBeTruthy();
+    expect(screen.queryByText(/diploma verificado|certificação emitida/i)).toBeNull();
+  });
+
   it("não exibe um atributo operacional que o técnico deixou vazio", () => {
     render(<PublicTechnicianProfile technician={{ ...profile, bio: "Ferramentas e equipamentos: \nMinha experiência: Manutenção de computadores." }} />);
     expect(screen.getByRole("heading", { name: "Experiência" })).toBeTruthy();
