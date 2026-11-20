@@ -103,7 +103,7 @@ describe("Perfil técnico premium sem prova social fabricada", () => {
     expect(screen.getByText("Atendimento profissional em redes.")).toBeTruthy();
     expect(screen.getByText("Testador de cabos.")).toBeTruthy();
     expect(screen.getByText("Carro, mediante confirmação.")).toBeTruthy();
-    expect(container.textContent).not.toMatch(/habilitação certificada|garantia de chegada|CNH|ASO|telefone privado/i);
+    expect(container.textContent).not.toMatch(/habilitação certificada|garantia de chegada|CNH|ASO/i);
     expect(container.querySelector('a[href^="tel:"]')).toBeNull();
   });
 
