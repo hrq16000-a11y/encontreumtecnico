@@ -17,6 +17,7 @@ npm install --prefix "$MP_PG_PACKAGE_ROOT" --no-audit --no-fund \
   embedded-postgres@17.11.0-beta.19 pg@8.23.1
 MP_PG_PACKAGE_ROOT="$MP_PG_PACKAGE_ROOT" node tests/payments/mp-owner-settings.local.mjs
 MP_PG_PACKAGE_ROOT="$MP_PG_PACKAGE_ROOT" node tests/payments/mp-quote-snapshot.local.mjs
+MP_PG_PACKAGE_ROOT="$MP_PG_PACKAGE_ROOT" node tests/payments/mp-quote-prepare-binding.local.mjs
 ```
 
 Execute da raiz do repositório. `MP_PG_PACKAGE_ROOT` é **somente** uma pasta
@@ -49,12 +50,26 @@ auditada de valor/horário/limite, desativação, transação ainda não confirm
 recusa a `anon`/`authenticated`. O resultado preserva
 `payment_available=false` e `contact_released=false` em qualquer estado.
 
-**Ainda não conectado ao fluxo real:** a definição integral atualmente instalada
-de `eut_contact_access_quote(uuid)` não está versionada aqui. Antes de substituir
-qualquer RPC, conferir seu contrato completo, manter seus gates de cliente e
-elegibilidade, e executar novamente testes isolados. A pré-reserva existente
-usa preço fixo e tem `CHECK (quoted_price_cents in (999,2999))`; portanto, também
-precisará de alteração compatível antes de permitir preços editáveis. A cotação
-final deve invocar o resolvedor com `now()` do servidor e o pré-pedido deve
-revalidar preço e versão, sem receber valores do navegador. Nenhum direito pago
-ou contato de técnico é liberado nesta etapa.
+**Ainda não aplicado ao fluxo real:** a definição integral atualmente instalada
+de `eut_contact_access_quote(uuid)` foi conferida em leitura no Supabase EUT em
+20/11/2026. A proposta de compatibilidade está em
+`docs/sql/eut-mp-quote-prepare-binding-20261120.sql` e **não foi aplicada**.
+Inclui preflight pelos hashes das duas funções oficiais (MD5
+`bace159c188370479a3439cc9a056815` e
+`be6b4a3105cd7bf7124ffe147c3d86ce`), RLS, grants e constraint antiga.
+Preserva verificações de cliente/perfil, consentimento, lock por cliente/dia,
+cotação informativa e idempotência. Usa o horário do servidor, preço e versão
+de uma só configuração; deduz reservas ativas do saldo, não muda pedidos antigos,
+e mantém `payment_available=false` e `contact_released=false`.
+
+O terceiro teste instala os contratos legados em PostgreSQL descartável,
+com funções sintéticas de Auth e os mesmos hashes oficiais, aplica somente
+localmente a proposta e verifica 11 cenários. Inclui limite 1/2, concorrência,
+reserva legada `pricing_version=NULL`, proibição de contato suspenso e nenhum
+acesso direto ou liberação de direitos.
+
+**Gate ainda fechado:** a tabela oficial possui o `CHECK` para 999/2999 e não
+possui `pricing_version`; a proposta amplia o limite e adiciona uma coluna
+nullable em transação única. Qualquer instalação futura exige autorização SQL
+explícita, revalidação dos hashes, rollback aprovado e E2E isolado. Nenhum
+direito pago ou contato de técnico é liberado nesta etapa.

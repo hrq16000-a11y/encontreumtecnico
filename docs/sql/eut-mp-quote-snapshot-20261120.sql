@@ -43,6 +43,8 @@ BEGIN
       ELSE v_settings.outside_price_cents END,
     'currency','BRL',
     'price_version',v_settings.version,
+    'regular_from',to_char(v_settings.regular_from,'HH24:MI'),
+    'regular_until',to_char(v_settings.regular_until,'HH24:MI'),
     'daily_contact_limit',v_settings.daily_contact_limit,
     'commercial_enabled',v_settings.enabled,
     'payment_available',false,
