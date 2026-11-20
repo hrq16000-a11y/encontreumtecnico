@@ -223,7 +223,7 @@ describe("Cadastro guiado mobile", () => {
     const route = readFileSync("src/routes/area-tecnico.tsx", "utf8");
     expect(route).toContain("moveToStep(reviewIssue.step)");
     expect(route).toContain("showValidationIssue(reviewIssue.message)");
-    expect(route).toContain('validationIssue && <p role="alert"');
+    expect(route).toContain('validationIssue && <p ref={validationIssueRef} tabIndex={-1} role="alert"');
     expect(route).toContain("writeDraft(form, next)");
   });
 });
