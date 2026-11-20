@@ -58,9 +58,11 @@ Nunca apagar uma ficha existente ou modificar os dois suspensos como parte de ro
 - Nenhuma mudança no ranqueamento, reputação, SLA contratual, funil financeiro ou estoque
   de documentos. Esses recursos precisam de contratos e consentimentos separados.
 
-## Homologação autenticada isolada — preparo do gate
+## Homologação autenticada isolada — 9/9 comprovados no contrato canônico
 
-Status em 20/11/2026: **procedimento preparado, não executado**. O workflow PostgreSQL atual simula `auth.uid()` e papéis com variáveis de sessão; essa prova **não** substitui uma sessão real Supabase Auth + PostgREST. Este gate deve ocorrer antes de qualquer SQL oficial, merge ou publicação.
+**Concluído em ambiente descartável em 20/11/2026:** [GitHub Actions #44772676346](https://github.com/hrq16000-a11y/encontreumtecnico/actions/runs/44772676346), job `authenticated-operations` verde no HEAD `24b10f3ff89d426cd64105fa509ad0e48aa4d467`. O log apresenta **PASS 1 a PASS 9** e `PASS FINAL: 9/9` com usuários fictícios, sessões GoTrue reais e chamadas PostgREST locais em `127.0.0.1`. O workflow aplicou o contrato somente ao PostgreSQL local; nenhum usuário ou dado oficial foi acessado. O blob do contrato testado é **idêntico** ao da `main` atual: `63d777c6058d6a5184917530fcc2b0ab330b8bbb`.
+
+A fixture PostgreSQL separada ainda simula `auth.uid()` via sessão e não substitui esse gate independente de Auth real. O sucesso isolado **não autoriza instalação SQL em produção**.
 
 ### Pré-condições obrigatórias (NO-GO caso alguma falte)
 
@@ -95,8 +97,8 @@ O cliente **não** consegue se conceder admin com `eut.fixture.role`, `user_meta
 `app_metadata`. O arquivo `eut-technician-operations-ephemeral-auth-session-20261120.sql`
 exercita separadamente terceiro técnico, cliente com claims falsos, os dois titulares
 suspensos e releitura após edição administrativa com conflito de versão. O teste não
-inventa um token legítimo: `auth.uid()` ainda é simulado pelo banco. **Não marcar
-o gate Auth+PostgREST 9/9 como concluído por causa dessa aprovação isolada.**
+inventa um token legítimo: `auth.uid()` ainda é simulado pelo banco. **O gate
+real 9/9 é comprovado separadamente pelo run #44772676346, não por esta fixture.**
 
 ### Procedimento controlado de ativação — ainda sem autorização
 
@@ -173,8 +175,10 @@ Preflight oficial somente leitura (20/11/2026, Postgres 17.11):
    `be6e5144bf4afd0c99884218c75fec93f87e8e66b63d629444f32df3e58d2d54`.
 2. Confirmar schema interno fora da Data API, RLS da tabela privada, grants
    restritos, elegibilidade pública, versão otimista e log de auditoria.
-3. Completar os **9/9 cenários Auth + PostgREST real** em ambiente descartável
-   sem segredos e sem dados oficiais. PostgreSQL de fixture não substitui esse gate.
+3. **Reaproveitar o gate Auth + PostgREST 9/9 já aprovado** no run #44772676346
+   para o blob canônico inalterado; só repetir cenários afetados se o SQL ou
+   suas dependências mudarem. A fixture adicional de suspensão/rejeição em
+   PostgreSQL descartável deve passar no HEAD da PR #383.
 4. Verificar as funções `SECURITY DEFINER` com identidade técnica suspensa,
    rejeitada, terceiro, admin legítimo e anônimo, inclusive moderação e
    contatos privados. Proteger os registros atualmente restritos.
