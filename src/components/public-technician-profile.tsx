@@ -186,8 +186,12 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
                   </h3>
                   <ul className="mt-3 flex flex-wrap gap-2">
                     {additionalCities.map(city => (
-                      <li key={city.id} className="rounded-full border border-primary/20 bg-primary/5 px-3 py-2 text-sm font-medium text-primary transition-colors hover:border-primary/40 hover:bg-primary/10 motion-reduce:transition-none">
-                        {city.name}/{city.uf}
+                      <li key={city.id}>
+                        <Link to="/tecnicos" search={{ especialidade: "Todas", cidade: city.name, regiao: "", uf: city.uf }}
+                          aria-label={`Ver técnicos em ${city.name}/${city.uf}`}
+                          className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-2 text-sm font-medium text-primary transition-colors hover:border-primary/40 hover:bg-primary/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none">
+                          {city.name}/{city.uf} <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+                        </Link>
                       </li>
                     ))}
                   </ul>
