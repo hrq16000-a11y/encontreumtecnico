@@ -26,7 +26,7 @@ describe("orientações públicas de deslocamento por especialidade", () => {
       ["computadores", "Computadores e notebooks"],
       ["eletrica", "Elétrica"],
       ["baterias", "Baterias"],
-    ]) {
+    ] as const) {
       const html = render(slug, name);
       expect(html).toContain("Se o atendimento envolver baterias");
       expect(html).toContain("nobreak");
