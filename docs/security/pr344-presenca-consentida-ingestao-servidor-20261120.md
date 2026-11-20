@@ -34,3 +34,22 @@ Uma função HTTP do TanStack Start recebe somente sinais voluntários das abas 
 ## Gate de mudança global / decisão
 
 **NO-GO permanece**, mesmo com esta documentação. Para passar a GO depois, exigem-se: (a) autorização específica de eventual storage/migration e credenciais somente de servidor; (b) implementação revisada; (c) gates isolados acima verdes, inclusive revogação e múltiplas sessões; (d) inventário externo e janela/rollback da configuração global `Allow public access`; (e) autorização separada para qualquer alteração oficial. Não ativar feature flag nem desativar acesso público global com base apenas em testes estáticos. Nenhum teste prévio precisa ser repetido nesta rodada.
+
+
+## Revisão de viabilidade isolada — 20/11/2026 (sem reexecutar WebSocket)
+
+**Conclusão:** a alternativa HTTP é **tecnicamente compatível com a aplicação**, mas **ainda não está pronta para homologação funcional**. Verificação estática do HEAD da PR e documentação oficial; não houve endpoint, banco de teste ou servidor de leases executado nesta etapa. Ausência de falha em análise estática **não** equivale a gate positivo.
+
+| Necessidade | Evidência no código vigente | Veredito |
+| --- | --- | --- |
+| HTTP server-side | `src/lib/regional-hint.functions.ts` usa `createServerFn` e headers da requisição; `src/routes/sitemap[.]xml.ts` mostra handlers HTTP. | **Viável** sem servidor WebSocket persistente. |
+| Autenticar administrador | `src/integrations/supabase/auth-middleware.ts` já valida Bearer via `auth.getClaims` e devolve `userId`; `public.user_roles` é a autoridade persistente de papéis. | **Reutilizável**, mas handler novo deve consultar papel `admin` em cada leitura; um JWT válido sozinho não basta. |
+| Acesso privilegiado | `src/integrations/supabase/client.server.ts` já mantém `SUPABASE_SERVICE_ROLE_KEY` somente no servidor; esta chave **bypassa RLS**. | **Possível**, exigindo verificação administrativa *antes* de qualquer leitura agregada e nenhum token no browser. |
+| Leases multi-instância | `search_events` registra buscas, não sessões; não foi identificado store compartilhado de leases com TTL no código consultado. | **Bloqueante** até storage compartilhado apropriado e autorizado. |
+| Realtime privado atual | Run 44679755391 comprovou que publicador anônimo não consegue entrar sem leitura. | **Não reutilizar** o ingresso WebSocket anônimo nem abrir SELECT. |
+
+**Escolha futura mais curta com as dependências já presentes:** criar, **em autorização separada**, uma tabela dedicada de leases em um schema acessível ao cliente Supabase **somente no servidor** (por exemplo, `public` com RLS habilitada desde a criação, `GRANT` estritamente necessário para `service_role` e `REVOKE` para `anon`/`authenticated`). O administrador **não** ganha `SELECT` direto na tabela: recebe apenas o número agregado pelo handler após verificação atual de `user_roles`. Os dados não podem ser acessíveis no Data API por visitantes ou técnicos. Um schema fisicamente não exposto exigiria conexão Postgres direta com pool **ou** RPC servidor cuidadosamente protegida; a implementação atual de `supabaseAdmin` via Data API **não prova** acesso direto a ele. Não escolher implicitamente uma dessas rotas.
+
+Contrato operacional mínimo a comprovar depois: `upsert` atômico por hash de aba, TTL de ~70 s e contagem apenas de leases não expirados; `POST` de consentimento/heartbeat/saída; `GET` administrativo que valida sessão **e** papel no servidor; falta de storage = "indisponível"; nenhuma identificação pessoal na métrica. A revisão também identificou risco de **inflação por clientes anônimos falsificados**: `Origin` e `Sec-Fetch-Site` mitigam navegadores comuns, mas não autenticam bots. Sem uma proteção de abuso compartilhada e mensuração de carga, não alegar contagem confiável. A infraestrutura de proxy/CDN pode observar IP tecnicamente mesmo que a aplicação não o armazene.
+
+**Gate final desta revisão: NO-GO.** O projeto oficial permanece intocado. Próxima etapa (somente sob escopo/autorização próprios): definir e provar em ambiente descartável o armazenamento e a verificação administrativa, depois testes de revogação, concorrência, abuso e multi-instância. Não repetir os testes WebSocket já conclusivos, não habilitar a feature e não alterar `Allow public access`.
