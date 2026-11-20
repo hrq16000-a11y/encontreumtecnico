@@ -147,7 +147,19 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
                 <div><p className="text-xs font-bold uppercase tracking-[.17em] text-primary">Áreas de atuação</p><h2 id="titulo-areas" className="mt-1 text-xl font-bold text-card-foreground sm:text-2xl">Especialidades informadas</h2></div>
               </div>
               <div className="mt-5 flex flex-wrap gap-2">
-                {t.specialties.length ? t.specialties.map(slug => <span key={slug} className="rounded-xl border border-border bg-muted/60 px-3 py-2 text-sm font-medium text-foreground">{categoryLabel(slug, categories)}</span>) : <p className="text-sm text-muted-foreground">Ainda não há especialidades informadas neste perfil.</p>}
+                {t.specialties.length ? t.specialties.map(slug => {
+                  const label = categoryLabel(slug, categories);
+                  const active = categories.some(category => category.slug === slug);
+                  return active ? (
+                    <Link key={slug} to="/tecnicos" search={{ especialidade: slug, cidade: "", regiao: "" }}
+                      aria-label={`Buscar técnicos de ${label}`}
+                      className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-primary/25 bg-primary/5 px-3 py-2 text-sm font-medium text-primary transition-colors hover:border-primary/50 hover:bg-primary/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none">
+                      {label} <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+                    </Link>
+                  ) : (
+                    <span key={slug} className="rounded-xl border border-border bg-muted/60 px-3 py-2 text-sm font-medium text-foreground">{label}</span>
+                  );
+                }) : <p className="text-sm text-muted-foreground">Ainda não há especialidades informadas neste perfil.</p>}
               </div>
             </section>
             <section id="servicos" aria-labelledby="titulo-servicos" className="eut-card-lift scroll-mt-24 rounded-[24px] border border-border bg-card p-6 shadow-sm sm:p-8">
