@@ -16,7 +16,7 @@ BEGIN
       IS DISTINCT FROM '0bdd617476e6e044c6493cb3ae4ef555'
     OR (SELECT md5(p.prosrc) FROM pg_proc p WHERE p.oid=
       to_regprocedure('public.eut_admin_set_home_public_proof(boolean,boolean,text)'))
-      IS DISTINCT FROM '0591739488553bbd34974cabbc4240c6'
+      IS DISTINCT FROM '78e4b9b169aa667ffa8d06486dec5c69'
   THEN RAISE EXCEPTION 'Contrato divergente; rollback abortado' USING ERRCODE='P0001';
   END IF;
 END;

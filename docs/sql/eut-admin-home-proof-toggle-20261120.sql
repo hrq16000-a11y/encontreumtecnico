@@ -102,7 +102,7 @@ BEGIN
   SELECT f.enabled INTO v_current FROM eut_migration.admin_feature_flags f
   WHERE f.flag_key='home_public_proof' FOR UPDATE;
   IF NOT FOUND OR v_current IS DISTINCT FROM _expected_enabled THEN
-    RAISE EXCEPTION 'Configuração alterada; recarregue' USING ERRCODE='40001';
+    RAISE EXCEPTION 'Configuração alterada; recarregue' USING ERRCODE='P0001';
   END IF;
   IF v_current IS NOT DISTINCT FROM _enabled THEN
     RAISE EXCEPTION 'Nenhuma alteração a registrar' USING ERRCODE='22023';
