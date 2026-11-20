@@ -11,6 +11,7 @@ import { BRAZIL_STATES } from "@/lib/service-taxonomy";
 import { adminPageRange, cleanAdminSearch } from "@/lib/admin-technician-pagination";
 import type { PreparedEdit } from "@/lib/admin-technician-crud-intent";
 import { adminTechnicianChangePayload } from "@/lib/admin-technician-rpc-payload";
+import { confirmedAdminTechnicianAction } from "@/lib/admin-technician-action-confirmation";
 import { Check, Pencil, RotateCcw, ShieldAlert, UserRoundX, X } from "lucide-react";
 
 type Technician = Pick<Tables<"technicians">,
@@ -199,8 +200,19 @@ export function AdminTechnicianManager({
         p_reason: reason.trim(),
       });
       if (error) throw error;
-      if (!data || data.id !== target.technician.id)
-        throw new Error("Servidor não confirmou a atualização solicitada.");
+      if (!confirmedAdminTechnicianAction(
+        data, target.technician.id, target.action, target.technician.status,
+        target.action === "editar" ? draft.display_name : target.technician.display_name,
+      )) {
+        // A divergent response may follow a committed write. Refresh first;
+        // never claim success or automatically retry an audited mutation.
+        setReload((value) => value + 1);
+        onUpdated?.();
+        setTarget(null);
+        setFeedback("A resposta do banco não confirmou o estado solicitado. " +
+          "Atualize e confira a ficha antes de tentar novamente; nenhuma ação será repetida automaticamente.");
+        return;
+      }
       if (target.action === "editar") clearAdminPublicDraft(adminOwnerId, target.technician.id);
       setReload((value) => value + 1);
       onUpdated?.();
