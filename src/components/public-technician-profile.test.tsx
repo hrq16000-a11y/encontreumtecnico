@@ -5,8 +5,8 @@ import { PublicTechnicianProfile } from "./public-technician-profile";
 import type { PublicTechnician } from "@/lib/technicians.functions";
 
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ to, params, children }: { to: string; params?: { tecnicoId?: string }; children: React.ReactNode }) =>
-    <a href={to.replace("$tecnicoId", params?.tecnicoId ?? "")}>{children}</a>,
+  Link: ({ to, params, search, children, ...rest }: { to: string; params?: { tecnicoId?: string }; search?: { cidade?: string; uf?: string }; children: React.ReactNode; className?: string; "aria-label"?: string }) =>
+    <a href={to.replace("$tecnicoId", params?.tecnicoId ?? "")} data-city={search?.cidade} data-uf={search?.uf} {...rest}>{children}</a>,
 }));
 vi.mock("@/lib/free-search-help", () => ({ openFreeHelp: vi.fn() }));
 vi.mock("@/hooks/use-active-categories", () => ({
@@ -41,6 +41,16 @@ const profile: PublicTechnician = {
 };
 
 describe("Perfil técnico premium sem prova social fabricada", () => {
+  it("interliga municípios adicionais ao filtro oficial sem inferir localização precisa", () => {
+    render(<PublicTechnicianProfile technician={{ ...profile, coverage_cities: [
+      { id: 4207304, name: "Imbituba", uf: "SC" },
+    ] }} />);
+    const cityLink = screen.getByRole("link", { name: "Ver técnicos em Imbituba/SC" });
+    expect(cityLink.getAttribute("href")).toBe("/tecnicos");
+    expect(cityLink.getAttribute("data-city")).toBe("Imbituba");
+    expect(cityLink.getAttribute("data-uf")).toBe("SC");
+    expect(screen.queryByRole("link", { name: /telefone|WhatsApp/i })).toBeNull();
+  });
   it("compartilha somente a URL pública, sem parâmetros privados, e confirma a cópia", async () => {
     const previousUrl = window.location.href;
     const previousClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");

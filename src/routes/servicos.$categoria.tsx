@@ -8,6 +8,7 @@ import { GuideReadingNavigation, GuideFrequentlyAskedQuestions } from "@/compone
 import { getGuideArtwork } from "@/lib/guide-artwork";
 import { getRelatedServiceCategories } from "@/lib/service-catalog";
 import { getEnrichedServiceCategory } from "@/lib/service-catalog";
+import { getServiceProfessionContext } from "@/lib/service-profession-context";
 import { listApprovedTechnicians } from "@/lib/technicians.functions";
 import { SITE } from "@/lib/public-sitemap";
 
@@ -81,6 +82,7 @@ function ServiceCategoryPage() {
   const { category, guide } = entry;
   const artwork = getGuideArtwork(guide.categorySlug);
   const relatedCategories = getRelatedServiceCategories(category.slug);
+  const professionalContext = getServiceProfessionContext(category.slug);
   const directorySearch = { especialidade: category.slug, cidade: "", regiao: "" };
 
   return (
@@ -156,6 +158,40 @@ function ServiceCategoryPage() {
             className="mt-5 inline-flex min-h-11 items-center text-sm font-bold text-primary hover:underline">
             Abrir a busca por especialidade e localidade →
           </Link>
+        </section>
+
+        <section aria-labelledby="profissoes-da-especialidade" className="mt-10 rounded-2xl border border-border bg-card p-5 sm:p-7">
+          <h2 id="profissoes-da-especialidade" className="text-2xl font-extrabold text-foreground">
+            Profissões, tipos de técnico e conhecimentos em {category.name}
+          </h2>
+          <p className="mt-3 max-w-4xl text-sm leading-7 text-muted-foreground">
+            Estas são referências editoriais para escolher a especialidade, não qualificações atribuídas aos profissionais cadastrados.
+            Confira o trabalho realizado, a experiência e os cursos declarados diretamente com cada prestador antes de contratar.
+          </p>
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl border border-border bg-background p-4">
+              <h3 className="font-bold text-foreground">Que profissional procurar?</h3>
+              <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-muted-foreground">
+                {professionalContext.professionalRoles.map(role => <li key={role}>{role}</li>)}
+              </ul>
+            </div>
+            <div className="rounded-xl border border-border bg-background p-4">
+              <h3 className="font-bold text-foreground">Serviços e necessidades comuns</h3>
+              <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-muted-foreground">
+                {professionalContext.typicalRequests.map(request => <li key={request}>{request}</li>)}
+              </ul>
+            </div>
+            <div className="rounded-xl border border-border bg-background p-4">
+              <h3 className="font-bold text-foreground">Conhecimentos envolvidos</h3>
+              <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-muted-foreground">
+                {professionalContext.knowledgeAreas.map(knowledge => <li key={knowledge}>{knowledge}</li>)}
+              </ul>
+            </div>
+          </div>
+          <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
+            <h3 className="font-bold text-foreground">Cursos e formação: o que conferir</h3>
+            <p className="mt-2 text-sm leading-7 text-muted-foreground">{professionalContext.trainingHint}</p>
+          </div>
         </section>
 
         <PublicServiceLogistics categorySlug={category.slug} categoryName={category.name} />

@@ -1,4 +1,5 @@
 import { ArrowUpRight, MapPin, Network, Search, Wrench } from "lucide-react";
+import { AdSensePublicUnit } from "@/components/adsense-public-unit";
 import { TechnicianAvatar } from "@/components/technician-avatar";
 import {
   categoryGraphPath, cityGraphPath, type GraphCategory, type GraphCity,
@@ -154,6 +155,7 @@ export function PublicSeoDirectory({
         </li>)}
       </ul>
     </section>
+    <AdSensePublicUnit />
     <section aria-labelledby="duvidas-diretorio" className="mt-10 rounded-2xl border border-border bg-card p-5 sm:p-7">
       <h2 id="duvidas-diretorio" className="text-xl font-bold text-foreground">Dúvidas para escolher com segurança</h2>
       <div className="mt-4 divide-y divide-border">

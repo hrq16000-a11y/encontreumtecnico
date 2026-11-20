@@ -13,6 +13,7 @@ import { useMunicipalities } from "@/hooks/use-municipalities";
 import { MunicipalityPicker } from "@/components/municipality-picker";
 import { TechnicianCoverageEditor } from "@/components/technician-coverage-editor";
 import { TechnicianAvatarEditor } from "@/components/technician-avatar-editor";
+import { TechnicianBioPreview } from "@/components/technician-bio-preview";
 import { LegacyAccountActivation } from "@/components/legacy-account-activation";
 import { LegacyProfileImport } from "@/components/legacy-profile-import";
 import { TechnicianPresence } from "@/components/technician-presence";
@@ -847,6 +848,7 @@ export function TechnicianAreaPage() {
                   Valores de deslocamento, SLA e comprovantes exigem campos próprios e proteção específica; não são definidos aqui.
                 </p>
                 {publicTextProblem(form.bio, "bio") && <p role="alert" className="mt-2 text-sm text-destructive">{publicTextProblem(form.bio, "bio")}</p>}
+                <TechnicianBioPreview bio={form.bio} />
               </div>
                 </div>
               )}

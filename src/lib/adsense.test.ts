@@ -22,12 +22,13 @@ describe("Google AdSense: verificação e privacidade", () => {
 
   });
   it("não carrega anúncios no admin, login, cadastro, pagamento nem telas pessoais", () => {
-    for (const route of ["/", "/tecnicos", "/servicos", "/faq", "/galeria"]) {
+    for (const route of ["/", "/tecnicos", "/servicos", "/faq", "/galeria", "/categorias/redes", "/cidades/pr/curitiba", "/cidades/sp/sao-paulo"]) {
       expect(isEligibleAdSenseRoute(route)).toBe(true);
     }
-    for (const route of ["/admin", "/admin/patrocinadores", "/entrar", "/cadastro", "/area-tecnico", "/area-cliente", "/acesso-contato/123", "/lp2", "/home2", "/tecnicos/123", "/contato", "/nao-existe"]) {
+    for (const route of ["/admin", "/admin/patrocinadores", "/entrar", "/cadastro", "/area-tecnico", "/area-cliente", "/acesso-contato/123", "/lp2", "/home2", "/tecnicos/123", "/contato", "/nao-existe", "/cidades/pr", "/cidades/pr/curitiba/privado", "/categorias/redes/editar"]) {
       expect(isEligibleAdSenseRoute(route)).toBe(false);
     }
+    expect(readFileSync("src/components/public-seo-discovery.tsx", "utf8")).toContain("<AdSensePublicUnit />");
   });
   it("exige publicidade explicitamente aceita, sem herdar consentimentos antigos", () => {
     expect(allowsAdSenseAdvertising(null)).toBe(false);
