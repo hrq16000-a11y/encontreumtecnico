@@ -13,6 +13,7 @@ import { PublicProfileConnections, type PublicSeoLinks } from "@/components/publ
 import { formatPublicLocation, placeKey } from "@/lib/location-labels";
 import { categoryLabel, useActiveCategories } from "@/hooks/use-active-categories";
 import { serviceLabel, useActiveServices } from "@/hooks/use-active-services";
+import { centsToBrl, EQUIPMENT, TRANSPORT, WINDOWS } from "@/lib/technician-operations-contract";
 
 /** Presentation only: uses fields from the published and sanitized technician
  * profile. Never loads or guesses private contacts, ratings or endorsements.
@@ -38,6 +39,8 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
     all.findIndex(x => placeKey(x.name) === placeKey(c.name) && x.uf === c.uf) === i);
   const topCategories = t.specialties.slice(0, 4);
   const extraCategories = Math.max(0, t.specialties.length - topCategories.length);
+  const operations = t.operations;
+  const cityLabel = (id: number) => (t.coverage_cities ?? []).find(city => city.id === id);
   const professionalBio = parseProfessionalBio(t.bio);
 
   return (
@@ -124,13 +127,14 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
           )}
         </section>
 
-        <nav aria-label="Seções deste perfil" className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+        <nav aria-label="Seções deste perfil" className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-5 sm:gap-3">
           {([
             { href: "#especialidades", label: "Especialidades", icon: BriefcaseBusiness },
             { href: "#servicos", label: "Serviços", icon: Wrench },
             { href: "#atendimento", label: "Cobertura", icon: MapPin },
+            ...(operations ? [{ href: "#condicoes", label: "Condições", icon: Navigation }] : []),
             { href: "#sobre", label: "Sobre", icon: BadgeInfo },
-          ] as const).map(({ href, label, icon: Icon }) => (
+          ]).map(({ href, label, icon: Icon }) => (
             <a key={href} href={href} className="group flex min-h-16 items-center gap-2.5 rounded-2xl border border-border bg-card/95 px-3.5 py-3 text-sm font-bold text-foreground shadow-sm transition-[transform,border-color,box-shadow] duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transform-none motion-reduce:transition-none sm:px-4">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Icon aria-hidden="true" className="h-[18px] w-[18px]" /></span>
               <span className="min-w-0 flex-1">{label}</span>
@@ -226,6 +230,27 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
                 </Link>
               </div>
             </section>
+            {operations && <section id="condicoes" aria-labelledby="titulo-condicoes"
+              className="eut-card-lift scroll-mt-24 rounded-[24px] border border-border bg-card p-6 shadow-sm sm:p-8">
+              <div className="flex items-start gap-3">
+                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Navigation className="h-5 w-5" aria-hidden="true" /></span>
+                <div><p className="text-xs font-bold uppercase tracking-[.17em] text-primary">Dados opcionais declarados</p>
+                  <h2 id="titulo-condicoes" className="mt-1 text-xl font-bold text-card-foreground sm:text-2xl">Como costuma atender</h2></div>
+              </div>
+              <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2">
+                {operations.equipment.length > 0 && <div><dt className="font-bold text-foreground">Ferramentas e equipamentos</dt><dd className="mt-1 text-muted-foreground">{EQUIPMENT.filter(option => operations.equipment.includes(option.code)).map(option => option.label).join(" · ")}</dd></div>}
+                {operations.transport_mode && <div><dt className="font-bold text-foreground">Locomoção</dt><dd className="mt-1 text-muted-foreground">{TRANSPORT.find(option => option.code === operations.transport_mode)?.label}</dd></div>}
+                {operations.service_windows.length > 0 && <div><dt className="font-bold text-foreground">Períodos habituais</dt><dd className="mt-1 text-muted-foreground">{WINDOWS.filter(option => operations.service_windows.includes(option.code)).map(option => option.label).join(" · ")}</dd></div>}
+                {operations.can_travel && <div><dt className="font-bold text-foreground">Viagens</dt><dd className="mt-1 text-muted-foreground">Declara disponibilidade para viajar</dd></div>}
+                {operations.eta_business_minutes != null && <div><dt className="font-bold text-foreground">Estimativa em horário comercial</dt><dd className="mt-1 text-muted-foreground">{operations.eta_business_minutes} minutos após confirmação, sujeito à agenda</dd></div>}
+                {operations.eta_outside_minutes != null && <div><dt className="font-bold text-foreground">Estimativa fora do horário comercial</dt><dd className="mt-1 text-muted-foreground">{operations.eta_outside_minutes} minutos após confirmação, sujeito à agenda</dd></div>}
+                {operations.free_city_ids.length > 0 && <div><dt className="font-bold text-foreground">Cidades declaradas sem taxa de deslocamento</dt><dd className="mt-1 text-muted-foreground">{operations.free_city_ids.map(cityLabel).filter(city => city != null).map(city => `${city.name}/${city.uf}`).join(" · ")}</dd></div>}
+                {operations.paid_city_ids.length > 0 && <div><dt className="font-bold text-foreground">Cidades com possível cobrança de deslocamento</dt><dd className="mt-1 text-muted-foreground">{operations.paid_city_ids.map(cityLabel).filter(city => city != null).map(city => `${city.name}/${city.uf}`).join(" · ")}</dd></div>}
+                {operations.free_km != null && <div><dt className="font-bold text-foreground">Faixa sem cobrança</dt><dd className="mt-1 text-muted-foreground">Até {operations.free_km} km declarados</dd></div>}
+                {operations.km_rate_cents != null && <div><dt className="font-bold text-foreground">Deslocamento estimado</dt><dd className="mt-1 text-muted-foreground">R$ {centsToBrl(operations.km_rate_cents)} por km{operations.km_threshold != null ? ` até ${operations.km_threshold} km` : ""}{operations.km_rate_after_cents != null && operations.km_threshold != null ? `; depois R$ ${centsToBrl(operations.km_rate_after_cents)} por km` : ""}</dd></div>}
+              </dl>
+              <p className="mt-5 border-t border-border pt-4 text-xs leading-5 text-muted-foreground">São condições informadas pelo profissional, sem verificação de posse, escala, prazo ou distância pela plataforma. Confirme agenda, rota e orçamento antes do serviço. A taxa de acesso ao contato do portal é independente dos valores de deslocamento.</p>
+            </section>}
             <section id="sobre" aria-labelledby="titulo-sobre" className="eut-card-lift scroll-mt-24 rounded-[24px] border border-border bg-card p-6 shadow-sm sm:p-8">
               <div className="flex items-start gap-3">
                 <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><BadgeInfo className="h-5 w-5" aria-hidden="true" /></span>

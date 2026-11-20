@@ -1,0 +1,46 @@
+name: EUT operations profile isolated PostgreSQL gate
+on:
+  pull_request:
+    paths:
+      - 'docs/sql/eut-technician-operations-contract-proposal-20261120.sql'
+      - 'docs/sql/tests/eut-technician-operations-ephemeral-*.sql'
+      - '.github/workflows/eut-operations-profile-ephemeral.yml'
+permissions:
+  contents: read
+jobs:
+  isolated-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: eut_fixture
+          POSTGRES_PASSWORD: local_only_not_a_secret
+          POSTGRES_DB: eut_fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U eut_fixture -d eut_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: eut_fixture
+      PGPASSWORD: local_only_not_a_secret
+      PGDATABASE: eut_fixture
+      PGOPTIONS: '-c client_min_messages=warning'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install local PostgreSQL client
+        run: command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+      - name: Create synthetic roles and profiles
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-technician-operations-ephemeral-schema-20261120.sql
+      - name: Apply proposed SQL ONLY to disposable PostgreSQL
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/eut-technician-operations-contract-proposal-20261120.sql
+      - name: Test owner, admin, public, suspensions, audit and replay
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-technician-operations-ephemeral-assertions-20261120.sql
+      - name: Verify server-backed roles and negative authenticated sessions
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-technician-operations-ephemeral-auth-session-20261120.sql

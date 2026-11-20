@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { openFreeHelp } from "@/lib/free-search-help";
 import { PublicTechnicianProfile } from "./public-technician-profile";
 import type { PublicTechnician } from "@/lib/technicians.functions";
+import { EMPTY_OPERATIONS } from "@/lib/technician-operations-contract";
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ to, params, search, children, ...rest }: { to: string; params?: { tecnicoId?: string }; search?: { cidade?: string; uf?: string; especialidade?: string }; children: React.ReactNode; className?: string; "aria-label"?: string }) =>
@@ -114,6 +115,23 @@ describe("Perfil técnico premium sem prova social fabricada", () => {
     expect(screen.getByRole("heading", { name: "Sobre o profissional" })).toBeTruthy();
     expect(screen.getByText(/A apresentação pessoal ainda não está disponível/)).toBeTruthy();
     expect(screen.queryByText("Texto fornecido pelo titular do perfil.")).toBeNull();
+  });
+
+  it("renderiza somente condições estruturadas sem expor contato privado ou prometer SLA", () => {
+    const { container } = render(<PublicTechnicianProfile technician={{ ...profile,
+      coverage_city_ids: [4204608], coverage_cities: [{ id: 4204608, name: "Criciúma", uf: "SC" }],
+      operations: { ...EMPTY_OPERATIONS, equipment: ["notebook", "cable_tester"],
+        transport_mode: "car", service_windows: ["evening", "holiday"],
+        eta_outside_minutes: 60, free_city_ids: [4204608], km_rate_cents: 250 },
+    }} />);
+    expect(screen.getByRole("heading", { name: "Como costuma atender" })).toBeTruthy();
+    expect(container.textContent).toContain("Notebook para diagnóstico");
+    expect(container.textContent).toContain("Noite");
+    expect(container.textContent).toContain("R$ 2,50 por km");
+    expect(container.textContent).toContain("sujeito à agenda");
+    expect(container.textContent).toContain("Criciúma/SC");
+    expect(container.querySelector('a[href^="tel:"]')).toBeNull();
+    expect(container.querySelector('a[href*="wa.me"]')).toBeNull();
   });
 
   it("não diferencia técnicos por origem e preserva indicação informada", () => {
