@@ -81,6 +81,21 @@ describe("Perfil técnico premium sem prova social fabricada", () => {
     fireEvent.click(screen.getByRole("button", { name: "Limpar filtro" }));
     expect(screen.getAllByRole("button", { name: /Solicitar atendimento para / })).toHaveLength(7);
   });
+  it("encontra serviços pelo nome da especialidade oficial sem atribuir categoria a legados", () => {
+    render(<PublicTechnicianProfile technician={{ ...profile, service_slugs: [
+      "formatacao", "notebooks", "wifi", "servico-legado", "cftv", "cabeamento",
+    ] }} />);
+    const filter = screen.getByRole("searchbox", { name: "Encontrar serviço neste perfil" });
+    fireEvent.change(filter, { target: { value: "COMPUTADORES" } });
+    expect(screen.getAllByRole("button", { name: /Solicitar atendimento para / })).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Solicitar atendimento para formatacao" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Solicitar atendimento para notebooks" })).toBeTruthy();
+    fireEvent.change(filter, { target: { value: "REDES" } });
+    expect(screen.getAllByRole("button", { name: /Solicitar atendimento para / })).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Solicitar atendimento para wifi" })).toBeTruthy();
+    fireEvent.change(filter, { target: { value: "" } });
+    expect(screen.getAllByRole("button", { name: /Solicitar atendimento para / })).toHaveLength(6);
+  });
   it("não acrescenta filtro a perfis com poucos serviços", () => {
     render(<PublicTechnicianProfile technician={profile} />);
     expect(screen.queryByRole("searchbox", { name: "Encontrar serviço neste perfil" })).toBeNull();
