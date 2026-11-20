@@ -16,6 +16,7 @@ MP_PG_PACKAGE_ROOT="$(mktemp -d)"
 npm install --prefix "$MP_PG_PACKAGE_ROOT" --no-audit --no-fund \
   embedded-postgres@17.11.0-beta.19 pg@8.23.1
 MP_PG_PACKAGE_ROOT="$MP_PG_PACKAGE_ROOT" node tests/payments/mp-owner-settings.local.mjs
+MP_PG_PACKAGE_ROOT="$MP_PG_PACKAGE_ROOT" node tests/payments/mp-quote-snapshot.local.mjs
 ```
 
 Execute da raiz do repositório. `MP_PG_PACKAGE_ROOT` é **somente** uma pasta
@@ -38,3 +39,22 @@ temporária. Nenhuma variável de produção é necessária.
 Isto homologa **somente o SQL do contrato isolado**, não a integração de cobrança
 ou aderência ao esquema integral do projeto oficial. Nenhuma aprovação para
 aplicar o SQL ao Supabase de produção está implícita.
+
+## Resolvedor privado de cotações
+
+O segundo teste instala, **somente em uma base descartável**, a proposta
+`docs/sql/eut-mp-quote-snapshot-20261120.sql` depois do contrato do proprietário.
+Valida o preço e a versão atômicos, horário de São Paulo nas bordas, alteração
+auditada de valor/horário/limite, desativação, transação ainda não confirmada e
+recusa a `anon`/`authenticated`. O resultado preserva
+`payment_available=false` e `contact_released=false` em qualquer estado.
+
+**Ainda não conectado ao fluxo real:** a definição integral atualmente instalada
+de `eut_contact_access_quote(uuid)` não está versionada aqui. Antes de substituir
+qualquer RPC, conferir seu contrato completo, manter seus gates de cliente e
+elegibilidade, e executar novamente testes isolados. A pré-reserva existente
+usa preço fixo e tem `CHECK (quoted_price_cents in (999,2999))`; portanto, também
+precisará de alteração compatível antes de permitir preços editáveis. A cotação
+final deve invocar o resolvedor com `now()` do servidor e o pré-pedido deve
+revalidar preço e versão, sem receber valores do navegador. Nenhum direito pago
+ou contato de técnico é liberado nesta etapa.
