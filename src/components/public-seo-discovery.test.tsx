@@ -38,8 +38,8 @@ describe("Diretórios públicos de cidades e categorias", () => {
       city: { name: "Curitiba", uf: "PR", slug: "curitiba", count: 2, updated_at: null },
       categories: [{ slug: "redes", label: "Redes de computadores", count: 2, updated_at: null }],
       related: [
-        { ...profiles[0], relation: "Mesmo município", relevance: 10 },
-        { ...profiles[1], relation: "Categoria em comum", relevance: 4 },
+        { ...profiles[0]!, relation: "Mesmo município", relevance: 10 },
+        { ...profiles[1]!, relation: "Categoria em comum", relevance: 4 },
       ],
     }} />);
     expect(screen.getByRole("img", { name: "Avatar de Ana Redes" }).getAttribute("data-avatar")).toBe(photoPath);
