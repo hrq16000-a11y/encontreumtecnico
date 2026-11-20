@@ -14,6 +14,9 @@ on:
       - 'src/components/technician-private-contact.tsx'
       - 'src/components/request-list.tsx'
       - 'docs/sql/eut-contact-purchase-preparation.sql'
+      - 'docs/sql/eut-public-eligibility-paid-contact-20261120.sql'
+      - 'docs/sql/eut-public-eligibility-paid-contact-rollback-20261120.sql'
+      - 'src/lib/public-paid-contact-eligibility-contract.test.ts'
       - 'docs/checkout-contact-activation.md'
       - '.github/workflows/eut-paid-contact-privacy.yml'
 
@@ -37,6 +40,8 @@ jobs:
         run: bun run build
       - name: TypeScript
         run: bunx tsc --noEmit --pretty false
+      - name: Eligible public profiles require consented private phone
+        run: bunx vitest run src/lib/public-paid-contact-eligibility-contract.test.ts
       - name: No unpaid contact release or technician dispatch
         run: |
           node --input-type=module <<'NODE'
