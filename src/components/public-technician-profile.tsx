@@ -15,11 +15,15 @@ import { categoryLabel, useActiveCategories } from "@/hooks/use-active-categorie
 import { serviceLabel, useActiveServices } from "@/hooks/use-active-services";
 import { centsToBrl, EQUIPMENT, TRANSPORT, WINDOWS } from "@/lib/technician-operations-contract";
 
+const searchableService = (value: string) => value.normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+
 /** Presentation only: uses fields from the published and sanitized technician
  * profile. Never loads or guesses private contacts, ratings or endorsements.
  */
 export function PublicTechnicianProfile({ technician: t, links }: { technician: PublicTechnician; links?: PublicSeoLinks }) {
   const [shareStatus, setShareStatus] = useState<"copied" | "unavailable" | null>(null);
+  const [serviceFilter, setServiceFilter] = useState("");
   async function copyPublicProfileUrl() {
     // Share only the public route: never forward tracking or auth query parameters.
     const publicUrl = `${window.location.origin}${window.location.pathname}`;
@@ -42,6 +46,11 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
   const operations = t.operations;
   const cityLabel = (id: number) => (t.coverage_cities ?? []).find(city => city.id === id);
   const professionalBio = parseProfessionalBio(t.bio);
+  const serviceOptions = t.service_slugs.map(slug => ({ slug, label: serviceLabel(slug, services) }));
+  const activeServiceFilter = serviceOptions.length >= 6 ? serviceFilter.trim() : "";
+  const filteredServices = activeServiceFilter
+    ? serviceOptions.filter(item => searchableService(item.label).includes(searchableService(activeServiceFilter)))
+    : serviceOptions;
 
   return (
     <div className="relative min-h-screen overflow-clip bg-gradient-to-b from-accent/60 via-background to-background pb-28 lg:pb-10">
@@ -172,10 +181,19 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
                 <div><p className="text-xs font-bold uppercase tracking-[.17em] text-primary">O que este profissional informa realizar</p><h2 id="titulo-servicos" className="mt-1 text-xl font-bold text-card-foreground sm:text-2xl">Serviços disponíveis no perfil</h2></div>
               </div>
               {t.service_slugs.length ? (
-                <ul className="mt-5 grid gap-3 sm:grid-cols-2">
-                  {t.service_slugs.map(slug => {
-                    const label = serviceLabel(slug, services);
-                    return <li key={slug}>
+                <>
+                  {serviceOptions.length >= 6 && <div className="mt-5">
+                    <label htmlFor="filtro-servicos-perfil" className="block text-sm font-semibold text-foreground">Encontrar serviço neste perfil</label>
+                    <input id="filtro-servicos-perfil" type="search" value={serviceFilter}
+                      onChange={event => setServiceFilter(event.target.value)}
+                      placeholder="Ex.: manutenção, Wi-Fi"
+                      className="mt-2 min-h-11 w-full rounded-xl border border-input bg-background px-4 py-2 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" />
+                  </div>}
+                  {activeServiceFilter && <p role="status" className="mt-3 text-xs text-muted-foreground">
+                    {filteredServices.length} de {serviceOptions.length} serviços correspondem à busca.
+                  </p>}
+                  {filteredServices.length ? <ul className="mt-5 grid gap-3 sm:grid-cols-2">
+                    {filteredServices.map(({ slug, label }) => <li key={slug}>
                       <button type="button"
                         onClick={() => openFreeHelp({ mode: "direct", technicianId: t.id, technicianName: t.display_name, service: label })}
                         aria-label={`Solicitar atendimento para ${label}`}
@@ -184,9 +202,15 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
                         <span className="min-w-0 flex-1 break-words">{label}</span>
                         <span className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-primary">Pedir <ArrowUpRight aria-hidden="true" className="h-4 w-4" /></span>
                       </button>
-                    </li>;
-                  })}
-                </ul>
+                    </li>)}
+                  </ul> : <div className="mt-4 rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+                    Nenhum serviço deste perfil corresponde ao termo.
+                    <button type="button" onClick={() => setServiceFilter("")}
+                      className="mt-2 block min-h-11 rounded-lg px-3 font-semibold text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                      Limpar filtro
+                    </button>
+                  </div>}
+                </>
               ) : <p className="mt-4 text-sm text-muted-foreground">Os serviços específicos ainda não foram detalhados.</p>}
               <p className="mt-5 border-t border-border pt-4 text-xs leading-5 text-muted-foreground">Selecione um serviço para descrevê-lo no atendimento seguro, sem liberar telefone. Os serviços são declarados pelo profissional; confirme os detalhes antes de contratar.</p>
             </section>
