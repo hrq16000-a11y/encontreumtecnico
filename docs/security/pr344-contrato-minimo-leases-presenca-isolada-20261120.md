@@ -18,7 +18,7 @@ O cliente usa `canShareAnonymousPresence(pathname, consent)`, cujo campo `presen
 ### Corpo público (exemplo de esquema, não endpoint ativo)
 
 - `op`: enum `start | beat | leave`.
-- `tabToken`: string hexadecimal de 32 bytes? **Não:** exatamente **32 caracteres hexadecimais (128 bits)**, gerados com `crypto.getRandomValues` por episódio de consentimento da aba. Não usar ID do Auth, cookie de marketing, IP ou localização.
+- `tabToken`: string de **32 caracteres hexadecimais (128 bits)**, gerados com `crypto.getRandomValues` por episódio de consentimento da aba. Não usar ID do Auth, cookie de marketing, IP ou localização.
 - `consent`: literal `true` apenas para `start`/`beat`; o handler não deve tratar isso como prova de identidade ou de consentimento imune a falsificação.
 - Nada mais no JSON. Corpo <=512 bytes. Rejeitar campos extras, valores inesperados, requisições cross-origin e conteúdo excessivo. A mesma chave fica na aba apenas até revogação, encerramento ou erro de expiração; gerar **nova** ao reconsentir.
 
