@@ -681,12 +681,24 @@ export function TechnicianAreaPage() {
               {step === 3 && (
                 <div className="grid gap-4">
                   <div className="rounded-xl border border-border bg-muted/25 p-4 text-sm">
-                    <p className="font-semibold text-foreground">{form.display_name.trim()}</p>
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <p className="font-semibold text-foreground">{form.display_name.trim()}</p>
+                      <button type="button" onClick={() => moveToStep(1)}
+                        className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm font-semibold text-primary hover:bg-accent">
+                        Editar dados
+                      </button>
+                    </div>
                     <p className="mt-1 text-muted-foreground">
                       {form.city.trim()}/{form.state_uf}
                       {safeNeighborhood(form.neighborhood, form.city) ? ` · ${safeNeighborhood(form.neighborhood, form.city)}` : ""}
                     </p>
-                    <p className="mt-3 font-semibold text-foreground">Especialidades escolhidas</p>
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-semibold text-foreground">Especialidades escolhidas</p>
+                      <button type="button" onClick={() => moveToStep(2)}
+                        className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm font-semibold text-primary hover:bg-accent">
+                        Editar serviços
+                      </button>
+                    </div>
                     <p className="mt-1 text-muted-foreground">
                       {categories.filter((category) => form.specialties.includes(category.slug))
                         .map((category) => category.label).join(", ")}
