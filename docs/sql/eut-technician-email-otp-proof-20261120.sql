@@ -5,6 +5,24 @@
 -- eut_account_operational(), auth.sessions e a configuração de redirects do Auth.
 BEGIN;
 
+-- Lease de contrato: se outro trabalho alterou a verificação existente,
+-- interromper sem instalar tabelas, RPCs ou permissões.
+DO $preflight$
+DECLARE v_hash text;
+BEGIN
+  SELECT md5(pg_get_functiondef(p.oid)) INTO v_hash
+  FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+  WHERE n.nspname='eut_migration' AND p.proname='confirmed_current_email';
+  IF v_hash IS DISTINCT FROM 'bf0789e2b311454a6320ecdc5269e73f'
+    OR to_regclass('eut_migration.technician_email_otp_proofs') IS NOT NULL
+    OR to_regclass('eut_migration.technician_email_otp_challenges') IS NOT NULL
+    OR to_regprocedure('public.eut_begin_technician_email_otp()') IS NOT NULL
+    OR to_regprocedure('public.eut_attest_technician_email_otp()') IS NOT NULL
+  THEN RAISE EXCEPTION 'Preflight de identidade mudou; revisar antes de aplicar' USING ERRCODE='P0001';
+  END IF;
+END;
+$preflight$;
+
 -- Não expor pela Data API: eut_migration é esquema privado. Sem políticas de
 -- acesso para anon/authenticated; somente esta RPC auditada escreve a prova.
 CREATE TABLE eut_migration.technician_email_otp_proofs (
@@ -18,6 +36,59 @@ ALTER TABLE eut_migration.technician_email_otp_proofs ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE eut_migration.technician_email_otp_proofs FROM PUBLIC, anon, authenticated;
 COMMENT ON TABLE eut_migration.technician_email_otp_proofs IS
   'Prova privada de e-mail por sessão OTP verificada pelo Supabase Auth; nenhum token ou telefone armazenado.';
+
+-- O endereço destinatário é capturado ANTES da solicitação do link. Isso
+-- impede atestar um e-mail novo com OTP enviado anteriormente ao endereço antigo.
+CREATE TABLE eut_migration.technician_email_otp_challenges (
+  user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  requested_email text NOT NULL,
+  requested_at timestamptz NOT NULL
+);
+ALTER TABLE eut_migration.technician_email_otp_challenges ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE eut_migration.technician_email_otp_challenges FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.eut_begin_technician_email_otp()
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog'
+AS $function$
+DECLARE
+  v_user uuid := auth.uid();
+  v_email text;
+BEGIN
+  IF v_user IS NULL
+    OR NOT public.has_role(v_user,'tecnico'::public.app_role)
+    OR NOT public.eut_account_operational()
+  THEN
+    RAISE EXCEPTION 'Sessão técnica exigida' USING ERRCODE='42501';
+  END IF;
+  SELECT lower(btrim(u.email)) INTO v_email
+  FROM auth.users u
+  WHERE u.id=v_user AND u.email IS NOT NULL
+    AND u.email_confirmed_at IS NOT NULL
+    AND nullif(btrim(coalesce(u.phone,'')),'') IS NULL
+    AND EXISTS(
+      SELECT 1 FROM auth.identities i
+      WHERE i.user_id=u.id AND i.provider='email'
+        AND lower(btrim(coalesce(i.identity_data->>'email','')))=lower(btrim(u.email))
+    )
+    AND NOT EXISTS(
+      SELECT 1 FROM auth.identities i
+      WHERE i.user_id=u.id AND i.provider='phone'
+    );
+  IF v_email IS NULL THEN
+    RAISE EXCEPTION 'Identidade de e-mail indisponível' USING ERRCODE='42501';
+  END IF;
+  INSERT INTO eut_migration.technician_email_otp_challenges
+    (user_id,requested_email,requested_at)
+  VALUES(v_user,v_email,clock_timestamp())
+  ON CONFLICT(user_id) DO UPDATE
+    SET requested_email=EXCLUDED.requested_email,
+        requested_at=EXCLUDED.requested_at;
+  RETURN jsonb_build_object('ok',true);
+END;
+$function$;
+REVOKE ALL ON FUNCTION public.eut_begin_technician_email_otp() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.eut_begin_technician_email_otp() TO authenticated;
 
 -- Chamável somente pelo próprio técnico, com token assinado do Auth, sessão
 -- existente e login OTP recente APÓS o envio do link de e-mail.
@@ -33,6 +104,8 @@ DECLARE
   v_session uuid;
   v_email text;
   v_sent_at timestamptz;
+  v_requested_email text;
+  v_requested_at timestamptz;
   v_method text;
   v_authenticated_at timestamptz;
 BEGIN
@@ -64,6 +137,17 @@ BEGIN
     );
   IF v_email IS NULL OR v_sent_at IS NULL THEN
     RAISE EXCEPTION 'A prova de e-mail não está disponível' USING ERRCODE='42501';
+  END IF;
+  SELECT c.requested_email,c.requested_at
+    INTO v_requested_email,v_requested_at
+  FROM eut_migration.technician_email_otp_challenges c
+  WHERE c.user_id=v_user FOR UPDATE;
+  IF v_requested_at IS NULL
+    OR v_requested_email IS DISTINCT FROM v_email
+    OR v_requested_at < now()-interval '2 hours'
+    OR v_sent_at NOT BETWEEN v_requested_at AND v_requested_at+interval '5 minutes'
+  THEN
+    RAISE EXCEPTION 'O link não corresponde ao e-mail solicitado' USING ERRCODE='42501';
   END IF;
 
   -- O JWT é assinado pelo Supabase Auth. Nunca aceitar prova via user_metadata,
@@ -103,6 +187,7 @@ BEGIN
         verified_at=EXCLUDED.verified_at,
         proof_session_id=EXCLUDED.proof_session_id,
         proof_method=EXCLUDED.proof_method;
+  DELETE FROM eut_migration.technician_email_otp_challenges WHERE user_id=v_user;
 
   RETURN jsonb_build_object('ok',true,'verified',true);
 END;
@@ -161,8 +246,9 @@ $function$;
 COMMIT;
 
 -- PÓS-CHECKS READ-ONLY OBRIGATÓRIOS APÓS AUTORIZAÇÃO E APPLY:
--- 1) SELECT relrowsecurity FROM pg_class WHERE oid='eut_migration.technician_email_otp_proofs'::regclass;
--- 2) SELECT has_function_privilege('anon','public.eut_attest_technician_email_otp()','EXECUTE'),
+-- 1) Conferir relrowsecurity nas tabelas privadas de provas E de desafios.
+-- 2) Conferir EXECUTE de anon/authenticated em begin e attest; por exemplo:
+--    SELECT has_function_privilege('anon','public.eut_attest_technician_email_otp()','EXECUTE'),
 --           has_function_privilege('authenticated','public.eut_attest_technician_email_otp()','EXECUTE');
 -- 3) Confirmar que a conta sem OTP segue recusada; OTP de e-mail válido
 --    prova apenas a própria conta, e alteração de e-mail revoga a correspondência.
