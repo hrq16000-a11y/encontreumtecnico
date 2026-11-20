@@ -186,6 +186,17 @@ describe("Cadastro guiado mobile", () => {
     expect(route).toContain("writeDraft(form, next)");
   });
 
+  it("foca o alerta do campo obrigatório no mobile, mesmo após novo toque", () => {
+    const route = readFileSync("src/routes/area-tecnico.tsx", "utf8");
+    expect(route).toContain("const validationIssueRef = useRef<HTMLParagraphElement>(null)");
+    expect(route).toContain("function showValidationIssue(message: string)");
+    expect(route).toContain("window.requestAnimationFrame(() => validationIssueRef.current?.focus())");
+    expect(route).toContain("if (validation) { showValidationIssue(validation); return; }");
+    expect(route).toContain("showValidationIssue(reviewIssue.message)");
+    expect(route).toContain('ref={validationIssueRef} tabIndex={-1} role="alert"');
+    expect(route).toContain("if (!shouldSubmitTechnicianWizard(step, submitter?.dataset");
+  });
+
   it("exige intenção explícita de publicar; navegar ou pressionar Enter cedo não publica", () => {
     expect(shouldSubmitTechnicianWizard(1, null)).toBe(false);
     expect(shouldSubmitTechnicianWizard(2, "publish")).toBe(false);
@@ -211,7 +222,7 @@ describe("Cadastro guiado mobile", () => {
       { state_uf: "PR", city: "Curitiba" })).toBeNull();
     const route = readFileSync("src/routes/area-tecnico.tsx", "utf8");
     expect(route).toContain("moveToStep(reviewIssue.step)");
-    expect(route).toContain("setValidationIssue(reviewIssue.message)");
+    expect(route).toContain("showValidationIssue(reviewIssue.message)");
     expect(route).toContain('validationIssue && <p role="alert"');
     expect(route).toContain("writeDraft(form, next)");
   });
