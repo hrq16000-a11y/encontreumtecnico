@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { brlToCents, centsToBrl, EMPTY_OPERATIONS, sameTechnicianOperations,
-  technicianOperationsSchema, validateTechnicianOperations } from "./technician-operations-contract";
+  reconcileTechnicianOperationsCoverage, technicianOperationsSchema, validateTechnicianOperations } from "./technician-operations-contract";
 
 describe("contrato operacional tipado", () => {
   it("aceita dados profissionais controlados e sem dados pessoais", () => {
@@ -17,6 +17,29 @@ describe("contrato operacional tipado", () => {
     expect(technicianOperationsSchema.safeParse({ ...EMPTY_OPERATIONS, equipment: ["notebook", "CNH"] }).success).toBe(false);
     expect(validateTechnicianOperations({ ...EMPTY_OPERATIONS, free_city_ids: [4106902] }, [4125506])).toBeNull();
     expect(validateTechnicianOperations({ ...EMPTY_OPERATIONS, free_city_ids: [4106902], paid_city_ids: [4106902] }, [4106902])).toBeNull();
+  });
+  it("recupera condições editáveis após retirar cidade da cobertura, sem gravação implícita", () => {
+    const stored = {
+      ...EMPTY_OPERATIONS, equipment: ["notebook" as const], transport_mode: "car" as const,
+      service_windows: ["overnight" as const], eta_outside_minutes: 45,
+      free_city_ids: [4106902], paid_city_ids: [4125506],
+      free_km: 10, km_threshold: 50, km_rate_cents: 250, km_rate_after_cents: 350,
+    };
+    const before = JSON.stringify(stored);
+    expect(validateTechnicianOperations(stored, [4106902])).toBeNull();
+    const reconciled = reconcileTechnicianOperationsCoverage(stored, [4106902]);
+    expect(reconciled).toEqual({ draft: { ...stored, paid_city_ids: [] }, removedCityIds: [4125506] });
+    expect(validateTechnicianOperations(reconciled?.draft, [4106902])).toEqual(reconciled?.draft);
+    expect(JSON.stringify(stored)).toBe(before);
+    expect(reconcileTechnicianOperationsCoverage(stored, [4106902, 4125506]))
+      .toEqual({ draft: stored, removedCityIds: [] });
+  });
+  it("não recupera documentos, propriedades extras ou opções inválidas", () => {
+    expect(reconcileTechnicianOperationsCoverage({ ...EMPTY_OPERATIONS, phone: "privado" }, [])).toBeNull();
+    expect(reconcileTechnicianOperationsCoverage({ ...EMPTY_OPERATIONS, equipment: ["documento"] }, [])).toBeNull();
+    expect(reconcileTechnicianOperationsCoverage({
+      ...EMPTY_OPERATIONS, free_city_ids: [4106902], paid_city_ids: [4106902],
+    }, [4106902])).toBeNull();
   });
   it("não converte valores decimais em floats e não altera taxa da plataforma", () => {
     expect(brlToCents("12,50")).toBe(1250);
