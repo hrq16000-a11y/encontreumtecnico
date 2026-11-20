@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { matchingRegistrationServices, selectedRegistrationServices, reconcileRegistrationSelections, registrationStepError, type TechnicianRegistrationForm } from "./technician-registration-wizard";
+import { matchingRegistrationServices, selectedRegistrationServices, reconcileRegistrationSelections, registrationStepError, shouldSubmitTechnicianWizard, type TechnicianRegistrationForm } from "./technician-registration-wizard";
 
 const catalog = {
   categories: [{ slug: "redes" }, { slug: "computadores" }],
@@ -87,7 +87,9 @@ describe("Cadastro guiado mobile", () => {
     expect(route).toContain("step === 1 && (");
     expect(route).toContain("step === 2 && (");
     expect(route).toContain("step === 3 && (");
-    expect(route).toContain('if (step < 3) { advance(); return; }');
+    expect(route).toContain('key="wizard-continue" type="button"');
+    expect(route).toContain('key="wizard-publish" type="submit" data-wizard-action="publish"');
+    expect(route).toContain('shouldSubmitTechnicianWizard(step, submitter?.dataset["wizardAction"] ?? null)');
     expect(route).toContain('type="submit"');
     expect(route).toContain('activationDb.rpc("eut_publish_my_technician"');
     expect(route).toContain("registrationStepError(1, form, catalog, persistedCity)");
@@ -115,6 +117,26 @@ describe("Cadastro guiado mobile", () => {
     expect(review).toContain("Editar dados");
     expect(review).toContain("Editar serviços");
     expect(route).toContain("writeDraft(form, next)");
+  });
+
+  it("permite navegar pelo checklist entre as etapas sem submeter ou perder o rascunho", () => {
+    const route = readFileSync("src/routes/area-tecnico.tsx", "utf8");
+    const checklist = route.split('aria-label="Checklist do perfil profissional"')[1]?.split("</ul>")[0] ?? "";
+    expect(route).toContain('{ step: 1, label: "Nome e município"');
+    expect(route).toContain('{ step: 2, label: "Especialidades e serviços"');
+    expect(route).toContain('{ step: 3, label: "Apresentação profissional"');
+    expect(checklist).toContain('type="button"');
+    expect(checklist).toContain('onClick={() => moveToStep(item.step)}');
+    expect(checklist).toContain('aria-current={step === item.step ? "step" : undefined}');
+    expect(route).toContain("writeDraft(form, next)");
+  });
+
+  it("exige intenção explícita de publicar; navegar ou pressionar Enter cedo não publica", () => {
+    expect(shouldSubmitTechnicianWizard(1, null)).toBe(false);
+    expect(shouldSubmitTechnicianWizard(2, "publish")).toBe(false);
+    expect(shouldSubmitTechnicianWizard(3, null)).toBe(false);
+    expect(shouldSubmitTechnicianWizard(3, "continue")).toBe(false);
+    expect(shouldSubmitTechnicianWizard(3, "publish")).toBe(true);
   });
 
   it("etapa de revisão ainda exige consistência de localidade e serviços", () => {
