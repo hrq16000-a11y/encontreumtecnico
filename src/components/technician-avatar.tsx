@@ -1,14 +1,12 @@
 import { useMemo } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
-import { hasPublicTechnicianPhoto } from "@/lib/public-avatar-path";
 
 const PUBLIC_BUCKET = "eut-technician-avatars";
+const SAFE_PATH = /^avatars\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(?:jpg|png|webp)$/;
 
 export function publicTechnicianAvatarUrl(path: string | null | undefined): string | null {
-  if (!hasPublicTechnicianPhoto(path)) return null;
-  // Narrow the type after the path guard; no fallback photo is invented.
-  if (!path) return null;
+  if (!path || !SAFE_PATH.test(path)) return null;
   return supabase.storage.from(PUBLIC_BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
