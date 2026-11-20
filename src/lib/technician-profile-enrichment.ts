@@ -54,3 +54,43 @@ export function technicianProfileEnrichment(input: EnrichmentInput) {
   ];
   return { complete: entries.filter((item) => item.complete).length, total: entries.length, entries };
 }
+
+
+/** Read-only projection of the owner's already-published bio.
+ * Headings without content are discarded; no equipment, timetable or qualification
+ * is inferred, and no private profile or contact data is queried here.
+ */
+export function parseProfessionalBio(bio: string | null | undefined): {
+  introduction: string;
+  sections: Array<{ id: PublicProfileTopicId; label: string; text: string }>;
+} {
+  const introduction: string[] = [];
+  const sections: Array<{ id: PublicProfileTopicId; label: string; text: string }> = [];
+  let current: { id: PublicProfileTopicId; label: string; lines: string[] } | null = null;
+
+  const flush = () => {
+    if (!current) return;
+    const text = current.lines.join("\n").trim();
+    if (text) sections.push({ id: current.id, label: current.label, text });
+  };
+
+  for (const rawLine of (bio ?? "").replace(/\r\n?/g, "\n").split("\n")) {
+    const line = rawLine.trimStart();
+    const topic = PUBLIC_PROFILE_TOPICS.find((item) =>
+      line.toLocaleLowerCase("pt-BR").startsWith(item.prefix.trimEnd().toLocaleLowerCase("pt-BR")));
+    if (topic) {
+      flush();
+      current = {
+        id: topic.id,
+        label: topic.label,
+        lines: [line.slice(topic.prefix.trimEnd().length).trimStart()],
+      };
+    } else if (current) {
+      current.lines.push(rawLine);
+    } else {
+      introduction.push(rawLine);
+    }
+  }
+  flush();
+  return { introduction: introduction.join("\n").trim(), sections };
+}
