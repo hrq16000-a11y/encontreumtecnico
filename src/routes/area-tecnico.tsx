@@ -31,7 +31,7 @@ import { clearProtectedDraft, readProtectedDraft, saveProtectedDraft } from "@/l
 import { saveTechnicianDraftImmediately } from "@/lib/technician-live-draft";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
-import { matchingRegistrationServices, reconcileRegistrationSelections, registrationStepError, shouldSubmitTechnicianWizard, type RegistrationStep } from "@/lib/technician-registration-wizard";
+import { matchingRegistrationServices, selectedRegistrationServices, reconcileRegistrationSelections, registrationStepError, shouldSubmitTechnicianWizard, type RegistrationStep } from "@/lib/technician-registration-wizard";
 import { hydrateTechnicianOfficialCity } from "@/lib/technician-official-city-hydration";
 import { publicTextProblem } from "@/lib/public-profile-text";
 import { technicianPublishErrorMessage } from "@/lib/technician-publish-error";
@@ -755,6 +755,20 @@ export function TechnicianAreaPage() {
                   {serviceQuery.trim() && <button type="button" onClick={() => setServiceQuery("")}
                     className="min-h-10 rounded-lg border border-input px-3 font-semibold text-primary">Limpar busca</button>}
                 </div>
+                {form.service_slugs.length > 0 && (
+                  <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-3" role="group" aria-label="Serviços selecionados">
+                    <p className="text-xs font-semibold text-foreground">Seus serviços selecionados · {form.service_slugs.length}</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {selectedRegistrationServices(services, form.service_slugs).map((service) => (
+                        <button key={service.slug} type="button" aria-label={`Remover serviço: ${service.label}`}
+                          onClick={() => updateRegistration({ ...form, service_slugs: form.service_slugs.filter((slug) => slug !== service.slug) })}
+                          className="min-h-11 rounded-full border border-primary/30 bg-background px-3 py-2 text-left text-xs font-medium text-foreground hover:bg-accent">
+                          {service.label} <span aria-hidden="true">×</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {visibleServices.map((service) => (
                     <label key={service.slug} className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
