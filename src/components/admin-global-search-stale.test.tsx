@@ -39,7 +39,8 @@ vi.mock("@/integrations/supabase/client", () => ({
     rpc(name: string) {
       return Promise.resolve({
         data: name === "eut_admin_accounts_snapshot" ? { accounts: [] }
-          : { sponsors: [], campaigns: [], creatives: [], placements: [] },
+          : name === "eut_ads_admin_snapshot"
+            ? { sponsors: [], campaigns: [], creatives: [], placements: [] } : [],
         error: null,
       });
     },
