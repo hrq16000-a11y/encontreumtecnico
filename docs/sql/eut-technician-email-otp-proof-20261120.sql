@@ -166,8 +166,8 @@ BEGIN
   IF v_authenticated_at IS NULL
     OR v_authenticated_at NOT BETWEEN now()-interval '15 minutes'
                                    AND now()+interval '2 minutes'
-    OR v_sent_at NOT BETWEEN v_authenticated_at-interval '2 hours'
-                             AND v_authenticated_at+interval '2 minutes'
+    OR v_authenticated_at NOT BETWEEN v_sent_at
+                                   AND v_sent_at+interval '2 hours'
     OR NOT EXISTS(
       SELECT 1 FROM auth.sessions s
       WHERE s.id=v_session AND s.user_id=v_user
