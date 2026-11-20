@@ -1,0 +1,111 @@
+name: EUT PR344 — HTTP consented leases isolated QA
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/eut-pr344-http-leases-isolated.yml'
+      - 'qa/pr344-http-leases-local.sql'
+      - 'qa/pr344-http-leases-isolated.test.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eut-pr344-http-leases-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  http-leases-local:
+    if: github.event.pull_request.number == 344
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Explicitly exclude all hosted Supabase credentials and project linkage.
+      SUPABASE_ACCESS_TOKEN: ''
+      PR344_LOCAL_ONLY: 'yes'
+      PGHOST: '127.0.0.1'
+      PGPORT: '54322'
+      PGUSER: 'postgres'
+      PGPASSWORD: 'postgres'
+      PGDATABASE: 'postgres'
+      SUPABASE_YES: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: supabase/setup-cli@v1
+        with:
+          version: '3.2.0'
+
+      - name: Preflight — local-only and syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${PR344_LOCAL_ONLY}" = yes
+          test -z "${SUPABASE_ACCESS_TOKEN}"
+          supabase --version
+          supabase init --help >/dev/null
+          supabase start --help >/dev/null
+          node --check qa/pr344-http-leases-isolated.test.mjs
+          if rg -n 'pqtzhctvjbfcunmrvxne|encontreumtecnico\.com\.br|SUPABASE_DB_PASSWORD' qa/pr344-http-leases-local.sql qa/pr344-http-leases-isolated.test.mjs; then
+            echo "Official project marker forbidden in isolated test files" >&2
+            exit 1
+          fi
+
+      - name: Install pinned JavaScript dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Start new disposable Supabase localhost
+        shell: bash
+        run: |
+          set -euo pipefail
+          isolated_dir="$(mktemp -d "$RUNNER_TEMP/eut-pr344-http-XXXXXX")"
+          echo "PR344_HTTP_STACK_DIR=$isolated_dir" >> "$GITHUB_ENV"
+          cd "$isolated_dir"
+          supabase init
+          test -f supabase/config.toml
+          test -z "$(rg -l 'pqtzhctvjbfcunmrvxne' supabase/config.toml || true)"
+          supabase start
+          echo "DISPOSABLE: Supabase stack started without project linkage"
+
+      - name: Apply synthetic lease contract ONLY to localhost
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+          test "$PGHOST" = 127.0.0.1
+          test "$PGPORT" = 54322
+          psql -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/qa/pr344-http-leases-local.sql"
+          gate="$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT CASE WHEN c.relrowsecurity AND NOT has_table_privilege('anon','public.pr344_http_synthetic_leases','SELECT') AND NOT has_table_privilege('authenticated','public.pr344_http_synthetic_leases','SELECT') AND has_table_privilege('service_role','public.pr344_http_synthetic_leases','SELECT') THEN 'ok' ELSE 'bad' END FROM pg_class c WHERE c.oid='public.pr344_http_synthetic_leases'::regclass")"
+          test "$gate" = ok || { echo "Local private grants/RLS mismatch" >&2; exit 1; }
+          sleep 3
+          echo "LOCAL-ONLY: private lease grants and RLS checked"
+
+      - name: Export ephemeral localhost keys without displaying secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$PR344_HTTP_STACK_DIR"
+          set -a
+          source <(supabase status -o env)
+          set +a
+          [[ "${API_URL:-}" =~ ^http://127\.0\.0\.1:[0-9]+$ ]] || exit 1
+          test -n "${ANON_KEY:-}"
+          test -n "${SERVICE_ROLE_KEY:-}"
+          test "${ANON_KEY}" != "${SERVICE_ROLE_KEY}"
+          echo "PR344_API_URL=$API_URL" >> "$GITHUB_ENV"
+          echo "PR344_ANON_KEY=$ANON_KEY" >> "$GITHUB_ENV"
+          echo "PR344_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY" >> "$GITHUB_ENV"
+          echo "PR344_TEST_PEPPER=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          echo "LOCAL-ONLY: keys obtained from the disposable stack"
+
+      - name: Actual HTTP + Postgres leases — eight independent synthetic gates
+        run: timeout --signal=TERM --kill-after=5s 180s node --test qa/pr344-http-leases-isolated.test.mjs
+
+      - name: Destroy isolated stack even when a gate fails
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "${PR344_HTTP_STACK_DIR:-}" ] && [ -f "$PR344_HTTP_STACK_DIR/supabase/config.toml" ]; then
+            cd "$PR344_HTTP_STACK_DIR"
+            supabase stop --no-backup || true
+          fi
