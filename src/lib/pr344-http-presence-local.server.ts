@@ -61,7 +61,13 @@ export async function loadPr344IsolatedServices(): Promise<PresenceHttpServices 
     },
     async verifyCurrentAdmin(jwt: string): Promise<AdminDecision> {
       const { data, error } = await publicAuth.auth.getUser(jwt);
-      if (error || !data.user?.id) return "unauthorized";
+      if (error) {
+        // Invalid/revoked token is 401; transport/storage outage is 503.
+        // AuthRetryableFetchError has status 0, not an invalid identity.
+        if (error.status === 401 || error.status === 403) return "unauthorized";
+        throw new Error("isolated Auth temporarily unavailable");
+      }
+      if (!data.user?.id) return "unauthorized";
       // Current database row, never stale JWT metadata or client-side flags.
       const role = await service.from("pr344_http_synthetic_roles")
         .select("role").eq("user_id", data.user.id).eq("role", "admin").maybeSingle();
