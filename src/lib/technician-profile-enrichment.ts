@@ -5,7 +5,7 @@ import type { TechnicianPanelTab } from "./technician-panel-navigation";
 export const PUBLIC_PROFILE_TOPICS = [
   { id: "experience", label: "Experiência", prefix: "Minha experiência: " },
   { id: "training", label: "Formação e cursos", prefix: "Minha formação e cursos: " },
-  { id: "tools", label: "Ferramentas", prefix: "Ferramentas e equipamentos: " }
+  { id: "tools", label: "Ferramentas", prefix: "Ferramentas e equipamentos: " },
   { id: "mobility", label: "Deslocamento", prefix: "Como me desloco para atender: " },
   { id: "schedule", label: "Disponibilidade", prefix: "Horários em que costumo atender: " },
 ] as const;
