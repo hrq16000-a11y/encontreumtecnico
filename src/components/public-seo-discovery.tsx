@@ -1,6 +1,7 @@
 import { ArrowUpRight, MapPin, Network, Search, Wrench } from "lucide-react";
 import { AdSensePublicUnit } from "@/components/adsense-public-unit";
 import { TechnicianAvatar } from "@/components/technician-avatar";
+import { getEnrichedServiceCategory } from "@/lib/service-catalog";
 import {
   categoryGraphPath, cityGraphPath, type GraphCategory, type GraphCity,
   type GraphProfile, type RelatedGraphProfile,
@@ -10,6 +11,20 @@ export type PublicSeoLinks = {
   city: GraphCity | null;
   categories: GraphCategory[];
   related: RelatedGraphProfile[];
+};
+
+/** Practical editorial prompts, not claims that a service is offered in a particular city. */
+const SERVICE_REQUEST_NOTES: Record<string, string> = {
+  climatizacao: "Informe o modelo do ar-condicionado, a dimensão aproximada do ambiente e se há ruído, gotejamento ou falha no resfriamento. Não abra o circuito de refrigeração para investigar.",
+  automacao: "Liste os ambientes, os dispositivos já instalados e a função que deseja automatizar. Pergunte sobre compatibilidade, acesso remoto e controle quando a internet falhar.",
+  cftv: "Descreva os pontos a monitorar e se já existe gravador ou cabeamento. Combine previamente limites de captação de imagens, armazenamento e quem terá acesso às gravações.",
+  computadores: "Anote marca, modelo e comportamento do equipamento, inclusive mensagens de erro. Avise se há arquivos importantes e peça avaliação antes de autorizar formatação ou troca de disco.",
+  comunicacoes: "Identifique quantos ramais, interfones ou aparelhos precisam funcionar e qual estrutura já existe. Solicite a confirmação de compatibilidade antes da instalação.",
+  eletrica: "Descreva os pontos afetados e quando a falha ocorre, sem desmontar tomadas ou quadros. Para intervenções elétricas, confirme a habilitação adequada e interrompa o uso diante de sinais de risco.",
+  "design-grafico": "Separe formato, medidas, finalidade e exemplos de referência autorizados. Combine revisões, arquivos finais e direitos de uso antes de aprovar o serviço.",
+  impressoras: "Informe marca, modelo, conexão utilizada e mensagem de erro. Descreva se o defeito afeta impressão, digitalização ou apenas um computador da rede.",
+  redes: "Anote os ambientes sem sinal, os aparelhos afetados e o modelo do roteador. Diferencie queda da internet de falha de cobertura interna antes de pedir um orçamento.",
+  software: "Explique qual programa ou sistema apresenta erro e quando começou. Verifique a existência de cópia de segurança e não compartilhe senhas ou códigos de autenticação no pedido.",
 };
 
 /** Real, contextual HTML anchors, not JavaScript-only links or manufactured testimonials. */
@@ -61,12 +76,19 @@ export function PublicSeoDirectory({
 }: {
   heading: string;
   summary: string;
-  context?: { kind: "city" | "category"; label: string };
+  context?: { kind: "city" | "category"; label: string; slug?: string };
   profiles: GraphProfile[];
   cities?: GraphCity[];
   categories?: GraphCategory[];
 }) {
   const categoryLabels = new Map(categories.map(category => [category.slug, category.label]));
+  const editorialCategories = (context.kind === "city" ? categories : context.slug
+    ? [{ slug: context.slug, label: context.label }] : [])
+    .flatMap(category => {
+      const entry = getEnrichedServiceCategory(category.slug);
+      const note = SERVICE_REQUEST_NOTES[category.slug];
+      return entry && note ? [{ slug: category.slug, name: entry.category.name, note }] : [];
+    }).slice(0, 3);
   const questions = context.kind === "city" ? [
     {
       question: `Quais serviços encontro em ${context.label}?`,
@@ -126,6 +148,26 @@ export function PublicSeoDirectory({
         <a href={cityGraphPath(c)} className="inline-flex min-h-10 items-center rounded-full border border-border px-4 text-sm text-primary hover:bg-accent">{c.name}/{c.uf}</a>
       </li>)}</ul>
     </nav>}
+    {editorialCategories.length > 0 && <section aria-labelledby="orientacoes-diretorio" className="mt-8 rounded-2xl border border-border bg-card p-5 sm:p-7">
+      <h2 id="orientacoes-diretorio" className="text-xl font-bold text-foreground">
+        {context.kind === "city" ? `Como preparar um pedido de serviço em ${context.label}` : `Como preparar um pedido de ${context.label}`}
+      </h2>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+        {context.kind === "city"
+          ? "Comece pela necessidade, não apenas pelo nome da especialidade. Os temas a seguir correspondem a categorias declaradas nos perfis públicos desta cidade-base; não garantem atendimento no seu endereço."
+          : "Descreva o problema e o equipamento antes de comparar propostas. A especialidade é declarada no cadastro e não substitui a verificação de experiência, habilitação ou disponibilidade."}
+      </p>
+      <ul className="mt-4 grid gap-4 md:grid-cols-2">
+        {editorialCategories.map(({ slug, name, note }) => <li key={slug} className="rounded-xl border border-border bg-background p-4">
+          <h3 className="font-semibold text-foreground">{name}</h3>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">{note}</p>
+          <a href={`/servicos/${slug}`} className="mt-3 inline-flex min-h-10 items-center gap-1 text-sm font-semibold text-primary underline underline-offset-2">
+            Ler orientações completas sobre {name} <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+          </a>
+        </li>)}
+      </ul>
+      <p className="mt-4 text-xs leading-5 text-muted-foreground">Os textos são orientações gerais para preparar a conversa; consulte o perfil para verificar os serviços efetivamente declarados por cada profissional.</p>
+    </section>}
     <section aria-labelledby="resultados-publicos" className="mt-8">
       <h2 id="resultados-publicos" className="text-xl font-bold text-foreground">Conheça os profissionais</h2>
       <p className="mt-2 text-sm text-muted-foreground">Fotos adicionadas pelos próprios técnicos quando disponíveis; caso contrário, mostramos apenas as iniciais.</p>
