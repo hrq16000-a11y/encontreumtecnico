@@ -46,7 +46,9 @@ export function AdminTechnicianManager({
   const [draftSearch, setDraftSearch] = useState("");
   const [uf, setUf] = useState("");
   const [city, setCity] = useState("");
+  const [draftCity, setDraftCity] = useState("");
   const [neighborhood, setNeighborhood] = useState("");
+  const [draftNeighborhood, setDraftNeighborhood] = useState("");
   const [category, setCategory] = useState("");
   const [sort, setSort] = useState<"newest" | "oldest" | "name">("newest");
   const [page, setPage] = useState(0);
@@ -59,14 +61,32 @@ export function AdminTechnicianManager({
   const [readError, setReadError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
   const { categories } = useActiveCategories();
-  // Search only after typing settles. Every page is queried on the server.
+  // Free-text filters are applied together after typing settles. Every page
+  // remains queried on the server with the existing RLS and pagination.
   useEffect(() => {
     const id = window.setTimeout(() => {
       setPage(0);
       setSearch(draftSearch.trim());
+      setCity(draftCity.trim());
+      setNeighborhood(draftNeighborhood.trim());
     }, 300);
     return () => window.clearTimeout(id);
-  }, [draftSearch]);
+  }, [draftSearch, draftCity, draftNeighborhood]);
+
+  const hasActiveFilters = Boolean(draftSearch || draftCity || draftNeighborhood || uf || category || sort !== "newest");
+
+  function clearFilters() {
+    setDraftSearch("");
+    setDraftCity("");
+    setDraftNeighborhood("");
+    setSearch("");
+    setCity("");
+    setNeighborhood("");
+    setUf("");
+    setCategory("");
+    setSort("newest");
+    setPage(0);
+  }
 
   useEffect(() => {
     let active = true;
@@ -277,12 +297,12 @@ export function AdminTechnicianManager({
         </select>
       </label>
       <label className="grid gap-1 text-xs font-semibold text-foreground">Município
-        <input value={city} maxLength={80} onChange={(e) => { setCity(e.target.value); setPage(0); }}
+        <input value={draftCity} maxLength={80} onChange={(e) => setDraftCity(e.target.value)}
           placeholder="Ex.: Curitiba" className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm" />
       </label>
       <label className="grid gap-1 text-xs font-semibold text-foreground">Bairro
-        <input value={neighborhood} maxLength={80}
-          onChange={(e) => { setNeighborhood(e.target.value); setPage(0); }}
+        <input value={draftNeighborhood} maxLength={80}
+          onChange={(e) => setDraftNeighborhood(e.target.value)}
           placeholder="Ex.: Centro" className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm" />
       </label>
       <label className="grid gap-1 text-xs font-semibold text-foreground">Especialidade
@@ -301,6 +321,12 @@ export function AdminTechnicianManager({
         </select>
       </label>
     </div>
+    {hasActiveFilters && <div className="mt-3 flex justify-end">
+      <button type="button" onClick={clearFilters}
+        className="min-h-11 rounded-lg border border-input px-4 text-sm font-semibold text-foreground hover:bg-accent">
+        Limpar busca e filtros
+      </button>
+    </div>}
     <div role="tablist" aria-label="Status dos técnicos" className="mt-4 flex gap-2 overflow-x-auto pb-2">
       {TABS.map((tab) => <button key={tab.key} type="button" role="tab"
         aria-selected={status === tab.key} onClick={() => { setStatus(tab.key); setPage(0); setTarget(null); setAdvanced(null); }}

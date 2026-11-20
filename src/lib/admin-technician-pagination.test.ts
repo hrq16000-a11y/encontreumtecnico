@@ -13,6 +13,17 @@ describe("Paginação administrativa para milhares de técnicos", () => {
     expect(cleanAdminSearch(" %_*(Curitiba),  ")).toBe("Curitiba");
     expect(cleanAdminSearch("a".repeat(120))).toHaveLength(80);
   });
+  it("aguarda digitação de município e bairro e oferece limpar todos os filtros da aba", () => {
+    const manager = readFileSync("src/components/admin-technician-manager.tsx", "utf8");
+    expect(manager).toContain('setCity(draftCity.trim())');
+    expect(manager).toContain('setNeighborhood(draftNeighborhood.trim())');
+    expect(manager).toContain('}, [draftSearch, draftCity, draftNeighborhood])');
+    expect(manager).toContain('onChange={(e) => setDraftCity(e.target.value)}');
+    expect(manager).toContain('onChange={(e) => setDraftNeighborhood(e.target.value)}');
+    expect(manager).toContain('onClick={clearFilters}');
+    expect(manager).toContain('setSort("newest")');
+    expect(manager).toContain('setPage(0)');
+  });
   it("filtra no banco com RLS, contagem e ordenação estável; não busca todos", () => {
     const manager=readFileSync("src/components/admin-technician-manager.tsx","utf8");
     const admin=readFileSync("src/routes/admin.tsx","utf8");
