@@ -32,6 +32,12 @@ export function reconcileRegistrationSelections(
   return { specialties, service_slugs: form.service_slugs.filter((slug) => activeServices.has(slug)) };
 }
 
+/** Navigation is never a publication intent, even if React changes the
+ * visible button while a click is being processed. */
+export function shouldSubmitTechnicianWizard(step: RegistrationStep, action: string | null): boolean {
+  return step === 3 && action === "publish";
+}
+
 /** Mobile onboarding validates locally before advancing; only the server RPC
  * can approve/publicly publish a technician, on the final review step. */
 export function registrationStepError(

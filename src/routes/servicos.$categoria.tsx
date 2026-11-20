@@ -55,6 +55,14 @@ export const Route = createFileRoute("/servicos/$categoria")({
           url: canonical,
           isPartOf: { "@type": "WebSite", name: "Encontre um Técnico", url: SITE },
           about: { "@type": "Service", name: category.name },
+          breadcrumb: {
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Início", item: SITE + "/" },
+              { "@type": "ListItem", position: 2, name: "Especialidades", item: SITE + "/servicos" },
+              { "@type": "ListItem", position: 3, name: category.name, item: canonical },
+            ],
+          },
         } },
       ],
       links: [{ rel: "canonical", href: canonical }],

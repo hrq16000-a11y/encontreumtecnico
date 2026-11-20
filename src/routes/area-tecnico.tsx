@@ -31,7 +31,7 @@ import { clearProtectedDraft, readProtectedDraft, saveProtectedDraft } from "@/l
 import { saveTechnicianDraftImmediately } from "@/lib/technician-live-draft";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
-import { reconcileRegistrationSelections, registrationStepError, type RegistrationStep } from "@/lib/technician-registration-wizard";
+import { reconcileRegistrationSelections, registrationStepError, shouldSubmitTechnicianWizard, type RegistrationStep } from "@/lib/technician-registration-wizard";
 import { hydrateTechnicianOfficialCity } from "@/lib/technician-official-city-hydration";
 import { publicTextProblem } from "@/lib/public-profile-text";
 import { technicianPublishErrorMessage } from "@/lib/technician-publish-error";
@@ -308,6 +308,11 @@ export function TechnicianAreaPage() {
     const next = { ...form, specialties };
     updateRegistration(catalogReady ? { ...next, ...reconcileRegistrationSelections(next, catalog) } : next);
   }
+  const profileChecklist = [
+    { label: "Nome e município", ready: registrationStepError(1, form, catalog, persistedCity) === null, essential: true },
+    { label: "Especialidades e serviços", ready: registrationStepError(2, form, catalog) === null, essential: true },
+    { label: "Apresentação profissional", ready: form.bio.trim().length >= 80 && !publicTextProblem(form.bio, "bio"), essential: false },
+  ];
   function moveToStep(next: RegistrationStep) {
     writeDraft(form, next); // Preserve wizard stage before React renders.
     setMsg(null);
@@ -333,8 +338,9 @@ export function TechnicianAreaPage() {
 
   async function save(e: FormEvent) {
     e.preventDefault();
+    const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLElement | null;
+    if (!shouldSubmitTechnicianWizard(step, submitter?.dataset["wizardAction"] ?? null)) return;
     if (!user || !profileReady || saving) return;
-    if (step < 3) { advance(); return; }
     const firstError = registrationStepError(1, form, catalog, persistedCity);
     const serviceError = registrationStepError(2, form, catalog);
     if (firstError || serviceError) { setMsg(firstError || serviceError); return; }
@@ -555,6 +561,19 @@ export function TechnicianAreaPage() {
                     : step === 2 ? "Selecione categorias e pelo menos um serviço que você realmente executa. Sem certificação automática."
                     : "Confira tudo antes de publicar. Somente o servidor pode autorizar seu perfil público."}
                 </p>
+                <div className="mt-5 rounded-xl border border-border bg-muted/25 p-3 sm:p-4" aria-label="Checklist do perfil profissional">
+                  <p className="text-xs font-semibold text-foreground">
+                    {profileChecklist.filter(item => item.ready).length} de 3 itens preparados
+                    <span className="ml-2 font-normal text-muted-foreground">Dois essenciais e uma apresentação recomendada.</span>
+                  </p>
+                  <ul className="mt-3 flex flex-wrap gap-2 text-xs">
+                    {profileChecklist.map(item => (
+                      <li key={item.label} className={`rounded-full border px-3 py-1.5 ${item.ready ? "border-primary/30 bg-primary/10 text-foreground" : "border-border bg-background text-muted-foreground"}`}>
+                        {item.ready ? "✓ " : "○ "}{item.label}{!item.essential ? " (opcional)" : ""}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
               {step === 1 && (
                 <div className="grid gap-4">
@@ -683,7 +702,10 @@ export function TechnicianAreaPage() {
               </fieldset>
               <fieldset>
                 <legend className="text-sm font-medium text-foreground">Serviços que você realmente executa</legend>
-                <p className="mt-1 text-xs text-muted-foreground">Selecione os serviços que você realmente executa dentro das categorias. Seu perfil completo pode ser publicado automaticamente; o portal não certifica competência técnica.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Marque somente os serviços que você realmente executa. Os termos ajudam o cliente a entender seu trabalho; a publicação só ocorre após sua revisão final.</p>
+                <p className="mt-2 text-xs font-semibold text-primary" role="status">
+                  {form.specialties.length} especialidade(s) e {form.service_slugs.length} serviço(s) selecionado(s)
+                </p>
                 {servicesLoading && <p className="mt-2 text-sm text-muted-foreground">Carregando serviços…</p>}
                 {servicesError && <p role="alert" className="mt-2 text-sm text-destructive">Serviços indisponíveis. Recarregue a página.</p>}
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -738,8 +760,12 @@ export function TechnicianAreaPage() {
                   <textarea maxLength={1000} rows={4} className={input} value={form.bio}
                     aria-invalid={Boolean(publicTextProblem(form.bio, "bio"))}
                     onChange={(e) => updateRegistration({ ...form, bio: e.target.value })}
-                    placeholder="Descreva sua experiência, serviços e modo de atendimento. Não informe contatos." />
+                    placeholder="Conte o que costuma resolver, os equipamentos atendidos e como organiza seu atendimento. Não informe contatos." />
                 </label>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  Uma descrição original com seus serviços e experiência ajuda o cliente a escolher. Recomendamos pelo menos 80 caracteres, mas a apresentação é opcional.
+                  <span className="ml-1 tabular-nums">{form.bio.trim().length}/1000</span>
+                </p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Sem números, telefones, WhatsApp, e-mails, arrobas, links ou redes sociais, mesmo separados por espaços ou linhas.
                   Seus contatos ficam apenas no campo privado do técnico.
@@ -758,12 +784,12 @@ export function TechnicianAreaPage() {
                   </button>
                 )}
                 {step < 3 ? (
-                  <button type="button" onClick={advance} disabled={saving || !profileReady}
+                  <button key="wizard-continue" type="button" onClick={advance} disabled={saving || !profileReady}
                     className="min-h-12 flex-1 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">
                     Continuar <span aria-hidden="true">→</span>
                   </button>
                 ) : (
-                  <button type="submit" disabled={saving || !profileReady || catalogLoading || catalogError || servicesLoading || servicesError || categories.length === 0}
+                  <button key="wizard-publish" type="submit" data-wizard-action="publish" disabled={saving || !profileReady || catalogLoading || catalogError || servicesLoading || servicesError || categories.length === 0}
                     className="min-h-12 flex-1 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">
                     {saving ? "Publicando…" : currentStatus === "aprovado" ? "Atualizar meu perfil público" : "Publicar meu perfil gratuitamente"}
                   </button>

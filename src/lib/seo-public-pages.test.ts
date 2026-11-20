@@ -271,6 +271,8 @@ describe("SEO global do Encontre um Técnico", () => {
     expect(cta).toContain("openFreeHelp");
     expect(article).toContain("getRelatedServiceCategories(category.slug)");
     expect(article).toContain('to="/servicos/$categoria"');
+    expect(article).toContain('"@type": "BreadcrumbList"');
+    expect(article).toContain('name: category.name, item: canonical');
     expect(visual).toContain("software: BACKUP");
     expect(visual).toContain("climatizacao: CLIMATE");
   });
