@@ -22,6 +22,7 @@ import { AdminAccountsManager } from "@/components/admin-accounts-manager";
 import { AdminContactsDashboard } from "@/components/admin-contacts-dashboard";
 import { AdminClientInsights } from "@/components/admin-client-insights";
 import { AdminUsersHub } from "@/components/admin-users-hub";
+import { AdminMercadoPagoSettings } from "@/components/admin-mercado-pago-settings";
 import { adminModuleTitle, type AdminSection } from "@/lib/admin-sections";
 import { ArrowRight, ClipboardList, ChartNoAxesCombined, Tags, UsersRound } from "lucide-react";
 
@@ -131,6 +132,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             </section>}
             {section === "mensagens" && <AdminMessageQueue />}
             {section === "solicitacoes" && <AdminRequestQueue />}
+            {section === "pagamentos" && <AdminMercadoPagoSettings />}
             {section === "clientes" && <section aria-labelledby="admin-clientes-titulo">
               <h2 id="admin-clientes-titulo" className="text-xl font-bold text-foreground">Gestão de clientes</h2>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">Localize e gerencie registros atuais e importados nesta página. Os dados privados de atendimentos continuam restritos ao módulo Solicitações.</p>
