@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addPublicProfileTopic, publicProfileHasTopic, technicianProfileEnrichment } from "./technician-profile-enrichment";
+import { addPublicProfileTopic, parseProfessionalBio, publicProfileHasTopic, technicianProfileEnrichment } from "./technician-profile-enrichment";
 
 describe("enriquecimento privado e voluntário do perfil técnico", () => {
   it("adiciona somente títulos editáveis, sem inventar atributos, preços ou contatos", () => {
@@ -29,4 +29,30 @@ describe("enriquecimento privado e voluntário do perfil técnico", () => {
     expect(technicianProfileEnrichment({ ...input, bio: "Instalo redes empresariais e configuro pontos de acesso com cuidado.",
       avatar_path: "avatars/self.webp", coverage_city_ids: [4106902] })).toMatchObject({ complete: 5, total: 5 });
   });
+  it("separa somente informações realmente declaradas, sem criar cartões vazios", () => {
+    const bio = [
+      "Atendo redes de empresas.",
+      "Minha experiência: Cabeamento estruturado e roteadores.",
+      "Ferramentas e equipamentos: Testador de cabos e notebook.",
+      "Como me desloco para atender: Veículo próprio sob consulta.",
+      "Horários em que costumo atender: Dias úteis e eventualmente à noite.",
+    ].join("\n");
+    const result = parseProfessionalBio(bio);
+    expect(result.introduction).toBe("Atendo redes de empresas.");
+    expect(result.sections.map(({ id }) => id)).toEqual(["experience", "tools", "mobility", "schedule"]);
+    expect(result.sections[1].text).toBe("Testador de cabos e notebook.");
+    expect(result.sections[3].text).toContain("eventualmente à noite");
+  });
+
+  it("omite títulos sem conteúdo e mantém a apresentação comum sem transformação", () => {
+    expect(parseProfessionalBio(null)).toEqual({ introduction: "", sections: [] });
+    expect(parseProfessionalBio("Trabalho em manutenção de redes.")).toEqual({
+      introduction: "Trabalho em manutenção de redes.", sections: [],
+    });
+    const bio = "Ferramentas e equipamentos: \nMinha experiência: Serviços realizados.\nMinha experiência: Diagnóstico de redes.";
+    expect(parseProfessionalBio(bio).sections).toEqual([
+      { id: "experience", label: "Experiência", text: "Serviços realizados.\nDiagnóstico de redes." },
+    ]);
+  });
+
 });
