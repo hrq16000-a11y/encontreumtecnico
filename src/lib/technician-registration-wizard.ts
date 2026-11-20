@@ -61,6 +61,19 @@ export function matchingRegistrationServices<T extends { slug: string; label: st
     (!term || foldRegistrationSearch(`${service.label} ${service.slug}`).includes(term)));
 }
 
+/** Organize active service choices under their catalog specialty without
+ * changing selected values or hiding choices from other selected specialties. */
+export function groupRegistrationServices<T extends { category_slug: string }>(
+  visibleServices: readonly T[],
+  categories: readonly { slug: string; label: string }[],
+): { categorySlug: string; categoryLabel: string; services: T[] }[] {
+  return categories.map((category) => ({
+    categorySlug: category.slug,
+    categoryLabel: category.label,
+    services: visibleServices.filter((service) => service.category_slug === category.slug),
+  })).filter((group) => group.services.length > 0);
+}
+
 /** Keep selected services visible, even while a search hides their checkboxes.
  * Unknown catalog entries remain removable without silently changing the draft. */
 export function selectedRegistrationServices<T extends { slug: string; label: string }>(
