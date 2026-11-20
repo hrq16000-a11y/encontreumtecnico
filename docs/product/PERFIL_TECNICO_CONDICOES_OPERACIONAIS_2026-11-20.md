@@ -62,6 +62,11 @@ Nunca apagar uma ficha existente ou modificar os dois suspensos como parte de ro
 
 **Concluído em ambiente descartável em 20/11/2026:** [GitHub Actions #44772676346](https://github.com/hrq16000-a11y/encontreumtecnico/actions/runs/44772676346), job `authenticated-operations` verde no HEAD `24b10f3ff89d426cd64105fa509ad0e48aa4d467`. O log apresenta **PASS 1 a PASS 9** e `PASS FINAL: 9/9` com usuários fictícios, sessões GoTrue reais e chamadas PostgREST locais em `127.0.0.1`. O workflow aplicou o contrato somente ao PostgreSQL local; nenhum usuário ou dado oficial foi acessado. O blob do contrato testado é **idêntico** ao da `main` atual: `63d777c6058d6a5184917530fcc2b0ab330b8bbb`.
 
+A proteção adicional da PR #383 foi implementada **somente no arquivo
+proposto da branch**, blob `619604f4174a6c9768921f9d68e981d50bd7fa24`, SHA-256 `0842a15e1bd5d14c75d2241e23bc76007c29e1ef4f03cd98edf66163388a34c7`.
+Essa versão é diferente da main e aguarda gates próprios para a
+edição de ficha rejeitada. Nenhum SQL foi aplicado no Supabase oficial.
+
 A fixture PostgreSQL separada ainda simula `auth.uid()` via sessão e não substitui esse gate independente de Auth real. O sucesso isolado **não autoriza instalação SQL em produção**.
 
 ### Pré-condições obrigatórias (NO-GO caso alguma falte)
@@ -102,21 +107,26 @@ real 9/9 é comprovado separadamente pelo run #44772676346, não por esta fixtur
 
 ### Procedimento controlado de ativação — ainda sem autorização
 
-1. **Congelar SHA e SQL**: revalidar o HEAD da PR e comparar SHA-256 do arquivo
-   `docs/sql/eut-technician-operations-contract-proposal-20261120.sql` com
+1. **Congelar SHA e SQL revisado**: em #383, o arquivo
+   `docs/sql/eut-technician-operations-contract-proposal-20261120.sql`
+   passou ao blob Git `619604f4174a6c9768921f9d68e981d50bd7fa24` e SHA-256 `0842a15e1bd5d14c75d2241e23bc76007c29e1ef4f03cd98edf66163388a34c7`
+   (digest calculado do arquivo integral e validado contra a versão anterior).
+   A versão ANTERIOR permanece na main com blob
+   `63d777c6058d6a5184917530fcc2b0ab330b8bbb` e SHA-256
    `be6e5144bf4afd0c99884218c75fec93f87e8e66b63d629444f32df3e58d2d54`.
-   Este digest corresponde ao blob Git `63d777c6058d6a5184917530fcc2b0ab330b8bbb`
-   publicado na `main` (a versão com conflito HTTP `PT409`); o hash anterior
-   antecedia essa correção e não deve liberar a aplicação oficial.
+   **NÃO instalar a versão anterior**: nela o `SECURITY DEFINER`
+   bloqueava o titular suspenso, mas não o rejeitado.
 2. **Preflight somente leitura, quando especificamente autorizado**: confirmar as
    assinaturas de `public.has_role(uuid,app_role)`, `public.eut_account_operational()`,
    `public.eut_public_eligible_technician_ids(uuid[])`, as colunas canônicas e o
    tipo de auditoria; inspecionar permissões atuais sem expor registros privados.
-3. **Homologação real isolada já aprovada**: reaproveitar o run #44772676346
-   com GoTrue/PostgREST e 9/9 cenários, desde que o contrato SQL permaneça no
-   blob canônico e suas dependências continuem compatíveis. Reexecutar somente
-   cenários afetados por eventual correção do gate de ficha rejeitada. Não criar
-   branch Supabase paga sem autorização.
+3. **Homologação isolada por alteração**: reutilizar os 9/9 cenários
+   Auth+PostgREST do run #44772676346 como prova da BASE antiga.
+   A edição #383 acrescenta à função `private_save` o status `rejeitado`
+   (mantém `suspenso` e preserva o caminho admin com motivo).
+   Exigir o teste PostgreSQL descartável atualizado do HEAD e a prova
+   Auth real que for executada contra o novo blob, sem misturar os hashes
+   nem repetir cenários antigos por mera mudança de documentação.
 4. **Revisão SQL**: confirmar schema `eut_profile_ops` fora dos schemas expostos na
    Data API, `SECURITY DEFINER` interno com `search_path=''`, revogação de acesso
    direto, função de elegibilidade pública, auditoria e invariantes de concorrência.
@@ -172,15 +182,17 @@ Preflight oficial somente leitura (20/11/2026, Postgres 17.11):
 
 ### Pré-condições restantes para ativação (SEM autorização implícita)
 
-1. Revalidar o arquivo canônico da #368, **sem modificar** seu blob Git
-   `63d777c6058d6a5184917530fcc2b0ab330b8bbb` e digest SHA-256 registrado
-   `be6e5144bf4afd0c99884218c75fec93f87e8e66b63d629444f32df3e58d2d54`.
+1. Revalidar o **SQL revisado somente na PR #383**, blob
+   `619604f4174a6c9768921f9d68e981d50bd7fa24`, SHA-256 `0842a15e1bd5d14c75d2241e23bc76007c29e1ef4f03cd98edf66163388a34c7`. O SQL anterior
+   na main continua com o blob `63d777c6058d6a5184917530fcc2b0ab330b8bbb`
+   e **não deve ser instalado** em substituição ao novo contrato.
 2. Confirmar schema interno fora da Data API, RLS da tabela privada, grants
    restritos, elegibilidade pública, versão otimista e log de auditoria.
-3. **Reaproveitar o gate Auth + PostgREST 9/9 já aprovado** no run #44772676346
-   para o blob canônico inalterado; só repetir cenários afetados se o SQL ou
-   suas dependências mudarem. A fixture adicional de suspensão/rejeição em
-   PostgreSQL descartável deve passar no HEAD da PR #383.
+3. Reaproveitar o run #44772676346 apenas como evidência da base
+   antiga; para a nova proteção do rejeitado, exigir CI do HEAD da
+   #383 e cenário negativo do titular + edição administrativa motivada
+   em PostgreSQL isolado. Registrar também o resultado Auth real
+   correspondente ao novo blob quando terminar. Não executar no banco oficial.
 4. Verificar as funções `SECURITY DEFINER` com identidade técnica suspensa,
    rejeitada, terceiro, admin legítimo e anônimo, inclusive moderação e
    contatos privados. Proteger os registros atualmente restritos.
@@ -202,10 +214,10 @@ específica sobre o projeto EUT `pqtzhctvjbfcunmrvxne`.
 
 ### A. Identidade, congelamento e pré-condições (ordem obrigatória)
 
-- [x] Contrato Git: blob `63d777c6058d6a5184917530fcc2b0ab330b8bbb`
-  do arquivo `docs/sql/eut-technician-operations-contract-proposal-20261120.sql`;
-  SHA-256 registrado `be6e5144bf4afd0c99884218c75fec93f87e8e66b63d629444f32df3e58d2d54`.
-  **Reconferir os dois hashes** contra o arquivo exato imediatamente antes de aplicar.
+- [x] **Contrato revisado em PR #383**: blob Git `619604f4174a6c9768921f9d68e981d50bd7fa24`,
+  SHA-256 `0842a15e1bd5d14c75d2241e23bc76007c29e1ef4f03cd98edf66163388a34c7`. A main ainda preserva a versão anterior
+  `63d777c6058d6a5184917530fcc2b0ab330b8bbb`; não a instalar.
+  **Conferir novamente o hash imediatamente antes de qualquer autorização.**
 - [x] Provas isoladas reaproveitáveis: Auth real + PostgREST 9/9 no
   [run #44772676346](https://github.com/hrq16000-a11y/encontreumtecnico/actions/runs/44772676346);
   workflow PostgreSQL descartável da PR #383 verde. Não repetir provas inalteradas.
@@ -220,15 +232,15 @@ específica sobre o projeto EUT `pqtzhctvjbfcunmrvxne`.
   `public.eut_account_operational()`,
   `public.eut_public_eligible_technician_ids(uuid[])`; colunas
   `technicians.id/user_id/status/coverage_city_ids` e auditoria existentes.
-- [ ] **GATE BLOQUEANTE — ficha rejeitada:** a função proposta
-  `eut_profile_ops.private_save`, por ser `SECURITY DEFINER`, recusa
-  explicitamente `suspenso` mas ainda não recusa `rejeitado` no caminho do
-  titular. A policy RLS de `public.technicians` não substitui essa checagem.
-  Antes de instalar, exigir decisão e correção revisada que também rejeite
-  `rejeitado` para edição pelo titular, preserve edição administrativa
-  motivada e revalide **apenas os cenários alterados** no QA isolado.
-  Essa correção modifica o SQL canônico e **exige novo hash e revisão**;
-  nunca aplicar silenciosamente a versão anterior.
+- [ ] **GATE CORRIGIDO NO SQL, PENDENTE DE VALIDAÇÃO FINAL:** a
+  função `eut_profile_ops.private_save` da #383 agora impede a edição
+  do titular de fichas `suspenso` e `rejeitado`. O administrador
+  continua autorizado a editar somente com justificativa (8–400
+  caracteres), conservando auditoria. A fixture descarta todas as
+  alterações: titular rejeitado é recusado; administrador sem motivo
+  é recusado; administrador motivado grava e audita. Marcar como
+  concluído somente após os testes do HEAD revisado ficarem verdes.
+  A policy RLS existente não substitui as verificações do `SECURITY DEFINER`.
 - [ ] Confirmar no painel de Data API que **somente**
   `public`/`graphql_public` (ou a lista vigente aprovada) são expostos;
   `eut_profile_ops` não pode ser exposto. Verificar a configuração de
