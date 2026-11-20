@@ -327,7 +327,9 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
     try {
       const { error } = await supabase.rpc("choose_account_type", { _role: role });
       if (error) {
-        setError("O servidor recusou a escolha. Confirme sua identidade ou procure a recuperação manual se houver uma conta antiga vinculada a outra pessoa.");
+        setError(role === "tecnico" && error.code === "42501"
+          ? "A identidade desta conta ainda não atende à verificação exigida para publicar um perfil técnico. Mesmo que seu e-mail apareça confirmado, não crie outra conta: solicite ajuda para reverificar a titularidade."
+          : "O servidor recusou a escolha. Confirme sua identidade ou procure a recuperação manual se houver uma conta antiga vinculada a outra pessoa.");
       } else {
         clearSignupIntent();
         await refreshRoles();
