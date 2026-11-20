@@ -40,15 +40,16 @@ describe("Busca compacta: filtros e perfis com privacidade", () => {
     expect(page).toContain('setShowAdvanced(true)');
   });
 
-  it("coloca resultados e cartões antes das notas longas sem remover publicidade e transparência", () => {
+  it("coloca resultados antes das orientações e evita avisos duplicados", () => {
     const cards = page.indexOf('<TechnicianSearchCard');
     const tally = page.indexOf('aria-live="polite"');
     const context = page.indexOf('aria-label="Orientações da especialidade selecionada"');
-    const trust = page.indexOf('aria-label="Transparência e confiança na busca"');
     expect(tally).toBeGreaterThan(0);
     expect(cards).toBeGreaterThan(tally);
     expect(context).toBeGreaterThan(cards);
-    expect(trust).toBeGreaterThan(cards);
+    expect(page).not.toContain('aria-label="Transparência e confiança na busca"');
+    expect(page).toContain("Contatos particulares continuam protegidos");
+    expect(page).not.toContain("CustomerLocationButton");
     expect(page).toContain('<SponsoredPublicSlot slotKey="search.top"');
     expect(page).toContain('<LegacyPublicArchive show={canShowLegacyArchive(search)} />');
     expect(page).toContain("Em todo o Brasil");

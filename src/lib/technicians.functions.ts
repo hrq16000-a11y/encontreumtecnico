@@ -1,9 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
-import { setResponseHeader } from "@tanstack/react-start/server";
+import { getRequestHeader, setResponseHeader } from "@tanstack/react-start/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
 import { rankTechniciansByDeclaredArea } from "@/lib/technician-local-ranking";
+import { automaticRegionalRankingArea, parseVercelRegion } from "@/lib/regional-suggestion";
 import { isValidTechnicianId, isValidTechnicianSlug } from "@/lib/technician-id";
 import { sanitizePublicTechnician } from "@/lib/public-profile-text";
 import { readPublicEligibleRows, type PublicEligibilityRpc } from "@/lib/public-eligibility";
@@ -251,7 +252,24 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
       ...(!regionalPriority && bairro ? { neighborhood: bairro } : {}),
     });
     const unified = [...published, ...adminPublished];
-    if (!regionalPriority) return unified.sort((a,b) => Number(b.online_now)-Number(a.online_now) || Number(Boolean(b.referral_highlight))-Number(Boolean(a.referral_highlight)) || Number(Boolean(b.pioneer_bronze))-Number(Boolean(a.pioneer_bronze)));
+    if (!regionalPriority) {
+      const approximateArea = automaticRegionalRankingArea(data, parseVercelRegion({
+        country: getRequestHeader("x-vercel-ip-country") ?? null,
+        state: getRequestHeader("x-vercel-ip-country-region") ?? null,
+        city: getRequestHeader("x-vercel-ip-city") ?? null,
+      }));
+      if (approximateArea) {
+        try {
+          // Match the official municipality catalog before trusting an IP city name.
+          // This changes only result ordering, never filters, GPS, or public fields.
+          const { data: municipality, error: catalogError } = await (publicClient() as unknown as SupabaseClient)
+            .from("eut_ibge_municipalities").select("id")
+            .eq("uf", approximateArea.uf).ilike("name", approximateArea.cidade).limit(1);
+          if (!catalogError && municipality?.length) return rankTechniciansByDeclaredArea(unified, approximateArea);
+        } catch { /* No regional guess when the catalog is unavailable. */ }
+      }
+      return unified.sort((a,b) => Number(b.online_now)-Number(a.online_now) || Number(Boolean(b.referral_highlight))-Number(Boolean(a.referral_highlight)) || Number(Boolean(b.pioneer_bronze))-Number(Boolean(a.pioneer_bronze)));
+    }
     return rankTechniciansByDeclaredArea(unified, {
       uf, cidade: data.cidade, bairro: data.bairro,
     });

@@ -39,11 +39,15 @@ export function PublicProfileConnections({ links }: { links?: PublicSeoLinks | u
       <ul className="mt-3 grid gap-3 sm:grid-cols-2">
         {links.related.map((other) => <li key={other.public_slug}>
           <a href={`/tecnicos/${other.public_slug}`}
-            className="block min-h-20 rounded-xl border border-border p-4 transition-colors hover:border-primary/40 hover:bg-accent/40">
-            <span className="block font-semibold text-primary">{other.display_name}</span>
-            <span className="mt-1 block text-xs text-muted-foreground">
-              {other.city}{other.state_uf ? `/${other.state_uf}` : ""} · {other.relation}
+            className="group flex min-h-24 items-center gap-3 rounded-xl border border-border p-4 transition-colors hover:border-primary/40 hover:bg-accent/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+            <TechnicianAvatar name={other.display_name} avatarPath={other.avatar_path} className="h-14 w-14 shrink-0" />
+            <span className="min-w-0 flex-1">
+              <span className="block break-words font-semibold text-primary">{other.display_name}</span>
+              <span className="mt-1 block break-words text-xs leading-5 text-muted-foreground">
+                {other.city}{other.state_uf ? `/${other.state_uf}` : ""} · {other.relation}
+              </span>
             </span>
+            <ArrowUpRight className="h-4 w-4 shrink-0 text-primary transition-transform group-hover:translate-x-0.5 motion-reduce:transform-none" aria-hidden="true" />
           </a>
         </li>)}
       </ul>

@@ -26,8 +26,12 @@ jobs:
           const ufStart = src.indexOf('id="filtro-uf"');
           assert(ufStart >= 0 && src.slice(ufStart, ufStart + 300).includes('min-h-11'),
             'UF select must have 44px minimum height');
-          assert.match(src, /min-h-11[^"]*">Buscar na região/);
-          console.log('UF select and regional search touch targets: >= 44px in source');
+          assert(src.includes('id="filtro-cidade"'), 'Manual city correction must remain available');
+          const advancedStart = src.indexOf('aria-controls="filtros-avancados"');
+          assert(advancedStart >= 0 && src.slice(advancedStart, advancedStart + 360).includes('min-h-11'),
+            'Advanced filters control must have 44px minimum height');
+          assert(!src.includes('CustomerLocationButton'), 'Search must not prompt for precise GPS');
+          console.log('UF and advanced filter touch targets >= 44px; city input remains, GPS prompt absent');
           NODE
       - name: Install isolated Chromium runner
         run: |
