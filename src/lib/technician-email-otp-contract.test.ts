@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -51,6 +52,32 @@ describe("Contrato auditável de titularidade de e-mail do técnico", () => {
     expect(sql).toContain("revoked_at=NULL");
     expect(rollbackSql).toContain("DROP TRIGGER IF EXISTS eut_revoke_technician_email_otp_on_email_change ON auth.users");
   });
+  it("bloqueia rollback após qualquer alteração das funções ou do gatilho OTP", () => {
+    // O fingerprint é calculado do SQL de instalação, não de um hash fixo no teste.
+    for (const signature of [
+      "eut_migration.confirmed_current_email()",
+      "eut_migration.revoke_technician_email_otp_on_email_change()",
+      "public.eut_begin_technician_email_otp()",
+      "public.eut_attest_technician_email_otp()",
+    ]) {
+      const marker = `CREATE OR REPLACE FUNCTION ${signature}`;
+      const start = sql.indexOf(marker);
+      expect(start).toBeGreaterThanOrEqual(0);
+      const source = sql.slice(start).match(/AS \$function\$([\s\S]*?)\$function\$;/)?.[1];
+      expect(source).toBeDefined();
+      const hash = createHash("md5").update(source!, "utf8").digest("hex");
+      expect(rollbackSql).toContain(`IS DISTINCT FROM '${hash}'`);
+      expect(rollbackSql).toContain(`to_regprocedure('${signature}')`);
+    }
+    expect(rollbackSql).toContain("t.tgrelid='auth.users'::regclass");
+    expect(rollbackSql).toContain("t.tgfoid=to_regprocedure('eut_migration.revoke_technician_email_otp_on_email_change()')");
+    expect(rollbackSql).toContain("t.tgenabled='O'");
+    expect(rollbackSql).toContain("old.email is distinct from new.email");
+    expect(rollbackSql.indexOf("DO $preflight$")).toBeLessThan(
+      rollbackSql.indexOf("DROP TRIGGER IF EXISTS"));
+    expect(rollbackSql).toContain("USING ERRCODE='P0001'");
+  });
+
   it("oferece rollback sem apagar provas privadas ou contas", () => {
     expect(rollbackSql).toContain("REVOKE ALL ON FUNCTION public.eut_begin_technician_email_otp()");
     expect(rollbackSql).toContain("REVOKE ALL ON FUNCTION public.eut_attest_technician_email_otp()");
