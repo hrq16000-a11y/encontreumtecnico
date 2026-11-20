@@ -104,8 +104,10 @@ before(async () => {
   console.log('SETUP: one visitor, one technician, one admin; all synthetic/local');
 });
 
-after(async () => {
-  await Promise.allSettled([visitor.removeAllChannels(), technician.removeAllChannels(), administrator.removeAllChannels()]);
+after(() => {
+  // A disposable stack is destroyed by the workflow. Disconnect immediately:
+  // waiting on retrying channel unsubscribe can leave the runner blocked.
+  for (const client of [visitor, technician, administrator]) client.realtime.disconnect();
 });
 
 test('P1/P2: anonymous visitor has no channel without consent; with consent publishes TRACK without reading others', async () => {

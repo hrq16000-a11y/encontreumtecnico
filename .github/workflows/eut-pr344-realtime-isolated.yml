@@ -127,7 +127,7 @@ jobs:
           echo 'Local credentials loaded from disposable stack only'
 
       - name: Real WebSocket — visitor, technician, admin, revocation, legacy denial
-        run: node --test qa/pr344-realtime-websocket.test.mjs
+        run: timeout --signal=TERM --kill-after=5s 100s node --test qa/pr344-realtime-websocket.test.mjs
 
       - name: Stop disposable stack even after a failed gate
         if: always()
