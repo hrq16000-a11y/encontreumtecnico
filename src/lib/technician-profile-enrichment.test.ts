@@ -15,7 +15,7 @@ describe("enriquecimento privado e voluntário do perfil técnico", () => {
     expect(headingOnly).toBe("Minha formação e cursos: ");
     expect(publicProfileHasTopic(headingOnly, "training")).toBe(true);
     expect(parseProfessionalBio(headingOnly).sections).toEqual([]);
-    const declared = "Atuo com redes.\\nMinha formação e cursos: Curso livre de redes e cabeamento.";
+    const declared = "Atuo com redes.\nMinha formação e cursos: Curso livre de redes e cabeamento.";
     expect(addPublicProfileTopic(declared, "training")).toBe(declared);
     expect(parseProfessionalBio(declared)).toEqual({
       introduction: "Atuo com redes.",
