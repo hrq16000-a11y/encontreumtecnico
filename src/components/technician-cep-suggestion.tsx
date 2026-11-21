@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMunicipalities, type Municipality } from "@/hooks/use-municipalities";
 import { BRAZIL_STATES } from "@/lib/service-taxonomy";
 
@@ -14,6 +14,9 @@ export function TechnicianCepSuggestion({
   const [candidate, setCandidate] = useState<CepResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  // Discard responses from a CEP that was edited or superseded during the request.
+  const requestVersion = useRef(0);
+  useEffect(() => () => { requestVersion.current += 1; }, []);
   const { cities, loading, error } = useMunicipalities(candidate?.uf ?? "");
   const validCandidate = candidate && cities.find(city =>
     city.uf === candidate.uf &&
@@ -22,6 +25,7 @@ export function TechnicianCepSuggestion({
       (candidate.localidade ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
   );
   async function consult() {
+    const version = ++requestVersion.current;
     const digits = cep.replace(/\D/g, "");
     setCandidate(null);
     if (digits.length !== 8) { setMessage("Informe um CEP com oito dígitos."); return; }
@@ -30,16 +34,22 @@ export function TechnicianCepSuggestion({
       const response = await fetch(`https://viacep.com.br/ws/${digits}/json/`, {
         signal: AbortSignal.timeout(8000), cache: "no-store",
       });
+      if (version !== requestVersion.current) return;
       if (!response.ok) throw new Error("cep-unavailable");
       const data = await response.json() as CepResult;
+      if (version !== requestVersion.current) return;
       if (data.erro || !data.uf || !BRAZIL_STATES.some(uf => uf === data.uf) || !/^\d{7}$/.test(data.ibge ?? "")) {
         setMessage("CEP não localizado. Escolha seu município na lista oficial.");
         return;
       }
       setCandidate(data);
     } catch {
-      setMessage("Consulta de CEP indisponível. Use a seleção de municípios abaixo.");
-    } finally { setBusy(false); }
+      if (version === requestVersion.current) {
+        setMessage("Consulta de CEP indisponível. Use a seleção de municípios abaixo.");
+      }
+    } finally {
+      if (version === requestVersion.current) setBusy(false);
+    }
   }
   return <div className="rounded-xl border border-border bg-muted/20 p-3">
     <label htmlFor="eut-tecnico-cep" className="block text-sm font-semibold text-foreground">
@@ -48,6 +58,8 @@ export function TechnicianCepSuggestion({
     <div className="mt-2 flex flex-wrap gap-2">
       <input id="eut-tecnico-cep" inputMode="numeric" autoComplete="postal-code" maxLength={9}
         placeholder="00000-000" value={cep} onChange={event => {
+          requestVersion.current += 1;
+          setBusy(false);
           setCep(event.target.value); setCandidate(null); setMessage("");
         }} className="min-h-11 min-w-0 flex-1 rounded-lg border border-input bg-background px-3 text-base text-foreground" />
       <button type="button" onClick={() => void consult()} disabled={busy}
