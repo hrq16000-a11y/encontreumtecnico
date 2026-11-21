@@ -27,6 +27,15 @@ export const Route = createFileRoute("/cidades/$uf/$cidade")({
         { property: "og:title", content: title },
         { property: "og:description", content: description },
         { property: "og:url", content: canonical },
+        ...(loaderData ? [{ "script:ld+json": {
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "Início", item: SITE + "/" },
+            { "@type": "ListItem", position: 2, name: "Buscar técnicos", item: SITE + "/tecnicos" },
+            { "@type": "ListItem", position: 3, name: `${loaderData.city.name}/${loaderData.city.uf}`, item: canonical },
+          ],
+        } }] : []),
         ...(!loaderData ? [{ name: "robots", content: "noindex, nofollow" }] : []),
       ],
       links: [{ rel: "canonical", href: canonical }],
