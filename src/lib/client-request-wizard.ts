@@ -1,4 +1,5 @@
 import { containsObviousContact } from "./private-message-validation";
+import { placeKey } from "./location-labels";
 
 export type ClientRequestStep = 1 | 2 | 3 | 4;
 
@@ -9,6 +10,13 @@ export type ClientRequestDraft = {
   city: string;
   region: string;
 };
+
+/** Changing municipality invalidates an earlier technician selection.
+ * Formatting-only edits do not change the city.
+ */
+export function clientRequestCityChanged(previous: string, next: string): boolean {
+  return placeKey(previous) !== placeKey(next);
+}
 
 export function clientRequestStepError(
   step: ClientRequestStep,
