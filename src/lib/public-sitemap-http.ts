@@ -18,7 +18,11 @@ export async function publicSitemapPartResponse(
   page?: number,
 ): Promise<Response> {
   try {
-    const graph = await getPublicGraphSnapshot();
+    // The base shard contains only static, versioned URLs; it needs no moderation snapshot.
+    // Dynamic shards still recheck eligibility on every request.
+    const graph = kind === "base"
+      ? { profiles: [], cities: [], categories: [] }
+      : await getPublicGraphSnapshot();
     const xml = buildPublicSitemapPartXml(graph, kind, page);
     if (xml === null) {
       return new Response("Sitemap section not found", {
