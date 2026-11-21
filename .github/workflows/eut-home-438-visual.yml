@@ -1,0 +1,55 @@
+name: EUT Home #438 visual 390-1440 (synthetic local)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/eut-home-438-visual.yml'
+      - 'scripts/eut-home-438-visual.cjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  visual-home-438:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install current source dependencies
+        run: bun install --frozen-lockfile
+      - name: Install Chromium QA outside repo
+        run: |
+          mkdir -p "$RUNNER_TEMP/eut-home-438-browser"
+          cd "$RUNNER_TEMP/eut-home-438-browser"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund playwright@1.56.1
+          npx playwright install chromium
+      - name: Launch only the PR source on runner loopback
+        run: |
+          set -euo pipefail
+          (bunx vite dev --host 127.0.0.1 --port 4173 --strictPort > "$RUNNER_TEMP/home438-dev.log" 2>&1) &
+          echo $! > "$RUNNER_TEMP/home438-dev.pid"
+          ready=0
+          for i in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:4173/ -o /dev/null; then ready=1; break; fi
+            sleep 2
+          done
+          if [[ "$ready" != "1" ]]; then cat "$RUNNER_TEMP/home438-dev.log"; exit 1; fi
+      - name: Chromium UI 390/1440 — synthetic catalog, no writes
+        env:
+          EUT_HOME_QA_DIR: ${{ runner.temp }}/eut-home-438
+          NODE_PATH: ${{ runner.temp }}/eut-home-438-browser/node_modules
+        run: node scripts/eut-home-438-visual.cjs
+      - name: Upload sanitized screenshots and JSON diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eut-home-438-visual-390-1440
+          path: ${{ runner.temp }}/eut-home-438
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Show local dev logs on failure only
+        if: failure()
+        run: tail -n 80 "$RUNNER_TEMP/home438-dev.log" || true
