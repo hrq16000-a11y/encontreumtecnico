@@ -10,7 +10,7 @@
 const METRO_CORES: Readonly<Record<string, readonly (readonly string[])[]>> = {
   PR: [["curitiba", "saojosedospinhais", "pinhais", "colombo", "araucaria", "piraquara", "fazendariogrande", "almirantetamandare", "campolargo", "quatrobarras"]],
   SP: [
-    ["saopaulo", "guarulhos", "osasco", "santandre", "santoandre", "saobernardodocampo", "saocaetanodosul", "diadema", "maua", "barueri", "carapicuiba", "cotia", "suzano", "taboaodaserra", "itaquaquecetuba"],
+    ["saopaulo", "guarulhos", "osasco", "santoandre", "saobernardodocampo", "saocaetanodosul", "diadema", "maua", "barueri", "carapicuiba", "cotia", "suzano", "taboaodaserra", "itaquaquecetuba"],
     ["campinas", "hortolandia", "sumare", "americana", "valinhos", "vinhedo", "paulinia", "indaiatuba", "jaguariuna"],
     ["santos", "saovicente", "guaruja", "praiagrande", "cubatao"],
   ],
@@ -18,7 +18,7 @@ const METRO_CORES: Readonly<Record<string, readonly (readonly string[])[]>> = {
   MG: [["belohorizonte", "contagem", "betim", "ribeiraodasneves", "santaluzia", "ibirite", "sabara", "vespasiano", "novalima", "lagoasanta"]],
   RS: [["portoalegre", "canoas", "gravatai", "viamao", "novohamburgo", "saoleopoldo", "alvorada", "cachoeirinha", "esteio", "sapucaiadosul", "guaiba"]],
   SC: [["florianopolis", "saojose", "palhoca", "biguacu", "governadorcelsoramos", "santoamarodaimperatriz"]],
-  PE: [["recife", "olinda", "jaboataodosguararapes", "paulista", "camaragibe", "cabodeagostinho", "aboelima", "abreuelima", "igarassu"]],
+  PE: [["recife", "olinda", "jaboataodosguararapes", "paulista", "camaragibe", "cabodeagostinho", "abreuelima", "igarassu"]],
   CE: [["fortaleza", "caucaia", "maracanau", "maranguape", "pacatuba", "eusebio", "aquiraz", "itaitinga"]],
   BA: [["salvador", "camacari", "laurodefreitas", "simoesfilho", "candeias", "diasdavila"]],
   GO: [["goiania", "aparecidadegoiania", "trindade", "senadorcanedo", "goianira", "neropolis"]],
