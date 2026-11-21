@@ -1,3 +1,4 @@
+import { ServiceRequestEditorial } from "@/components/service-request-editorial";
 import { AdSensePublicUnit } from "@/components/adsense-public-unit";
 import { PublicServiceLogistics } from "@/components/public-service-logistics";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
@@ -234,6 +235,7 @@ function ServiceCategoryPage() {
               </div>
             ))}
           </div>
+          <ServiceRequestEditorial slug={category.slug} />
           <GuideFrequentlyAskedQuestions guide={guide} />
           <div className="mt-10 rounded-2xl border border-primary/20 bg-primary/5 p-6 sm:p-8">
             <h2 className="text-xl font-bold text-foreground">Solicite atendimento da especialidade certa</h2>
