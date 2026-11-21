@@ -6,6 +6,9 @@ import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { buildAssistanceLead, type AssistanceMode } from "@/lib/assistance-intent";
 import { buildSavedLeadWhatsAppUrl, type SavedAssistanceLead } from "@/lib/assistance-whatsapp";
 import { BRAZIL_STATES } from "@/lib/service-taxonomy";
+import { useActiveCategories } from "@/hooks/use-active-categories";
+import { useActiveServices } from "@/hooks/use-active-services";
+import { assistanceDirectoryFilters } from "@/lib/assistance-directory-filters";
 import { MunicipalityPicker } from "@/components/municipality-picker";
 import { placeKey } from "@/lib/location-labels";
 import type { FreeHelpContext } from "@/lib/free-search-help";
@@ -15,6 +18,8 @@ const input = "mt-1 min-h-11 w-full rounded-xl border border-input bg-background
 const services = ["Computadores e notebooks", "Redes e Wi-Fi", "CFTV e segurança", "Impressoras", "Sistemas e software", "Climatização", "Automação", "Comunicações e telefonia", "Outro serviço"];
 
 export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContext; onClose: () => void }) {
+  const { categories } = useActiveCategories();
+  const { services: activeServices } = useActiveServices();
   const navigate = useNavigate();
   const { area: suggested } = useRegionalSuggestion();
   const [restored] = useState(() => readAssistanceDraft(context.technicianId));
@@ -92,10 +97,11 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
     const citySearch = cityIbgeId ? city.trim().slice(0, 80) : "";
     const ufSearch = uf.trim().toUpperCase().slice(0, 2);
     onClose();
+    const filters = assistanceDirectoryFilters(service, categories, activeServices);
     void navigate({
       to: "/tecnicos",
-      search: { especialidade: "Todas", cidade: citySearch, uf: ufSearch,
-        bairro: cityIbgeId ? neighborhood.trim().slice(0, 80) : "", regiao: "", servico: "",
+      search: { ...filters, cidade: citySearch, uf: ufSearch,
+        bairro: cityIbgeId ? neighborhood.trim().slice(0, 80) : "", regiao: "",
         prioridade: citySearch && ufSearch ? "regiao" : "" },
     });
   }
