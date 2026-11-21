@@ -86,6 +86,32 @@ describe("Cadastro guiado mobile", () => {
     expect(matchingRegistrationServices(available, ["redes"], "notebook")).toEqual([]);
     expect(chosen).toEqual(["rede-wifi", "cabos"]);
   });
+  it("localiza serviços pela especialidade ativa, mesmo sem termo no nome do serviço", () => {
+    const available = [
+      { slug: "troca-disjuntor", category_slug: "eletrica", label: "Troca de disjuntor" },
+      { slug: "montagem-pc", category_slug: "computadores", label: "Montagem de PC" },
+      { slug: "display", category_slug: "celulares", label: "Reparo de display" },
+    ];
+    const categories = [
+      { slug: "eletrica", label: "Instalações elétricas" },
+      { slug: "computadores", label: "Informática" },
+      { slug: "celulares", label: "Celulares" },
+    ];
+    const selected = ["eletrica", "computadores"];
+    expect(matchingRegistrationServices(available, selected, "INSTALACOES ELETRICAS", categories).map((item) => item.slug))
+      .toEqual(["troca-disjuntor"]);
+    expect(matchingRegistrationServices(available, selected, "informatica", categories).map((item) => item.slug))
+      .toEqual(["montagem-pc"]);
+    expect(matchingRegistrationServices(available, selected, "montagem", categories).map((item) => item.slug))
+      .toEqual(["montagem-pc"]);
+    expect(matchingRegistrationServices(available, selected, "celulares", categories)).toEqual([]);
+    expect(matchingRegistrationServices(available, selected, "", categories).map((item) => item.slug))
+      .toEqual(["troca-disjuntor", "montagem-pc"]);
+    expect(selected).toEqual(["eletrica", "computadores"]);
+    const route = readFileSync("src/routes/area-tecnico.tsx", "utf8");
+    expect(route).toContain("matchingRegistrationServices(services, form.specialties, serviceQuery, categories)");
+    expect(route).toContain("Buscar serviço ou especialidade");
+  });
   it("permite retirar serviços e categorias desativados sem perder escolhas válidas", () => {
     const previous = {
       specialties: ["redes", "computadores", "categoria-antiga"],
