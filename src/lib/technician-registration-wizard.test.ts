@@ -251,8 +251,8 @@ describe("Cadastro guiado mobile", () => {
     expect(published).toBeGreaterThan(privateDraftCleared);
     expect(route).toContain("setJustPublishedProfile(null)");
     expect(route).toContain('step === 3 && currentStatus === "aprovado" && justPublishedProfile');
-    expect(route).toContain('lookup={justPublishedProfile}');
-    expect(route).toContain('lookup={profileSlug || profileId}');
+    expect(route).toContain('<TechnicianPublicProfileLink ownerId={user.id} profileId={profileId}>');
+    expect(route).not.toContain('lookup={');
     expect(route).toContain("Abrir meu perfil publicado");
     expect(route).not.toContain("setJustPublishedProfile(form.");
   });

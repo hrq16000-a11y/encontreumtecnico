@@ -72,7 +72,6 @@ export function TechnicianAreaPage() {
   });
   const [status, setStatus] = useState<keyof typeof STATUS_LABEL | null>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
-  const [profileSlug, setProfileSlug] = useState<string | null>(null);
   // Set only after verifying this account's published row in the server.
   const [justPublishedProfile, setJustPublishedProfile] = useState<string | null>(null);
   const [savedCoverageIds, setSavedCoverageIds] = useState<number[]>([]);
@@ -182,7 +181,6 @@ export function TechnicianAreaPage() {
     setForm(initial);
     setStatus(null);
     setProfileId(null);
-    setProfileSlug(null);
     setJustPublishedProfile(null);
     setSavedCoverageIds([]);
     setSavedRadius(null);
@@ -226,7 +224,6 @@ export function TechnicianAreaPage() {
           setAvatarPath(data.avatar_path ?? null);
           setStatus(data.status);
           setProfileId(data.id);
-          setProfileSlug(data.public_slug);
         }
         setProfileOwnerId(owner);
         setProfileLoading(false);
@@ -423,7 +420,6 @@ export function TechnicianAreaPage() {
         clearProtectedDraft("tecnico", savingOwner);
         setStatus("aprovado");
         setProfileId(persisted.id);
-        setProfileSlug(persisted.public_slug);
         setJustPublishedProfile(persisted.public_slug || persisted.id);
         setMsg("Perfil salvo e conferido no servidor. Complete também a foto, a cobertura e o contato privado nas abas do seu painel.");
       } else {
@@ -539,7 +535,7 @@ export function TechnicianAreaPage() {
               <p className="mt-3 text-xs text-muted-foreground">Informações digitadas podem estar em rascunho. Uma edição só está salva quando o servidor confirma a gravação.</p>
             </section>
             {currentStatus === "aprovado" && profileId && (
-              <TechnicianPublicProfileLink ownerId={user.id} profileId={profileId} lookup={profileSlug || profileId}>
+              <TechnicianPublicProfileLink ownerId={user.id} profileId={profileId}>
                 Conferir meu perfil publicado
               </TechnicianPublicProfileLink>
             )}
@@ -913,7 +909,7 @@ export function TechnicianAreaPage() {
               )}
               {msg && <p role="alert" className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm text-foreground">{msg}</p>}
               {step === 3 && currentStatus === "aprovado" && justPublishedProfile && profileId && (
-                <TechnicianPublicProfileLink ownerId={user.id} profileId={profileId} lookup={justPublishedProfile}>
+                <TechnicianPublicProfileLink ownerId={user.id} profileId={profileId}>
                   Abrir meu perfil publicado <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </TechnicianPublicProfileLink>
               )}

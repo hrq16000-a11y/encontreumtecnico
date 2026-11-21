@@ -23,7 +23,7 @@ function renderLink() {
   const client = new QueryClient();
   return render(
     <QueryClientProvider client={client}>
-      <TechnicianPublicProfileLink ownerId="owner" profileId="profile" lookup="requested-slug">
+      <TechnicianPublicProfileLink ownerId="owner" profileId="profile">
         Abrir perfil
       </TechnicianPublicProfileLink>
     </QueryClientProvider>,
@@ -31,11 +31,11 @@ function renderLink() {
 }
 
 describe("link público da ficha salva", () => {
-  it("oferece o endereço canônico devolvido pelo catálogo para a mesma ficha", async () => {
+  it("consulta o ID estável e oferece o slug canônico atual da mesma ficha", async () => {
     getProfile.mockResolvedValue({ id: "profile", public_slug: "canonical-slug" });
     renderLink();
     expect(await screen.findByRole("link", { name: "Abrir perfil" })).toHaveAttribute("href", "/tecnicos/canonical-slug");
-    expect(getProfile).toHaveBeenCalledWith({ data: { id: "requested-slug" } });
+    expect(getProfile).toHaveBeenCalledWith({ data: { id: "profile" } });
   });
 
   it.each([null, { id: "other", public_slug: "unrelated" }])(

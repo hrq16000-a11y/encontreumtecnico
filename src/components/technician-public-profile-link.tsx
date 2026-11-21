@@ -6,15 +6,15 @@ import { getApprovedTechnician } from "@/lib/technicians.functions";
 type Props = {
   ownerId: string;
   profileId: string;
-  lookup: string;
   children: ReactNode;
 };
 
-export function TechnicianPublicProfileLink({ ownerId, profileId, lookup, children }: Props) {
+export function TechnicianPublicProfileLink({ ownerId, profileId, children }: Props) {
   const listing = useQuery({
-    queryKey: ["technician-public-link", ownerId, profileId, lookup],
+    queryKey: ["technician-public-link", ownerId, profileId],
     queryFn: async () => {
-      const profile = await getApprovedTechnician({ data: { id: lookup } });
+      // Stable database ID avoids false negatives after a public slug changes.
+      const profile = await getApprovedTechnician({ data: { id: profileId } });
       return profile?.id === profileId ? profile.public_slug : null;
     },
     refetchOnMount: "always",
