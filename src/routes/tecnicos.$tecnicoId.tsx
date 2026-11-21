@@ -1,3 +1,4 @@
+import { getEnrichedServiceCategory } from "@/lib/service-catalog";
 import { createFileRoute, Link, notFound, redirect } from "@tanstack/react-router";
 import { PageShell } from "../components/page-placeholder";
 import { getApprovedTechnician } from "../lib/technicians.functions";
@@ -26,7 +27,10 @@ export const Route = createFileRoute("/tecnicos/$tecnicoId")({
   },
   head: ({ loaderData, params }) => {
     const name = loaderData?.display_name;
-    const location = [loaderData?.city, loaderData?.state_uf].filter(Boolean).join("/");
+    const city = loaderData?.seoLinks.city;
+    const declaredCity = loaderData?.city?.trim();
+    const cityName = city?.name ?? (declaredCity && !/^(município|cidade|localidade) não informad[oa]$/i.test(declaredCity) ? declaredCity : "");
+    const location = [cityName, city?.uf ?? loaderData?.state_uf].filter(Boolean).join("/");
     const title = name ? `${name} — Técnico${location ? " em " + location : ""} | Encontre um Técnico` : "Perfil do técnico — Encontre um Técnico";
     const desc = name
       ? `Consulte o perfil de ${name}${location ? " em " + location : ""}. Confira ${loaderData.seoLinks.categories.length ? "especialidades como " + loaderData.seoLinks.categories.slice(0, 3).map(c => c.label).join(", ") : "os serviços declarados"} e a região de atendimento.`
@@ -51,5 +55,16 @@ export const Route = createFileRoute("/tecnicos/$tecnicoId")({
 
 function TechnicianProfilePage() {
   const technician = Route.useLoaderData();
-  return <PageShell><PublicTechnicianProfile technician={technician} links={technician.seoLinks} /></PageShell>;
+  const guide = technician.specialties.map(getEnrichedServiceCategory).find(entry => entry != null);
+  return <PageShell>
+    <PublicTechnicianProfile technician={technician} links={technician.seoLinks} />
+    <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+      <h2 className="text-xl font-bold">Como preparar o pedido para {technician.display_name}</h2>
+      <p className="mt-3 max-w-3xl leading-7">
+        {guide ? <>Para conversar sobre {guide.category.name.toLocaleLowerCase("pt-BR")}, consulte o guia <a href={`/servicos/${guide.category.slug}`} className="font-semibold text-primary underline">{guide.guide.title}</a> e anote quais orientações se aplicam ao seu caso. </> :
+          <>Se ainda tem dúvida sobre qual serviço pedir, consulte as <a href="/servicos" className="font-semibold text-primary underline">especialidades do portal</a> e descreva o resultado de que precisa. </>}
+        Informe se o serviço precisa ser feito no local. Ao combinar a visita, confirme o bairro, o prazo e o que está incluído no orçamento.
+      </p>
+    </section>
+  </PageShell>;
 }

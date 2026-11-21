@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   buildPublicGraph, categoryGraphPath, cityGraphPath, profilesInCategory,
-  profilesInCity, relatedGraphProfiles, type GraphProfile,
+  profilesInCity, relatedGraphCities, relatedGraphProfiles, type GraphProfile,
 } from "./public-seo-graph";
 import { buildPublicSitemapXml, SITE } from "./public-sitemap";
 
@@ -84,6 +84,27 @@ describe("Grafo público de interlinks indexáveis", () => {
     expect(related.some(x => x.public_slug === "tecnica-curitiba")).toBe(false);
     expect(related.some(x => x.public_slug === "profissional-sem-catalogo")).toBe(false);
     expect(relatedGraphProfiles(graph, graph.profiles[0]!, 1)).toHaveLength(1);
+  });
+
+  it("relaciona apenas municipios elegiveis da mesma UF sem criar paginas vazias", () => {
+    const expanded = buildPublicGraph([
+      ...source,
+      { public_slug: "tecnico-londrina", display_name: "Profissional Londrina",
+        city: "Londrina", state_uf: "PR", specialties: ["redes"], service_slugs: [] },
+      { public_slug: "tecnica-paranagua", display_name: "Profissional Paranagua",
+        city: "Paranaguá", state_uf: "PR", specialties: ["cftv"], service_slugs: [] },
+      { public_slug: "tecnico-santos", display_name: "Profissional Santos",
+        city: "Santos", state_uf: "SP", specialties: ["redes"], service_slugs: [] },
+    ], [
+      ...municipalities, { name: "Londrina", uf: "PR" }, { name: "Paranaguá", uf: "PR" },
+      { name: "Santos", uf: "SP" }, { name: "Cidade Sem Técnico", uf: "PR" },
+    ], activeCategories);
+    const current = expanded.cities.find(c => c.slug === "curitiba")!;
+    expect(relatedGraphCities(expanded, current).map(c => cityGraphPath(c))).toEqual([
+      "/cidades/pr/londrina", "/cidades/pr/paranagua",
+    ]);
+    expect(relatedGraphCities(expanded, current, 1)).toHaveLength(1);
+    expect(relatedGraphCities(expanded, { ...current, slug: "sem-perfil" })).toEqual([]);
   });
 
   it("publica só URLs canônicas e genuínas no sitemap, sem perfis malformados ou regiões falsas", () => {

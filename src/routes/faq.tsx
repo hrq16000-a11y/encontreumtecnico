@@ -1,3 +1,4 @@
+import { AdSensePublicUnit } from "@/components/adsense-public-unit";
 import { createFileRoute } from "@tanstack/react-router";
 import { TextPage, pageHead } from "../components/text-page";
 import { FAQ } from "../lib/faq";
@@ -13,6 +14,8 @@ export const Route = createFileRoute("/faq")({
         </details>
       ))}
 <p className="mx-auto my-5 w-full max-w-6xl px-4 text-sm leading-7 text-muted-foreground">Para escolher um profissional, veja <a href="/como-funciona" className="font-semibold text-primary underline underline-offset-2">como funciona o atendimento</a> e consulte os <a href="/servicos" className="font-semibold text-primary underline underline-offset-2">serviços por especialidade</a>. Se a dúvida for sobre o seu cadastro, acesse a <a href="/ajuda-acesso" className="font-semibold text-primary underline underline-offset-2">ajuda para entrar no portal</a>.</p>
+        <p className="my-5 text-sm leading-7">Vai comparar dois orçamentos? Use os <a className="font-semibold text-primary underline" href="/guias">guias por tipo de equipamento</a> para enviar a mesma descrição aos profissionais. Pergunte se deslocamento, peças e retorno estão incluídos antes de escolher a proposta.</p>
+        <AdSensePublicUnit />
     </TextPage>
   ),
 });
