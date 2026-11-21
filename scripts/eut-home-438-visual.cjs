@@ -82,7 +82,7 @@ async function exercise(browser, width, height) {
   async function assertLayout() {
     const metrics = await page.evaluate(() => {
       const root = document.documentElement;
-      const form = document.querySelector("main form");
+      const form = document.getElementById("busca-especialidade")?.closest("form");
       const specialty = document.getElementById("busca-especialidade");
       const city = document.getElementById("busca-cidade");
       const uf = document.getElementById("busca-uf");
@@ -114,7 +114,7 @@ async function exercise(browser, width, height) {
     const uf = page.locator("#busca-uf");
     const city = page.locator("#busca-cidade");
     const ibge = page.locator("#busca-cidade-ibge");
-    const submit = page.locator('main form button[type="submit"]');
+    const submit = page.locator('#busca-especialidade').locator('xpath=ancestor::form').locator('button[type="submit"]');
     await specialty.waitFor({ state: "visible", timeout: 30000 });
     await page.locator('#busca-especialidade option[value="computadores"]')
       .waitFor({ state: "attached", timeout: 30000 });
