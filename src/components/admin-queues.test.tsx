@@ -181,6 +181,8 @@ describe("filas administrativas em interação real de React", () => {
     expect(screen.getByRole("alert")).toHaveProperty("textContent",
       "O servidor confirmou a alteração, mas a releitura falhou. Atualize a lista antes de agir novamente.");
 
+    await waitFor(() => expect(screen.getByRole("button", { name: /Atualizar/ }))
+      .toHaveProperty("disabled", false));
     fireEvent.click(screen.getByRole("button", { name: /Atualizar/ }));
     await waitFor(() => expect(screen.getByRole("button", { name: /Arquivar/ }))
       .toHaveProperty("disabled", false));
