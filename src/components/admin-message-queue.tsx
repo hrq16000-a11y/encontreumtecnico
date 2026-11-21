@@ -50,7 +50,7 @@ export function AdminMessageQueue() {
   useEffect(() => {
     let active = true;
     setLoading(true);
-    if (!refreshRequired) setError(null);
+    setError((previous) => previous?.includes("Atualize a lista") ? previous : null);
     let query = supabase.from("contact_messages").select("*", { count: "exact" });
     if (focusedId) query = query.eq("id", focusedId);
     else {
