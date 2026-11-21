@@ -4,6 +4,7 @@ import { Search, ArrowUpRight, LoaderCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { normalizeGuiafixSearch, readGuiafixStaging } from "@/lib/guiafix-staging-normalizer";
+import { portalTechnicianSearchOr } from "@/lib/admin-technician-locality-search";
 import {
   adminSearchUrl,
   cleanAdminSearch,
@@ -27,7 +28,7 @@ async function findRecords(term: string): Promise<SearchResponse> {
     db
       .from("technicians")
       .select("id,display_name,city,state_uf")
-      .ilike("display_name", like)
+      .or(portalTechnicianSearchOr(term))
       .order("display_name")
       .limit(6),
     db.rpc("eut_admin_technician_registry_list", { _search: term, _limit: 6, _offset: 0 }),
@@ -304,7 +305,7 @@ export function AdminGlobalSearch() {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               maxLength={80}
-              placeholder="Nome, categoria, solicitação ou módulo…"
+              placeholder="Nome, cidade/UF, categoria ou solicitação…"
               className="min-w-0 w-full bg-transparent text-base text-foreground outline-none"
             />
           </label>
