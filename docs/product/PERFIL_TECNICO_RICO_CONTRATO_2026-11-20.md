@@ -156,3 +156,100 @@ nem fator de ranking ou precificação.
 - **Fora desta PR:** campos persistidos de SLA/ETA, valores/km, agenda,
   disponibilidade confirmada, portfólio 5+20, dossiê/documentos e novos
   direitos comerciais. Esses itens continuam no roteiro R2–R5.
+
+
+## Roteiro consolidado de aceitação — ficha profissional 360° (decisão 20/11/2026)
+
+**Objetivo obrigatório:** o técnico informa uma vez, a ficha canônica persiste e
+reaparece após login/atualização, a busca só indexa a projeção pública permitida,
+o cliente recebe apenas o que contratou ou pediu legitimamente, e o administrador
+pode corrigir/moderar todos os campos autorizados em um único lugar.
+**Nenhum campo opcional bloqueia habilitação; estar no GitHub ou em deployment READY
+não comprova funcionamento autenticado na produção.**
+
+### Critérios mínimos por experiência
+
+| Experiência | Implementação aceita apenas quando... |
+|---|---|
+| Cadastro e dashboard técnico | Salvar, reler no servidor e reabrir ficha sem perder nome, apresentação, categorias/serviços, município-base, foto e cobertura; cada falha deixa o rascunho íntegro; sem exigência de confirmação extra. |
+| Profissão e especialidade | Catálogo canônico relaciona elétrica, eletrônica, informática, celulares, TV, rádio, redes e outras áreas reais a serviços específicos; seleção e busca não criam especialidades inventadas. |
+| Recursos e logística | Técnico/admin editam e releem ferramentas, equipamentos, conectividade, locomoção, viagens, cidades IBGE sem/com taxa, franquia km, taxa até e após faixa, horários e ETA; números e unidades ficam explícitos. |
+| Localização e busca | Cliente encontra por serviço e município; cidade-base distinta da cobertura; filtro de deslocamento/horários somente para dados persistidos e declarados; sem GPS preciso público ou promessa de chegada. |
+| Perfil público e referências | Avatar autorizado, apresentação, serviços/cidades e, após contratos de mídia, até 5 imagens públicas de portfólio de até 1 MiB cada; referências profissionais só com consentimento de terceiros e sem endereço, nome ou dados do cliente anterior. |
+| Currículo e redes | Currículo profissional detalhado e links externos validados podem ser guardados privadamente, com compartilhamento seletivo pelo técnico; nunca inserir links/telefones em campos públicos que os proíbem. |
+| Dossiê privado | Até 20 fotos privadas de até 1 MiB cada; documentos separados em cofre privado. Cada pedido registra cliente, finalidade, seleção pelo titular, prazo, revogação e auditoria; comprar contato não libera automaticamente documentos. |
+| Administração 360° | Proprietário vê situação, elegibilidade, históricos e campos editáveis, administra mídia, cobertura, solicitações e permissões, registra motivo de alteração e confirma gravação por releitura. Suspensos seguem suspensos; acesso administrativo é autorizado no servidor. |
+| Mobile | Cadastro, edição, busca, galeria, consentimento, prévia e painel verificáveis em 390px e 1440px com navegação por teclado e sem sobreposição de controles. |
+
+**Tempo estimado versus SLA:** a declaração "chego em aproximadamente X minutos"
+não constitui SLA. O ETA deve ser específico para período comercial/fora dele,
+com data da declaração e possibilidade de "sob consulta". SLA só nasce após
+**aceite explícito de uma solicitação concreta**, com horário-base, janela,
+condições de deslocamento e evidência de aceite; disponibilidade online nunca
+implica compromisso. Para acionamentos às 15h ou às 03h, consultar janelas
+diferentes. Feriados, fins de semana e madrugada são opções independentes.
+
+### Acesso progressivo — não comercializar um documento como se fosse um telefone
+
+1. **Visitante (antes do pagamento):** serviços, município-base, cobertura,
+   portfólio público e condições profissionais que o próprio técnico escolheu
+   divulgar; número de contato integral, documentos e endereço permanecem privados.
+2. **Cliente que pagou o acesso ao contato:** recebe apenas o contato permitido
+   pelo produto vigente. Pode **solicitar**, sem direito automático, currículo
+   detalhado, certificados ou materiais adicionais; o técnico decide o escopo
+   da divulgação e pode revogar acessos temporários.
+3. **Cliente com exigência de portaria/empresa:** solicita documentação
+   estritamente pertinente à finalidade concreta (por exemplo, comprovante de
+   capacitação ou autorização de entrada). CNH, identificação e ASO não entram
+   em diretório ou pacote automático. Se inevitável, minimizar dados, controlar
+   base legal, prazo, segurança, consentimentos quando cabíveis e revisão humana.
+   Não coletar nem compartilhar detalhes clínicos do ASO.
+4. **Administrador proprietário:** ferramentas operacionais completas para
+   gestão e auditoria, mas leitura documental restrita por necessidade e log.
+   Nenhum papel pode baixar o cofre em massa pela interface pública.
+
+**Não coletar para seleção comercial**, mesmo como campo opcional: filhos,
+dependentes menores, estado civil, hábitos de consumo, alegação de "vícios",
+histórico médico ou dados semelhantes. Isso não demonstra competência técnica
+nem disponibilidade. Substituir por critérios profissionais objetivos:
+horários, viagens, segurança, equipamentos, certificações pertinentes e aceite
+da ocorrência. Esta restrição vale também para busca, filtros, ranking e preço.
+
+### Hipótese comercial registrada — NÃO ATIVADA
+
+Os preços horários vigentes permanecem **R$ 9,99 (9h–18h)** e **R$ 29,99
+(fora do horário)** até decisão e implantação isoladas. A ideia do proprietário
+é diferenciar a **quantidade de tentativas de contato por contratação** segundo
+a riqueza **informacional** do diretório: exemplo, 1 contato inicialmente quando
+há ficha operacional consistente; até 5 opções quando há pouca informação e o
+primeiro contato não atende à solicitação. Isto **não** equivale a certificação,
+qualidade, reputação, garantia de visita ou garantia de solução.
+
+Para ativar uma política nova será indispensável: definir contratualmente o que
+constitui tentativa válida, não resposta e substituição; exibir exatamente o
+direito contratado **antes** do pagamento; limitar contatos únicos e sequência
+de liberação; impedir repetição/abuso; parametrizar regras em admin com
+versionamento/auditoria; calcular apenas campos profissionais objetivos;
+não punir ausência de foto, documento íntimo ou informação pessoal; testar
+concorrência, suspensão, estorno, histórico de contato e regra de preço.
+**Não alterar o limite vigente de contatos por esta documentação.**
+
+### Sem atalhos para marcar 100% funcional
+
+- **P0:** confirmar cadastro real, gravação e releitura de todas as informações
+  atuais; não usar sucesso de CI/deployment como prova de persistência.
+- **P1:** ativar a persistência operacional da #368 apenas depois da revisão
+  de preflight, grants, RLS, Auth/PostgREST de teste e autorização **específica**
+  para SQL oficial. Até lá, mostrar "indisponível", nunca "salvo".
+- **P2:** completar edição/projeção e busca contextualizada, sempre com gate de
+  não exposição e sem inferir disponibilidade.
+- **P3:** implementar buckets/limites 5+20, EXIF, moderação, referências
+  profissionais e links sob visibilidade definida.
+- **P4:** cofre documental privado, consentimento granular e expiração; só então
+  discutir política comercial configurável no painel, em etapa separada.
+
+**Critério final de encerramento:** demonstração autenticada com um técnico real
+consentido, cliente com permissões distintas, proprietário autorizado e acesso
+anônimo; teste de gravação/releitura em todas as visões, 390/1440, RLS/grants,
+rejeição de terceiros, suspensos preservados, auditoria e publicação única com
+SHA+READY identificados. Sem essa evidência, estado **parcial**.
