@@ -96,6 +96,7 @@ export function TechnicianAreaPage() {
     return () => window.removeEventListener("hashchange", syncTab);
   }, []);
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
+  const validationIssueRef = useRef<HTMLParagraphElement>(null);
   const loadVersion = useRef(0);
   const draftOwnerRef = useRef<string | null>(null);
   const [draftRestoredOwnerId, setDraftRestoredOwnerId] = useState<string | null>(null);
@@ -328,6 +329,12 @@ export function TechnicianAreaPage() {
     { step: 2, label: "Especialidades e serviços", ready: registrationStepError(2, form, catalog) === null, essential: true },
     { step: 3, label: "Apresentação profissional", ready: form.bio.trim().length >= 80 && !publicTextProblem(form.bio, "bio"), essential: false },
   ] as const;
+  // Focus the validation alert on each failed attempt, including repeated taps
+  // on the sticky mobile Continue button; no draft or server change occurs.
+  function showValidationIssue(message: string) {
+    setValidationIssue(message);
+    window.requestAnimationFrame(() => validationIssueRef.current?.focus());
+  }
   function moveToStep(next: RegistrationStep) {
     writeDraft(form, next); // Preserve wizard stage before React renders.
     setMsg(null);
@@ -340,7 +347,7 @@ export function TechnicianAreaPage() {
   }
   function advance() {
     const validation = registrationStepError(step, form, catalog, persistedCity);
-    if (validation) { setValidationIssue(validation); return; }
+    if (validation) { showValidationIssue(validation); return; }
     if (step < 3) moveToStep((step + 1) as RegistrationStep);
   }
 
@@ -360,7 +367,7 @@ export function TechnicianAreaPage() {
     const reviewIssue = registrationReviewIssue(form, catalog, persistedCity);
     if (reviewIssue) {
       moveToStep(reviewIssue.step);
-      setValidationIssue(reviewIssue.message);
+      showValidationIssue(reviewIssue.message);
       return;
     }
     const publicTextError = publicTextProblem(form.bio, "bio")
@@ -604,7 +611,7 @@ export function TechnicianAreaPage() {
                     : step === 2 ? "Selecione categorias e pelo menos um serviço que você realmente executa. Sem certificação automática."
                     : "Confira tudo antes de publicar. Somente o servidor pode autorizar seu perfil público."}
                 </p>
-                {validationIssue && <p role="alert" className="mt-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-foreground">{validationIssue}</p>}
+                {validationIssue && <p ref={validationIssueRef} tabIndex={-1} role="alert" className="mt-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-foreground">{validationIssue}</p>}
                 <div className="mt-5 rounded-xl border border-border bg-muted/25 p-3 sm:p-4" aria-label="Checklist do perfil profissional">
                   <p className="text-xs font-semibold text-foreground">
                     {profileChecklist.filter(item => item.ready).length} de 3 itens preparados
