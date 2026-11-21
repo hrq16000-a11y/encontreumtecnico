@@ -130,6 +130,24 @@ describe("Grafo público de interlinks indexáveis", () => {
     }
   });
 
+
+  it("publica BreadcrumbList canônico apenas para diretórios com dados elegíveis", () => {
+    const cityRoute = readFileSync("src/routes/cidades.$uf.$cidade.tsx", "utf8");
+    const categoryRoute = readFileSync("src/routes/categorias.$categoria.tsx", "utf8");
+    for (const route of [cityRoute, categoryRoute]) {
+      expect(route).toContain('...(loaderData ? [{ "script:ld+json": {');
+      expect(route).toContain('"@context": "https://schema.org"');
+      expect(route).toContain('"@type": "BreadcrumbList"');
+      expect(route).toContain('{ "@type": "ListItem", position: 1, name: "Início", item: SITE + "/" }');
+      expect(route).toContain('{ "@type": "ListItem", position: 2, name: "Buscar técnicos", item: SITE + "/tecnicos" }');
+      expect(route).toContain('item: canonical');
+      expect(route).toContain('...(!loaderData ? [{ name: "robots", content: "noindex, nofollow" }] : [])');
+      expect(route).not.toMatch(/phone_e164|contact_phone|auth\.users/);
+    }
+    expect(cityRoute).toContain('name: `${loaderData.city.name}/${loaderData.city.uf}`, item: canonical');
+    expect(categoryRoute).toContain('name: loaderData.category.label, item: canonical');
+  });
+
   it("não lê CPF, telefone, endereço, e-mail, listas banidas nem chaves administrativas", () => {
     const source = readFileSync("src/lib/public-seo-graph.functions.ts", "utf8");
     expect(source).toContain('.eq("status", "aprovado")');
