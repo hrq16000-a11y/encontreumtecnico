@@ -14,12 +14,17 @@ export function ContactForm({ initialSubject = "", initialMessage = "", submitLa
   async function submit(e: FormEvent) {
     e.preventDefault();
     setState("sending");
-    const { error } = await supabase.from("contact_messages").insert({
-      name: f.name.trim(), email: f.email.trim(), subject: f.subject.trim(), message: f.message.trim(),
-    });
-    if (error) return setState("error");
-    setState("ok");
-    setF({ name: "", email: "", subject: "", message: "" });
+    try {
+      const { error } = await supabase.from("contact_messages").insert({
+        name: f.name.trim(), email: f.email.trim(), subject: f.subject.trim(), message: f.message.trim(),
+      });
+      if (error) throw error;
+      setState("ok");
+      setF({ name: "", email: "", subject: "", message: "" });
+    } catch {
+      // Preserve all fields so the user can retry after an API or network failure.
+      setState("error");
+    }
   }
 
   return (
