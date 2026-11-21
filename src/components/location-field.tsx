@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useMunicipalities, normalizedCityText } from "@/hooks/use-municipalities";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { neighborhoodCatalogFor, neighborhoodOptions } from "@/lib/neighborhood-sources";
@@ -18,6 +18,8 @@ export function LocationField({ value, onChange, required = true, showCep = true
   required?: boolean; showCep?: boolean; hintEnabled?: boolean; label?: string;
 }) {
   const id = useId();
+  const currentValue = useRef(value);
+  currentValue.current = value;
   const { area: hint } = useRegionalSuggestion();
   const useHint = hintEnabled && !value.uf && !value.city &&
     value.municipalityIbgeId === null && hint?.source === "ip";
@@ -70,6 +72,9 @@ export function LocationField({ value, onChange, required = true, showCep = true
         signal: AbortSignal.timeout(8000), cache: "no-store",
       });
       if (!response.ok) throw new Error("cep_http");
+      // Ignore a response for a municipality changed while ViaCEP was in flight.
+      if (currentValue.current.municipalityIbgeId !== value.municipalityIbgeId ||
+          currentValue.current.uf !== value.uf) { setCepMessage("Município alterado durante a consulta."); return; }
       const result = verifiedCepFor(value, digits, await response.json() as CepLookup);
       if (!result) { setCepMessage("CEP não corresponde ao município selecionado. Nada foi alterado."); return; }
       setCepNeighborhood(result.neighborhood);
@@ -161,7 +166,7 @@ export function LocationField({ value, onChange, required = true, showCep = true
       {cepMessage && <p role="status" className="text-xs text-foreground">{cepMessage}</p>}
       <p className="text-xs text-muted-foreground">
         CEP só é gravado após validação por ViaCEP e correspondência com o município IBGE.
-        {value.postalCode ? " CEP cadastrado: " + value.postalCode.replace(/\D/g,"") : ""}
+        {value.postalCode ? " CEP validado nesta seleção: " + value.postalCode.replace(/\D/g,"") : ""}
       </p>
     </div>}
   </fieldset>;

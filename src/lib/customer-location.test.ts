@@ -75,11 +75,10 @@ describe("GPS informa município, mas nunca inventa bairro", () => {
     expect(home).toContain('prioridade: locationUf ? "regiao" : ""');
     expect(home).not.toContain("CustomerLocationButton");
     expect(home).not.toContain("Município sugerido por IP");
-    expect(tech).toContain('purpose="technician"');
-    expect(tech).toContain("previewTechnicianAreaSuggestion(current, area, source)");
-    expect(tech).toContain("if (requiresConfirmation &&");
-    expect(tech).toContain("updateRegistration(next);");
-    expect(tech).toContain('autoIfGranted={!profileId');
+    expect(tech).toContain('<LocationField label="Localidade base do técnico"');
+    expect(tech).toContain('municipalityIbgeId: form.base_city_ibge_id');
+    expect(tech).toContain("needsLocationDraftConfirmation(form, location)");
+    expect(tech).not.toContain("<CustomerLocationButton");
     expect(button).toContain("município e UF");
     expect(button).toContain("Bairro não é identificado com segurança");
     expect(button).toContain("BigDataCloud");
@@ -97,7 +96,8 @@ describe("GPS informa município, mas nunca inventa bairro", () => {
     expect(locator).toContain('navigator.geolocation.getCurrentPosition');
     expect(locator).toContain('https://api.bigdatacloud.net/data/reverse-geocode-client');
     expect(locator).not.toMatch(/localStorage|sessionStorage|\.from\(|console\.log|service_role/);
-    expect(client).toContain('city: area.city, region: area.neighborhood');
+    expect(client).toContain('<LocationField label="Local do atendimento"');
+    expect(client).toContain('setClientCityId(next.municipalityIbgeId)');
     // The public directory now ranks by server-side coarse IP municipality.
     // GPS remains an opt-in feature elsewhere, never a prerequisite for search.
     expect(directory).not.toContain("CustomerLocationButton");

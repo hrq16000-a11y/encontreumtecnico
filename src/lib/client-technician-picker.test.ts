@@ -50,16 +50,17 @@ describe("Escolha de técnico dentro do formulário mobile", () => {
     const edit = route.slice(route.indexOf("function updateRequestField("),
       route.indexOf("function chooseTechnicianInWizard("));
     expect(edit).toContain("setShareNow(false)");
-    for (const key of ["title", "description", "category", "city", "region"]) {
+    for (const key of ["title", "description", "category"]) {
       expect(route).toContain(`updateRequestField("${key}", e.target.value)`);
     }
     expect(route).toContain("receiving a different target never carries a prior opt-in");
-    const locationStart = route.indexOf("<CustomerLocationButton onLocated=");
-    const locationEnd = route.indexOf("}} />", locationStart);
+    const locationStart = route.indexOf('<LocationField label="Local do atendimento"');
+    const locationEnd = route.indexOf('}} />', locationStart);
     const locationHandler = route.slice(locationStart, locationEnd);
     expect(locationStart).toBeGreaterThan(-1);
     expect(locationEnd).toBeGreaterThan(locationStart);
-    expect(locationHandler).toContain('source === "automatic" && form.city.trim()');
+    expect(locationHandler).toContain("municipalityIbgeId: clientCityId");
+    expect(locationHandler).toContain("setClientCityId(next.municipalityIbgeId)");
     expect(locationHandler).toContain("saveLiveDraft(nextForm, step)");
     expect(locationHandler).toContain("setShareNow(false)");
 

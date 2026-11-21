@@ -103,6 +103,8 @@ export function TechnicianAreaPage() {
   const currentUserRef = useRef<string | null>(null);
   currentUserRef.current = user?.id ?? null;
   const roleKey = roles.join(",");
+  const [postalCodeHint, setPostalCodeHint] = useState("");
+  useEffect(() => setPostalCodeHint(""), [user?.id]);
   const { cities: officialBaseCities } = useMunicipalities(form.state_uf);
   const baseMunicipality = officialBaseCities.find((city) => city.id === form.base_city_ibge_id) ?? null;
   const currentStatus = roles.includes("tecnico") && profileOwnerId === user?.id ? status : null;
@@ -618,9 +620,10 @@ export function TechnicianAreaPage() {
               <LocationField label="Localidade base do técnico" required={!editingUnchangedCity}
                 value={{
                   uf: form.state_uf, city: form.city, municipalityIbgeId: form.base_city_ibge_id,
-                  neighborhood: form.neighborhood, postalCode: "",
+                  neighborhood: form.neighborhood, postalCode: postalCodeHint,
                 }}
                 onChange={(next: LocationFieldValue) => {
+                  setPostalCodeHint(next.postalCode);
                   const location = {
                     state_uf: next.uf, city: next.city, base_city_ibge_id: next.municipalityIbgeId,
                   };
