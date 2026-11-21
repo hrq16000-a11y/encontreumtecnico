@@ -8,7 +8,7 @@ import { googleIdentityHint } from "@/lib/google-identity-hint";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveCategories } from "@/hooks/use-active-categories";
 import { useActiveServices } from "@/hooks/use-active-services";
-import { validMunicipality } from "@/lib/service-taxonomy";
+import { BRAZIL_STATES, validMunicipality } from "@/lib/service-taxonomy";
 import { useMunicipalities } from "@/hooks/use-municipalities";
 import { LocationField, type LocationFieldValue } from "@/components/location-field";
 import { TechnicianCoverageEditor } from "@/components/technician-coverage-editor";
@@ -355,7 +355,7 @@ export function TechnicianAreaPage() {
       || publicTextProblem(form.neighborhood, "identity");
     if (publicTextError) { setMsg(publicTextError); return; }
     const savingOwner = user.id;
-    if (!validMunicipality(form.state_uf, form.city)) return setMsg("Selecione a UF e informe uma cidade válida para sua área de atendimento.");
+    if (!BRAZIL_STATES.some(uf => uf === form.state_uf) || !validMunicipality(form.state_uf, form.city)) return setMsg("Selecione a UF e confirme uma cidade válida no catálogo oficial.");
     if (catalogLoading || catalogError || !categories.length) return setMsg("O catálogo está indisponível. Não é possível validar especialidades agora.");
     if (form.specialties.length === 0) return setMsg("Escolha pelo menos uma especialidade.");
     if (form.specialties.some((slug) => !categories.some((c) => c.slug === slug))) return setMsg("Selecione apenas categorias ativas do catálogo.");
@@ -636,7 +636,7 @@ export function TechnicianAreaPage() {
               {editingUnchangedCity && <p role="status" className="text-xs text-muted-foreground">
                 Município antigo preservado sem mudanças; confirme no IBGE se desejar trocá-lo.
               </p>}
-              <label className="text-sm font-medium text-foreground">Outras regiões atendidas (opcional)
+              <label className="text-sm font-medium text-foreground">Outros bairros ou regiões atendidos (opcional)
                 <input maxLength={120} className={input} value={form.region}
                   placeholder="Somente áreas adicionais, sem endereço privado"
                   onChange={e => updateRegistration({ ...form, region: e.target.value })} />

@@ -61,20 +61,22 @@ describe("Localidade do atendimento guiado", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /Continuar/i }));
 
-    const state = screen.getByRole("combobox", { name: "Estado (UF)" }) as HTMLSelectElement;
+    const state = screen.getByRole("combobox", { name: "UF" }) as HTMLSelectElement;
     expect(state.value).toBe("PR");
-    const officialCity = screen.getByRole("combobox", { name: "Município selecionado" }) as HTMLSelectElement;
+    const officialCity = screen.getByRole("combobox", { name: "Município oficial" }) as HTMLSelectElement;
+    expect(officialCity.value).toBe("");
+    fireEvent.change(officialCity, { target: { value: "4106902" } });
     await waitFor(() => expect(officialCity.value).toBe("4106902"));
     expect(screen.queryByRole("textbox", { name: "Cidade (opcional)" })).toBeNull();
     fireEvent.change(state, { target: { value: "SC" } });
     expect(state.value).toBe("SC");
     expect(officialCity.value).toBe("");
-    fireEvent.change(screen.getByRole("searchbox", { name: "Buscar município na lista oficial" }), {
+    fireEvent.change(screen.getByRole("searchbox", { name: "Filtrar municípios IBGE" }), {
       target: { value: "Flori" },
     });
     fireEvent.change(officialCity, { target: { value: "4205407" } });
     expect(officialCity.value).toBe("4205407");
-    expect(screen.getByText("Código IBGE 4205407")).toBeTruthy();
+    expect(screen.getByText(/IBGE 4205407/)).toBeTruthy();
   });
 
   it("não grava cidade inexistente vinda de sugestão ou contexto externo", async () => {
@@ -89,7 +91,7 @@ describe("Localidade do atendimento guiado", () => {
       target: { value: "Meu notebook não conecta à rede sem fio há dois dias" },
     });
     fireEvent.click(screen.getByRole("button", { name: /Continuar/i }));
-    expect(screen.getByText(/Município informado ou sugerido/)).toBeTruthy();
+    expect(screen.getByText(/sem confirmação IBGE/)).toBeTruthy();
     fireEvent.change(screen.getByRole("textbox", { name: "Seu nome" }), {
       target: { value: "Cliente de teste" },
     });
@@ -115,9 +117,9 @@ describe("Localidade do atendimento guiado", () => {
       target: { value: "Meu notebook reinicia sozinho e preciso de manutenção" },
     });
     fireEvent.click(screen.getByRole("button", { name: /Continuar/i }));
-    await waitFor(() => expect((screen.getByRole("combobox", {
-      name: "Município selecionado",
-    }) as HTMLSelectElement).value).toBe("4106902"));
+    const confirmed = screen.getByRole("combobox", { name: "Município oficial" });
+    fireEvent.change(confirmed, { target: { value: "4106902" } });
+    await waitFor(() => expect((confirmed as HTMLSelectElement).value).toBe("4106902"));
     fireEvent.change(screen.getByRole("textbox", { name: "Seu nome" }), {
       target: { value: "Cliente sintético" },
     });
@@ -148,7 +150,7 @@ describe("Localidade do atendimento guiado", () => {
       target: { value: "Preciso instalar um equipamento e verificar sua configuração" },
     });
     fireEvent.click(screen.getByRole("button", { name: /Continuar/i }));
-    expect(screen.getByText(/Município informado ou sugerido/)).toBeTruthy();
+    expect(screen.getByText(/sem confirmação IBGE/)).toBeTruthy();
     fireEvent.change(screen.getByRole("textbox", { name: "Seu nome" }), {
       target: { value: "Cliente sintético" },
     });
