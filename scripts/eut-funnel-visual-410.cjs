@@ -99,6 +99,13 @@ async function exercise(browser, width, height) {
       "Public entry page did not return HTTP 200");
     await page.locator('button[aria-controls="eut-free-help-dialog"]')
       .waitFor({ state: "attached" });
+    // The cookie preferences banner can also carry role=dialog. Dismiss it
+    // only inside this disposable context, then target the assistance ID.
+    const rejectCookies = page.getByRole("button", { name: "Rejeitar", exact: true });
+    if (await rejectCookies.isVisible().catch(() => false)) {
+      await rejectCookies.click();
+    }
+    await page.waitForTimeout(500);
 
     // Production's documented event opens the actual lazy-loaded component.
     // The requested specific service is a synthetic context from a profile.
@@ -110,13 +117,14 @@ async function exercise(browser, width, height) {
       await page.evaluate((detail) => window.dispatchEvent(
         new CustomEvent("eut-open-free-help", { detail })), help);
       try {
-        await page.getByRole("dialog").waitFor({ state: "visible", timeout: 3000 });
+        await page.locator('#eut-free-help-dialog[role="dialog"]').waitFor({ state: "visible", timeout: 3000 });
         break;
       } catch (e) {
         if (attempt === 2) throw e;
       }
     }
-    const dialog = page.getByRole("dialog");
+    const dialog = page.locator('#eut-free-help-dialog[role="dialog"]');
+    await screenshot("00-atendimento-aberto");
     stage = "service";
     const serviceInput = dialog.getByRole("combobox", { name: "Tipo de serviço" });
     assert.equal(await serviceInput.inputValue(), "Formatação de notebooks");
@@ -198,9 +206,15 @@ async function exercise(browser, width, height) {
     console.log("PASS " + width + "px", JSON.stringify(summary));
   } catch (error) {
     try { await screenshot("FAIL-" + stage); } catch { /* browser unavailable */ }
+    let dialogText = "";
+    try {
+      dialogText = (await page.locator('#eut-free-help-dialog').innerText({
+        timeout: 1500,
+      })).slice(0, 900);
+    } catch { /* dialog may not have opened */ }
     fs.writeFileSync(path.join(folder, "failure.json"),
       JSON.stringify({ viewport: width, stage, error: String(error),
-        mockInserts, blockedWrites }, null, 2) + "\n");
+        dialogText, mockInserts, blockedWrites }, null, 2) + "\n");
     throw error;
   } finally {
     await context.close();
