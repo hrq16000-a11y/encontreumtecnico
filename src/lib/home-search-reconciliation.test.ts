@@ -70,10 +70,10 @@ describe("Home: reconciliação de especialidade ativa e município IBGE", () =>
       specialty: "computadores", city: "Campo Grande", uf: "MS",
       neighborhood: "Centro", cityid: "5002704",
     });
-    expect(composedFilters(saved!.specialty, saved!.uf, saved!.city, Number(saved!.cityid),
-      saved!.neighborhood)).toMatchObject({ cidade: "Campo Grande", uf: "MS",
+    expect(composedFilters((saved?.["specialty"] ?? ""), (saved?.["uf"] ?? ""), (saved?.["city"] ?? ""), Number((saved?.["cityid"] ?? "")),
+      (saved?.["neighborhood"] ?? ""))).toMatchObject({ cidade: "Campo Grande", uf: "MS",
         especialidade: "computadores" });
-    expect(composedFilters(saved!.specialty, "PR", saved!.city, Number(saved!.cityid)))
+    expect(composedFilters((saved?.["specialty"] ?? ""), "PR", (saved?.["city"] ?? ""), Number((saved?.["cityid"] ?? ""))))
       .toBeNull();
   });
 
