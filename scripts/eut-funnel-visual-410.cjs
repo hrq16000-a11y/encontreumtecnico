@@ -69,6 +69,12 @@ async function exercise(browser, width, height) {
       return route.fulfill({ status: 200, contentType: "application/json",
         body: JSON.stringify(services) });
     }
+    // The public ad-slot lookup is a read-only PostgREST RPC that happens to
+    // use POST. Return an empty synthetic result; never reach the real RPC.
+    if (method === "POST" && apiPath.endsWith("/rest/v1/rpc/eut_ads_public_slot")) {
+      mockedReads.add("ad-slot");
+      return route.fulfill({ status: 200, contentType: "application/json", body: "null" });
+    }
     if (method === "POST" && apiPath.endsWith("/rest/v1/contact_messages")) {
       mockInserts += 1;
       const body = request.postData() || "";
