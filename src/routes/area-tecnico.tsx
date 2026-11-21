@@ -31,7 +31,7 @@ import { clearProtectedDraft, readProtectedDraft, saveProtectedDraft } from "@/l
 import { saveTechnicianDraftImmediately } from "@/lib/technician-live-draft";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
-import { matchingRegistrationCategories, matchingRegistrationServices, groupRegistrationServices, selectedRegistrationServices, reconcileRegistrationSelections, registrationReviewIssue, registrationStepError, shouldSubmitTechnicianWizard, type RegistrationStep } from "@/lib/technician-registration-wizard";
+import { matchingRegistrationCategories, matchingRegistrationServices, groupRegistrationServices, toggleVisibleRegistrationServices, selectedRegistrationServices, reconcileRegistrationSelections, registrationReviewIssue, registrationStepError, shouldSubmitTechnicianWizard, type RegistrationStep } from "@/lib/technician-registration-wizard";
 import { hydrateTechnicianOfficialCity } from "@/lib/technician-official-city-hydration";
 import { publicTextProblem } from "@/lib/public-profile-text";
 import { technicianPublishErrorMessage } from "@/lib/technician-publish-error";
@@ -811,7 +811,19 @@ export function TechnicianAreaPage() {
                       className="rounded-xl border border-border bg-muted/15 p-3 sm:p-4">
                       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                         <h3 className="text-sm font-bold text-foreground">{group.categoryLabel}</h3>
-                        <span className="text-xs text-muted-foreground">{group.services.length} opções nesta área</span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs text-muted-foreground">{group.services.length} opções nesta área</span>
+                          {group.services.length > 1 && (
+                            <button type="button"
+                              aria-label={`Marcar ou desmarcar serviços exibidos de ${group.categoryLabel}`}
+                              onClick={() => updateRegistration({ ...form,
+                                service_slugs: toggleVisibleRegistrationServices(form.service_slugs, group.services) })}
+                              className="min-h-11 rounded-lg border border-primary/30 bg-background px-3 text-xs font-semibold text-primary hover:bg-accent">
+                              {group.services.every(service => form.service_slugs.includes(service.slug))
+                                ? "Desmarcar exibidos" : "Marcar exibidos"}
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <div className="grid gap-2 sm:grid-cols-2">
                         {group.services.map((service) => (
