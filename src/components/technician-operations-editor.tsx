@@ -131,6 +131,8 @@ export function TechnicianOperationsEditor({ technicianId, coverageCityIds, mode
       setExpectedAt(data.updated_at);
       setDraft(valid);
       setSavedDraft(valid);
+      setRate(centsToBrl(valid.km_rate_cents));
+      setAfterRate(centsToBrl(valid.km_rate_after_cents));
       setReason("");
       setCoverageNotice(null);
       setFeedback("Condições operacionais salvas e relidas no servidor. São declarações, não garantia de chegada.");

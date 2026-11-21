@@ -56,4 +56,28 @@ describe("editor de condições: descartar somente alterações locais", () => {
     expect(reason.value).toBe("");
     expect(api.rpc).toHaveBeenCalledTimes(1);
   });
+
+  it("encerra a edição das duas tarifas após salvar e reler valores com uma casa decimal", async () => {
+    const firstVersion = "2026-11-20T00:00:00Z";
+    const nextVersion = "2026-11-20T00:01:00Z";
+    const initial = { ...stored, km_threshold: 10 };
+    const reread = { ...initial, km_rate_cents: 350, km_rate_after_cents: 475 };
+    api.rpc
+      .mockResolvedValueOnce({ data: { ok: true, profile: initial, updated_at: firstVersion } })
+      .mockResolvedValueOnce({ data: { ok: true, technician_id: "tecnico-a", updated_at: nextVersion } })
+      .mockResolvedValueOnce({ data: { ok: true, profile: reread, updated_at: nextVersion } });
+
+    render(<TechnicianOperationsEditor technicianId="tecnico-a" coverageCityIds={[]} mode="technician" />);
+    const rate = await screen.findByLabelText("R$/km até o limite informado");
+    const afterRate = screen.getByLabelText("R$/km após o limite (opcional)");
+    fireEvent.change(rate, { target: { value: "3,5" } });
+    fireEvent.change(afterRate, { target: { value: "04,75" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar condições operacionais" }));
+
+    await screen.findByText(/Condições operacionais salvas e relidas/);
+    expect(rate).toHaveValue("3,50");
+    expect(afterRate).toHaveValue("4,75");
+    expect(screen.getByRole("button", { name: "Descartar alterações" })).toBeDisabled();
+    expect(api.rpc).toHaveBeenCalledTimes(3);
+  });
 });
