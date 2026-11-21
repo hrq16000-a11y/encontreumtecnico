@@ -17,6 +17,7 @@ export function createS4IsolatedPresence(options) {
   let pending = false;
   let rotating = false;
   let stopped = false;
+  let pageSuspended = false;
   let failed = false;
   let active = null;
   let beatInFlight = false;
@@ -28,7 +29,7 @@ export function createS4IsolatedPresence(options) {
     flags?.VITE_EUT_PRIVATE_REALTIME_PRESENCE === "disabled";
 
   const permitted = () => {
-    if (stopped || !enabled || document.visibilityState !== "visible" ||
+    if (stopped || pageSuspended || !enabled || document.visibilityState !== "visible" ||
         forbidden.test(pathname)) return false;
     try {
       return JSON.parse(getConsent() || "null")?.presence === true;
@@ -156,11 +157,12 @@ export function createS4IsolatedPresence(options) {
     if (event.key === "eut-cookie-consent" || event.key === null) sync();
   }
 
-  function hide() { retire(); } // BFCache/pagehide always discards epoch.
+  function hide() { pageSuspended = true; retire(); } // Freeze even if visibility remains visible.
+  function restore() { pageSuspended = false; sync(); }
   window.addEventListener("eut-consent-changed", sync);
   window.addEventListener("storage", storage);
   window.addEventListener("pagehide", hide);
-  window.addEventListener("pageshow", sync);
+  window.addEventListener("pageshow", restore);
   document.addEventListener("visibilitychange", sync);
   sync();
 
@@ -175,7 +177,7 @@ export function createS4IsolatedPresence(options) {
       window.removeEventListener("eut-consent-changed", sync);
       window.removeEventListener("storage", storage);
       window.removeEventListener("pagehide", hide);
-      window.removeEventListener("pageshow", sync);
+      window.removeEventListener("pageshow", restore);
       document.removeEventListener("visibilitychange", sync);
       retire();
     },
