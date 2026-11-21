@@ -177,6 +177,55 @@ export function ClientAreaPage({ tecnico, modo, categoria }: ClientAreaPageProps
     setMsg("Sua triagem foi recuperada. Revise a descrição, a categoria e a cidade antes de salvar.");
   }, [loading, user?.id, roles.join(",")]);
 
+  async function load() {
+    if (!user || !roles.includes("cliente")) return;
+    const owner = user.id;
+    const version = ++loadVersion.current;
+    const current = () => canAcceptAccountResult(owner, currentUserIdRef.current, version, loadVersion.current);
+    setRows(null);
+    setRowsOwnerId(null);
+    setRowsError(false);
+    setReplyLoadError(false);
+    setSharedIds(new Set());
+    setReplyByRequest({});
+
+    try {
+      const { data, error } = await supabase.from("service_requests")
+        .select("*").eq("client_id", owner).order("created_at", { ascending: false });
+      if (!current()) return;
+      if (error) throw error;
+
+      const mine = data ?? [];
+      setRows(mine);
+      setRowsOwnerId(owner);
+      if (!mine.length) return;
+
+      const [shares, replies] = await Promise.all([
+        directDb.from("eut_direct_request_consents").select("request_id").eq("client_id", owner),
+        directDb.from("eut_direct_request_replies").select("request_id,body,created_at")
+          .in("request_id", mine.map((item) => item.id)),
+      ]);
+      if (!current()) return;
+      if (shares.error || replies.error) {
+        setReplyLoadError(true);
+      }
+      if (!shares.error) {
+        setSharedIds(new Set((shares.data ?? []).map((entry: { request_id: string }) => entry.request_id)));
+      }
+      if (!replies.error) {
+        setReplyByRequest(Object.fromEntries(((replies.data ?? []) as DirectReply[])
+          .map((entry) => [entry.request_id, entry])));
+      }
+    } catch {
+      if (!current()) return;
+      // Never turn a failed private query into "you have no requests".
+      setRowsError(true);
+      setRows(null);
+      setRowsOwnerId(null);
+      setSharedIds(new Set());
+      setReplyByRequest({});
+    }
+  }
   useEffect(() => {
     void load();
     // Invalidate in-flight account-owned queries when the component unmounts.
