@@ -4,6 +4,7 @@ import type { PublicTechnician } from "@/lib/technicians.functions";
 import { TechnicianAvatar } from "@/components/technician-avatar";
 import { hasPublicTechnicianPhoto } from "@/lib/public-avatar-path";
 import { formatPublicLocation, placeKey } from "@/lib/location-labels";
+import { publicTechnicianBioPreview } from "@/lib/technician-public-bio-preview";
 import { useActiveCategories, categoryLabel } from "@/hooks/use-active-categories";
 import { useActiveServices, serviceLabel } from "@/hooks/use-active-services";
 
@@ -27,6 +28,7 @@ export function TechnicianSearchCard({ technician: t, categories, services, loca
   const declaredCities = additionalCities.slice(0, 2);
   const moreCities = Math.max(0, additionalCities.length - declaredCities.length);
   const location = formatPublicLocation(t);
+  const bioPreview = publicTechnicianBioPreview(t.bio);
   const hasPhoto = hasPublicTechnicianPhoto(t.avatar_path);
   // Public-field enrichment, not proof that a private wizard or address is 100% complete.
   const enrichedProfile = hasPhoto && Boolean(t.bio?.trim()) && Boolean(t.city.trim()) &&
@@ -116,6 +118,13 @@ export function TechnicianSearchCard({ technician: t, categories, services, loca
             {servicePreview.length === 0 && <li className="text-xs text-muted-foreground">Consulte o perfil para conhecer o atendimento</li>}
           </ul>
         </div>
+
+        {bioPreview && (
+          <div className="mt-4 rounded-xl border border-border bg-muted/30 px-3.5 py-3">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Apresentação informada pelo profissional</p>
+            <p className="mt-1 break-words text-sm leading-5 text-foreground">{bioPreview}</p>
+          </div>
+        )}
 
         {declaredCities.length > 0 && (
           <p className="mt-4 break-words text-xs leading-5 text-muted-foreground">
