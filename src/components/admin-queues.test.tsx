@@ -112,6 +112,24 @@ describe("filas administrativas em interação real de React", () => {
     expect(await screen.findByText("Pedido 21")).toBeTruthy();
   });
 
+  it("fecha detalhes de solicitações ao mudar de página, sem reabri-los ao voltar", async () => {
+    mockDb.requests = Array.from({ length: 21 }, (_, i) => ({
+      id: `pedido-${i}`, title: `Pedido ${i + 1}`, category: "Informática",
+      city: "Curitiba", region: null, status: "aberta",
+      description: "Descrição privada do atendimento", created_at: "2026-11-14T00:00:00Z",
+    }));
+    render(<AdminRequestQueue />);
+    expect(await screen.findByText("Pedido 1")).toBeTruthy();
+    fireEvent.click(screen.getAllByRole("button", { name: "Ver detalhes" })[0]!);
+    expect(screen.getByText("Descrição privada do atendimento")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /Próxima/ }));
+    expect(await screen.findByText("Pedido 21")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Anterior/ }));
+    expect(await screen.findByText("Pedido 1")).toBeTruthy();
+    expect(screen.queryByText("Descrição privada do atendimento")).toBeNull();
+  });
+
   it("só confirma mensagem após RPC auditada e releitura do estado persistido", async () => {
     const id = "a8d48d0f-a011-4a1c-a6a7-3ebd210dc258";
     mockDb.messages = [{ id, name: "Cliente", subject: "Preciso de atendimento",
