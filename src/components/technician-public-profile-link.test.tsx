@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TechnicianPublicProfileLink } from "./technician-public-profile-link";
@@ -54,4 +54,22 @@ describe("link público da ficha salva", () => {
     expect(await screen.findByRole("button", { name: "Consultar novamente" })).toHaveAttribute("type", "button");
     expect(screen.queryByRole("link")).toBeNull();
   });
+
+  it("permite consultar novamente quando uma ficha antes invisível passa a constar no catálogo", async () => {
+    getProfile
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: "profile", public_slug: "canonical-slug" });
+    renderLink();
+
+    const retry = await screen.findByRole("button", { name: "Consultar novamente" });
+    expect(screen.queryByRole("link")).toBeNull();
+    fireEvent.click(retry);
+
+    expect(await screen.findByRole("link", { name: "Abrir perfil" })).toHaveAttribute(
+      "href",
+      "/tecnicos/canonical-slug",
+    );
+    expect(getProfile).toHaveBeenCalledTimes(2);
+  });
+
 });

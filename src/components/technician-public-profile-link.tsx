@@ -36,7 +36,14 @@ export function TechnicianPublicProfileLink({ ownerId, profileId, lookup, childr
     );
   }
   if (!listing.data) {
-    return <p role="status" className={noticeStyle}>A ficha está salva e ainda não aparece no catálogo público.</p>;
+    return (
+      <p role="status" className={noticeStyle}>
+        A ficha está salva e ainda não aparece no catálogo público.{" "}
+        <button type="button" className="font-semibold underline" onClick={() => void listing.refetch()}>
+          Consultar novamente
+        </button>
+      </p>
+    );
   }
   return (
     <Link to="/tecnicos/$tecnicoId" params={{ tecnicoId: listing.data }}
