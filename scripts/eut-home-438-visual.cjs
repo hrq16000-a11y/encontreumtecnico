@@ -41,7 +41,15 @@ async function exercise(browser, width, height) {
     const url = new URL(req.url());
     const method = req.method().toUpperCase();
     const pathname = url.pathname;
-    // Every mutation, even to localhost, fails closed. No writes are allowed.
+    // The public sponsored-slot RPC uses POST for a read-only lookup.
+    // Fulfill locally with no ad; the real endpoint is NEVER contacted.
+    if (method === "POST" && url.hostname === "pqtzhctvjbfcunmrvxne.supabase.co" &&
+        pathname === "/rest/v1/rpc/eut_ads_public_slot") {
+      reads.add("ad-slot");
+      return route.fulfill({ status: 200, contentType: "application/json",
+        body: "null", headers: { "access-control-allow-origin": "*" } });
+    }
+    // Every other mutation, even to localhost, fails closed. No writes are allowed.
     if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
       sent++;
       denied.push(method + " " + url.origin + pathname);
@@ -180,8 +188,10 @@ async function exercise(browser, width, height) {
     for (const forbidden of ["telefone", "email", "latitude", "longitude", "cityid"]) {
       assert(!next.searchParams.has(forbidden), "Private or internal key in URL " + forbidden);
     }
+    await page.getByRole("heading", { name: "Encontre técnicos na sua região" })
+      .waitFor({ state: "visible", timeout: 20000 });
     await snap("05-busca-filtrada");
-    assert.equal(sent, 0, "A real or local mutation was attempted");
+    assert.equal(sent, 0, "An unmocked mutation was attempted: "+denied.join(" | "));
     assert(reads.has("categories") && reads.has("municipalities"),
       "Synthetic active catalog/IBGE fixtures were not both read");
     assert(!denied.some(t => t.startsWith("unmocked")),
@@ -193,6 +203,7 @@ async function exercise(browser, width, height) {
     console.log("PASS HOME438 "+width+"px "+JSON.stringify(result));
   } catch (error) {
     try { await snap("FAIL-"+stage); } catch {}
+    console.error("QA_DIAGNOSTICS "+width+"px "+JSON.stringify({stage,denied,reads:[...reads],sent}));
     save("failure",{viewport:width,height,stage,error:String(error),
       sent,denied,reads:[...reads]});
     throw error;
