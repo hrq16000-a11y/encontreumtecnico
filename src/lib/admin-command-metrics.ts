@@ -2,6 +2,13 @@
 export function adminCount(value: unknown): number | null {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
 }
+/** An empty alert queue must not imply zero when any count is unavailable. */
+export function adminAttentionEmptyMessage(values: readonly (number | null)[]): string {
+  return values.some((value) => value === null)
+    ? "Sem pendências confirmadas; alguns indicadores estão indisponíveis."
+    : "Nenhuma pendência nos indicadores consultados.";
+}
+
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown> : null;
