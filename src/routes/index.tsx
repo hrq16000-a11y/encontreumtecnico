@@ -176,7 +176,7 @@ function HomePage() {
               onSubmit={(e) => {
                 e.preventDefault();
                 window.__lovableEvents?.track?.("project.technician_search", {
-                  has_specialty: specialty.trim() !== "",
+                  has_specialty: canonicalHomeCategory(specialty, activeCategories) !== "Todas",
                   has_city: city.trim() !== "",
                 });
                 navigate({
