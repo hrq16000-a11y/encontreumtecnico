@@ -1,0 +1,139 @@
+name: EUT PR344 — Realtime private WebSocket isolated QA
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/eut-pr344-realtime-isolated.yml'
+      - 'qa/pr344-realtime-websocket.test.mjs'
+      - 'qa/pr344-realtime-synthetic-roles.sql'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eut-pr344-realtime-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  websocket-local:
+    if: github.event.pull_request.number == 344
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # No hosted project token; no repository or org secrets are used.
+      SUPABASE_ACCESS_TOKEN: ''
+      PR344_LOCAL_ONLY: 'yes'
+      PGHOST: '127.0.0.1'
+      PGPORT: '54322'
+      PGUSER: 'postgres'
+      PGPASSWORD: 'postgres'
+      PGDATABASE: 'postgres'
+      SUPABASE_YES: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: supabase/setup-cli@v1
+        with:
+          version: '3.2.0'
+
+      - name: Preflight — insist on local-only commands
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase --version
+          supabase --help >/dev/null
+          supabase init --help >/dev/null
+          supabase start --help >/dev/null
+          supabase status --help >/dev/null
+          node --check qa/pr344-realtime-websocket.test.mjs
+
+      - name: Install locked JavaScript dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Start a fresh local Supabase without project linkage
+        shell: bash
+        run: |
+          set -euo pipefail
+          stack_dir="$(mktemp -d "$RUNNER_TEMP/eut-pr344-realtime-XXXXXX")"
+          echo "PR344_STACK_DIR=$stack_dir" >> "$GITHUB_ENV"
+          cd "$stack_dir"
+          supabase init
+          test -f supabase/config.toml
+          if rg -q 'pqtzhctvjbfcunmrvxne' supabase/config.toml; then
+            echo 'Official project reference found in disposable stack; aborting' >&2
+            exit 1
+          fi
+          supabase start
+          echo 'Disposable Supabase start completed'
+
+      - name: Install only synthetic roles and the exact PR344 policies on localhost
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+          test "$PGHOST" = 127.0.0.1
+          test "$PGPORT" = 54322
+          enabled="$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT relrowsecurity FROM pg_class WHERE oid = 'realtime.messages'::regclass")"
+          test "$enabled" = t || { echo 'Realtime messages RLS is not enabled in local stack' >&2; exit 1; }
+          psql -X -v ON_ERROR_STOP=1 -f qa/pr344-realtime-synthetic-roles.sql
+          psql -X -v ON_ERROR_STOP=1 -f docs/sql/eut-realtime-private-presence-confirmed-20261120.sql
+          count="$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM pg_policies WHERE schemaname='realtime' AND tablename='messages' AND policyname LIKE 'eut_private_presence_%_v2'")"
+          test "$count" = 2 || { echo "Expected 2 local PR344 policies; found $count" >&2; exit 1; }
+          echo 'Local RLS enabled and exactly two PR344 policies verified'
+
+      - name: Enable private-only tenant in disposable Realtime instance only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${PR344_STACK_DIR:-}"
+          test "$PGHOST" = 127.0.0.1
+          update_sql="UPDATE _realtime.tenants SET private_only = true, updated_at = now();"
+          verify_sql="SELECT CASE WHEN COUNT(*)=1 AND BOOL_AND(private_only) THEN 'ok' ELSE 'not-private-only' END FROM _realtime.tenants;"
+          if ! psql -X -v ON_ERROR_STOP=1 -c "$update_sql" >/dev/null; then
+            db_container="$(docker ps --format '{{.Names}}' | awk '/^supabase_db_/ {print; exit}')"
+            test -n "$db_container" || { echo 'No disposable DB container' >&2; exit 1; }
+            docker exec "$db_container" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -c "$update_sql" >/dev/null
+          fi
+          verified="$(psql -X -At -v ON_ERROR_STOP=1 -c "$verify_sql" 2>/dev/null || true)"
+          if [ "$verified" != ok ]; then
+            db_container="$(docker ps --format '{{.Names}}' | awk '/^supabase_db_/ {print; exit}')"
+            verified="$(docker exec "$db_container" psql -U supabase_admin -d postgres -At -v ON_ERROR_STOP=1 -c "$verify_sql")"
+          fi
+          test "$verified" = ok || { echo 'Local tenant is not private-only' >&2; exit 1; }
+          realtime_container="$(docker ps --format '{{.Names}}' | awk '/^supabase_realtime_/ {print; exit}')"
+          test -n "$realtime_container" || { echo 'Disposable Realtime container missing' >&2; exit 1; }
+          # Realtime caches the tenant configuration (default TTL 30 s). A direct
+          # container restart can rerun local tenant seeding and reset the flag.
+          # Wait for cache expiry instead of restarting the service.
+          sleep 40
+          verified="$(docker exec "$(docker ps --format '{{.Names}}' | awk '/^supabase_db_/ {print; exit}')" psql -U supabase_admin -d postgres -At -v ON_ERROR_STOP=1 -c "$verify_sql")"
+          test "$verified" = ok || { echo 'Local private_only flag reverted after cache window' >&2; exit 1; }
+          echo 'Local private_only remains true after cache expiry; service was not restarted'
+
+      - name: Export localhost keys without printing them
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$PR344_STACK_DIR"
+          set -a
+          source <(supabase status -o env)
+          set +a
+          [[ "${API_URL:-}" =~ ^http://127\.0\.0\.1:[0-9]+$ ]] || exit 1
+          test -n "${ANON_KEY:-}"
+          test -n "${SERVICE_ROLE_KEY:-}"
+          echo "PR344_API_URL=$API_URL" >> "$GITHUB_ENV"
+          echo "PR344_ANON_KEY=$ANON_KEY" >> "$GITHUB_ENV"
+          echo "PR344_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY" >> "$GITHUB_ENV"
+          echo 'Local credentials loaded from disposable stack only'
+
+      - name: Real WebSocket — visitor, technician, admin, revocation, legacy denial
+        run: timeout --signal=TERM --kill-after=5s 100s node --test qa/pr344-realtime-websocket.test.mjs
+
+      - name: Stop disposable stack even after a failed gate
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "${PR344_STACK_DIR:-}" ] && [ -f "$PR344_STACK_DIR/supabase/config.toml" ]; then
+            cd "$PR344_STACK_DIR"
+            supabase stop --no-backup || true
+          fi

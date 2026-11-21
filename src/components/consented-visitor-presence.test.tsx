@@ -1,86 +1,75 @@
 // @vitest-environment jsdom
-import { act, cleanup, render } from "@testing-library/react";
+import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const fake = vi.hoisted(() => {
-  const channel = {
-    subscribe: vi.fn(), track: vi.fn().mockResolvedValue({}), untrack: vi.fn().mockResolvedValue({}),
-  };
-  return { channel, connect: vi.fn(), remove: vi.fn().mockResolvedValue({}) };
-});
-vi.mock("@/integrations/supabase/client", () => ({
-  supabase: { channel: fake.connect.mockImplementation(() => fake.channel), removeChannel: fake.remove },
+const fake = vi.hoisted(() => ({
+  send: vi.fn(),
+  token: vi.fn(),
+}));
+vi.mock("@/lib/visitor-http-presence", () => ({
+  HTTP_PRESENCE_READY: true, // Preview only; the actual environment flags remain OFF.
+  newPresenceTabToken: fake.token,
+  sendPresenceLease: fake.send,
 }));
 import { ConsentedVisitorPresence } from "./consented-visitor-presence";
 
-describe("publicador de presença temporária", () => {
+describe("adaptador HTTP de presença temporária consentida", () => {
+  let nonce = 0;
   beforeEach(() => {
-    localStorage.clear(); fake.connect.mockClear(); fake.remove.mockClear();
-    fake.channel.subscribe.mockClear(); fake.channel.track.mockClear(); fake.channel.untrack.mockClear();
+    localStorage.clear();
+    fake.send.mockReset().mockResolvedValue(204);
+    fake.token.mockReset().mockImplementation(() => (++nonce).toString(16).padStart(32, "0"));
   });
   afterEach(() => { cleanup(); localStorage.clear(); });
 
-  it("não abre conexão sem consentimento específico, mesmo com analytics ativo", () => {
+  it("não envia HTTP sem consentimento específico, mesmo com analytics ativo", () => {
     localStorage.setItem("eut-cookie-consent", '{"analytics":true}');
     render(<ConsentedVisitorPresence pathname="/" />);
-    expect(fake.connect).not.toHaveBeenCalled();
+    expect(fake.send).not.toHaveBeenCalled();
   });
 
-  it("publica apenas marcador anônimo, revoga e encerra o canal", () => {
+  it("inicia uma aba anônima e revoga imediatamente quando o consentimento é retirado", async () => {
     render(<ConsentedVisitorPresence pathname="/" />);
     localStorage.setItem("eut-cookie-consent", '{"presence":true}');
-    act(() => { window.dispatchEvent(new Event("eut-consent-changed")); });
-    expect(fake.connect).toHaveBeenCalledWith("eut-consented-visitor-tabs-v1");
-    const callback = fake.channel.subscribe.mock.calls[0]?.[0] as (status: string) => void;
-    act(() => { callback("SUBSCRIBED"); });
-    expect(fake.channel.track).toHaveBeenCalledWith({ kind: "consented-visitor-tab" });
-    expect(JSON.stringify(fake.channel.track.mock.calls)).not.toMatch(/email|ip|city|url|user_id/);
+    await act(async () => { window.dispatchEvent(new Event("eut-consent-changed")); });
+    await waitFor(() => expect(fake.send).toHaveBeenCalledWith("start", expect.stringMatching(/^[0-9a-f]{32}$/)));
+    const token = fake.send.mock.calls[0]?.[1];
     localStorage.setItem("eut-cookie-consent", '{"presence":false}');
-    act(() => { window.dispatchEvent(new Event("eut-consent-changed")); });
-    expect(fake.channel.untrack).toHaveBeenCalled();
-    expect(fake.remove).toHaveBeenCalledWith(fake.channel);
+    await act(async () => { window.dispatchEvent(new Event("eut-consent-changed")); });
+    expect(fake.send).toHaveBeenCalledWith("leave", token, true);
+    expect(JSON.stringify(fake.send.mock.calls)).not.toMatch(/email|ip|city|url|user_id/);
   });
 
-  it("reconecta após retorno do cache de navegação, somente se o consentimento continuar ativo", () => {
+  it("retorna do BFCache apenas com nova chave e consentimento ainda ativo", async () => {
     localStorage.setItem("eut-cookie-consent", '{"presence":true}');
     render(<ConsentedVisitorPresence pathname="/" />);
-    expect(fake.connect).toHaveBeenCalledTimes(1);
-
+    await waitFor(() => expect(fake.send).toHaveBeenCalledWith("start", expect.any(String)));
+    const first = fake.send.mock.calls[0]?.[1];
     act(() => { window.dispatchEvent(new Event("pagehide")); });
-    expect(fake.channel.untrack).toHaveBeenCalled();
-    expect(fake.remove).toHaveBeenCalledWith(fake.channel);
-
-    act(() => { window.dispatchEvent(new Event("pageshow")); });
-    expect(fake.connect).toHaveBeenCalledTimes(2);
-
-    act(() => { window.dispatchEvent(new Event("pagehide")); });
-    localStorage.setItem("eut-cookie-consent", '{"presence":false}');
-    act(() => { window.dispatchEvent(new Event("pageshow")); });
-    expect(fake.connect).toHaveBeenCalledTimes(2);
+    expect(fake.send).toHaveBeenCalledWith("leave", first, true);
+    await act(async () => { window.dispatchEvent(new Event("pageshow")); });
+    const starts = fake.send.mock.calls.filter(([op]) => op === "start");
+    expect(starts).toHaveLength(2);
+    expect(starts[1]?.[1]).not.toBe(first);
   });
 
-  it("revoga imediatamente presença aberta em outra aba quando o consentimento muda", () => {
+  it("revoga em alteração de consentimento de outra aba", async () => {
     localStorage.setItem("eut-cookie-consent", '{"presence":true}');
     render(<ConsentedVisitorPresence pathname="/" />);
-    const callback = fake.channel.subscribe.mock.calls[0]?.[0] as (status: string) => void;
-    act(() => { callback("SUBSCRIBED"); });
-    expect(fake.channel.track).toHaveBeenCalledTimes(1);
-
+    await waitFor(() => expect(fake.send).toHaveBeenCalledWith("start", expect.any(String)));
+    const first = fake.send.mock.calls[0]?.[1];
     localStorage.setItem("eut-cookie-consent", '{"presence":false}');
     act(() => {
       window.dispatchEvent(new StorageEvent("storage", {
-        key: "eut-cookie-consent",
-        oldValue: '{"presence":true}',
-        newValue: '{"presence":false}',
+        key: "eut-cookie-consent", oldValue: '{"presence":true}', newValue: '{"presence":false}',
       }));
     });
-    expect(fake.channel.untrack).toHaveBeenCalledTimes(1);
-    expect(fake.remove).toHaveBeenCalledWith(fake.channel);
+    expect(fake.send).toHaveBeenCalledWith("leave", first, true);
   });
 
-  it("nunca conecta a área administrativa, mesmo após consentimento", () => {
+  it("nunca sinaliza presença nas áreas administrativas", () => {
     localStorage.setItem("eut-cookie-consent", '{"presence":true}');
     render(<ConsentedVisitorPresence pathname="/admin/metricas" />);
-    expect(fake.connect).not.toHaveBeenCalled();
+    expect(fake.send).not.toHaveBeenCalled();
   });
 });

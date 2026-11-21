@@ -1,13 +1,16 @@
 import { useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { canShareAnonymousPresence, CONSENTED_VISITOR_CHANNEL, CONSENTED_VISITOR_KIND } from "@/lib/visitor-realtime-presence";
+import { canShareAnonymousPresence } from "@/lib/visitor-realtime-presence";
+import { HTTP_PRESENCE_READY, newPresenceTabToken, sendPresenceLease } from "@/lib/visitor-http-presence";
 
-/** Publishes one anonymous, temporary tab presence only with its own explicit consent. */
+/** Client adapter only. Both HTTP feature flags are OFF until separately authorized. */
 export function ConsentedVisitorPresence({ pathname }: { pathname: string }) {
   useEffect(() => {
-    let channel: ReturnType<typeof supabase.channel> | null = null;
-    let closing = false;
-    let connected = false;
+    if (!HTTP_PRESENCE_READY) return;
+    let tabToken: string | null = null;
+    let started = false;
+    let beating = false;
+    let failed = false;
+    let generation = 0;
 
     const permitted = () => {
       try {
@@ -15,56 +18,70 @@ export function ConsentedVisitorPresence({ pathname }: { pathname: string }) {
           canShareAnonymousPresence(pathname, localStorage.getItem("eut-cookie-consent"));
       } catch { return false; }
     };
-    const detach = () => {
-      closing = true;
-      connected = false;
-      if (channel) {
-        const previous = channel;
-        channel = null;
-        void previous.untrack().catch(() => undefined);
-        void supabase.removeChannel(previous);
+    const leave = () => {
+      const previous = tabToken;
+      tabToken = null;
+      started = false;
+      beating = false;
+      generation++;
+      if (previous) void sendPresenceLease("leave", previous, true).catch(() => undefined);
+    };
+    const start = async () => {
+      if (tabToken || failed || !permitted()) return;
+      const current = ++generation;
+      const token = newPresenceTabToken();
+      tabToken = token;
+      try {
+        const status = await sendPresenceLease("start", token);
+        if (current !== generation) return; // A leave may have raced the start.
+        if (!permitted() || status !== 204) {
+          failed = status !== 204;
+          leave();
+          return;
+        }
+        started = true;
+      } catch {
+        if (current === generation) { failed = true; leave(); }
       }
+    };
+    const beat = async () => {
+      if (!permitted()) { leave(); return; }
+      if (!tabToken) { await start(); return; }
+      if (!started || beating) return;
+      const token = tabToken;
+      beating = true;
+      try {
+        const status = await sendPresenceLease("beat", token);
+        if (tabToken === token && status !== 204) { failed = true; leave(); }
+      } catch {
+        if (tabToken === token) { failed = true; leave(); }
+      } finally { beating = false; }
     };
     const sync = () => {
-      if (!permitted()) {
-        if (channel) detach();
-        return;
-      }
-      if (channel) {
-        if (connected) void channel.track({ kind: CONSENTED_VISITOR_KIND }).catch(() => undefined);
-        return;
-      }
-      closing = false;
-      const next = supabase.channel(CONSENTED_VISITOR_CHANNEL);
-      channel = next;
-      next.subscribe((status) => {
-        if (closing || channel !== next) return;
-        if (status === "SUBSCRIBED") {
-          connected = true;
-          if (permitted()) void next.track({ kind: CONSENTED_VISITOR_KIND }).catch(() => undefined);
-        }
-      });
+      if (!permitted()) { failed = false; leave(); return; }
+      failed = false;
+      if (!tabToken) void start();
     };
-
-    const visibility = () => sync();
-    // localStorage changes in other tabs do not emit eut-consent-changed here.
     const onConsentStorage = (event: StorageEvent) => {
       if (event.key === "eut-cookie-consent" || event.key === null) sync();
     };
-    window.addEventListener("eut-consent-changed", visibility);
+    const onPageHide = () => leave();
+
+    window.addEventListener("eut-consent-changed", sync);
     window.addEventListener("storage", onConsentStorage);
-    document.addEventListener("visibilitychange", visibility);
-    window.addEventListener("pagehide", detach);
-    // BFCache restores the mounted page without rerunning this effect.
-    window.addEventListener("pageshow", visibility);
+    document.addEventListener("visibilitychange", sync);
+    window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("pageshow", sync);
+    const interval = window.setInterval(() => { void beat(); }, 25_000);
     sync();
     return () => {
-      window.removeEventListener("eut-consent-changed", visibility);
+      window.clearInterval(interval);
+      window.removeEventListener("eut-consent-changed", sync);
       window.removeEventListener("storage", onConsentStorage);
-      document.removeEventListener("visibilitychange", visibility);
-      window.removeEventListener("pagehide", detach);
-      window.removeEventListener("pageshow", visibility);
-      detach();
+      document.removeEventListener("visibilitychange", sync);
+      window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("pageshow", sync);
+      leave();
     };
   }, [pathname]);
   return null;

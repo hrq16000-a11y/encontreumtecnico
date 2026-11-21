@@ -1,0 +1,35 @@
+name: EUT PR344 — TanStack HTTP handlers isolated gates
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/eut-pr344-tanstack-handlers-isolated.yml'
+      - 'src/lib/pr344-http-presence-handlers.server.ts'
+      - 'src/lib/pr344-http-presence-local.server.ts'
+      - 'src/lib/pr344-http-presence-handlers.test.ts'
+      - 'src/routes/api/presence/leases.ts'
+      - 'src/routes/api/admin/presence/count.ts'
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-http-handlers:
+    if: github.event.pull_request.number == 344
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      PR344_LOCAL_ONLY: 'no'
+      PR344_HTTP_INGEST_ENABLED: 'disabled'
+      PR344_HTTP_ADMIN_READ_ENABLED: 'disabled'
+      SUPABASE_ACCESS_TOKEN: ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install pinned existing dependencies
+        run: bun install --frozen-lockfile
+      - name: Run ONLY new or affected handler contracts
+        run: bunx vitest run src/lib/pr344-http-presence-handlers.test.ts
+      - name: Verify TanStack route generation and TypeScript, no deployment
+        run: |
+          bun run build >/dev/null
+          bunx tsc --noEmit --pretty false
