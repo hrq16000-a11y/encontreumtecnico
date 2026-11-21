@@ -5,6 +5,7 @@
  */
 export type DeclaredArea = { uf: string; cidade: string; bairro: string };
 import { DEFAULT_DIRECTORY_DISPLAY, type DirectoryDisplaySettings } from "@/lib/directory-display-settings";
+import { hasSameMetropolitanCore } from "./technician-metro-affinity";
 export type AreaTechnician = {
   state_uf: string | null;
   city: string;
@@ -80,12 +81,22 @@ export function rankTechniciansByDeclaredArea<T extends AreaTechnician>(
 ): T[] {
   // Always sort a copy; original order is server-retrieved recency and is
   // preserved on a tie. Online is a tiebreaker AFTER location relevance.
-  return technicians.map((technician, index) => ({
-    technician,
-    index,
-    locationLevel: localMatchLevel(technician, area),
-  })).sort((a, b) =>
+  return technicians.map((technician, index) => {
+    const locationLevel = localMatchLevel(technician, area);
+    return {
+      technician,
+      index,
+      locationLevel,
+      // City-base affinity only breaks same-UF ties. It never claims service
+      // coverage or outranks verified city/neighborhood relevance.
+      metroAffinity: locationLevel === 1 && hasSameMetropolitanCore({
+        queryUf: area.uf, queryCity: area.cidade,
+        technicianUf: technician.state_uf, technicianCity: technician.city,
+      }),
+    };
+  }).sort((a, b) =>
     b.locationLevel - a.locationLevel ||
+    Number(b.metroAffinity) - Number(a.metroAffinity) ||
     Number(settings.online_priority && b.technician.online_now) - Number(settings.online_priority && a.technician.online_now) ||
     // Nearby services and online availability always outrank referral rewards.
     Number(settings.referral_priority && Boolean(b.technician.referral_highlight)) - Number(settings.referral_priority && Boolean(a.technician.referral_highlight)) ||
