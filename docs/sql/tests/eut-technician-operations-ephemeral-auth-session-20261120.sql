@@ -157,6 +157,41 @@ END
 $check_status$;
 ROLLBACK;
 
+-- Conta admin bloqueada não pode contornar o bloqueio via SECURITY DEFINER.
+-- A mesma edição com conta admin operacional foi aprovada na fixture acima.
+-- Transação revertida: bloqueio, versão, perfil e auditoria preservados.
+BEGIN;
+INSERT INTO public.eut_fixture_blocked_accounts(user_id)
+  VALUES ('30000000-0000-4000-8000-000000000001');
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000001',true);
+DO $blocked_admin$
+DECLARE
+ t uuid:='10000000-0000-4000-8000-000000000001';
+ before_record jsonb; denied boolean:=false;
+BEGIN
+ IF NOT public.has_role(auth.uid(),'admin'::public.app_role) THEN
+   RAISE EXCEPTION 'fixture admin sem papel server-backed'; END IF;
+ IF public.eut_account_operational() THEN
+   RAISE EXCEPTION 'admin bloqueado foi considerado operacional'; END IF;
+ before_record:=public.eut_technician_operations_get(t);
+ IF before_record->'profile' IS NULL THEN
+   RAISE EXCEPTION 'fixture sem perfil operacional para teste'; END IF;
+ BEGIN
+   PERFORM public.eut_technician_operations_save(
+     t,before_record->'profile',(before_record->>'updated_at')::timestamptz,
+     'Tentativa administrativa da conta bloqueada');
+ EXCEPTION WHEN insufficient_privilege THEN denied:=true;
+ END;
+ IF NOT denied THEN RAISE EXCEPTION 'admin bloqueado editou operacoes'; END IF;
+ IF public.eut_technician_operations_get(t) IS DISTINCT FROM before_record THEN
+   RAISE EXCEPTION 'admin bloqueado alterou dados ou versao'; END IF;
+ IF (SELECT count(*) FROM public.eut_admin_management_log)<>2 THEN
+   RAISE EXCEPTION 'admin bloqueado gerou auditoria de escrita indevida'; END IF;
+END
+$blocked_admin$;
+ROLLBACK;
+
 -- Depois das recusas: um único registro; 2 suspensos; 2 logs válidos; papéis intactos.
 DO $$ BEGIN
  IF (SELECT count(*) FROM eut_profile_ops.technician_operations)<>1 OR
