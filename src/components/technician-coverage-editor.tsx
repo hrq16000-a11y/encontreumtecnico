@@ -26,54 +26,88 @@ export function TechnicianCoverageEditor({
   const [citiesSelected, setCitiesSelected] = useState<Municipality[]>([]);
   const [radius, setRadius] = useState<number | null>(savedRadius);
   const [saving, setSaving] = useState(false);
-  // Never let a pending or incomplete restoration overwrite previously saved cities.
-  const [existingLoad, setExistingLoad] = useState<{ ownerId: string; state: "loading" | "ready" | "error" }>({
-    ownerId: userId, state: "loading",
-  });
+  // Identify persisted input by value, not by the array object's identity.
+  const snapshotKey = JSON.stringify([
+    userId, baseMunicipality?.id ?? null, [...savedCityIds].sort((a, b) => a - b), savedRadius,
+  ]);
+  const latestSnapshot = useRef(snapshotKey);
+  latestSnapshot.current = snapshotKey;
+  const restoredOwner = useRef(userId);
+  const localDirty = useRef(false);
+  const acknowledgedSnapshot = useRef<string | null>(null);
+  const [retryRestore, setRetryRestore] = useState(0);
+  const [existingLoad, setExistingLoad] = useState<{
+    ownerId: string; snapshot: string; state: "loading" | "ready" | "error" | "conflict";
+  }>({ ownerId: userId, snapshot: "", state: "loading" });
   const [message, setMessage] = useState("");
 
   useEffect(() => {
     let live = true;
     const owner = userId;
+    const snapshot = snapshotKey;
+    if (restoredOwner.current !== owner) {
+      restoredOwner.current = owner;
+      localDirty.current = false;
+      acknowledgedSnapshot.current = null;
+      setSaving(false);
+    }
+    // An already-verified local save must not be overwritten by its own callback.
+    if (acknowledgedSnapshot.current === snapshot && !localDirty.current) {
+      acknowledgedSnapshot.current = null;
+      setExistingLoad({ ownerId: owner, snapshot, state: "ready" });
+      return () => { live = false; };
+    }
+    if (localDirty.current) {
+      setExistingLoad({ ownerId: owner, snapshot, state: "conflict" });
+      setMessage("A cobertura cadastrada mudou enquanto você editava. Suas alterações foram preservadas; recarregue a cobertura salva antes de continuar.");
+      return () => { live = false; };
+    }
+
     setMessage("");
     setCitiesSelected([]);
     setRadius(savedRadius);
     setExtraUf(baseMunicipality?.uf || "PR");
-    setExistingLoad({ ownerId: owner, state: "loading" });
+    setExistingLoad({ ownerId: owner, snapshot, state: "loading" });
     const savedExtras = savedCityIds.filter((id) => id !== baseMunicipality?.id);
-    if (!savedExtras.length) {
-      setExistingLoad({ ownerId: owner, state: "ready" });
+    if (new Set(savedCityIds).size !== savedCityIds.length || savedCityIds.length > 5 || savedExtras.length > 4) {
+      setExistingLoad({ ownerId: owner, snapshot, state: "error" });
+      setMessage("A cobertura anterior contém cidades duplicadas ou acima do limite. Recarregue a ficha antes de salvar.");
+    } else if (!savedExtras.length) {
+      setExistingLoad({ ownerId: owner, snapshot, state: "ready" });
     } else {
       void Promise.resolve(db.from("eut_ibge_municipalities")
         .select("id,name,uf,latitude,longitude").in("id", savedExtras)).then(({ data, error }) => {
-        if (!live || activeUser.current !== owner) return;
-        if (error || !Array.isArray(data) || data.length !== savedExtras.length) {
-          setExistingLoad({ ownerId: owner, state: "error" });
+        if (!live || activeUser.current !== owner || latestSnapshot.current !== snapshot) return;
+        const rows = Array.isArray(data) ? data as Municipality[] : [];
+        const returnedIds = new Set(rows.map((city) => city.id));
+        const exactIds = rows.length === savedExtras.length &&
+          returnedIds.size === savedExtras.length && savedExtras.every((id) => returnedIds.has(id));
+        if (error || !exactIds) {
+          setExistingLoad({ ownerId: owner, snapshot, state: "error" });
           setMessage("Não conseguimos recuperar todas as cidades anteriores. Recarregue antes de salvar.");
           return;
         }
-        setCitiesSelected(data as Municipality[]);
-        setExistingLoad({ ownerId: owner, state: "ready" });
+        setCitiesSelected(rows);
+        setExistingLoad({ ownerId: owner, snapshot, state: "ready" });
       }).catch(() => {
-        if (!live || activeUser.current !== owner) return;
-        setExistingLoad({ ownerId: owner, state: "error" });
+        if (!live || activeUser.current !== owner || latestSnapshot.current !== snapshot) return;
+        setExistingLoad({ ownerId: owner, snapshot, state: "error" });
         setMessage("Não conseguimos recuperar as cidades anteriores. Recarregue antes de salvar.");
       });
     }
     return () => { live = false; };
-    // Reset when the technician account changes; changing the base city is
-    // an explicit save in the main registration form, not a silent reset here.
-  }, [userId]);
+  }, [snapshotKey, retryRestore]);
 
   const extras = citiesSelected.filter((city) => city.id !== baseMunicipality?.id);
   const shown = cities.filter((city) => !search || normalizedCityText(city.name).includes(normalizedCityText(search)))
     .filter((city) => city.id !== baseMunicipality?.id && !extras.some((extra) => extra.id === city.id))
     .slice(0, 20);
   const option = cities.find((city) => city.id === candidateId);
-  const existingReady = existingLoad.ownerId === userId && existingLoad.state === "ready";
+  const existingReady = existingLoad.ownerId === userId &&
+    existingLoad.snapshot === snapshotKey && existingLoad.state === "ready";
 
   async function save() {
-    if (!baseMunicipality || saving || !existingReady) return;
+    if (!baseMunicipality || saving || !existingReady || latestSnapshot.current !== snapshotKey) return;
     const codes = [baseMunicipality.id, ...extras.map((city) => city.id)];
     if (codes.length > 5 || new Set(codes).size !== codes.length) {
       setMessage("Escolha no máximo cinco cidades diferentes, contando a cidade-base.");
@@ -86,6 +120,10 @@ export function TechnicianCoverageEditor({
         _radius_km: radius, _city_ids: codes,
       });
       if (activeUser.current !== owner) return;
+      if (latestSnapshot.current !== snapshotKey) {
+        setMessage("A cobertura foi atualizada durante o salvamento. Recarregue a ficha antes de editar novamente.");
+        return;
+      }
       if (error || data?.state !== "salvo") {
         setMessage("Não foi possível salvar. Confirme a cidade-base no cadastro e tente novamente.");
       } else {
@@ -96,6 +134,10 @@ export function TechnicianCoverageEditor({
           setMessage("O servidor respondeu, mas não confirmou todas as cidades e o raio gravados. Recarregue sua ficha antes de repetir a edição.");
           return;
         }
+        acknowledgedSnapshot.current = JSON.stringify([
+          owner, baseMunicipality.id, [...codes].sort((a, b) => a - b), radius,
+        ]);
+        localDirty.current = false;
         setMessage("Raio e cidades salvos e conferidos no servidor. As distâncias são aproximadas.");
         onSaved?.(codes, radius);
       }
@@ -117,7 +159,8 @@ export function TechnicianCoverageEditor({
         Cidade-base: {baseMunicipality ? baseMunicipality.name + "/" + baseMunicipality.uf : "confirme a cidade-base no formulário acima"}
       </p>
       <label className="mt-4 block text-sm font-semibold text-foreground" htmlFor="eut-service-radius">Raio de atendimento declarado</label>
-      <select id="eut-service-radius" value={radius ?? ""} onChange={(event) => setRadius(event.target.value ? Number(event.target.value) : null)}
+      <select id="eut-service-radius" value={radius ?? ""} disabled={!existingReady || saving}
+        onChange={(event) => { localDirty.current = true; setRadius(event.target.value ? Number(event.target.value) : null); }}
         className="mt-2 min-h-12 w-full rounded-lg border border-input bg-background px-3 text-base text-foreground">
         <option value="">Sem raio declarado (somente cidades selecionadas)</option>
         {RADII.map((km) => <option key={km} value={km}>{km} km aproximados</option>)}
@@ -130,7 +173,7 @@ export function TechnicianCoverageEditor({
             <span>{city.name}/{city.uf}</span>
             <button type="button" disabled={saving || !existingReady} aria-label={"Remover " + city.name + "/" + city.uf}
               className="min-h-10 rounded-md px-3 font-bold text-primary hover:bg-accent"
-              onClick={() => setCitiesSelected((current) => current.filter((c) => c.id !== city.id))}>×</button>
+              onClick={() => { localDirty.current = true; setCitiesSelected((current) => current.filter((c) => c.id !== city.id)); }}>×</button>
           </li>)}
         </ul>
       </div>
@@ -157,6 +200,7 @@ export function TechnicianCoverageEditor({
           {error && <p role="alert" className="text-xs text-destructive">Falha ao carregar municípios. <button type="button" className="underline" onClick={retry}>Tentar novamente</button></p>}
           <button type="button" disabled={!option || saving || loading || !existingReady} onClick={() => {
             if (!option) return;
+            localDirty.current = true;
             setCitiesSelected((current) => current.some((x) => x.id === option.id)
               ? current : [...current, option].slice(0, 4));
             setCandidateId(null); setSearch("");
@@ -165,8 +209,17 @@ export function TechnicianCoverageEditor({
           </button>
         </div>
       )}
-      {!existingReady && existingLoad.state !== "error" && (
+      {!existingReady && existingLoad.state === "loading" && (
         <p role="status" className="mt-3 text-sm text-muted-foreground">Recuperando cidades já cadastradas…</p>
+      )}
+      {existingLoad.state === "conflict" && existingLoad.snapshot === snapshotKey && (
+        <button type="button" onClick={() => {
+          localDirty.current = false;
+          acknowledgedSnapshot.current = null;
+          setRetryRestore((value) => value + 1);
+        }} className="mt-3 min-h-11 rounded-lg border border-primary px-4 text-sm font-semibold text-primary">
+          Descartar alterações locais e recarregar cobertura salva
+        </button>
       )}
       <button type="button" disabled={!baseMunicipality || saving || !existingReady}
         onClick={() => void save()}
