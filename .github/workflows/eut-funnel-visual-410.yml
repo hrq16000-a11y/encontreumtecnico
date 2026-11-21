@@ -1,0 +1,38 @@
+name: EUT funnel 410 Chromium QA (no production writes)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/eut-funnel-visual-410.yml'
+      - 'scripts/eut-funnel-visual-410.cjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  visual-390-1440:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated Playwright Chromium
+        run: |
+          mkdir -p "$RUNNER_TEMP/eut-funnel-browser"
+          cd "$RUNNER_TEMP/eut-funnel-browser"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund playwright@1.56.1
+          npx playwright install chromium
+      - name: Browser QA on the published UI (write requests fail closed)
+        env:
+          EUT_BASE_URL: https://www.encontreumtecnico.com.br
+          EUT_QA_ARTIFACT_DIR: ${{ runner.temp }}/eut-funnel-visual-410
+        run: NODE_PATH="$RUNNER_TEMP/eut-funnel-browser/node_modules" node scripts/eut-funnel-visual-410.cjs
+      - name: Upload screenshots and failure diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eut-funnel-410-390-1440
+          path: ${{ runner.temp }}/eut-funnel-visual-410
+          if-no-files-found: warn
+          retention-days: 7
