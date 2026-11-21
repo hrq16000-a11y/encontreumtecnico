@@ -1,3 +1,4 @@
+import { AdSensePublicUnit } from "@/components/adsense-public-unit";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageShell } from "@/components/page-placeholder";
 
@@ -77,6 +78,8 @@ function HowItWorksPage() {
           <p className="mt-2">A presença no diretório não corresponde a avaliação, verificação, certificação ou garantia de serviços. Informações de disponibilidade são declaradas pelos participantes.</p>
           <p className="mt-3">Leia as <Link to="/termos" className="font-medium text-primary underline">condições de uso</Link>, a <Link to="/privacidade" className="font-medium text-primary underline">política de privacidade</Link> e as <Link to="/pagamentos-e-reembolsos" className="font-medium text-primary underline">regras de pagamento e reembolso</Link>.</p>
         </div>
+        <p className="my-5 text-sm leading-7">Para pedir uma visita, comece pela <a className="font-semibold text-primary underline" href="/cobertura">cobertura por município</a>. Depois de encontrar um perfil, descreva o equipamento e combine se o primeiro atendimento será uma avaliação ou a execução do serviço.</p>
+        <AdSensePublicUnit />
       </section>
     </PageShell>
   );
