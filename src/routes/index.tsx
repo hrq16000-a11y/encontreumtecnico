@@ -3,27 +3,27 @@ import { useEffect, useRef, useState } from "react";
 import { BadgeCheck, HandCoins, Eye, Scale, Camera, Laptop, Wifi, Printer, MapPin, Search, ArrowRight, Wrench, UsersRound } from "lucide-react";
 import logo from "@/assets/logo-encontreumtecnico.png.asset.json";
 import heroImg from "@/assets/tecnico-cftv-instalacao.jpg";
-import techImg from "@/assets/tecnica-informatica.jpg";
 import { PageShell } from "../components/page-placeholder";
 import { SponsoredPublicSlot } from "@/components/sponsored-public-slot";
 import { AdSensePublicUnit } from "@/components/adsense-public-unit";
 import { HomePublicProof } from "@/components/home-public-proof";
 import { HomeCommunityInvite } from "@/components/home-community-invite";
 import { HomeTechnicianJoin } from "@/components/home-technician-join";
+import { HomeCategoryPicker, canonicalHomeCategory } from "@/components/home-category-picker";
 import { ProblemAssistant } from "../components/problem-assistant";
 import { safeNeighborhood } from "@/lib/location-labels";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
+import { useActiveCategories } from "@/hooks/use-active-categories";
+import { useMunicipalities } from "@/hooks/use-municipalities";
+import { HomeMunicipalitySearch, homeLocationFilters, parseHomeCityId } from "@/components/home-municipality-search";
 import { readUiTextDraft, saveUiTextDraft } from "@/lib/unsent-ui-draft";
-import { Reveal } from "../components/motion";
 import {
-  CategoryGrid,
   HowItWorksRich,
   CoverageSection,
-  ApprovalProcessSection,
   FaqPreview,
   ContactBand,
 } from "../components/home-rich";
-import { CanaisDeAtendimento, FindOneSection, JoinNetworkSection, CtaBand, ValuesSection, StepsSection } from "../components/home-sections";
+import { CanaisDeAtendimento } from "../components/home-sections";
 
 const SITE = "https://www.encontreumtecnico.com.br";
 const TITLE = "Encontre um Técnico — Portal nacional de técnicos de CFTV e informática, sem custo para o profissional";
@@ -109,12 +109,16 @@ const HOME_VISUALS = [
 
 function HomePage() {
   const navigate = useNavigate();
+  const { categories: activeCategories, loading: categoriesLoading, error: categoriesError } = useActiveCategories();
   // Initial SSR and client render agree; the saved search is loaded only
   // after hydration, while the empty form stays hidden from the visitor.
   const [specialty, setSpecialty] = useState("");
   const [city, setCity] = useState("");
   const [locationUf, setLocationUf] = useState("");
   const [locationNeighborhood, setLocationNeighborhood] = useState("");
+  const [cityIbgeId, setCityIbgeId] = useState<number | null>(null);
+  const [citySelectionError, setCitySelectionError] = useState(false);
+  const { cities: officialCities, loading: citiesLoading, error: citiesError, retry: retryCities } = useMunicipalities(locationUf);
   const [draftReady, setDraftReady] = useState(false);
   const cityEditedByUser = useRef(false);
   useEffect(() => {
@@ -123,6 +127,7 @@ function HomePage() {
       setSpecialty(saved["specialty"] ?? "");
       setCity(saved["city"] ?? "");
       setLocationUf(saved["uf"] ?? "");
+      setCityIbgeId(parseHomeCityId(saved["cityid"]));
       setLocationNeighborhood(safeNeighborhood(saved["neighborhood"] ?? "", saved["city"] ?? ""));
       cityEditedByUser.current = Boolean(saved["city"]);
     }
@@ -130,86 +135,114 @@ function HomePage() {
   }, []);
   useEffect(() => {
     if (!draftReady) return;
-    saveUiTextDraft("home", { specialty, city, uf: locationUf, neighborhood: locationNeighborhood });
-  }, [draftReady, specialty, city, locationUf, locationNeighborhood]);
+    saveUiTextDraft("home", { specialty, city, uf: locationUf, neighborhood: locationNeighborhood,
+      cityid: cityIbgeId === null ? "" : String(cityIbgeId) });
+  }, [draftReady, specialty, city, locationUf, locationNeighborhood, cityIbgeId]);
   const { area: suggestedRegion } = useRegionalSuggestion();
   useEffect(() => {
     // The user may edit while the lookup is pending; never override typed city.
     if (!draftReady || !suggestedRegion || city.trim() || cityEditedByUser.current) return;
     setCity(suggestedRegion.city);
     setLocationUf(suggestedRegion.uf);
+    setCityIbgeId(null); // Regional hints never confirm an official municipality.
     setLocationNeighborhood(""); // IP cannot establish a neighborhood.
   }, [draftReady, suggestedRegion?.city, suggestedRegion?.uf, city]);
 
 
   return (
     <PageShell>
-      <section className="relative overflow-hidden bg-gradient-to-br from-brand-navy via-[#124b76] to-brand-navy px-4 pb-16 pt-10 md:pb-20 md:pt-16">
+      <section className="relative isolate overflow-hidden bg-gradient-to-br from-brand-navy via-[#124b76] to-brand-navy px-4 pb-16 pt-8 sm:pt-12 md:pb-24 md:pt-16">
         <div aria-hidden className="pointer-events-none absolute inset-0">
           <div className="bg-glow absolute -top-24 -left-24 h-96 w-96 opacity-25 blur-2xl" />
           <div className="bg-glow absolute -right-32 top-10 h-[28rem] w-[28rem] opacity-20 blur-2xl" />
           <div className="bg-dot-grid absolute inset-0 text-primary/15 [mask-image:radial-gradient(60%_60%_at_50%_35%,black,transparent)]" />
         </div>
 
-        <div className="relative mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[1.1fr_1fr]">
-          <div className="animate-rise rounded-3xl border border-white/15 bg-card p-5 shadow-[0_24px_70px_-24px_rgba(0,0,0,.45)] sm:p-8">
-            <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-card px-3 py-1 text-xs font-semibold text-primary">
-              <BadgeCheck className="h-4 w-4" aria-hidden /> Portal nacional · sem custo para o profissional
+        <div className="relative mx-auto grid max-w-6xl items-center gap-8 lg:grid-cols-[1.08fr_0.92fr] lg:gap-12">
+          <div className="animate-rise min-w-0 rounded-[28px] border border-white/20 bg-card p-5 shadow-[0_24px_70px_-24px_rgba(0,0,0,.45)] sm:p-8 md:p-9">
+            <span className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary">
+              <BadgeCheck className="h-4 w-4" aria-hidden /> Rede nacional · cadastro gratuito para o técnico
             </span>
-            <h1 className="mt-4 text-4xl font-bold leading-tight text-foreground md:text-6xl">
-              Precisou? <span className="text-primary">Encontrou!</span>
+            <h1 className="mt-5 max-w-[15ch] text-4xl font-extrabold leading-[1.08] tracking-tight text-foreground sm:text-5xl md:text-[3.5rem]">
+              Encontre ajuda técnica com mais clareza.
             </h1>
-            <p className="mt-4 max-w-xl text-lg text-muted-foreground">
-              Encontre prestadores cadastrados de CFTV, informática, redes e impressoras na sua região. Negocie diretamente, sem leilão de menor preço.
+            <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
+              Pesquise por especialidade e localidade, conheça os perfis publicados e combine o serviço diretamente com o profissional.
             </p>
             {!draftReady ? (
               <div role="status" aria-live="polite" aria-busy="true"
-                className="mt-8 flex min-h-16 items-center rounded-xl bg-card px-4 py-3 text-sm text-muted-foreground shadow-soft">
+                className="mt-7 flex min-h-16 items-center rounded-xl bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
                 Recuperando sua busca…
               </div>
             ) : (
             <form
-              className="mt-7 flex flex-col gap-3 rounded-2xl border border-primary/15 bg-accent/40 p-3 shadow-sm sm:flex-row"
+              aria-label="Buscar técnicos por especialidade e localidade"
+              className="mt-7 grid min-w-0 grid-cols-1 gap-3 rounded-2xl border border-border bg-muted/40 p-3 sm:grid-cols-2"
               onSubmit={(e) => {
                 e.preventDefault();
+                const location = homeLocationFilters(
+                  locationUf, city, cityIbgeId, officialCities, locationNeighborhood);
+                if (!location) {
+                  setCitySelectionError(true);
+                  return;
+                }
+                setCitySelectionError(false);
+                const category = canonicalHomeCategory(specialty, activeCategories);
                 window.__lovableEvents?.track?.("project.technician_search", {
-                  has_specialty: specialty.trim() !== "",
-                  has_city: city.trim() !== "",
+                  has_specialty: category !== "Todas",
+                  has_city: location.cidade !== "",
                 });
                 navigate({
                   to: "/tecnicos",
-                  search: { especialidade: specialty.trim() || "Todas", cidade: city.trim(), regiao: "",
-                    uf: locationUf, bairro: locationNeighborhood, prioridade: locationUf ? "regiao" : "" },
+                  search: { especialidade: category, cidade: location.cidade, uf: location.uf,
+                    bairro: location.bairro, regiao: "", prioridade: location.prioridade },
                 });
               }}
             >
-              <label className="sr-only" htmlFor="busca-especialidade">Especialidade</label>
-              <input
-                id="busca-especialidade"
-                type="text"
-                value={specialty}
-                onChange={(e) => { saveUiTextDraft("home", { specialty:e.target.value, city, uf:locationUf, neighborhood:locationNeighborhood }); setSpecialty(e.target.value); }}
-                placeholder="Especialidade (ex.: Computador)"
-                className="h-11 min-h-11 w-full shrink-0 sm:w-auto sm:flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-              <label className="sr-only" htmlFor="busca-cidade">Município</label>
-              <input
-                id="busca-cidade"
-                type="text"
-                value={city}
-                onChange={(e) => { cityEditedByUser.current = true; saveUiTextDraft("home", { specialty, city:e.target.value, uf:"", neighborhood:"" }); setCity(e.target.value); setLocationUf(""); setLocationNeighborhood(""); }}
-                placeholder="Município (ex.: São José dos Pinhais)"
-                className="h-11 min-h-11 w-full shrink-0 sm:w-auto sm:flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              />
+              <HomeCategoryPicker value={specialty} categories={activeCategories}
+                loading={categoriesLoading} error={categoriesError}
+                onChange={(value) => {
+                  saveUiTextDraft("home", { specialty: value, city, uf: locationUf,
+                    neighborhood: locationNeighborhood, cityid: cityIbgeId === null ? "" : String(cityIbgeId) });
+                  setSpecialty(value);
+                }} />
+              <HomeMunicipalitySearch uf={locationUf} cityName={city}
+                selectedId={cityIbgeId} cities={officialCities}
+                loading={citiesLoading} error={citiesError} retry={retryCities}
+                showValidationError={citySelectionError}
+                onUfChange={(uf) => {
+                  cityEditedByUser.current = true;
+                  setLocationUf(uf);
+                  setCity("");
+                  setCityIbgeId(null);
+                  setLocationNeighborhood("");
+                  setCitySelectionError(false);
+                }}
+                onCityTextChange={(value) => {
+                  cityEditedByUser.current = true;
+                  setCity(value);
+                  setCityIbgeId(null);
+                  setLocationNeighborhood("");
+                  setCitySelectionError(false);
+                }}
+                onSelectCity={(selected) => {
+                  cityEditedByUser.current = true;
+                  setLocationUf(selected.uf);
+                  setCity(selected.name);
+                  setCityIbgeId(selected.id);
+                  setLocationNeighborhood(previous =>
+                    city === selected.name ? previous : "");
+                  setCitySelectionError(false);
+                }} />
               <button
                 type="submit"
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 text-sm font-bold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:col-span-2"
               >
-                <Search className="h-4 w-4" aria-hidden="true" /> Buscar
+                <Search className="h-4 w-4" aria-hidden="true" /> Encontrar profissionais
               </button>
             </form>
             )}
-            <ul className="mt-5 flex flex-wrap gap-2 text-xs text-muted-foreground">
+            <ul aria-label="Especialidades populares" className="mt-5 flex flex-wrap gap-2 text-xs text-muted-foreground">
               {CHIPS.map(({ i: I, t }) => (
                 <li key={t} className="inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-1.5 font-medium text-foreground shadow-sm">
                   <I className="h-3.5 w-3.5 text-primary" aria-hidden /> {t}
@@ -217,192 +250,89 @@ function HomePage() {
               ))}
             </ul>
           </div>
-          <div className="relative animate-rise [animation-delay:150ms] rounded-[30px] border-4 border-white/15 bg-white/10 p-2 shadow-[0_25px_80px_-20px_rgba(0,0,0,.5)]">
-            <img src={heroImg} alt="Técnico instalando câmera de segurança na fachada de uma casa" width={1280} height={1024} className="aspect-[5/4] w-full rounded-[22px] object-cover shadow-soft" />
-            <div className="absolute -bottom-5 left-4 flex animate-float items-center gap-3 rounded-2xl bg-card px-4 py-3 shadow-soft">
+          <div className="relative animate-rise [animation-delay:150ms] rounded-[30px] border border-white/20 bg-white/10 p-2 shadow-[0_25px_80px_-20px_rgba(0,0,0,.5)]">
+            <img src={heroImg} alt="Técnico instalando câmeras de segurança em uma residência" width={1280} height={1024} fetchPriority="high" decoding="async" className="aspect-[5/4] w-full rounded-[22px] object-cover shadow-soft" />
+            <div className="absolute -bottom-4 left-4 right-4 flex items-center gap-3 rounded-2xl border border-border/70 bg-card px-4 py-3 shadow-soft sm:left-7 sm:right-auto sm:min-w-64">
               <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground"><MapPin className="h-5 w-5" aria-hidden /></span>
-              <div className="text-sm"><div className="font-semibold text-foreground">Técnicos perto de você</div><div className="text-muted-foreground">Busque por cidade ou região</div></div>
+              <div className="text-sm"><div className="font-semibold text-foreground">Comece pela sua região</div><div className="text-muted-foreground">Cidade e UF confirmadas</div></div>
             </div>
           </div>
         </div>
       </section>
 
-      <HomeTechnicianJoin />
-
-      <section aria-labelledby="home-expansao-rede" className="border-b border-primary/15 bg-primary/5 px-4 py-8 sm:py-10">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-5">
-          <div className="max-w-2xl">
-            <p className="text-xs font-bold uppercase tracking-widest text-primary">Expansão nacional · profissionais procurados</p>
-            <h2 id="home-expansao-rede" className="mt-2 text-xl font-extrabold text-foreground sm:text-2xl">
-              Buscamos técnicos no Sul, em SP, RJ e outras cidades
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Conheça as regiões da chamada de recrutamento. A lista não representa
-              disponibilidade confirmada nem quantidade de pedidos.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <a href="/cobertura#expansao-da-rede" className="inline-flex min-h-11 items-center rounded-xl border border-primary/30 bg-card px-4 py-2 text-sm font-semibold text-primary hover:bg-accent">
-              Ver localidades procuradas
-            </a>
-            <Link to="/cadastro" className="inline-flex min-h-11 items-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
-              Cadastrar como técnico
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      <section aria-labelledby="home-visual-servicos" className="border-b border-border bg-gradient-to-r from-accent/80 via-background to-accent/80 px-4 py-12 sm:py-16">
-        <div className="mx-auto max-w-6xl">
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-primary">Explore visualmente</p>
-            <h2 id="home-visual-servicos" className="mt-2 text-2xl font-bold text-foreground sm:text-3xl">Seu problema, nossa próxima conexão</h2>
-            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-              Explore quatro especialidades e encontre profissionais por serviço e localidade.
-            </p>
-          </div>
-          <Link to="/servicos" className="inline-flex min-h-11 items-center gap-2 rounded-full border border-primary/30 px-4 text-sm font-semibold text-primary hover:bg-accent">
-            Ver todos os serviços <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </Link>
-        </div>
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {HOME_VISUALS.map((item) => (
-            <li key={item.slug}>
-              <Link to="/servicos/$categoria" params={{ categoria: item.slug }}
-                className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-colors hover:border-primary/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-                <div className="overflow-hidden bg-brand-navy/10">
-                  <img src={item.src} alt={item.alt} width={1200} height={630} loading="lazy" decoding="async"
-                    className="aspect-[40/21] w-full object-cover transition-transform duration-300 group-hover:scale-[1.035] motion-reduce:transform-none" />
-                </div>
-                <div className="flex flex-1 items-center justify-between gap-3 p-5">
-                  <div>
-                    <h3 className="font-bold text-foreground">{item.title}</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">{item.subtitle}</p>
-                  </div>
-                  <ArrowRight className="h-5 w-5 shrink-0 text-primary transition-transform group-hover:translate-x-1 motion-reduce:transform-none" aria-hidden="true" />
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
-        </div>
-      </section>
-
-      <CanaisDeAtendimento />
-
-      <section aria-label="Por que o Encontre um Técnico" className="bg-brand-navy px-4 py-12 text-brand-navy-foreground">
-        <ul className="mx-auto grid max-w-6xl gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <section aria-label="Princípios do Encontre um Técnico" className="border-b border-border bg-background px-4 py-7 sm:py-9">
+        <ul className="mx-auto grid max-w-6xl gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {TRUST.map(({ icon: I, title, text }) => (
             <li key={title} className="flex gap-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-glow/15 text-brand-glow"><I className="h-5 w-5" aria-hidden /></span>
-              <div><h2 className="text-base font-semibold">{title}</h2><p className="mt-1 text-sm opacity-80">{text}</p></div>
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><I className="h-5 w-5" aria-hidden /></span>
+              <div><h2 className="text-sm font-bold text-foreground">{title}</h2><p className="mt-1 text-xs leading-5 text-muted-foreground">{text}</p></div>
             </li>
           ))}
         </ul>
       </section>
 
-      <SponsoredPublicSlot slotKey="home.content_1" routePath="/" />
-
-      <Reveal><CategoryGrid /></Reveal>
+      <section aria-labelledby="home-visual-servicos" className="px-4 py-14 sm:py-20">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+            <div className="max-w-2xl">
+              <p className="text-xs font-bold uppercase tracking-widest text-primary">Escolha pelo contexto</p>
+              <h2 id="home-visual-servicos" className="mt-2 text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">Que tipo de ajuda você procura?</h2>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground sm:text-base">Comece pelo problema mais próximo do seu e encontre serviços e profissionais na sua região.</p>
+            </div>
+            <Link to="/servicos" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-primary/30 px-4 text-sm font-semibold text-primary transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+              Explorar todos os serviços <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </div>
+          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {HOME_VISUALS.map((item) => (
+              <li key={item.slug}>
+                <Link to="/servicos/$categoria" params={{ categoria: item.slug }}
+                  className="group flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-colors hover:border-primary/50 hover:shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                  <div className="overflow-hidden bg-brand-navy/10">
+                    <img src={item.src} alt={item.alt} width={1200} height={630} loading="lazy" decoding="async"
+                      className="aspect-[40/21] w-full object-cover transition-transform duration-300 group-hover:scale-[1.035] motion-reduce:transform-none" />
+                  </div>
+                  <div className="flex flex-1 items-center justify-between gap-3 p-4 sm:p-5">
+                    <div className="min-w-0"><h3 className="font-bold text-foreground">{item.title}</h3><p className="mt-1 text-sm leading-5 text-muted-foreground">{item.subtitle}</p></div>
+                    <ArrowRight className="h-5 w-5 shrink-0 text-primary transition-transform group-hover:translate-x-1 motion-reduce:transform-none" aria-hidden="true" />
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
 
       <HomePublicProof />
 
-
-
-
-      <section className="mx-auto max-w-3xl px-4 pb-16">
-        <Reveal><ProblemAssistant /></Reveal>
+      <section className="bg-muted/35 px-4 py-12 sm:py-16">
+        <div className="mx-auto max-w-4xl"><ProblemAssistant /></div>
       </section>
 
-      <Reveal><HowItWorksRich /></Reveal>
+      <CanaisDeAtendimento />
+      <HowItWorksRich />
+      <CoverageSection />
 
-<p className="mx-auto my-5 w-full max-w-6xl px-4 text-sm leading-7 text-muted-foreground">Precisa de uma visita? Consulte a <a href="/cobertura" className="font-semibold text-primary underline underline-offset-2">cobertura por município</a> e use o <a href="/servicos" className="font-semibold text-primary underline underline-offset-2">catálogo de serviços</a> para identificar a especialidade antes de escolher um profissional.</p>
-      <AdSensePublicUnit />
-
-      <section className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 lg:grid-cols-2">
-        <img src={techImg} alt="Técnica de informática fazendo manutenção em computador e roteador" width={1280} height={960} loading="lazy" className="aspect-[4/3] w-full rounded-3xl object-cover shadow-soft" />
-        <div>
-          <h2 className="text-3xl font-bold text-foreground">Aqui o profissional é valorizado</h2>
-          <p className="mt-4 text-muted-foreground">
-            Não cobramos do técnico para participar nem por cliente recebido, e não fazemos leilão de preço. O cliente encontra quem tem a especialidade certa, perto dele, e o técnico é reconhecido pelo seu trabalho.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link to="/cadastro" className="inline-flex min-h-11 items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"><Wrench className="h-4 w-4" aria-hidden="true" /> Sou técnico, quero participar</Link>
-            <Link to="/tecnicos" search={{ especialidade: "Todas", cidade: "", regiao: "" }} className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-5 py-2.5 text-sm font-semibold text-foreground hover:border-primary"><Search className="h-4 w-4" aria-hidden /> Ver técnicos</Link>
-          </div>
-        </div>
-      </section>
-
+      <HomeTechnicianJoin />
       <HomeCommunityInvite />
 
-      <Reveal><CoverageSection /></Reveal>
-      <Reveal><ApprovalProcessSection /></Reveal>
-
-      <FindOneSection />
-      <JoinNetworkSection />
-      <CtaBand />
-      <ValuesSection />
-      <StepsSection />
-
-      <Reveal><FaqPreview /></Reveal>
-      <Reveal><ContactBand /></Reveal>
-
-      <section aria-labelledby="home-journeys-title" className="px-4 py-16 sm:py-20">
-        <div className="mx-auto max-w-6xl">
-          <div className="mb-7 max-w-2xl">
-            <span className="text-xs font-extrabold uppercase tracking-widest text-primary">A jornada é sua</span>
-            <h2 id="home-journeys-title" className="mt-2 text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
-              Como você quer começar?
-            </h2>
-            <p className="mt-3 text-sm leading-7 text-muted-foreground sm:text-base">
-              Encontre ajuda para um serviço ou apresente seu trabalho à rede. Escolha seu caminho.
-            </p>
+      <section aria-labelledby="home-expansao-rede" className="border-y border-primary/15 bg-primary/5 px-4 py-8 sm:py-10">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-5">
+          <div className="max-w-2xl">
+            <p className="text-xs font-bold uppercase tracking-widest text-primary">Expansão nacional · rede em construção</p>
+            <h2 id="home-expansao-rede" className="mt-2 text-xl font-extrabold text-foreground sm:text-2xl">Estamos ampliando a rede de profissionais</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">Consulte as localidades prioritárias para novos cadastros. A lista não representa disponibilidade confirmada nem volume de solicitações.</p>
           </div>
-          <div className="grid gap-5 md:grid-cols-2">
-            <article className="eut-card-lift group relative isolate flex min-h-80 flex-col overflow-hidden rounded-[28px] border border-primary/30 bg-gradient-to-br from-card via-card to-accent/70 p-6 shadow-soft sm:p-8">
-              <div aria-hidden="true" className="pointer-events-none absolute -right-12 -top-12 text-primary/10">
-                <UsersRound className="h-56 w-56" strokeWidth={0.8} />
-              </div>
-              <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl border border-primary/15 bg-primary/10 text-primary">
-                <UsersRound className="h-8 w-8" aria-hidden="true" />
-              </div>
-              <div className="relative mt-6 flex-1">
-                <p className="text-xs font-extrabold uppercase tracking-widest text-primary">Quero resolver</p>
-                <h3 className="mt-2 text-2xl font-extrabold text-card-foreground">Sou Cliente</h3>
-                <p className="mt-3 max-w-sm text-sm leading-7 text-muted-foreground">
-                  Cadastre-se, encontre profissionais por região e especialidade e combine diretamente o serviço.
-                </p>
-              </div>
-              <Link to="/entrar"
-                className="relative mt-6 inline-flex min-h-12 w-fit items-center justify-center gap-3 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground shadow-sm transition-all hover:shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none">
-                <Search className="h-5 w-5" aria-hidden="true" /> Criar conta de cliente
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1 motion-reduce:transform-none" aria-hidden="true" />
-              </Link>
-            </article>
-            <article className="eut-card-lift group relative isolate flex min-h-80 flex-col overflow-hidden rounded-[28px] border border-brand-glow/30 bg-gradient-to-br from-brand-navy via-[#173e64] to-brand-navy p-6 text-brand-navy-foreground shadow-[0_20px_55px_-25px_rgba(5,20,44,.55)] sm:p-8">
-              <div aria-hidden="true" className="pointer-events-none absolute -right-12 -top-12 text-white/10">
-                <Wrench className="h-56 w-56" strokeWidth={0.8} />
-              </div>
-              <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl border border-brand-glow/30 bg-white/10 text-brand-glow">
-                <Wrench className="h-8 w-8" aria-hidden="true" />
-              </div>
-              <div className="relative mt-6 flex-1">
-                <p className="text-xs font-extrabold uppercase tracking-widest text-brand-glow">Quero participar</p>
-                <h3 className="mt-2 text-2xl font-extrabold text-white">Sou Técnico</h3>
-                <p className="mt-3 max-w-sm text-sm leading-7 text-white/85">
-                  Mostre suas especialidades, informe sua região de atendimento e participe gratuitamente da rede.
-                </p>
-              </div>
-              <Link to="/cadastro"
-                className="relative mt-6 inline-flex min-h-12 w-fit items-center justify-center gap-3 rounded-xl border border-white/30 bg-white px-5 py-3 text-sm font-bold text-brand-navy shadow-sm transition-all hover:shadow-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none">
-                <Wrench className="h-5 w-5" aria-hidden="true" /> Criar conta de técnico
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1 motion-reduce:transform-none" aria-hidden="true" />
-              </Link>
-            </article>
-          </div>
+          <Link to="/cobertura#expansao-da-rede" className="inline-flex min-h-11 items-center rounded-xl border border-primary/30 bg-card px-4 py-2 text-sm font-semibold text-primary hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+            Ver localidades procuradas
+          </Link>
         </div>
       </section>
+
+      <SponsoredPublicSlot slotKey="home.content_1" routePath="/" />
+      <AdSensePublicUnit />
+      <FaqPreview />
+      <ContactBand />
     </PageShell>
   );
 }
