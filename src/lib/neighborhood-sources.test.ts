@@ -72,7 +72,10 @@ describe("Bairros sugeridos apenas com fonte municipal identificada", () => {
     expect(directory).toContain('list={bairroCatalog ? "eut-bairro-diretorio" : undefined}');
     expect(input).toContain("list?: string");
     expect(input).toContain("savePendingFilter");
-    expect(home).toContain('placeholder="Município (ex.: São José dos Pinhais)"');
+    const homeLocation = read("src/components/home-municipality-search.tsx");
+    expect(home).toContain("<HomeMunicipalitySearch");
+    expect(homeLocation).toContain("Confirmar município na lista oficial (IBGE)");
+    expect(homeLocation).toContain("confirmedHomeCity(");
     expect(home).toContain('setLocationNeighborhood(""); // IP cannot establish a neighborhood.');
     expect(lp2).toContain("Município (opcional)");
     expect(gallery).toContain("Município (ex.: Curitiba)");

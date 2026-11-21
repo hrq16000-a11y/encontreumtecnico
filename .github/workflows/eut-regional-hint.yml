@@ -37,6 +37,7 @@ jobs:
           const hook=readFileSync('src/hooks/use-regional-suggestion.ts','utf8');
           const cache=readFileSync('src/lib/regional-suggestion.ts','utf8');
           const page=readFileSync('src/routes/index.tsx','utf8');
+          const cityPicker=readFileSync('src/components/home-municipality-search.tsx','utf8');
           for(const required of ['x-vercel-ip-country','x-vercel-ip-country-region','x-vercel-ip-city','private, no-store'])
             if(!server.includes(required))throw Error('Required private coarse-IP lookup missing '+required);
           for(const prohibited of ['getCurrentPosition','watchPosition','latitude','longitude','x-real-ip','x-forwarded-for','phone_e164','localStorage.setItem','service_role']) {
@@ -44,7 +45,14 @@ jobs:
           }
           if(!cache.includes('sessionStorage')||!cache.includes('6 * 60 * 60 * 1000')||
              !page.includes('useRegionalSuggestion()')||!page.includes('cityEditedByUser.current')||
-             !page.includes('placeholder="Município')||page.includes('CustomerLocationButton'))
+             !page.includes('<HomeMunicipalitySearch')||
+             !page.includes('homeLocationFilters(')||
+             !cityPicker.includes('id="busca-cidade"')||
+             !cityPicker.includes('confirmedHomeCity(')||
+             !cityPicker.includes('onCityTextChange')||
+             !cityPicker.includes('onUfChange')||
+             page.includes('CustomerLocationButton')||
+             cityPicker.includes('getCurrentPosition'))
             throw Error('Private six-hour coarse hint, silent suggestion or manual city correction missing');
           NODE
       - name: No WordPress live dependency

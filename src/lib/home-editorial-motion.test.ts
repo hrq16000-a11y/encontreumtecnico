@@ -7,6 +7,7 @@ const rich = read("src/components/home-rich.tsx");
 const home = read("src/routes/index.tsx");
 const footer = read("src/components/site-footer.tsx");
 const institutional = read("src/components/home-sections.tsx");
+const technicianJoin = read("src/components/home-technician-join.tsx");
 const styles = read("src/styles.css");
 
 describe("Home editorial P1 — FAQ, jornadas, institucional e rodapé", () => {
@@ -27,23 +28,18 @@ describe("Home editorial P1 — FAQ, jornadas, institucional e rodapé", () => {
     }
   });
 
-  it("destaca duas jornadas e conserva login real sem criar cadastro paralelo", () => {
-    expect(home).toContain('aria-labelledby="home-journeys-title"');
-    expect(home).toContain("Sou Cliente");
-    expect(home).toContain("Sou Técnico");
-    expect(home).toContain("Criar conta de cliente");
-    expect(home).toContain("Criar conta de técnico");
-    const start = home.indexOf('aria-labelledby="home-journeys-title"');
-    const end = home.indexOf("</PageShell>", start);
-    const block = home.slice(start, end);
-    // Cliente entra na conta; técnico escolhe o fluxo de cadastro, que
-    // recupera a conta existente após autenticação quando necessário.
-    expect(block.match(/to="\/entrar"/g)).toHaveLength(1);
-    expect(block.match(/to="\/cadastro"/g)).toHaveLength(1);
-    expect(block).toContain('bg-gradient-to-br from-brand-navy');
-    expect(block).toContain("eut-card-lift");
-    expect(block).toContain("motion-reduce:transform-none");
-    // The pre-existing visual assets and the previous help funnel stay intact.
+  it("prioriza a busca pública e mantém o cadastro e a recuperação de técnicos", () => {
+    expect(home).toContain('aria-label="Buscar técnicos por especialidade e localidade"');
+    expect(home).toContain("<HomeCategoryPicker");
+    expect(home).toContain("<HomeMunicipalitySearch");
+    expect(home).toContain("<HomePublicProof />");
+    expect(home).toContain('aria-labelledby="home-profissionais-title"');
+    expect(home).toContain('href="#home-tecnico-cadastro"');
+    expect(home).toContain("<HomeTechnicianJoin />");
+    expect(technicianJoin).toContain('to="/cadastro"');
+    expect(technicianJoin).toContain('to="/entrar"');
+    expect(technicianJoin).toContain('to="/ajuda-acesso"');
+    // Photos and the portal help funnel remain part of the refreshed page.
     expect(home).toContain("src={heroImg}");
     expect(home).toContain("src={techImg}");
     expect(home).toContain("<ContactBand />");
