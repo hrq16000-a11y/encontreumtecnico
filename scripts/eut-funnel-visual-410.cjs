@@ -180,6 +180,21 @@ async function exercise(browser, width, height) {
     await page.waitForURL((u) => u.pathname.replace(/\/$/, "") === "/tecnicos", {
       timeout: 20000,
     });
+    // URL changes can precede TanStack Start's actual route rendering.
+    // Fail if the browser still displays the previous page.
+    await page.getByRole("heading", { name: "Encontre técnicos na sua região" })
+      .waitFor({ state: "visible", timeout: 20000 });
+    await page.waitForFunction(() => {
+      const value = (id) => document.getElementById(id)?.value;
+      return value("filtro-especialidade") === "computadores" &&
+        value("filtro-servico") === "formatacao-de-notebooks" &&
+        value("filtro-uf") === "PR" &&
+        value("filtro-cidade") === "Curitiba";
+    }, null, { timeout: 20000 });
+    const rejectAgain = page.getByRole("button", { name: "Rejeitar", exact: true });
+    if (await rejectAgain.isVisible().catch(() => false)) {
+      await rejectAgain.click();
+    }
     const resultUrl = new URL(page.url());
     for (const [field, value] of Object.entries(expected)) {
       assert.equal(resultUrl.searchParams.get(field), value,
