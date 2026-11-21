@@ -1,0 +1,39 @@
+name: EUT directory settings isolated PostgreSQL
+
+on:
+  pull_request:
+    paths:
+      - 'docs/sql/eut-owner-directory-display-20261120.sql'
+      - 'docs/sql/tests/eut-directory-display-isolated.sql'
+      - '.github/workflows/eut-directory-display-isolated.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-owner-settings:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-only
+          POSTGRES_DB: directory_isolated
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d directory_isolated"
+          --health-interval 5s --health-timeout 5s --health-retries 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure only synthetic local PostgreSQL is used
+        env:
+          PGPASSWORD: synthetic-only
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGUSER: postgres
+          PGDATABASE: directory_isolated
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-directory-display-isolated.sql

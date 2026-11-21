@@ -53,7 +53,7 @@ jobs:
             'if (!regionalPriority && city)',
             'if (!regionalPriority && bairro)',
             'collectPublicDirectoryPages',
-            'publicDirectoryPage(rankTechniciansByDeclaredArea(unified, rankingArea), data.pagina)'
+            'publicDirectoryPage(rankTechniciansByDeclaredArea(unified, rankingArea, displaySettings), data.pagina)'
           ]) {
             if (!search.includes(term)) throw Error('Regional search contract missing: '+term);
           }
@@ -71,7 +71,9 @@ jobs:
             throw Error('No implicit GPS prompt; coarse IP ranking and manual city control required');
           }
           if (!ranking.includes('b.locationLevel - a.locationLevel') ||
-              !ranking.includes('Number(b.technician.online_now)')) {
+              !ranking.includes('Number(settings.online_priority && b.technician.online_now)') ||
+              !search.includes('readDirectorySettings()') ||
+              !search.includes('displaySettings.auto_region')) {
             throw Error('Online must NOT outrank a nearby technician');
           }
           if (ranking.includes('geolocation')||ranking.includes('GPS coordinates')) {
