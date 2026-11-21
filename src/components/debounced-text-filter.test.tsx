@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, cleanup } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { savePendingFilter, readPendingFilter } from "@/lib/pending-search-filter";
+import { savePendingFilter, readPendingFilter, clearDirectoryPendingFilters } from "@/lib/pending-search-filter";
 import { DebouncedTextFilter, FILTER_DEBOUNCE_MS } from "./debounced-text-filter";
 
 beforeEach(() => {
@@ -107,6 +107,27 @@ describe("localidade: digitação sem consultas por tecla", () => {
     const view = render(form("", onCommit));
     view.rerender(form("Centro", onCommit));
     expect((screen.getByLabelText("Bairro") as HTMLInputElement).value).toBe("Centro");
+    act(() => vi.advanceTimersByTime(FILTER_DEBOUNCE_MS * 2));
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+
+  it("limpar filtros cancela o debounce e descarta rascunhos locais antigos", () => {
+    vi.useFakeTimers();
+    const onCommit = vi.fn();
+    const view = render(form("", onCommit));
+    fireEvent.change(screen.getByLabelText("Bairro"), { target: { value: "Cristal" } });
+    savePendingFilter("filtro-cidade", "", "Curitiba", sessionStorage);
+    savePendingFilter("filtro-regiao", "", "Zona Sul", sessionStorage);
+    expect(readPendingFilter("filtro-bairro", "")).toBe("Cristal");
+
+    // Mirrors the directory's explicit clear action and changed React key.
+    clearDirectoryPendingFilters(sessionStorage);
+    view.rerender(<DebouncedTextFilter key="reset-1" id="filtro-bairro" label="Bairro"
+      value="" placeholder="Ex.: Centro" onCommit={onCommit} onBlurTrack={vi.fn()} />);
+    for (const id of ["filtro-cidade", "filtro-bairro", "filtro-regiao"]) {
+      expect(readPendingFilter(id, "", sessionStorage)).toBeNull();
+    }
+    expect((screen.getByLabelText("Bairro") as HTMLInputElement).value).toBe("");
     act(() => vi.advanceTimersByTime(FILTER_DEBOUNCE_MS * 2));
     expect(onCommit).not.toHaveBeenCalled();
   });
