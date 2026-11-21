@@ -1,0 +1,16 @@
+# Somente runner descartavel. Nunca vincular este projeto ao Supabase oficial.
+project_id = "eut-self-service-qa-357"
+
+[api]
+enabled = true
+port = 54321
+
+[db]
+port = 54322
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+
+[auth.email]
+enable_signup = true

@@ -20,6 +20,7 @@ import { LegacyProfileImport } from "@/components/legacy-profile-import";
 import { TechnicianPresence } from "@/components/technician-presence";
 import { TechnicianMissions } from "@/components/technician-missions";
 import { TechnicianPrivateContact } from "@/components/technician-private-contact";
+import { TechnicianProfileRemoval } from "@/components/technician-profile-removal";
 import { TechnicianDirectRequests } from "@/components/technician-direct-requests";
 import { CustomerLocationButton } from "@/components/customer-location-button";
 import { TechnicianCepSuggestion } from "@/components/technician-cep-suggestion";
@@ -206,9 +207,11 @@ export function TechnicianAreaPage() {
           setProfileError(true);
         } else if (data) {
           const loadedForm = {
-            display_name: data.display_name,
-            state_uf: data.state_uf ?? "",
-            city: data.city,
+            display_name: data.status === "pendente" && data.display_name === "Ficha excluída"
+              ? googleIdentityHint(user).fullName.slice(0, 80) : data.display_name,
+            state_uf: data.status === "pendente" && data.display_name === "Ficha excluída"
+              ? "" : data.state_uf ?? "",
+            city: data.status === "pendente" && data.display_name === "Ficha excluída" ? "" : data.city,
             neighborhood: data.neighborhood ?? "",
             region: data.region ?? "",
             bio: data.bio ?? "",
@@ -588,6 +591,7 @@ export function TechnicianAreaPage() {
             </details>
               )}
               {panelTab === "perfil" && (
+            <>
             <form onSubmit={save} className="mt-2 grid gap-4" noValidate>
               <div className="rounded-2xl border border-primary/20 bg-card p-4 shadow-sm sm:p-5">
                 <p className="text-xs font-semibold uppercase tracking-wide text-primary">Cadastro guiado · Passo {step} de 3</p>
@@ -933,6 +937,11 @@ export function TechnicianAreaPage() {
                 )}
               </div>
             </form>
+            {profileId && profileOwnerId === user.id && currentStatus !== "suspenso" && currentStatus !== "rejeitado" && (
+              <TechnicianProfileRemoval key={user.id} userId={user.id} profileId={profileId}
+                onRemoved={() => setReloadCounter((value) => value + 1)} />
+            )}
+            </>
               )}
               {panelTab === "cobertura" && (
                 <section aria-labelledby="area-cobertura-titulo">
