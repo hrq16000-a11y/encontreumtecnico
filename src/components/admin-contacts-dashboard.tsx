@@ -82,7 +82,10 @@ export function AdminContactsDashboard({ adminId }: { adminId: string }) {
     let active = true;
     setLoading(true);
     setError("");
-    
+    // An old search/page must not leave private contacts or actions usable.
+    setSnapshot(null);
+    setPending(null);
+
     detailEpoch.current++;
     setDetail(null);
     void Promise.resolve(db.rpc("eut_admin_contacts_dashboard", {
