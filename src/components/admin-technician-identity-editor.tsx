@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { Mail, MapPin, Save } from "lucide-react";
+import { LocationField, type LocationFieldValue } from "@/components/location-field";
 
 const db = supabase as unknown as SupabaseClient;
 const inputClass = "min-h-11 w-full min-w-0 rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground";
@@ -28,6 +29,7 @@ const empty: Draft = {
 
 export function AdminTechnicianIdentityEditor({ recordKey }: { recordKey: string }) {
   const [draft, setDraft] = useState<Draft>(empty);
+  const [locationCityId, setLocationCityId] = useState<number | null>(null);
   const [revision, setRevision] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [available, setAvailable] = useState(false);
@@ -43,6 +45,7 @@ export function AdminTechnicianIdentityEditor({ recordKey }: { recordKey: string
     setError(null);
     setFeedback(null);
     setDraft(empty);
+    setLocationCityId(null);
     setRevision(null);
     void Promise.resolve(db.rpc("eut_admin_identity_get", { _record_key: recordKey }))
       .then(({ data, error: loadError }) => {
@@ -136,12 +139,6 @@ export function AdminTechnicianIdentityEditor({ recordKey }: { recordKey: string
     </h3>
     <div className="grid min-w-0 gap-3 sm:grid-cols-[9rem_minmax(0,1fr)]">
       <label className="grid min-w-0 gap-1 text-xs font-semibold text-foreground">
-        CEP
-        <input className={inputClass} inputMode="numeric" maxLength={9}
-          value={draft.postal_code} placeholder="00000-000"
-          onChange={(event) => change("postal_code", event.target.value.replace(/[^\d-]/g, ""))} />
-      </label>
-      <label className="grid min-w-0 gap-1 text-xs font-semibold text-foreground">
         Logradouro
         <input className={inputClass} maxLength={200} value={draft.street}
           onChange={(event) => change("street", event.target.value)} placeholder="Rua, avenida…" />
@@ -159,23 +156,15 @@ export function AdminTechnicianIdentityEditor({ recordKey }: { recordKey: string
           onChange={(event) => change("complement", event.target.value)} placeholder="Sala, conjunto…" />
       </label>
     </div>
-    <label className="grid min-w-0 gap-1 text-xs font-semibold text-foreground">
-      Bairro
-      <input className={inputClass} maxLength={120} value={draft.neighborhood}
-        onChange={(event) => change("neighborhood", event.target.value)} />
-    </label>
-    <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_5.5rem]">
-      <label className="grid min-w-0 gap-1 text-xs font-semibold text-foreground">
-        Município
-        <input className={inputClass} maxLength={120} value={draft.city}
-          onChange={(event) => change("city", event.target.value)} />
-      </label>
-      <label className="grid min-w-0 gap-1 text-xs font-semibold text-foreground">
-        UF
-        <input className={inputClass} maxLength={2} value={draft.uf}
-          onChange={(event) => change("uf", event.target.value.toUpperCase().replace(/[^A-Z]/g, ""))} />
-      </label>
-    </div>
+    <LocationField label="Localização cadastral privada" required={false} hintEnabled={false}
+      value={{uf:draft.uf,city:draft.city,municipalityIbgeId:locationCityId,
+        neighborhood:draft.neighborhood,postalCode:draft.postal_code}}
+      onChange={(next:LocationFieldValue) => {
+        setLocationCityId(next.municipalityIbgeId);
+        setDraft(previous => ({...previous,uf:next.uf,city:next.city,
+          neighborhood:next.neighborhood,postal_code:next.postalCode}));
+        setFeedback(null);
+      }} />
     <p className="text-xs text-muted-foreground">
       Estes campos são administrativos; não alteram a localização pública nem a cobertura do técnico.
     </p>

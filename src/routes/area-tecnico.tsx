@@ -10,7 +10,7 @@ import { useActiveCategories } from "@/hooks/use-active-categories";
 import { useActiveServices } from "@/hooks/use-active-services";
 import { BRAZIL_STATES, validMunicipality } from "@/lib/service-taxonomy";
 import { useMunicipalities } from "@/hooks/use-municipalities";
-import { MunicipalityPicker } from "@/components/municipality-picker";
+import { LocationField, type LocationFieldValue } from "@/components/location-field";
 import { TechnicianCoverageEditor } from "@/components/technician-coverage-editor";
 import { TechnicianOperationsEditor } from "@/components/technician-operations-editor";
 import { TechnicianAvatarEditor } from "@/components/technician-avatar-editor";
@@ -21,15 +21,10 @@ import { TechnicianPresence } from "@/components/technician-presence";
 import { TechnicianMissions } from "@/components/technician-missions";
 import { TechnicianPrivateContact } from "@/components/technician-private-contact";
 import { TechnicianDirectRequests } from "@/components/technician-direct-requests";
-import { CustomerLocationButton } from "@/components/customer-location-button";
-import { TechnicianCepSuggestion } from "@/components/technician-cep-suggestion";
-import { suggestTechnicianArea } from "@/lib/customer-location";
-import { placeKey, safeNeighborhood, sameMunicipalityAsNeighborhood } from "@/lib/location-labels";
-import { neighborhoodCatalogFor, neighborhoodOptions } from "@/lib/neighborhood-sources";
-import { changeTechnicianPlace, needsLocationDraftConfirmation, previewTechnicianAreaSuggestion } from "@/lib/technician-place-change";
+import { safeNeighborhood } from "@/lib/location-labels";
+import { changeTechnicianPlace, needsLocationDraftConfirmation } from "@/lib/technician-place-change";
 import { clearProtectedDraft, readProtectedDraft, saveProtectedDraft } from "@/lib/protected-session-draft";
 import { saveTechnicianDraftImmediately } from "@/lib/technician-live-draft";
-import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { canAcceptAccountResult } from "@/lib/account-scoped-queries";
 import { matchingRegistrationCategories, matchingRegistrationServices, groupRegistrationServices, toggleVisibleRegistrationServices, selectedRegistrationServices, reconcileRegistrationSelections, registrationReviewIssue, registrationStepError, shouldSubmitTechnicianWizard, type RegistrationStep } from "@/lib/technician-registration-wizard";
 import { hydrateTechnicianOfficialCity } from "@/lib/technician-official-city-hydration";
@@ -108,10 +103,10 @@ export function TechnicianAreaPage() {
   const currentUserRef = useRef<string | null>(null);
   currentUserRef.current = user?.id ?? null;
   const roleKey = roles.join(",");
-  const { area: regionalHint } = useRegionalSuggestion();
+  const [postalCodeHint, setPostalCodeHint] = useState("");
+  useEffect(() => setPostalCodeHint(""), [user?.id]);
   const { cities: officialBaseCities } = useMunicipalities(form.state_uf);
   const baseMunicipality = officialBaseCities.find((city) => city.id === form.base_city_ibge_id) ?? null;
-  const bairroCatalog = neighborhoodCatalogFor({ city: form.city, uf: form.state_uf, municipalityIbgeId: form.base_city_ibge_id });
   const currentStatus = roles.includes("tecnico") && profileOwnerId === user?.id ? status : null;
   const profileGuidance = technicianProfileEnrichment({
     ...form, avatar_path: avatarPath, coverage_city_ids: savedCoverageIds,
@@ -142,12 +137,6 @@ export function TechnicianAreaPage() {
     writeDraft(nextForm, step); // Input event, before the route or browser tab changes.
     setValidationIssue(null);
     setForm(nextForm);
-  }
-
-  function selectBaseMunicipality(next: Pick<typeof form, "state_uf" | "city" | "base_city_ibge_id">) {
-    if (needsLocationDraftConfirmation(form, next) &&
-      !window.confirm("Ao trocar o município ou a UF, o bairro e as outras áreas informadas serão limpos porque pertencem à localidade anterior. Deseja continuar?")) return;
-    updateRegistration(changeTechnicianPlace(form, next));
   }
 
   useEffect(() => {
@@ -349,14 +338,6 @@ export function TechnicianAreaPage() {
     if (step < 3) moveToStep((step + 1) as RegistrationStep);
   }
 
-  useEffect(() => {
-    // Only suggest for a brand-new technician profile after loading completes.
-    // A known profile, manually selected municipality or existing field always wins.
-    if (loading || !user || !roles.includes("tecnico") || profileLoading ||
-        profileError || profileId || !regionalHint) return;
-    setForm(previous => suggestTechnicianArea(previous, regionalHint, "automatic"));
-  }, [loading, user?.id, roleKey, profileLoading, profileError, profileId, regionalHint?.city, regionalHint?.uf]);
-
   async function save(e: FormEvent) {
     e.preventDefault();
     const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLElement | null;
@@ -374,7 +355,7 @@ export function TechnicianAreaPage() {
       || publicTextProblem(form.neighborhood, "identity");
     if (publicTextError) { setMsg(publicTextError); return; }
     const savingOwner = user.id;
-    if (!validMunicipality(form.state_uf, form.city)) return setMsg("Selecione a UF e informe uma cidade válida para sua área de atendimento.");
+    if (!BRAZIL_STATES.some(uf => uf === form.state_uf) || !validMunicipality(form.state_uf, form.city)) return setMsg("Selecione a UF e confirme uma cidade válida no catálogo oficial.");
     if (catalogLoading || catalogError || !categories.length) return setMsg("O catálogo está indisponível. Não é possível validar especialidades agora.");
     if (form.specialties.length === 0) return setMsg("Escolha pelo menos uma especialidade.");
     if (form.specialties.some((slug) => !categories.some((c) => c.slug === slug))) return setMsg("Selecione apenas categorias ativas do catálogo.");
@@ -636,96 +617,30 @@ export function TechnicianAreaPage() {
               <label className="text-sm font-medium text-foreground">Nome público
                 <input required minLength={2} maxLength={80} className={input} value={form.display_name} onChange={(e) => updateRegistration({ ...form, display_name: e.target.value })} />
               </label>
-              <CustomerLocationButton
-                purpose="technician"
-                autoIfGranted={!profileId && !form.state_uf && !form.city.trim() && !form.neighborhood.trim()}
-                onLocated={(area, source) => {
-                  // Device location is a hint, not an official IBGE selection.
-                  // Never keep a previous municipality ID when the city/UF changes.
-                  const current = form;
-                  const { next, requiresConfirmation } = previewTechnicianAreaSuggestion(current, area, source);
-                  if (next === current) return;
-                  if (requiresConfirmation &&
-                      !window.confirm("A localização sugerida é diferente da informada. Trocar município ou UF limpará o bairro e as regiões anteriores. Deseja continuar?")) return;
-                  updateRegistration(next);
+              <LocationField label="Localidade base do técnico" required={!editingUnchangedCity}
+                value={{
+                  uf: form.state_uf, city: form.city, municipalityIbgeId: form.base_city_ibge_id,
+                  neighborhood: form.neighborhood, postalCode: postalCodeHint,
                 }}
-              />
-              <TechnicianCepSuggestion onChoose={(city, bairro) => {
-                const next = { state_uf: city.uf, city: city.name, base_city_ibge_id: city.id };
-                if (needsLocationDraftConfirmation(form, next) &&
-                    !window.confirm("Usar a localidade do CEP substituirá os bairros e áreas anteriores. Deseja continuar?")) return;
-                const changed = changeTechnicianPlace(form, next);
-                updateRegistration({ ...changed, neighborhood: safeNeighborhood(bairro, city.name) || changed.neighborhood });
-              }} />
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="text-sm font-medium text-foreground">Estado (UF)
-                  <select required className={input} value={form.state_uf} onChange={(e) => selectBaseMunicipality({ state_uf: e.target.value, city: "", base_city_ibge_id: null })}>
-                    <option value="">Selecione o estado</option>
-                    {BRAZIL_STATES.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
-                  </select>
-                </label>
-                <MunicipalityPicker uf={form.state_uf} selectedId={form.base_city_ibge_id}
-                  required={!editingUnchangedCity}
-                  currentCityName={form.city}
-                  onSelect={(city) => selectBaseMunicipality({
-                    state_uf: form.state_uf, city: city.name, base_city_ibge_id: city.id,
-                  })} />
-              </div>
-              {editingUnchangedCity && (
-                <p className="text-xs text-muted-foreground" role="status">
-                  Cidade já registrada no seu perfil. Você pode atualizar outros dados sem selecioná-la novamente.
-                  Para mudar de município, escolha uma cidade da lista oficial.
-                </p>
-              )}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="text-sm font-medium text-foreground">Bairro de referência (opcional)
-                  <input maxLength={80} className={input} list={bairroCatalog ? "eut-bairro-profissional" : undefined}
-                    value={safeNeighborhood(form.neighborhood, form.city)}
-                    placeholder="Ex.: Jardim Itália"
-                    onChange={(e) => updateRegistration({ ...form, neighborhood: e.target.value })} />
-                  {bairroCatalog && <datalist id="eut-bairro-profissional">
-                    {neighborhoodOptions(bairroCatalog).map(bairro => <option key={bairro} value={bairro} />)}
-                  </datalist>}
-                  {sameMunicipalityAsNeighborhood(form.neighborhood, form.city) && (
-                    <span role="status" className="mt-1 block text-xs text-amber-800 dark:text-amber-300">
-                      O preenchimento anterior era o município, não um bairro. Informe o bairro real, se desejar.
-                    </span>
-                  )}
-                </label>
-                <label className="text-sm font-medium text-foreground">Outros bairros ou regiões atendidos (opcional)
-                  <input maxLength={120} className={input} value={form.region}
-                    placeholder="Somente locais adicionais, sem repetir o município"
-                    onChange={(e) => updateRegistration({ ...form, region: e.target.value })} />
-                </label>
-              </div>
-                  {bairroCatalog && (
-                    <details className="rounded-lg border border-border bg-muted/20">
-                      <summary className="flex min-h-11 cursor-pointer items-center px-3 text-sm text-primary">
-                        Ver sugestões de bairros ({neighborhoodOptions(bairroCatalog).length})
-                      </summary>
-                      <div className="max-h-52 overflow-y-auto border-t border-border p-2">
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                          {neighborhoodOptions(bairroCatalog)
-                            .filter(bairro => !form.neighborhood.trim() || placeKey(bairro).includes(placeKey(form.neighborhood)))
-                            .map(bairro => (
-                              <button key={bairro} type="button"
-                                onClick={() => updateRegistration({ ...form, neighborhood: bairro })}
-                                className="min-h-11 break-words rounded-lg border border-border bg-card px-3 py-2 text-left text-sm text-foreground">
-                                {bairro}
-                              </button>
-                            ))}
-                        </div>
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          Você pode digitar outro nome, mesmo que não esteja na lista.
-                        </p>
-                      </div>
-                    </details>
-                  )}
-              {bairroCatalog && <p className="text-xs text-muted-foreground">
-                Sugestões da <a href={bairroCatalog.sourceUrl} target="_blank" rel="noopener noreferrer"
-                  className="font-medium text-primary underline underline-offset-2">{bairroCatalog.sourceName}</a>.
-                Pode digitar outra denominação; a lista não confirma o endereço.
+                onChange={(next: LocationFieldValue) => {
+                  setPostalCodeHint(next.postalCode);
+                  const location = {
+                    state_uf: next.uf, city: next.city, base_city_ibge_id: next.municipalityIbgeId,
+                  };
+                  if (needsLocationDraftConfirmation(form, location) &&
+                      !window.confirm("Trocar município/UF limpará bairros e áreas anteriores. Continuar?")) return;
+                  updateRegistration({
+                    ...changeTechnicianPlace(form, location), neighborhood: next.neighborhood,
+                  });
+                }} />
+              {editingUnchangedCity && <p role="status" className="text-xs text-muted-foreground">
+                Município antigo preservado sem mudanças; confirme no IBGE se desejar trocá-lo.
               </p>}
+              <label className="text-sm font-medium text-foreground">Outros bairros ou regiões atendidos (opcional)
+                <input maxLength={120} className={input} value={form.region}
+                  placeholder="Somente áreas adicionais, sem endereço privado"
+                  onChange={e => updateRegistration({ ...form, region: e.target.value })} />
+              </label>
                 </div>
               )}
               {step === 2 && (
