@@ -188,17 +188,20 @@ async function exercise(browser, width, height) {
     for (const forbidden of ["telefone", "email", "latitude", "longitude", "cityid"]) {
       assert(!next.searchParams.has(forbidden), "Private or internal key in URL " + forbidden);
     }
-    await page.getByRole("heading", { name: "Encontre técnicos na sua região" })
-      .waitFor({ state: "visible", timeout: 20000 });
-    await snap("05-busca-filtrada");
+    // The directory is outside this Home-only visual QA. Its read-only
+    // public image and service requests remain BLOCKED; don't screenshot
+    // real technician records. Navigation is proved by the canonical URL.
     assert.equal(sent, 0, "An unmocked mutation was attempted: "+denied.join(" | "));
     assert(reads.has("categories") && reads.has("municipalities"),
       "Synthetic active catalog/IBGE fixtures were not both read");
-    assert(!denied.some(t => t.startsWith("unmocked")),
-      "Unexpected Supabase network read attempted");
+    const allowedDeniedReads = denied.every(value =>
+      value.startsWith("unmocked GET /storage/v1/object/public/eut-technician-avatars/") ||
+      value === "unmocked GET /rest/v1/eut_service_types");
+    assert(allowedDeniedReads, "An unexpected private/other request was blocked: "+denied.join(" | "));
     const result={viewport:width,height,status:"PASS",mode:"local-source-438",
       filters:Object.fromEntries(next.searchParams.entries()),blockedMutations:sent,
-      syntheticReads:[...reads].sort(),initialLayout:layoutInitial,restoredLayout:layoutRestored};
+      syntheticReads:[...reads].sort(),blockedPublicReadRequests:denied,
+      initialLayout:layoutInitial,restoredLayout:layoutRestored};
     save("result",result);
     console.log("PASS HOME438 "+width+"px "+JSON.stringify(result));
   } catch (error) {
