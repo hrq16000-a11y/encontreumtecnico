@@ -153,3 +153,23 @@ describe("reconciliação de versões sem perda de edição", () => {
     expect(screen.getByText(/Colombo\/PR · base/)).toBeInTheDocument();
   });
 });
+
+describe("gravação com conferência inconclusiva", () => {
+  it("impede reenviar a cobertura quando a RPC salva mas a releitura não confirma todas as cidades", async () => {
+    readCities.mockResolvedValue({ data: [colombo], error: null });
+    writeCoverage.mockResolvedValue({ data: { state: "salvo" }, error: null });
+    readPersisted.mockResolvedValue({
+      data: { coverage_city_ids: [base.id], service_radius_km: 20 },
+      error: null,
+    });
+    render(editor());
+    await screen.findByText("Colombo/PR");
+
+    const save = screen.getByRole("button", { name: "Salvar raio e cidades atendidas" });
+    fireEvent.click(save);
+    expect(await screen.findByText(/não confirmou todas as cidades e o raio gravados/)).toBeInTheDocument();
+    expect(save).toBeDisabled();
+    fireEvent.click(save);
+    expect(writeCoverage).toHaveBeenCalledTimes(1);
+  });
+});
