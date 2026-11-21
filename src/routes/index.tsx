@@ -10,9 +10,12 @@ import { AdSensePublicUnit } from "@/components/adsense-public-unit";
 import { HomePublicProof } from "@/components/home-public-proof";
 import { HomeCommunityInvite } from "@/components/home-community-invite";
 import { HomeTechnicianJoin } from "@/components/home-technician-join";
+import { HomeCategoryPicker, canonicalHomeCategory } from "@/components/home-category-picker";
+import { saveHomeCategoryDraft } from "@/lib/home-category-draft";
 import { ProblemAssistant } from "../components/problem-assistant";
 import { safeNeighborhood } from "@/lib/location-labels";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
+import { useActiveCategories } from "@/hooks/use-active-categories";
 import { useMunicipalities } from "@/hooks/use-municipalities";
 import { HomeMunicipalitySearch, homeLocationFilters, parseHomeCityId } from "@/components/home-municipality-search";
 import { readUiTextDraft, saveUiTextDraft } from "@/lib/unsent-ui-draft";
@@ -111,6 +114,7 @@ const HOME_VISUALS = [
 
 function HomePage() {
   const navigate = useNavigate();
+  const { categories: activeCategories, loading: categoriesLoading, error: categoriesError } = useActiveCategories();
   // Initial SSR and client render agree; the saved search is loaded only
   // after hydration, while the empty form stays hidden from the visitor.
   const [specialty, setSpecialty] = useState("");
@@ -187,27 +191,28 @@ function HomePage() {
                   return;
                 }
                 setCitySelectionError(false);
+                const especialidade = canonicalHomeCategory(specialty, activeCategories);
                 window.__lovableEvents?.track?.("project.technician_search", {
-                  has_specialty: specialty.trim() !== "",
-                  has_city: location.cidade !== "",
+                  has_specialty: especialidade !== "Todas",
+                  has_city: Boolean(location.cidade),
                 });
                 navigate({
                   to: "/tecnicos",
-                  search: { especialidade: specialty.trim() || "Todas",
-                    cidade: location.cidade, uf: location.uf, bairro: location.bairro,
-                    regiao: "", prioridade: location.prioridade },
+                  search: { especialidade, cidade: location.cidade, uf: location.uf,
+                    bairro: location.bairro, regiao: "", prioridade: location.prioridade },
                 });
               }}
             >
-              <label className="sr-only" htmlFor="busca-especialidade">Especialidade</label>
-              <input
-                id="busca-especialidade"
-                type="text"
-                value={specialty}
-                onChange={(e) => { saveUiTextDraft("home", { specialty:e.target.value, city, uf:locationUf, neighborhood:locationNeighborhood }); setSpecialty(e.target.value); }}
-                placeholder="Especialidade (ex.: Computador)"
-                className="h-11 min-h-11 w-full shrink-0 sm:w-auto sm:flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              />
+              <div className="min-w-0 sm:col-span-2">
+                <HomeCategoryPicker value={specialty} categories={activeCategories}
+                  loading={categoriesLoading} error={categoriesError}
+                  onChange={(value) => {
+                    saveHomeCategoryDraft(value, {
+                      city, uf: locationUf, neighborhood: locationNeighborhood, cityId: cityIbgeId,
+                    });
+                    setSpecialty(value);
+                  }} />
+              </div>
               <HomeMunicipalitySearch uf={locationUf} cityName={city}
                 selectedId={cityIbgeId} cities={officialCities}
                 loading={citiesLoading} error={citiesError} retry={retryCities}
