@@ -5,7 +5,7 @@ import { z } from "zod";
 import { readPublicEligibleRows, type PublicEligibilityRpc } from "@/lib/public-eligibility";
 import type { Database } from "@/integrations/supabase/types";
 import {
-  buildPublicGraph, profilesInCategory, profilesInCity, relatedGraphProfiles,
+  buildPublicGraph, profilesInCategory, profilesInCity, relatedGraphCities, relatedGraphProfiles,
   validGraphSlug, type GraphCatalog, type GraphProfile,
 } from "@/lib/public-seo-graph";
 
@@ -141,7 +141,7 @@ export const getSeoCity = createServerFn({ method: "GET" })
     if (!profiles.length) return null;
     const specialties = new Set(profiles.flatMap((p) => p.specialties ?? []));
     const categories = graph.categories.filter((c) => specialties.has(c.slug)).slice(0, 24);
-    return { city, profiles: profiles.slice(0, 120), categories };
+    return { city, profiles: profiles.slice(0, 120), categories, relatedCities: relatedGraphCities(graph, city, 6) };
   });
 
 export const getSeoCategory = createServerFn({ method: "GET" })
