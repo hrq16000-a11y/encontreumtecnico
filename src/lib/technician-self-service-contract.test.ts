@@ -36,4 +36,18 @@ describe("autosserviço técnico sem confirmação adicional", () => {
       "GRANT EXECUTE ON FUNCTION public.eut_remove_my_technician_profile() TO authenticated",
     );
   });
+  it("preserva o link público consultado e a exclusão somente da ficha própria", () => {
+    const publicLink = readFileSync("src/components/technician-public-profile-link.tsx", "utf8");
+    expect(panel).toContain('import { TechnicianPublicProfileLink } from "@/components/technician-public-profile-link"');
+    expect(panel).toContain('<TechnicianPublicProfileLink ownerId={user.id} profileId={profileId}>');
+    expect(panel).toContain("Abrir meu perfil publicado");
+    expect(panel).not.toContain('params={{ tecnicoId: justPublishedProfile }}');
+    expect(panel).not.toContain('params={{ tecnicoId: profileSlug || profileId }}');
+    expect(publicLink).toContain('getApprovedTechnician({ data: { id: profileId } })');
+    expect(publicLink).toContain('profile?.id === profileId ? profile.public_slug : null');
+    expect(panel).toContain('profileOwnerId === user.id && currentStatus !== "suspenso" && currentStatus !== "rejeitado"');
+    expect(panel).toContain('onRemoved={() => setReloadCounter((value) => value + 1)}');
+    expect(panel).toContain('display_name: data.status === "pendente" && data.display_name === "Ficha excluída"');
+  });
+
 });
