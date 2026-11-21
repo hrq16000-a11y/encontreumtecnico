@@ -26,6 +26,8 @@ export function TechnicianCoverageEditor({
   const [citiesSelected, setCitiesSelected] = useState<Municipality[]>([]);
   const [radius, setRadius] = useState<number | null>(savedRadius);
   const [saving, setSaving] = useState(false);
+  // Freeze further writes when the server acknowledged a save but readback did not verify it.
+  const [unverifiedWriteOwner, setUnverifiedWriteOwner] = useState<string | null>(null);
   // Identify persisted input by value, not by the array object's identity.
   const snapshotKey = JSON.stringify([
     userId, baseMunicipality?.id ?? null, [...savedCityIds].sort((a, b) => a - b), savedRadius,
@@ -104,7 +106,8 @@ export function TechnicianCoverageEditor({
     .slice(0, 20);
   const option = cities.find((city) => city.id === candidateId);
   const existingReady = existingLoad.ownerId === userId &&
-    existingLoad.snapshot === snapshotKey && existingLoad.state === "ready";
+    existingLoad.snapshot === snapshotKey && existingLoad.state === "ready" &&
+    unverifiedWriteOwner !== userId;
 
   async function save() {
     if (!baseMunicipality || saving || !existingReady || latestSnapshot.current !== snapshotKey) return;
@@ -131,6 +134,7 @@ export function TechnicianCoverageEditor({
           .select("coverage_city_ids,service_radius_km").eq("user_id", owner).maybeSingle();
         if (activeUser.current !== owner) return;
         if (readError || !technicianCoverageWasPersisted(codes, radius, persisted)) {
+          setUnverifiedWriteOwner(owner);
           setMessage("O servidor respondeu, mas não confirmou todas as cidades e o raio gravados. Recarregue sua ficha antes de repetir a edição.");
           return;
         }
