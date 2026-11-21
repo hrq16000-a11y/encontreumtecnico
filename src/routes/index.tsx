@@ -13,6 +13,8 @@ import { HomeTechnicianJoin } from "@/components/home-technician-join";
 import { ProblemAssistant } from "../components/problem-assistant";
 import { safeNeighborhood } from "@/lib/location-labels";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
+import { useMunicipalities } from "@/hooks/use-municipalities";
+import { HomeMunicipalitySearch, homeLocationFilters, parseHomeCityId } from "@/components/home-municipality-search";
 import { readUiTextDraft, saveUiTextDraft } from "@/lib/unsent-ui-draft";
 import { Reveal } from "../components/motion";
 import {
@@ -115,6 +117,9 @@ function HomePage() {
   const [city, setCity] = useState("");
   const [locationUf, setLocationUf] = useState("");
   const [locationNeighborhood, setLocationNeighborhood] = useState("");
+  const [cityIbgeId, setCityIbgeId] = useState<number | null>(null);
+  const [citySelectionError, setCitySelectionError] = useState(false);
+  const { cities: officialCities, loading: citiesLoading, error: citiesError, retry: retryCities } = useMunicipalities(locationUf);
   const [draftReady, setDraftReady] = useState(false);
   const cityEditedByUser = useRef(false);
   useEffect(() => {
@@ -123,6 +128,7 @@ function HomePage() {
       setSpecialty(saved["specialty"] ?? "");
       setCity(saved["city"] ?? "");
       setLocationUf(saved["uf"] ?? "");
+      setCityIbgeId(parseHomeCityId(saved["cityid"]));
       setLocationNeighborhood(safeNeighborhood(saved["neighborhood"] ?? "", saved["city"] ?? ""));
       cityEditedByUser.current = Boolean(saved["city"]);
     }
@@ -130,14 +136,16 @@ function HomePage() {
   }, []);
   useEffect(() => {
     if (!draftReady) return;
-    saveUiTextDraft("home", { specialty, city, uf: locationUf, neighborhood: locationNeighborhood });
-  }, [draftReady, specialty, city, locationUf, locationNeighborhood]);
+    saveUiTextDraft("home", { specialty, city, uf: locationUf, neighborhood: locationNeighborhood,
+      cityid: cityIbgeId === null ? "" : String(cityIbgeId) });
+  }, [draftReady, specialty, city, locationUf, locationNeighborhood, cityIbgeId]);
   const { area: suggestedRegion } = useRegionalSuggestion();
   useEffect(() => {
     // The user may edit while the lookup is pending; never override typed city.
     if (!draftReady || !suggestedRegion || city.trim() || cityEditedByUser.current) return;
     setCity(suggestedRegion.city);
     setLocationUf(suggestedRegion.uf);
+    setCityIbgeId(null); // Regional hints never confirm an official municipality.
     setLocationNeighborhood(""); // IP cannot establish a neighborhood.
   }, [draftReady, suggestedRegion?.city, suggestedRegion?.uf, city]);
 
@@ -169,17 +177,25 @@ function HomePage() {
               </div>
             ) : (
             <form
-              className="mt-7 flex flex-col gap-3 rounded-2xl border border-primary/15 bg-accent/40 p-3 shadow-sm sm:flex-row"
+              className="mt-7 grid min-w-0 grid-cols-1 gap-3 rounded-2xl border border-primary/15 bg-accent/40 p-3 shadow-sm sm:grid-cols-2"
               onSubmit={(e) => {
                 e.preventDefault();
+                const location = homeLocationFilters(
+                  locationUf, city, cityIbgeId, officialCities, locationNeighborhood);
+                if (!location) {
+                  setCitySelectionError(true);
+                  return;
+                }
+                setCitySelectionError(false);
                 window.__lovableEvents?.track?.("project.technician_search", {
                   has_specialty: specialty.trim() !== "",
-                  has_city: city.trim() !== "",
+                  has_city: location.cidade !== "",
                 });
                 navigate({
                   to: "/tecnicos",
-                  search: { especialidade: specialty.trim() || "Todas", cidade: city.trim(), regiao: "",
-                    uf: locationUf, bairro: locationNeighborhood, prioridade: locationUf ? "regiao" : "" },
+                  search: { especialidade: specialty.trim() || "Todas",
+                    cidade: location.cidade, uf: location.uf, bairro: location.bairro,
+                    regiao: "", prioridade: location.prioridade },
                 });
               }}
             >
@@ -192,18 +208,37 @@ function HomePage() {
                 placeholder="Especialidade (ex.: Computador)"
                 className="h-11 min-h-11 w-full shrink-0 sm:w-auto sm:flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
-              <label className="sr-only" htmlFor="busca-cidade">Município</label>
-              <input
-                id="busca-cidade"
-                type="text"
-                value={city}
-                onChange={(e) => { cityEditedByUser.current = true; saveUiTextDraft("home", { specialty, city:e.target.value, uf:"", neighborhood:"" }); setCity(e.target.value); setLocationUf(""); setLocationNeighborhood(""); }}
-                placeholder="Município (ex.: São José dos Pinhais)"
-                className="h-11 min-h-11 w-full shrink-0 sm:w-auto sm:flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              />
+              <HomeMunicipalitySearch uf={locationUf} cityName={city}
+                selectedId={cityIbgeId} cities={officialCities}
+                loading={citiesLoading} error={citiesError} retry={retryCities}
+                showValidationError={citySelectionError}
+                onUfChange={(uf) => {
+                  cityEditedByUser.current = true;
+                  setLocationUf(uf);
+                  setCity("");
+                  setCityIbgeId(null);
+                  setLocationNeighborhood("");
+                  setCitySelectionError(false);
+                }}
+                onCityTextChange={(value) => {
+                  cityEditedByUser.current = true;
+                  setCity(value);
+                  setCityIbgeId(null);
+                  setLocationNeighborhood("");
+                  setCitySelectionError(false);
+                }}
+                onSelectCity={(selected) => {
+                  cityEditedByUser.current = true;
+                  setLocationUf(selected.uf);
+                  setCity(selected.name);
+                  setCityIbgeId(selected.id);
+                  setLocationNeighborhood(previous =>
+                    city === selected.name ? previous : "");
+                  setCitySelectionError(false);
+                }} />
               <button
                 type="submit"
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 sm:col-span-2"
               >
                 <Search className="h-4 w-4" aria-hidden="true" /> Buscar
               </button>
