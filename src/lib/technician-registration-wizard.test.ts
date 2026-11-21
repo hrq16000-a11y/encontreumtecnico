@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { matchingRegistrationCategories, matchingRegistrationServices, groupRegistrationServices, selectedRegistrationServices, reconcileRegistrationSelections, registrationReviewIssue, registrationStepError, shouldSubmitTechnicianWizard, type TechnicianRegistrationForm } from "./technician-registration-wizard";
+import { matchingRegistrationCategories, matchingRegistrationServices, groupRegistrationServices, toggleVisibleRegistrationServices, selectedRegistrationServices, reconcileRegistrationSelections, registrationReviewIssue, registrationStepError, shouldSubmitTechnicianWizard, type TechnicianRegistrationForm } from "./technician-registration-wizard";
 
 const catalog = {
   categories: [{ slug: "redes" }, { slug: "computadores" }],
@@ -59,6 +59,24 @@ describe("Cadastro guiado mobile", () => {
     expect(route).toContain("form.service_slugs.includes(service.slug)");
   });
 
+  it("marca e desmarca somente serviços visíveis do grupo, preservando outras áreas e buscas", () => {
+    const selected = ["montagem", "wifi", "servico-legado"];
+    const visible = [{ slug: "wifi" }, { slug: "cabos" }];
+    const marked = toggleVisibleRegistrationServices(selected, visible);
+    expect(marked).toEqual(["montagem", "wifi", "servico-legado", "cabos"]);
+    expect(toggleVisibleRegistrationServices(marked, visible)).toEqual(["montagem", "servico-legado"]);
+    expect(toggleVisibleRegistrationServices(selected, [{ slug: "wifi" }]))
+      .toEqual(["montagem", "servico-legado"]);
+    expect(toggleVisibleRegistrationServices(selected, [])).toEqual(selected);
+    expect(selected).toEqual(["montagem", "wifi", "servico-legado"]);
+    expect(visible).toEqual([{ slug: "wifi" }, { slug: "cabos" }]);
+    const route = readFileSync("src/routes/area-tecnico.tsx", "utf8");
+    expect(route).toContain("toggleVisibleRegistrationServices(form.service_slugs, group.services)");
+    expect(route).toContain("group.services.length > 1");
+    expect(route).toContain('type="button"');
+    expect(route).toContain("Marcar exibidos");
+    expect(route).toContain("Desmarcar exibidos");
+  });
   it("mantém serviços selecionados visíveis e removíveis mesmo fora do filtro", () => {
     const available = [{ slug: "wifi", label: "Rede Wi-Fi" }, { slug: "cabos", label: "Cabeamento" }];
     const chosen = ["wifi", "cabos", "inativo", "wifi"];
@@ -221,6 +239,21 @@ describe("Cadastro guiado mobile", () => {
     expect(route).toContain("showValidationIssue(reviewIssue.message)");
     expect(route).toContain('ref={validationIssueRef} tabIndex={-1} role="alert"');
     expect(route).toContain("if (!shouldSubmitTechnicianWizard(step, submitter?.dataset");
+  });
+
+  it("oferece acesso à ficha publicada somente após confirmação persistida da conta", () => {
+    const route = readFileSync("src/routes/area-tecnico.tsx", "utf8");
+    const verified = route.indexOf("technicianPublicationWasPersisted(requested, persisted,");
+    const published = route.indexOf("setJustPublishedProfile(persisted.public_slug || persisted.id)");
+    const privateDraftCleared = route.indexOf('clearProtectedDraft("tecnico", savingOwner)');
+    expect(verified).toBeGreaterThan(0);
+    expect(published).toBeGreaterThan(verified);
+    expect(published).toBeGreaterThan(privateDraftCleared);
+    expect(route).toContain("setJustPublishedProfile(null)");
+    expect(route).toContain('step === 3 && currentStatus === "aprovado" && justPublishedProfile');
+    expect(route).toContain('params={{ tecnicoId: justPublishedProfile }}');
+    expect(route).toContain("Abrir meu perfil publicado");
+    expect(route).not.toContain("setJustPublishedProfile(form.");
   });
 
   it("exige intenção explícita de publicar; navegar ou pressionar Enter cedo não publica", () => {

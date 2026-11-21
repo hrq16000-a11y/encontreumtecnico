@@ -19,6 +19,7 @@ export function TechnicianOperationsEditor({ technicianId, coverageCityIds, mode
   const activeId = useRef(technicianId);
   activeId.current = technicianId;
   const [draft, setDraft] = useState<TechnicianOperations>(EMPTY_OPERATIONS);
+  const [savedDraft, setSavedDraft] = useState<TechnicianOperations | null>(null);
   const [expectedAt, setExpectedAt] = useState<string | null>(null);
   const [cities, setCities] = useState<Municipality[]>([]);
   const [rate, setRate] = useState("");
@@ -38,6 +39,7 @@ export function TechnicianOperationsEditor({ technicianId, coverageCityIds, mode
     setFeedback(null);
     setCoverageNotice(null);
     setDraft(EMPTY_OPERATIONS);
+    setSavedDraft(null);
     setExpectedAt(null);
     setRate(""); setAfterRate(""); setReason("");
     void (async () => {
@@ -60,6 +62,7 @@ export function TechnicianOperationsEditor({ technicianId, coverageCityIds, mode
         return;
       }
       setDraft(reconciled.draft);
+      setSavedDraft(reconciled.draft);
       if (reconciled.removedCityIds.length) {
         setCoverageNotice(`A cobertura mudou: ${reconciled.removedCityIds.length} município(s) já não constam na lista atendida. Removemos essas classificações apenas do formulário. Confira as condições e salve conscientemente; nenhum dado foi gravado automaticamente.`);
       }
@@ -127,6 +130,9 @@ export function TechnicianOperationsEditor({ technicianId, coverageCityIds, mode
       }
       setExpectedAt(data.updated_at);
       setDraft(valid);
+      setSavedDraft(valid);
+      setRate(centsToBrl(valid.km_rate_cents));
+      setAfterRate(centsToBrl(valid.km_rate_after_cents));
       setReason("");
       setCoverageNotice(null);
       setFeedback("Condições operacionais salvas e relidas no servidor. São declarações, não garantia de chegada.");
@@ -135,6 +141,23 @@ export function TechnicianOperationsEditor({ technicianId, coverageCityIds, mode
     } finally {
       if (activeId.current === owner) setBusy(false);
     }
+  }
+
+  // Discard only the local editing state, returning to the last owner/admin-authorized
+  // server read. This is not a database rollback and never invokes a mutation.
+  const hasLocalChanges = savedDraft !== null && (
+    JSON.stringify(draft) !== JSON.stringify(savedDraft) ||
+    rate !== centsToBrl(savedDraft.km_rate_cents) ||
+    afterRate !== centsToBrl(savedDraft.km_rate_after_cents) ||
+    (mode === "admin" && reason.length > 0)
+  );
+  function discardLocalChanges() {
+    if (busy || !savedDraft || !hasLocalChanges) return;
+    setDraft(savedDraft);
+    setRate(centsToBrl(savedDraft.km_rate_cents));
+    setAfterRate(centsToBrl(savedDraft.km_rate_after_cents));
+    setReason("");
+    setFeedback("Alterações locais descartadas. Nenhum dado foi gravado.");
   }
 
   if (loading) return <p role="status" className="mt-3 text-sm text-muted-foreground">Carregando condições operacionais…</p>;
@@ -215,9 +238,15 @@ export function TechnicianOperationsEditor({ technicianId, coverageCityIds, mode
       <textarea required minLength={8} maxLength={400} disabled={busy} rows={2} value={reason}
         onChange={e => setReason(e.target.value)} className={input} />
     </label>}
-    <button type="submit" disabled={busy} className="min-h-12 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground disabled:opacity-50">
-      {busy ? "Salvando e conferindo…" : "Salvar condições operacionais"}
-    </button>
+    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+      <button type="submit" disabled={busy} className="min-h-12 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground disabled:opacity-50">
+        {busy ? "Salvando e conferindo…" : "Salvar condições operacionais"}
+      </button>
+      <button type="button" onClick={discardLocalChanges} disabled={busy || !hasLocalChanges}
+        className="min-h-12 rounded-xl border border-border px-5 text-sm font-semibold text-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50">
+        Descartar alterações
+      </button>
+    </div>
     {feedback && <p role="status" className="text-sm text-foreground">{feedback}</p>}
   </form>;
 }
