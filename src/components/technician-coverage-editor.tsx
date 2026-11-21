@@ -26,6 +26,10 @@ export function TechnicianCoverageEditor({
   const [citiesSelected, setCitiesSelected] = useState<Municipality[]>([]);
   const [radius, setRadius] = useState<number | null>(savedRadius);
   const [saving, setSaving] = useState(false);
+  // Never let a pending or incomplete restoration overwrite previously saved cities.
+  const [existingLoad, setExistingLoad] = useState<{ ownerId: string; state: "loading" | "ready" | "error" }>({
+    ownerId: userId, state: "loading",
+  });
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -35,16 +39,25 @@ export function TechnicianCoverageEditor({
     setCitiesSelected([]);
     setRadius(savedRadius);
     setExtraUf(baseMunicipality?.uf || "PR");
-    const extras = savedCityIds.filter((id) => id !== baseMunicipality?.id).slice(0, 5);
-    if (extras.length > 0) {
+    setExistingLoad({ ownerId: owner, state: "loading" });
+    const savedExtras = savedCityIds.filter((id) => id !== baseMunicipality?.id);
+    if (!savedExtras.length) {
+      setExistingLoad({ ownerId: owner, state: "ready" });
+    } else {
       void Promise.resolve(db.from("eut_ibge_municipalities")
-        .select("id,name,uf,latitude,longitude").in("id", extras)).then(({ data, error }) => {
-        if (live && activeUser.current === owner) {
-          if (error) setMessage("Não conseguimos recuperar as cidades anteriores. Recarregue antes de salvar.");
-          else setCitiesSelected((data ?? []) as Municipality[]);
+        .select("id,name,uf,latitude,longitude").in("id", savedExtras)).then(({ data, error }) => {
+        if (!live || activeUser.current !== owner) return;
+        if (error || !Array.isArray(data) || data.length !== savedExtras.length) {
+          setExistingLoad({ ownerId: owner, state: "error" });
+          setMessage("Não conseguimos recuperar todas as cidades anteriores. Recarregue antes de salvar.");
+          return;
         }
+        setCitiesSelected(data as Municipality[]);
+        setExistingLoad({ ownerId: owner, state: "ready" });
       }).catch(() => {
-        if (live && activeUser.current === owner) setMessage("Não conseguimos recuperar as cidades anteriores.");
+        if (!live || activeUser.current !== owner) return;
+        setExistingLoad({ ownerId: owner, state: "error" });
+        setMessage("Não conseguimos recuperar as cidades anteriores. Recarregue antes de salvar.");
       });
     }
     return () => { live = false; };
@@ -57,10 +70,10 @@ export function TechnicianCoverageEditor({
     .filter((city) => city.id !== baseMunicipality?.id && !extras.some((extra) => extra.id === city.id))
     .slice(0, 20);
   const option = cities.find((city) => city.id === candidateId);
-  const missingExisting = savedCityIds.length > 1 && citiesSelected.length === 0 && Boolean(message);
+  const existingReady = existingLoad.ownerId === userId && existingLoad.state === "ready";
 
   async function save() {
-    if (!baseMunicipality || saving || missingExisting) return;
+    if (!baseMunicipality || saving || !existingReady) return;
     const codes = [baseMunicipality.id, ...extras.map((city) => city.id)];
     if (codes.length > 5 || new Set(codes).size !== codes.length) {
       setMessage("Escolha no máximo cinco cidades diferentes, contando a cidade-base.");
@@ -115,7 +128,7 @@ export function TechnicianCoverageEditor({
           {baseMunicipality && <li className="rounded-lg bg-primary/10 px-3 py-2 text-xs font-semibold text-primary">{baseMunicipality.name}/{baseMunicipality.uf} · base</li>}
           {extras.map((city) => <li key={city.id} className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 pl-3 pr-1 text-xs text-foreground">
             <span>{city.name}/{city.uf}</span>
-            <button type="button" disabled={saving} aria-label={"Remover " + city.name + "/" + city.uf}
+            <button type="button" disabled={saving || !existingReady} aria-label={"Remover " + city.name + "/" + city.uf}
               className="min-h-10 rounded-md px-3 font-bold text-primary hover:bg-accent"
               onClick={() => setCitiesSelected((current) => current.filter((c) => c.id !== city.id))}>×</button>
           </li>)}
@@ -142,7 +155,7 @@ export function TechnicianCoverageEditor({
             {shown.map((city) => <option key={city.id} value={city.id}>{city.name}/{city.uf}</option>)}
           </select>
           {error && <p role="alert" className="text-xs text-destructive">Falha ao carregar municípios. <button type="button" className="underline" onClick={retry}>Tentar novamente</button></p>}
-          <button type="button" disabled={!option || saving || loading} onClick={() => {
+          <button type="button" disabled={!option || saving || loading || !existingReady} onClick={() => {
             if (!option) return;
             setCitiesSelected((current) => current.some((x) => x.id === option.id)
               ? current : [...current, option].slice(0, 4));
@@ -152,7 +165,10 @@ export function TechnicianCoverageEditor({
           </button>
         </div>
       )}
-      <button type="button" disabled={!baseMunicipality || saving || missingExisting}
+      {!existingReady && existingLoad.state !== "error" && (
+        <p role="status" className="mt-3 text-sm text-muted-foreground">Recuperando cidades já cadastradas…</p>
+      )}
+      <button type="button" disabled={!baseMunicipality || saving || !existingReady}
         onClick={() => void save()}
         className="mt-5 min-h-12 w-full rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-50">
         {saving ? "Salvando cobertura..." : "Salvar raio e cidades atendidas"}
