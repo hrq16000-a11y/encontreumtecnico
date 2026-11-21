@@ -63,7 +63,7 @@ Nunca apagar uma ficha existente ou modificar os dois suspensos como parte de ro
 **Concluído em ambiente descartável em 20/11/2026:** [GitHub Actions #44772676346](https://github.com/hrq16000-a11y/encontreumtecnico/actions/runs/44772676346), job `authenticated-operations` verde no HEAD `24b10f3ff89d426cd64105fa509ad0e48aa4d467`. O log apresenta **PASS 1 a PASS 9** e `PASS FINAL: 9/9` com usuários fictícios, sessões GoTrue reais e chamadas PostgREST locais em `127.0.0.1`. O workflow aplicou o contrato somente ao PostgreSQL local; nenhum usuário ou dado oficial foi acessado. O blob do contrato testado é **idêntico** ao da `main` atual: `63d777c6058d6a5184917530fcc2b0ab330b8bbb`.
 
 A proteção adicional da PR #383 foi implementada **somente no arquivo
-proposto da branch**, blob `619604f4174a6c9768921f9d68e981d50bd7fa24`, SHA-256 `0842a15e1bd5d14c75d2241e23bc76007c29e1ef4f03cd98edf66163388a34c7`.
+proposto da branch**, blob `24374b7286461c5d11f041b8aeda77db7e661f1c`, SHA-256 `d9327f7f55a04a9cdb4d609591a1906e8c211bfca0b24eaa68b9d74d4b38d827`.
 Essa versão é diferente da main e aguarda gates próprios para a
 edição de ficha rejeitada. Nenhum SQL foi aplicado no Supabase oficial.
 
@@ -109,7 +109,7 @@ real 9/9 é comprovado separadamente pelo run #44772676346, não por esta fixtur
 
 1. **Congelar SHA e SQL revisado**: em #383, o arquivo
    `docs/sql/eut-technician-operations-contract-proposal-20261120.sql`
-   passou ao blob Git `619604f4174a6c9768921f9d68e981d50bd7fa24` e SHA-256 `0842a15e1bd5d14c75d2241e23bc76007c29e1ef4f03cd98edf66163388a34c7`
+   passou ao blob Git `24374b7286461c5d11f041b8aeda77db7e661f1c` e SHA-256 `d9327f7f55a04a9cdb4d609591a1906e8c211bfca0b24eaa68b9d74d4b38d827`
    (digest calculado do arquivo integral e validado contra a versão anterior).
    A versão ANTERIOR permanece na main com blob
    `63d777c6058d6a5184917530fcc2b0ab330b8bbb` e SHA-256
@@ -183,7 +183,7 @@ Preflight oficial somente leitura (20/11/2026, Postgres 17.11):
 ### Pré-condições restantes para ativação (SEM autorização implícita)
 
 1. Revalidar o **SQL revisado somente na PR #383**, blob
-   `619604f4174a6c9768921f9d68e981d50bd7fa24`, SHA-256 `0842a15e1bd5d14c75d2241e23bc76007c29e1ef4f03cd98edf66163388a34c7`. O SQL anterior
+   `24374b7286461c5d11f041b8aeda77db7e661f1c`, SHA-256 `d9327f7f55a04a9cdb4d609591a1906e8c211bfca0b24eaa68b9d74d4b38d827`. O SQL anterior
    na main continua com o blob `63d777c6058d6a5184917530fcc2b0ab330b8bbb`
    e **não deve ser instalado** em substituição ao novo contrato.
 2. Confirmar schema interno fora da Data API, RLS da tabela privada, grants
@@ -214,8 +214,8 @@ específica sobre o projeto EUT `pqtzhctvjbfcunmrvxne`.
 
 ### A. Identidade, congelamento e pré-condições (ordem obrigatória)
 
-- [x] **Contrato revisado em PR #383**: blob Git `619604f4174a6c9768921f9d68e981d50bd7fa24`,
-  SHA-256 `0842a15e1bd5d14c75d2241e23bc76007c29e1ef4f03cd98edf66163388a34c7`. A main ainda preserva a versão anterior
+- [x] **Contrato revisado em PR #383**: blob Git `24374b7286461c5d11f041b8aeda77db7e661f1c`,
+  SHA-256 `d9327f7f55a04a9cdb4d609591a1906e8c211bfca0b24eaa68b9d74d4b38d827`. A main ainda preserva a versão anterior
   `63d777c6058d6a5184917530fcc2b0ab330b8bbb`; não a instalar.
   **Conferir novamente o hash imediatamente antes de qualquer autorização.**
 - [x] Provas isoladas reaproveitáveis: Auth real + PostgREST 9/9 no
@@ -406,3 +406,25 @@ revisados, prova Auth isolada válida para a versão final,
 pós-checks e recuperação definidos, e autorização **explícita**
 para a aplicação oficial. **Até lá: NO-GO** e nenhuma mudança no Supabase
 oficial além das consultas SELECT de metadados.
+
+
+### Microcorreção adicional: bloquear gravação por administrador operacionalmente bloqueado
+
+No contrato SQL revisado da **mesma PR #383**, a validação
+`public.eut_account_operational()` precede a gravação de **qualquer ator
+autorizado** (titular ou administrador). Uma conta admin bloqueada por conta
+ou telefone não pode ignorar essa verificação em uma função `SECURITY DEFINER`.
+O administrador **operacional** continua podendo atualizar as condições de
+perfil suspenso/rejeitado com justificativa e trilha de auditoria, preservando
+o estado de moderação. O titular suspenso/rejeitado continua sem poder editar.
+
+A fixture de PostgreSQL descartável adiciona teste de conta administradora
+bloqueada com payload válido e justificativa: deve receber `42501`,
+não alterar dados/versão/auditoria e reverter integralmente a transação.
+O CI do novo HEAD deverá reexecutar **somente os gates afetados automaticamente**.
+O gate da revisão anterior estava 3/3 verde; isso não substitui os checks do
+novo HEAD. **SQL oficial, merge e deployment permanecem NO-GO**.
+
+Identidade do arquivo SQL desta microcorreção (conferir no HEAD antes de uso):
+- Blob Git: `24374b7286461c5d11f041b8aeda77db7e661f1c`
+- SHA-256: `d9327f7f55a04a9cdb4d609591a1906e8c211bfca0b24eaa68b9d74d4b38d827`
