@@ -1,6 +1,6 @@
 # Encontre um Técnico — contrato operacional estruturado (micro-rodada)
 
-Status em 20/11/2026: **PR #368 integrada ao código**, mas o contrato SQL operacional **não está instalado no Supabase EUT oficial**; sua ativação e publicação funcional permanecem pendentes.
+Status em 20/11/2026: **PR #368 integrada ao código**, porém o contrato SQL operacional **não está instalado no Supabase EUT oficial**. A **PR #383 (Draft, não integrada)** propõe a correção que também impede o titular de ficha **rejeitada** de editar por função privilegiada. **É proibido ativar o SQL anterior da `main`**; a ativação e a publicação funcional continuam pendentes.
 Base de desenvolvimento original: `main` após a PR #360 (`eed3ce74`). Integração da #368: `1c93fe779accbfe5240213810e01d3acbf707fd0`.
 
 ## O que entra nesta rodada
@@ -45,10 +45,7 @@ O controle de equipamentos é uma declaração do profissional, não verificaç�
 - Com gates verdes, solicitação **específica** de autorização para SQL oficial, merge
   e eventual deploy; uma coisa não autoriza automaticamente a outra.
 
-**Rollback proposto (somente após aprovação administrativa):** retirar as três wrappers
-`public.eut_*technician_operations*` adicionadas, funções do schema interno e, se houver
-necessidade comprovada, tabela operacional depois de preservar um backup dos dados novos.
-Nunca apagar uma ficha existente ou modificar os dois suspensos como parte de rollback.
+**Contenção e reversão futuras, somente com autorização separada:** falha antes do `COMMIT` exige verificar o rollback transacional; após o `COMMIT`, impedir novas chamadas pelas três wrappers públicas somente por ação auditada e autorizada, preservando a tabela privada, as funções internas, os registros operacionais e o log para reconciliação. **Não remover tabelas ou executar `DROP ... CASCADE`, `DELETE`, `TRUNCATE`, alteração de status ou restauração de suspensos/rejeitados/Pioneiros**. Reverter o frontend, se necessário, é uma decisão independente.
 
 ## O que NÃO foi incluído
 
@@ -58,10 +55,10 @@ Nunca apagar uma ficha existente ou modificar os dois suspensos como parte de ro
 - Nenhuma mudança no ranqueamento, reputação, SLA contratual, funil financeiro ou estoque
   de documentos. Esses recursos precisam de contratos e consentimentos separados.
 
-## Homologação autenticada isolada — preparo do gate
+## Homologação autenticada isolada — baseline da PR #368 e correção da PR #383
 
 Histórico: o workflow PostgreSQL isolado simula `auth.uid()` e papéis com variáveis de sessão; isoladamente isso **não** substitui o Auth real.
-**Homologação autenticada posteriormente comprovada:** em 20/11/2026 o job `authenticated-operations` da PR #368 passou **9/9 casos com sessões reais de GoTrue + PostgREST locais**, incluindo titular, administrador, terceiros, anônimo, suspensos, concorrência, auditoria e projeção pública. Evidência: [GitHub Actions — job 136414144510](https://github.com/hrq16000-a11y/encontreumtecnico/actions/runs/44772676346/job/136414144510). Não houve conexão ao Supabase oficial; o resultado não autoriza aplicação de SQL nem comprova uma edição real em produção.
+**Homologação autenticada posteriormente comprovada:** em 20/11/2026 o job `authenticated-operations` da PR #368 passou **9/9 casos com sessões reais de GoTrue + PostgREST locais**, incluindo titular, administrador, terceiros, anônimo, suspensos, concorrência, auditoria e projeção pública. Evidência: [GitHub Actions — job 136414144510](https://github.com/hrq16000-a11y/encontreumtecnico/actions/runs/44772676346/job/136414144510). Não houve conexão ao Supabase oficial; o resultado não autoriza aplicação de SQL nem comprova uma edição real em produção. **Essa prova 9/9 corresponde ao blob original da PR #368; NÃO comprova, sozinha, o comportamento novo do status `rejeitado` adicionado na PR #383.** O HEAD `592b4afbe009c85bb0d3d2fc5de7e6c9517f7869` da #383 tem **4/4 checks verdes** (CI e gates isolados), mas a autorização de produção depende da validação da revisão exata e dos controles restantes.
 
 ### Pré-condições obrigatórias (NO-GO caso alguma falte)
 
@@ -86,7 +83,7 @@ Histórico: o workflow PostgreSQL isolado simula `auth.uid()` e papéis com vari
 
 ### Evidências e critério de aprovação
 
-Guardar em artefato privado do job **somente**: SHA e hash do SQL, nomes dos casos, código HTTP/SQLSTATE, versão anterior/nova, resultado de comparação de JSON, totais de logs por ação e contagem das duas fichas sintéticas suspensas. Nunca anexar tokens, senhas, contatos, nomes reais ou payloads privados. O gate é **GO apenas com 9/9 cenários funcionais comprovados via sessões reais**, além dos checks do HEAD vigente e revisão do contrato `SECURITY DEFINER`/grants. Em qualquer falha: **NO-GO**, corrigir exclusivamente teste/contrato na PR e repetir só os casos afetados. Nenhuma autorização de SQL oficial, merge ou deploy é implícita.
+Guardar em artefato privado do job **somente**: SHA e hash do SQL, nomes dos casos, código HTTP/SQLSTATE, versão anterior/nova, resultado de comparação de JSON, totais de logs por ação e contagem das duas fichas sintéticas suspensas. Nunca anexar tokens, senhas, contatos, nomes reais ou payloads privados. O gate do contrato **original** teve 9/9 cenários funcionais comprovados via sessões reais; qualquer revisão SQL posterior exige validação dirigida dos cenários alterados, mais checks do HEAD vigente e revisão do contrato `SECURITY DEFINER`/grants. O gate de **ativação oficial** permanece NO-GO até autorização específica. Em qualquer falha: **NO-GO**, corrigir exclusivamente teste/contrato na PR e repetir só os casos afetados. Nenhuma autorização de SQL oficial, merge ou deploy é implícita.
 
 ### Reforço do gate de banco (sem sessão real Supabase Auth)
 
@@ -101,13 +98,16 @@ o gate Auth+PostgREST 9/9 como concluído por causa dessa aprovação isolada.**
 
 ### Procedimento de ativação auditada — preparação documental; NO-GO para executar
 
-**Escopo congelado e integridade (20/11/2026):**
+**Versões distintas do contrato (20/11/2026; não confundir):**
 
-- PR #368 já integrada: commit de merge `1c93fe779accbfe5240213810e01d3acbf707fd0`; HEAD testado `24b10f3ff89d426cd64105fa509ad0e48aa4d467`.
-- Arquivo imutável desta aprovação: `docs/sql/eut-technician-operations-contract-proposal-20261120.sql`; blob Git SHA-1 `63d777c6058d6a5184917530fcc2b0ab330b8bbb`.
-- **SHA-256 do conteúdo bruto UTF-8, incluindo LF final:** `be6e5144bf4afd0c99884218c75fec93f87e8e66b63d629444f32df3e58d2d54`. Conferido por dois caminhos equivalentes (Contents API e arquivo raw GitHub); idêntico na PR #368, no merge e na `main` consultada em 20/11/2026.
-- SHA-256 **obsoleto e incorreto** na versão anterior deste documento: `7c9196c88ac2367b4c51d6ec5e88c3c7eff31154233b5eae518e3ec537ea12bc`. Apenas a referência documental é corrigida; **o SQL não foi editado**.
-- O operador deve verificar o arquivo obtido da revisão congelada com `sha256sum` antes de qualquer implantação futura. **Abortar** se o conteúdo ou o hash divergir, inclusive se surgir outra revisão do SQL.
+| Versão | Referência | Blob Git | SHA-256 do arquivo UTF-8, LF final | Decisão |
+|---|---|---|---|---|
+| Original, PR #368 integrada | HEAD `24b10f3ff89d426cd64105fa509ad0e48aa4d467`, merge `1c93fe779accbfe5240213810e01d3acbf707fd0` | `63d777c6058d6a5184917530fcc2b0ab330b8bbb` | `be6e5144bf4afd0c99884218c75fec93f87e8e66b63d629444f32df3e58d2d54` | **NÃO instalar**: falta bloqueio explícito ao titular rejeitado |
+| **Corrigida, PR #383 em Draft** | HEAD `592b4afbe009c85bb0d3d2fc5de7e6c9517f7869` | `619604f4174a6c9768921f9d68e981d50bd7fa24` | **`0842a15e1bd5d14c75d2241e23bc76007c29e1ef4f03cd98edf66163388a34c7`** | **Candidata**, condicionada a gates, revisão e autorização separada |
+
+O digest anterior `7c9196c88ac2367b4c51d6ec5e88c3c7eff31154233b5eae518e3ec537ea12bc` é **referência histórica incorreta**, nunca critério válido de implantação. As leituras GitHub Contents e Raw da PR #383 produziram o mesmo conteúdo e hash; o SQL da PR #383 **não foi copiado ou modificado nesta PR #398**. Validar novamente a versão congelada com `sha256sum` antes de qualquer operação futura; divergência ou HEAD distinto significa **NO-GO até nova reconciliação**.
+
+A correção está **somente na PR #383**: `eut_profile_ops.private_save` recusa edição do titular quando a ficha está `suspenso` **ou** `rejeitado`, preservando edição por administrador legítimo com motivo auditado. O controle não muda o status de nenhuma ficha. A proposta auxiliar de preflight de políticas da #383 **não é uma migração a instalar**. As regras e os testes de policy, função privilegiada, grants e rollback detalhados ficam na [PR #383](https://github.com/hrq16000-a11y/encontreumtecnico/pull/383); **não duplicar SQL ou implementações na #398**.
 
 **Preflight de metadados no Supabase EUT oficial (somente leitura, 20/11/2026):**
 
@@ -116,15 +116,14 @@ o gate Auth+PostgREST 9/9 como concluído por causa dessa aprovação isolada.**
 - **Ausentes:** schema `eut_profile_ops`, tabela `eut_profile_ops.technician_operations` e wrappers `public.eut_technician_operations_get`, `public.eut_technician_operations_save`, `public.eut_public_technician_operations`. Esta ausência é esperada antes da ativação e impede funcionamento operacional real no momento.
 - Pendências **antes de qualquer GO:** confirmar o conjunto de schemas expostos na Data API (o schema privado não pode ficar exposto); revisar owner e privilégios efetivos das funções `SECURITY DEFINER`, grants, dependências e a FK `ON DELETE CASCADE`; registrar novamente metadados e SHA no instante da operação para detectar mudanças concorrentes. Não alterar configurações nem políticas nesta etapa documental.
 
-**Ordem de execução autorizável futuramente (cada transição exige evidência):**
+**Ordem de execução autorizável futuramente (cada etapa exige evidência própria):**
 
-1. **Congelamento:** registrar responsável, horário, commit, blob e SHA-256 acima, projeto EUT selecionado, diff do SQL e os metadados de função/RLS/grants. Verificar que não há objetos operacionais parciais ou conflito com funções preexistentes. Não usar segredos em logs; não acessar bancos de outros projetos.
-2. **Reutilizar provas:** usar os resultados já verdes da PR #368 (workflow local PostgreSQL + **9/9 GoTrue/PostgREST reais em ambiente descartável**, job acima). Repetir os casos afetados somente se SQL, autenticação, grants, RLS relacionados ou fixtures tiverem mudado; não fabricar cadastros, leads ou contatos na produção.
-3. **Gate de segurança:** revisão explícita de `SECURITY DEFINER`, `search_path`, USAGE no schema privado, revogação de acesso direto a `technician_operations`, EXECUTE individual nas três wrappers, elegibilidade canônica para anônimos, proteção dos dois suspensos e auditoria de titular/admin. O SQL proposto não altera RLS/status/preços existentes.
-4. **GO administrativo separado:** obter autorização **específica para aplicar exatamente este SQL no Supabase EUT oficial**, indicando hash, projeto e procedimento de interrupção. A PR #368 já foi mesclada; esta preparação **não autoriza SQL, novo merge, deployment ou OTP**. Sem autorização ou com hash divergente, **NO-GO**.
-5. **Aplicação única, somente após GO:** executar o arquivo congelado uma vez, pelo mecanismo aprovado e com proteção de erro; o próprio arquivo contém `BEGIN`/`COMMIT`. Não repetir às cegas se a sessão falhar: primeiro verificar catálogo/transação. Não executar mudanças de schema, grants ou settings não previstas no arquivo revisado.
-6. **Pós-checks sem expor dados:** verificar existência e assinatura das três wrappers, permissões de `anon`/`authenticated`, schema privado não exposto, RLS/políticas existentes iguais ao baseline, auditoria preservada, ausência de telefones/documentos na projeção, elegibilidade nula de suspensos e controle de versão. A verificação funcional com técnico real depende de sessão legítima e consentimento específico; **não** criar usuários, fichas ou solicitações artificiais no banco oficial.
-7. **Liberar UI em decisão independente:** a existência das RPCs não equivale a publicação da interface. Só considerar release controlado com gates do código, homologação visual 390/1440, SHA de produção e rollback conferidos. Não alterar a política permanente de deploy do Vercel.
-8. **Interrupção/reversão não destrutiva:** se falharem privilégios, privacidade, autorização ou auditoria, interromper publicação e bloquear a exposição pelas wrappers mediante operação **separadamente autorizada e auditada**, sem apagar `technician_operations` nem o log. Preservar os dados para reconciliação. Nunca usar `DROP TABLE ... CASCADE`, desfazer alterações de técnicos/suspensos ou alterar preços/contatos para contornar erros.
+1. **Congelamento e reconciliação:** verificar HEAD vigente da #383, blob e **SHA-256 corrigido `0842a15e…`**, projeto Supabase EUT correto, estado de integração da #383 e compatibilidade com a `main`. O SQL original da #368 não pode ser selecionado. Se #383 mudar, recalcular hash e validar apenas os cenários afetados. Priorizar o checklist mais completo já mantido na #383, não reproduzi-lo aqui.
+2. **Preflight somente leitura e segurança:** confirmar novamente no instante da operação os schemas expostos na Data API (o privado não pode ser exposto), funções e tipos existentes, permissões efetivas, `SECURITY DEFINER`, `search_path`, auditoria, elegibilidade pública e políticas UPDATE existentes que protegem **suspensos e rejeitados**. Conferir proprietário/admin, ausência de privilégios diretos sobre dados operacionais e preservação de Pioneiros e contatos privados. Divergência de política ou objeto parcial implica **NO-GO**.
+3. **Provas proporcionais:** reutilizar os **9/9** Auth+PostgREST reais em ambiente isolado da versão #368 como baseline, e os **4/4** checks verdes conhecidos do HEAD #383. Confirmar o gate específico do comportamento novo `rejeitado` com o SQL exato aprovado; não afirmar que a prova 9/9 original cobriu esse ajuste. Não acessar, criar ou editar fichas, clientes, leads, contatos ou senhas no banco oficial para homologar.
+4. **Autorização e execução separadas:** somente após GO técnico/documental, pedir autorização **específica e explícita** do proprietário para aplicar uma única vez o SQL corrigido identificado por SHA-256 no projeto EUT oficial. Um eventual merge da #383, da #398 ou um gate verde **não constitui autorização de SQL**, deploy ou OTP. Se autorização existir no futuro, seguir a execução transacional aprovada; em falha incerta, inspecionar o catálogo antes de repetir.
+5. **Pós-checks e liberação independente:** verificar wrappers e permissões `anon`/`authenticated`, projeção sem contatos ou documentos, negação a titulares suspensos/rejeitados, auditoria de admin com motivo, integridade das políticas existentes e da tabela privada. O editor público/técnico só pode ser declarado funcional após demonstração real autorizada e validação visual 390/1440. Deployment da interface exige GO e rollback próprios; não alterar a política Vercel.
+6. **Contenção/rollback NÃO destrutivo:** se transação falhar antes do `COMMIT`, confirmar rollback. Depois do commit, priorizar bloqueio de execução das wrappers públicas por procedimento separado e auditado, preservando schema, tabela, funções internas, perfis operacionais e log. Não usar `DROP TABLE ... CASCADE`, `DELETE`, `TRUNCATE`, moderação automática, redefinição de contatos ou restauração de suspensos/rejeitados/Pioneiros. Frontend e banco têm decisões de reversão independentes.
+7. **Governança do documento:** a PR #398 é apenas registro de hash/preflight e **depende da correção #383**. Como ambas editam este documento em branches diferentes, reconciliar os trechos sobrepostos antes de qualquer merge futuro, sem apagar o checklist de segurança mais detalhado da #383. **Manter #398 em Draft** nesta etapa.
 
-**Resultado desta revisão documental:** integridade do arquivo e QA Auth isolado **comprovados**; requisitos de esquema e dados canônicos **presentes**; RPCs **ausentes**; autorização de SQL e homologação visual/ativação oficial **pendentes**. **NO-GO para execução agora.** Nenhum SQL de alteração, RLS, OTP, merge ou deployment foi efetuado nesta micro-rodada.
+**Resultado desta revisão documental:** o hash do SQL corrigido da PR #383 foi confirmado; a versão anterior da #368 ficou marcada **NÃO instalar**. Há 9/9 cenários Auth reais locais aprovados na versão base e 4/4 checks verdes no HEAD corrigido da #383, **sem extrapolar uma prova para a outra**. As últimas leituras do Supabase EUT oficial confirmaram dependências presentes e RPCs operacionais ausentes; revalidar no momento de eventual autorização. Revisões de permissões e Data API, homologação visual e autorização formal permanecem pendentes. **NO-GO para execução agora.** Nenhum SQL de alteração, RLS, OTP, merge ou deployment foi efetuado nesta micro-rodada.
