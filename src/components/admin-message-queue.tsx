@@ -28,7 +28,10 @@ export function AdminMessageQueue() {
   const [revision, setRevision] = useState(0);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [refreshRequired, setRefreshRequired] = useState(false);
-  const refreshAfterFailureRequested = useRef(false);
+  // The unlock permit belongs to one explicit refresh with this exact query context.
+  const manualRefresh = useRef<{
+    revision: number; term: string; filter: Filter; focusedId: string | null; page: number;
+  } | null>(null);
   const [pending, setPending] = useState<{ id: string; status: "respondida" | "arquivada" | "nova" } | null>(null);
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +52,12 @@ export function AdminMessageQueue() {
   }, [draft, term, busyId]);
   useEffect(() => {
     let active = true;
+    const requested = manualRefresh.current;
+    const unlockOnThisRead = requested !== null && requested.revision === revision &&
+      requested.term === term && requested.filter === filter &&
+      requested.focusedId === focusedId && requested.page === page;
+    // Consume at query start: a later debounce/filter query must never inherit this permit.
+    if (requested?.revision === revision) manualRefresh.current = null;
     setLoading(true);
     setError((previous) => previous?.includes("Atualize a lista") ? previous : null);
     let query = supabase.from("contact_messages").select("*", { count: "exact" });
@@ -62,20 +71,17 @@ export function AdminMessageQueue() {
       .then(({ data, count, error: queryError }) => {
         if (!active) return;
         if (queryError) {
-          refreshAfterFailureRequested.current = false;
           setError("Não foi possível consultar mensagens."); setRows([]); setTotal(null);
         } else {
           setRows(data ?? []); setTotal(count ?? null);
           // An inconclusive audit only unlocks after an explicit and complete refresh.
-          if (refreshAfterFailureRequested.current && Array.isArray(data) &&
+          if (unlockOnThisRead && Array.isArray(data) &&
               typeof count === "number" && Number.isSafeInteger(count) && count >= 0) {
             setRefreshRequired(false);
             setError(null);
           }
-          refreshAfterFailureRequested.current = false;
         }
       }).catch(() => { if (active) {
-        refreshAfterFailureRequested.current = false;
         setError("Não foi possível consultar mensagens."); setRows([]); setTotal(null);
       } })
       .finally(() => { if (active) setLoading(false); });
@@ -83,9 +89,13 @@ export function AdminMessageQueue() {
   }, [term, filter, focusedId, page, revision]);
 
   function refreshMessages() {
-    if (busyId || loading) return;
-    refreshAfterFailureRequested.current = refreshRequired;
-    setRevision((n) => n + 1);
+    // Pending debounce must settle before an explicit refresh can unlock actions.
+    if (busyId || loading || cleanAdminQuery(draft) !== term) return;
+    const nextRevision = revision + 1;
+    manualRefresh.current = refreshRequired
+      ? { revision: nextRevision, term, filter, focusedId, page }
+      : null;
+    setRevision(nextRevision);
   }
 
   function leaveFocusedRecord() {
@@ -147,7 +157,7 @@ export function AdminMessageQueue() {
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><h2 className="text-xl font-bold">Caixa de entrada</h2>
         <p className="mt-1 text-sm text-muted-foreground">Buscar, responder por e-mail externo e registrar alterações com motivo auditável. O painel não confirma o envio de e-mails.</p></div>
-      <button type="button" onClick={refreshMessages} disabled={navigationLocked}
+      <button type="button" onClick={refreshMessages} disabled={navigationLocked || cleanAdminQuery(draft) !== term}
         className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-input px-3 text-sm disabled:opacity-40">
         <RefreshCcw className="h-4 w-4" /> Atualizar</button>
     </div>
