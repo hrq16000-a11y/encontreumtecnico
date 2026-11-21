@@ -27,6 +27,11 @@ export function AdminRequestQueue() {
   const [error, setError] = useState(false);
   const [revision, setRevision] = useState(0);
 
+  // A new administrative query must never reopen a previously inspected request.
+  useEffect(() => {
+    setExpanded((current) => current.size === 0 ? current : new Set<string>());
+  }, [status, term, focusedId, page, revision]);
+
   useEffect(() => {
     const timer = window.setTimeout(() => { setTerm(cleanAdminQuery(draft)); setPage(0); }, 280);
     return () => window.clearTimeout(timer);
