@@ -191,6 +191,43 @@ describe("filas administrativas em interação real de React", () => {
     expect(mockDb.audits).toHaveLength(1);
   });
 
+  it("não herda desbloqueio de atualização iniciada antes do debounce", async () => {
+    const id = "e2c9e3de-1b5c-4b5d-8643-9c7dc5ac39b5";
+    mockDb.messages = [{
+      id, name: "Cliente", subject: "Mensagem pendente do debounce",
+      status: "nova", email: "cliente@example.test", message: "Conteúdo de teste",
+      created_at: "2026-11-14T00:00:00Z",
+    }];
+    render(<AdminMessageQueue />);
+    expect(await screen.findByText("Mensagem pendente do debounce")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Marcar respondida/ }));
+    fireEvent.change(screen.getByRole("textbox", { name: /Justificativa de auditoria/ }),
+      { target: { value: "Validação da pesquisa pendente" } });
+    mockDb.failNextMessageRead = true;
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar e auditar" }));
+    expect(await screen.findByRole("alert")).toHaveProperty("textContent",
+      "O servidor confirmou a alteração, mas a releitura falhou. Atualize a lista antes de agir novamente.");
+    expect(screen.getByRole("button", { name: /Arquivar/ })).toHaveProperty("disabled", true);
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Localizar mensagem" }),
+      { target: { value: "Mensagem pendente" } });
+    const refresh = screen.getByRole("button", { name: /Atualizar/ });
+    // Clicking before the 280ms debounce must not authorize an automatic query.
+    expect(refresh).toHaveProperty("disabled", true);
+    fireEvent.click(refresh);
+    await waitFor(() => expect(refresh).toHaveProperty("disabled", false));
+    expect(screen.getByRole("button", { name: /Arquivar/ })).toHaveProperty("disabled", true);
+    expect(screen.getByRole("alert")).toHaveProperty("textContent",
+      "O servidor confirmou a alteração, mas a releitura falhou. Atualize a lista antes de agir novamente.");
+
+    fireEvent.click(refresh);
+    await waitFor(() => expect(screen.getByRole("button", { name: /Arquivar/ }))
+      .toHaveProperty("disabled", false));
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(mockDb.updates).toBe(1);
+    expect(mockDb.audits).toHaveLength(1);
+  });
+
   it("só confirma mensagem após RPC auditada e releitura do estado persistido", async () => {
     const id = "a8d48d0f-a011-4a1c-a6a7-3ebd210dc258";
     mockDb.messages = [{ id, name: "Cliente", subject: "Preciso de atendimento",
