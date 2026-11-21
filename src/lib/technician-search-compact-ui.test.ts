@@ -38,8 +38,11 @@ describe("Busca compacta: filtros e perfis com privacidade", () => {
     expect(page).toContain('listApprovedTechnicians({ data: deps })');
     expect(page).toContain('Limpar filtros');
     expect(page).toContain('onClick={clearAllFilters}');
-    expect(page).toContain('clearDirectoryPendingFilters();');
-    expect(page).toContain('setFilterResetRevision(value => value + 1)');
+    const clearStart = page.indexOf('const clearAllFilters =');
+    const clearAction = page.slice(clearStart, page.indexOf('return (', clearStart));
+    expect(clearAction).toContain('clearDirectoryPendingFilters();');
+    expect(clearAction).toContain('setServiceQuery("");');
+    expect(clearAction).toContain('setFilterResetRevision(value => value + 1)');
     expect(page).toContain('setShowAdvanced(true)');
   });
 

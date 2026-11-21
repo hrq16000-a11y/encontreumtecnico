@@ -229,6 +229,29 @@ function HomePage() {
 
       <HomeTechnicianJoin />
 
+      <section aria-labelledby="home-expansao-rede" className="border-b border-primary/15 bg-primary/5 px-4 py-8 sm:py-10">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-5">
+          <div className="max-w-2xl">
+            <p className="text-xs font-bold uppercase tracking-widest text-primary">Expansão nacional · profissionais procurados</p>
+            <h2 id="home-expansao-rede" className="mt-2 text-xl font-extrabold text-foreground sm:text-2xl">
+              Buscamos técnicos no Sul, em SP, RJ e outras cidades
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Conheça as regiões da chamada de recrutamento. A lista não representa
+              disponibilidade confirmada nem quantidade de pedidos.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <a href="/cobertura#expansao-da-rede" className="inline-flex min-h-11 items-center rounded-xl border border-primary/30 bg-card px-4 py-2 text-sm font-semibold text-primary hover:bg-accent">
+              Ver localidades procuradas
+            </a>
+            <Link to="/cadastro" className="inline-flex min-h-11 items-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
+              Cadastrar como técnico
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <section aria-labelledby="home-visual-servicos" className="border-b border-border bg-gradient-to-r from-accent/80 via-background to-accent/80 px-4 py-12 sm:py-16">
         <div className="mx-auto max-w-6xl">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
