@@ -171,10 +171,20 @@ describe("filas administrativas em interação real de React", () => {
       { target: { value: "respondida" } });
     await waitFor(() => expect(screen.getByText("1 mensagem(ns) · página 1 de 1")).toBeTruthy());
     expect(screen.getByRole("button", { name: /Arquivar/ })).toHaveProperty("disabled", true);
+    expect(screen.getByRole("alert")).toHaveProperty("textContent",
+      "O servidor confirmou a alteração, mas a releitura falhou. Atualize a lista antes de agir novamente.");
+
+    const queriesBeforeSearch = mockDb.ranges.length;
+    fireEvent.change(screen.getByRole("textbox", { name: "Localizar mensagem" }),
+      { target: { value: "Mensagem 1" } });
+    await waitFor(() => expect(mockDb.ranges.length).toBeGreaterThan(queriesBeforeSearch));
+    expect(screen.getByRole("alert")).toHaveProperty("textContent",
+      "O servidor confirmou a alteração, mas a releitura falhou. Atualize a lista antes de agir novamente.");
 
     fireEvent.click(screen.getByRole("button", { name: /Atualizar/ }));
     await waitFor(() => expect(screen.getByRole("button", { name: /Arquivar/ }))
       .toHaveProperty("disabled", false));
+    expect(screen.queryByRole("alert")).toBeNull();
     expect(mockDb.updates).toBe(1);
     expect(mockDb.audits).toHaveLength(1);
   });
