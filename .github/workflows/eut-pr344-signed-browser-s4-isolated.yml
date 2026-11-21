@@ -1,0 +1,53 @@
+name: EUT PR344 — signed browser consent and epoch S4 only
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/eut-pr344-signed-browser-s4-isolated.yml'
+      - 'qa/pr344-signed-browser-s4-only.mjs'
+      - 'qa/pr344-signed-browser-s4.test.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  s4-browser-races-isolated:
+    if: github.event.pull_request.number == 344
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PR344_LOCAL_ONLY: 'yes'
+      PR344_S4_SIMULATED: 'disabled'
+      SUPABASE_ACCESS_TOKEN: ''
+      VITE_EUT_HTTP_PRESENCE_INGEST: 'disabled'
+      VITE_EUT_HTTP_PRESENCE_ADMIN_READ: 'disabled'
+      VITE_EUT_PRIVATE_REALTIME_PRESENCE: 'disabled'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Preflight — QA files only and public flags OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$PR344_LOCAL_ONLY" = yes
+          test "$PR344_S4_SIMULATED" = disabled
+          test -z "$SUPABASE_ACCESS_TOKEN"
+          test "$VITE_EUT_HTTP_PRESENCE_INGEST" = disabled
+          test "$VITE_EUT_HTTP_PRESENCE_ADMIN_READ" = disabled
+          test "$VITE_EUT_PRIVATE_REALTIME_PRESENCE" = disabled
+          node --check qa/pr344-signed-browser-s4-only.mjs
+          node --check qa/pr344-signed-browser-s4.test.mjs
+          if grep -R -n 'pr344-signed-browser-s4-only' src; then
+            echo "S4 QA simulator must never be imported by application" >&2
+            exit 1
+          fi
+          if grep -En 'SUPABASE_DB_PASSWORD|encontreumtecnico\.com\.br|https://[^ ]*supabase\.co' \
+             qa/pr344-signed-browser-s4-only.mjs qa/pr344-signed-browser-s4.test.mjs; then
+            echo "No production connection or project references permitted in S4" >&2
+            exit 1
+          fi
+          echo "S4-only preflight passed; no Supabase or production access"
+      - name: S4 only — consent, navigation, visibility, BFCache, signed epoch races
+        run: node --test qa/pr344-signed-browser-s4.test.mjs
