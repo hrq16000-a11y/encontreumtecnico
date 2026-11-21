@@ -34,6 +34,12 @@ export function AdminMessageQueue() {
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // A pending audit action is valid only for the current query context.
+  useEffect(() => {
+    setPending(null);
+    setReason("");
+  }, [draft, term, filter, focusedId, page, revision]);
+
   useEffect(() => {
     const timer = window.setTimeout(() => { setTerm(cleanAdminQuery(draft)); setPage(0); }, 280);
     return () => window.clearTimeout(timer);
