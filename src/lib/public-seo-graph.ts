@@ -141,6 +141,16 @@ export function profilesInCity(graph: GraphCatalog, uf: string, slug: string): G
     p.state_uf?.toLowerCase() === uf.toLowerCase() && serviceSlug(p.city) === slug);
 }
 
+/** Links regionais apenas para outros municipios IBGE com perfis publicos elegiveis.
+ * Nao confundir mesma UF com proximidade, nem anunciar cobertura nao declarada. */
+export function relatedGraphCities(graph: GraphCatalog, current: GraphCity, limit = 6): GraphCity[] {
+  if (!graph.cities.some(c => c.uf === current.uf && c.slug === current.slug)) return [];
+  return graph.cities
+    .filter(c => c.uf === current.uf && c.slug !== current.slug && c.count > 0)
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "pt-BR"))
+    .slice(0, Math.max(0, Math.min(8, limit)));
+}
+
 export function profilesInCategory(graph: GraphCatalog, slug: string): GraphProfile[] {
   if (!graph.categories.some((category) => category.slug === slug)) return [];
   return graph.profiles.filter((p) => (p.specialties ?? []).includes(slug));
