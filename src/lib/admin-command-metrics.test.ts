@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { adminCount, clientCounters, advertisingCounters } from "./admin-command-metrics";
+import { adminCount, clientCounters, advertisingCounters, adminAttentionEmptyMessage } from "./admin-command-metrics";
 
 describe("Rodada 1 — comando administrativo", () => {
+  it("não confunde fila sem alertas confirmados com indicadores indisponíveis", () => {
+    expect(adminAttentionEmptyMessage([0, 0, 0])).toBe("Nenhuma pendência nos indicadores consultados.");
+    expect(adminAttentionEmptyMessage([null, 0, 0])).toBe("Sem pendências confirmadas; alguns indicadores estão indisponíveis.");
+    expect(adminAttentionEmptyMessage([0, null, null])).toBe("Sem pendências confirmadas; alguns indicadores estão indisponíveis.");
+  });
   it("distingue erro de leitura e zero válido", () => {
     for (const input of [null, undefined, -1, "5", Infinity, 2.5]) expect(adminCount(input)).toBeNull();
     expect(adminCount(0)).toBe(0);
