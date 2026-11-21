@@ -80,6 +80,20 @@ export function groupRegistrationServices<T extends { category_slug: string }>(
   })).filter((group) => group.services.length > 0);
 }
 
+/** Toggle only the service choices visibly offered in one selected specialty.
+ * Search-hidden, legacy and other specialties' selections remain untouched.
+ * This is local draft state; the server alone authorizes publication. */
+export function toggleVisibleRegistrationServices(
+  selectedSlugs: readonly string[],
+  visibleGroup: readonly { slug: string }[],
+): string[] {
+  if (visibleGroup.length === 0) return [...selectedSlugs];
+  const visibleSlugs = new Set(visibleGroup.map(service => service.slug));
+  const allSelected = visibleGroup.every(service => selectedSlugs.includes(service.slug));
+  if (allSelected) return selectedSlugs.filter(slug => !visibleSlugs.has(slug));
+  return [...selectedSlugs, ...[...visibleSlugs].filter(slug => !selectedSlugs.includes(slug))];
+}
+
 /** Keep selected services visible, even while a search hides their checkboxes.
  * Unknown catalog entries remain removable without silently changing the draft. */
 export function selectedRegistrationServices<T extends { slug: string; label: string }>(
