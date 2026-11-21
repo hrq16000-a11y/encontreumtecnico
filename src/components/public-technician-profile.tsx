@@ -411,7 +411,7 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
                 <Link to="/area-cliente" search={{ tecnico: t.id }} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-center text-sm font-bold text-primary-foreground shadow-sm transition-[transform,background-color,box-shadow] duration-200 hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transform-none motion-reduce:transition-none">
                   Descrever meu problema <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
-                <button type="button" onClick={() => openFreeHelp({ mode: "direct", technicianId: t.id, technicianName: t.display_name, service: t.service_slugs[0] || "" })} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-accent/50 px-4 text-center text-sm font-semibold text-primary transition-colors hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none">
+                <button type="button" onClick={() => openFreeHelp({ mode: "direct", technicianId: t.id, technicianName: t.display_name })} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-accent/50 px-4 text-center text-sm font-semibold text-primary transition-colors hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none">
                   Solicitar contato via atendimento <ChevronRight className="h-4 w-4" aria-hidden="true" />
                 </button>
                 <p className="border-t border-border pt-3 text-xs leading-5 text-muted-foreground">A descrição é opcional e depende do consentimento do cliente. Nenhum número é revelado aqui. O pagamento está pausado. O funil registra seu interesse sem liberar telefone privado.</p>
@@ -427,7 +427,7 @@ export function PublicTechnicianProfile({ technician: t, links }: { technician: 
         <Link to="/area-cliente" search={{ tecnico: t.id }} className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-3 text-center text-xs font-bold text-primary-foreground sm:text-sm">
           <MessageSquareText className="h-4 w-4 shrink-0" aria-hidden="true" /> Descrever problema
         </Link>
-        <button type="button" onClick={() => openFreeHelp({ mode: "direct", technicianId: t.id, technicianName: t.display_name, service: t.service_slugs[0] || "" })} className="inline-flex min-h-12 flex-1 items-center justify-center gap-1 rounded-xl border border-primary/25 bg-accent px-3 text-center text-xs font-bold text-primary sm:text-sm">
+        <button type="button" onClick={() => openFreeHelp({ mode: "direct", technicianId: t.id, technicianName: t.display_name })} className="inline-flex min-h-12 flex-1 items-center justify-center gap-1 rounded-xl border border-primary/25 bg-accent px-3 text-center text-xs font-bold text-primary sm:text-sm">
           <LockKeyhole className="h-4 w-4 shrink-0" aria-hidden="true" /> Pedir contato
         </button>
       </nav>
