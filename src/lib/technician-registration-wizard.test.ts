@@ -212,6 +212,21 @@ describe("Cadastro guiado mobile", () => {
     expect(route).toContain("writeDraft(form, next)");
   });
 
+  it("oferece acesso à ficha publicada somente após confirmação persistida da conta", () => {
+    const route = readFileSync("src/routes/area-tecnico.tsx", "utf8");
+    const verified = route.indexOf("technicianPublicationWasPersisted(requested, persisted,");
+    const published = route.indexOf("setJustPublishedProfile(persisted.public_slug || persisted.id)");
+    const privateDraftCleared = route.indexOf('clearProtectedDraft("tecnico", savingOwner)');
+    expect(verified).toBeGreaterThan(0);
+    expect(published).toBeGreaterThan(verified);
+    expect(published).toBeGreaterThan(privateDraftCleared);
+    expect(route).toContain("setJustPublishedProfile(null)");
+    expect(route).toContain('step === 3 && currentStatus === "aprovado" && justPublishedProfile');
+    expect(route).toContain('params={{ tecnicoId: justPublishedProfile }}');
+    expect(route).toContain("Abrir meu perfil publicado");
+    expect(route).not.toContain("setJustPublishedProfile(form.");
+  });
+
   it("exige intenção explícita de publicar; navegar ou pressionar Enter cedo não publica", () => {
     expect(shouldSubmitTechnicianWizard(1, null)).toBe(false);
     expect(shouldSubmitTechnicianWizard(2, "publish")).toBe(false);
