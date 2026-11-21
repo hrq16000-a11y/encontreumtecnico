@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { BadgeCheck, HandCoins, Eye, Scale, Camera, Laptop, Wifi, Printer, MapPin, Search, ArrowRight, Wrench, UsersRound } from "lucide-react";
 import logo from "@/assets/logo-encontreumtecnico.png.asset.json";
 import heroImg from "@/assets/tecnico-cftv-instalacao.jpg";
+import techImg from "@/assets/tecnica-informatica.jpg";
 import { PageShell } from "../components/page-placeholder";
 import { SponsoredPublicSlot } from "@/components/sponsored-public-slot";
 import { AdSensePublicUnit } from "@/components/adsense-public-unit";
@@ -313,6 +314,20 @@ function HomePage() {
       <HowItWorksRich />
       <CoverageSection />
 
+      <section aria-labelledby="home-profissionais-title" className="bg-brand-navy px-4 py-12 text-brand-navy-foreground sm:py-16">
+        <div className="mx-auto grid max-w-6xl items-center gap-7 md:grid-cols-[1fr_1.15fr]">
+          <img src={techImg} alt="Técnica de informática fazendo manutenção em computador e roteador" width={1280} height={960} loading="lazy" decoding="async" className="aspect-[4/3] w-full rounded-3xl object-cover shadow-soft" />
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-brand-glow">Para profissionais de tecnologia</p>
+            <h2 id="home-profissionais-title" className="mt-2 text-2xl font-extrabold tracking-tight text-white sm:text-3xl">Seu trabalho merece ser encontrado pelo que você sabe fazer.</h2>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-white/85 sm:text-base">Informe seus serviços e regiões de atendimento. O cadastro é gratuito e você combina diretamente com cada cliente.</p>
+            <a href="#home-tecnico-cadastro" className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-5 text-sm font-bold text-brand-navy transition-colors hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+              Conhecer o cadastro técnico <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </a>
+          </div>
+        </div>
+      </section>
+
       <HomeTechnicianJoin />
       <HomeCommunityInvite />
 
@@ -323,9 +338,9 @@ function HomePage() {
             <h2 id="home-expansao-rede" className="mt-2 text-xl font-extrabold text-foreground sm:text-2xl">Estamos ampliando a rede de profissionais</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">Consulte as localidades prioritárias para novos cadastros. A lista não representa disponibilidade confirmada nem volume de solicitações.</p>
           </div>
-          <Link to="/cobertura#expansao-da-rede" className="inline-flex min-h-11 items-center rounded-xl border border-primary/30 bg-card px-4 py-2 text-sm font-semibold text-primary hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+          <a href="/cobertura#expansao-da-rede" className="inline-flex min-h-11 items-center rounded-xl border border-primary/30 bg-card px-4 py-2 text-sm font-semibold text-primary hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
             Ver localidades procuradas
-          </Link>
+          </a>
         </div>
       </section>
 
