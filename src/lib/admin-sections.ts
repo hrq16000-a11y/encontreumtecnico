@@ -1,6 +1,7 @@
 /** Module keys are route allowlists, never authorization claims. */
 export const ADMIN_SECTIONS = [
   { key: "inicio", label: "Visão geral", description: "Indicadores atuais e acessos" },
+  { key: "configuracoes", label: "Configurações", description: "Habilitar e desabilitar recursos públicos auditados" },
   { key: "usuarios", label: "Usuários", description: "Central de admins, clientes e técnicos" },
   { key: "tecnicos", label: "Técnicos", description: "Moderação dos perfis cadastrados" },
   { key: "clientes", label: "Clientes", description: "Solicitantes e identificação privada" },

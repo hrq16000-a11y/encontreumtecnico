@@ -1,0 +1,68 @@
+name: EUT admin feature toggle (local)
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/eut-admin-feature-toggle-local.yml
+      - tests/admin-feature-toggle/**
+      - docs/sql/eut-admin-home-proof-toggle-20261120.sql
+      - docs/sql/eut-admin-home-proof-toggle-rollback-20261120.sql
+      - src/components/admin-feature-settings.tsx
+      - src/components/home-public-proof.tsx
+      - src/components/home-public-proof.test.tsx
+      - src/lib/admin-sections.ts
+      - src/routes/admin.tsx
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eut-admin-feature-toggle-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  auth-persistencia:
+    name: Proprietário, persistência e auditoria (localhost)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      SUPABASE_ACCESS_TOKEN: ''
+      SUPABASE_DB_PASSWORD: ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 3.2.0
+      - name: Iniciar Supabase local sem credenciais remotas
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase --help >/dev/null
+          supabase start
+          supabase status -o env > "$RUNNER_TEMP/eut-admin-feature-local.env"
+      - name: Aplicar contrato somente no PostgreSQL local e testar Auth real
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          source "$RUNNER_TEMP/eut-admin-feature-local.env"
+          set +a
+          node --input-type=module -e '
+            for (const [key, port] of [["API_URL","54321"],["DB_URL","54322"]]) {
+              const url = new URL(process.env[key] || "");
+              if (!["127.0.0.1","localhost"].includes(url.hostname) || url.port !== port)
+                throw Error("Destino não local bloqueado: " + key);
+            }
+            if (!process.env.ANON_KEY || !process.env.SERVICE_ROLE_KEY)
+              throw Error("Chaves efêmeras locais ausentes");
+          '
+          command -v psql >/dev/null
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f tests/admin-feature-toggle/bootstrap.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 \
+            -f docs/sql/eut-admin-home-proof-toggle-20261120.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -c "NOTIFY pgrst, 'reload schema'"
+          sleep 2
+          node tests/admin-feature-toggle/auth-feature.mjs

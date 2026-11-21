@@ -7,6 +7,7 @@ const fake = vi.hoisted(() => ({
   data: [] as Array<Record<string, unknown>>,
   loading: false,
   error: false,
+  feature: true,
 }));
 
 vi.mock("@tanstack/react-router", () => ({
@@ -17,7 +18,9 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 vi.mock("@tanstack/react-query", () => ({
-  useQuery: () => ({ data: fake.data, isError: fake.error, isFetching: fake.loading }),
+  useQuery: ({ queryKey }: { queryKey: string[] }) => queryKey.includes("feature")
+    ? { data: fake.feature, isError: false, isFetching: false }
+    : { data: fake.data, isError: fake.error, isFetching: fake.loading },
 }));
 
 vi.mock("@/lib/technicians.functions", () => ({
@@ -36,6 +39,7 @@ describe("prova social sem dados inventados", () => {
     fake.data = [];
     fake.loading = false;
     fake.error = false;
+    fake.feature = true;
   });
 
   it("apresenta apenas perfis reais retornados pela consulta pública", () => {
@@ -55,6 +59,15 @@ describe("prova social sem dados inventados", () => {
     ]);
     expect(screen.queryByText("Sem slug")).toBeNull();
     expect(screen.queryByText(/5 estrelas|depoimento verificado/i)).toBeNull();
+  });
+
+
+  it("não renderiza a seção quando o proprietário desabilitou a funcionalidade", () => {
+    fake.feature = false;
+    fake.data = [{ id: "1", public_slug: "x", display_name: "Técnico X", city: "Curitiba" }];
+    const { container } = render(<HomePublicProof />);
+    expect(container.innerHTML).toBe("");
+    expect(screen.queryByRole("heading", { name: /perfis públicos reais/i })).toBeNull();
   });
 
   it("não exibe prova inventada quando a consulta falha", () => {

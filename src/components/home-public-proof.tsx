@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { Link } from "@tanstack/react-router";
 import { ArrowUpRight, MapPin, ShieldCheck, UsersRound } from "lucide-react";
 import { TechnicianAvatar } from "@/components/technician-avatar";
+import { supabase } from "@/integrations/supabase/client";
 import { listApprovedTechnicians } from "@/lib/technicians.functions";
+
+const db = supabase as unknown as SupabaseClient;
 
 /**
  * Factual social proof: exclusively publicly approved profiles from the same
@@ -13,6 +17,18 @@ import { listApprovedTechnicians } from "@/lib/technicians.functions";
 export function HomePublicProof() {
   const sectionRef = useRef<HTMLElement>(null);
   const [visible, setVisible] = useState(false);
+  const { data: featureEnabled } = useQuery({
+    queryKey: ["eut", "feature", "home-public-proof"],
+    queryFn: async () => {
+      const result = await db.rpc("eut_home_public_proof_visible");
+      if (result.error || typeof result.data !== "boolean") {
+        throw new Error("Configuração pública indisponível");
+      }
+      return result.data;
+    },
+    staleTime: 30_000,
+    retry: 1,
+  });
 
   useEffect(() => {
     if (typeof IntersectionObserver === "undefined") {
@@ -29,19 +45,23 @@ export function HomePublicProof() {
     }, { rootMargin: "240px 0px" });
     observer.observe(element);
     return () => observer.disconnect();
-  }, []);
+  }, [featureEnabled]);
 
   const { data, isError, isFetching } = useQuery({
     queryKey: ["eut", "home", "public-profiles"],
     queryFn: () => listApprovedTechnicians({
       data: { especialidade: "Todas", cidade: "", regiao: "", servico: "", uf: "", bairro: "", prioridade: "" },
     }),
-    enabled: visible,
+    enabled: featureEnabled === true && visible,
     staleTime: 300_000,
     retry: 1,
   });
   const profiles = (data ?? []).filter((t) =>
     Boolean(t.public_slug && t.display_name && t.city)).slice(0, 3);
+
+  // Nenhum HTML ou consulta de perfil quando a flag está desabilitada
+  // ou quando o backend ainda não confirmou seu estado.
+  if (featureEnabled !== true) return null;
 
   return (
     <section ref={sectionRef} id="perfis-reais" aria-labelledby="perfis-reais-titulo"
