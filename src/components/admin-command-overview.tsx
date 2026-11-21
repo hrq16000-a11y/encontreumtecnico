@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { Activity, ArrowUpRight, CircleCheck, Inbox, Radar, Search, UsersRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { AdminModule } from "@/lib/admin-sections";
-import { adminCount, clientCounters, advertisingCounters } from "@/lib/admin-command-metrics";
+import { adminCount, clientCounters, advertisingCounters, adminAttentionEmptyMessage } from "@/lib/admin-command-metrics";
 
 const db = supabase as unknown as SupabaseClient;
 type Metrics = {
@@ -130,7 +130,7 @@ export function AdminCommandOverview() {
               <span className="flex items-center gap-2"><strong className="tabular-nums text-primary">{item.value?.toLocaleString("pt-BR")}</strong><ArrowUpRight className="h-4 w-4 text-primary" /></span>
             </Link>
           </li>)}
-        </ul> : <p className="mt-3 text-sm text-muted-foreground">Nenhuma pendência nos indicadores disponíveis.</p>}
+        </ul> : <p className="mt-3 text-sm text-muted-foreground">{adminAttentionEmptyMessage(alerts.map((item) => item.value))}</p>}
     </div>
     <div className="rounded-xl border border-border bg-background p-4 sm:p-5">
       <h3 className="flex items-center gap-2 font-bold text-foreground"><Activity className="h-4 w-4 text-primary" /> Fluxo das solicitações</h3>
