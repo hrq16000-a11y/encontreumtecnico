@@ -61,14 +61,14 @@ BEGIN
     INSERT INTO public.pr344_signed_s3_leases
       (tab_hash,state,issued_at,hard_expires_at,expires_at,last_beat_at,purge_after)
     VALUES (_tab_hash,'active',_issued_at,_hard_expires_at,
-      pg_catalog.least(_at + interval '75 seconds', _hard_expires_at),
+      least(_at + interval '75 seconds', _hard_expires_at),
       _at,_hard_expires_at + interval '120 seconds');
     RETURN 'ok';
   END IF;
 
   IF _op = 'beat' THEN
     UPDATE public.pr344_signed_s3_leases
-       SET expires_at = pg_catalog.least(_at + interval '75 seconds', _hard_expires_at),
+       SET expires_at = least(_at + interval '75 seconds', _hard_expires_at),
            last_beat_at = _at
      WHERE tab_hash = _tab_hash AND state = 'active'
        AND issued_at = _issued_at AND hard_expires_at = _hard_expires_at
@@ -88,13 +88,13 @@ BEGIN
   INSERT INTO public.pr344_signed_s3_leases AS l
     (tab_hash,state,issued_at,hard_expires_at,expires_at,last_beat_at,purge_after)
   VALUES (_tab_hash,'revoked',_issued_at,_hard_expires_at,
-    pg_catalog.least(_at,_hard_expires_at),_at,
-    pg_catalog.greatest(_hard_expires_at + interval '120 seconds',
+    least(_at,_hard_expires_at),_at,
+    greatest(_hard_expires_at + interval '120 seconds',
                        _at + interval '120 seconds'))
   ON CONFLICT (tab_hash) DO UPDATE
     SET state = 'revoked',
-        expires_at = pg_catalog.least(l.expires_at,excluded.expires_at),
-        purge_after = pg_catalog.greatest(l.purge_after,excluded.purge_after)
+        expires_at = least(l.expires_at,excluded.expires_at),
+        purge_after = greatest(l.purge_after,excluded.purge_after)
     WHERE l.issued_at = excluded.issued_at
       AND l.hard_expires_at = excluded.hard_expires_at;
   GET DIAGNOSTICS v_rows = ROW_COUNT;
