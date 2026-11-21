@@ -7,6 +7,7 @@ export const ADMIN_SECTIONS = [
   { key: "contas", label: "Contas e bloqueios", description: "Banir, desbanir e auditar identidades" },
   { key: "contatos", label: "Contatos privados", description: "Consultar números e executar ações auditadas" },
   { key: "solicitacoes", label: "Solicitações", description: "Pedidos recentes" },
+  { key: "pagamentos", label: "Pagamentos", description: "Mercado Pago, preços e horários" },
   { key: "patrocinadores", label: "Patrocinadores", description: "Campanhas, espaços e criativos" },
   { key: "mensagens", label: "Mensagens", description: "Atendimento e arquivamento" },
   { key: "catalogo", label: "Categorias e serviços", description: "Organização do catálogo" },
