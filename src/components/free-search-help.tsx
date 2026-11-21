@@ -63,7 +63,7 @@ export function FreeSearchHelp() {
       const active = document.activeElement;
       if (event.shiftKey ? active === first || !dialog.contains(active) : active === last || !dialog.contains(active)) {
         event.preventDefault();
-        (event.shiftKey ? last : first).focus();
+        (event.shiftKey ? last : first)?.focus();
       }
     };
     window.addEventListener("keydown", key);
