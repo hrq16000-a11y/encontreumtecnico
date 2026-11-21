@@ -39,6 +39,7 @@ import { technicianPublicationWasPersisted } from "@/lib/technician-publication-
 import { addPublicProfileTopic, PUBLIC_PROFILE_TOPICS, publicProfileHasTopic,
   technicianProfileEnrichment } from "@/lib/technician-profile-enrichment";
 import { TechnicianPanelNavigation } from "@/components/technician-panel-navigation";
+import { TechnicianPublicProfileLink } from "@/components/technician-public-profile-link";
 import { technicianTabFromHash, technicianTabHref, type TechnicianPanelTab } from "@/lib/technician-panel-navigation";
 import { ArrowRight, ShieldCheck, MapPin, UserRound, Inbox, Camera } from "lucide-react";
 
@@ -57,7 +58,7 @@ export const Route = createFileRoute("/area-tecnico")({
   component: TechnicianAreaPage,
 });
 
-const STATUS_LABEL = { pendente: "Complete seus dados para publicar", aprovado: "Publicado — visível na busca", rejeitado: "Oculto", suspenso: "Visibilidade suspensa" };
+const STATUS_LABEL = { pendente: "Complete seus dados para publicar", aprovado: "Cadastro salvo", rejeitado: "Oculto", suspenso: "Visibilidade suspensa" };
 const activationDb = supabase as unknown as SupabaseClient;
 
 export function TechnicianAreaPage() {
@@ -71,7 +72,6 @@ export function TechnicianAreaPage() {
   });
   const [status, setStatus] = useState<keyof typeof STATUS_LABEL | null>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
-  const [profileSlug, setProfileSlug] = useState<string | null>(null);
   // Set only after verifying this account's published row in the server.
   const [justPublishedProfile, setJustPublishedProfile] = useState<string | null>(null);
   const [savedCoverageIds, setSavedCoverageIds] = useState<number[]>([]);
@@ -180,7 +180,6 @@ export function TechnicianAreaPage() {
     setForm(initial);
     setStatus(null);
     setProfileId(null);
-    setProfileSlug(null);
     setJustPublishedProfile(null);
     setSavedCoverageIds([]);
     setSavedRadius(null);
@@ -224,7 +223,6 @@ export function TechnicianAreaPage() {
           setAvatarPath(data.avatar_path ?? null);
           setStatus(data.status);
           setProfileId(data.id);
-          setProfileSlug(data.public_slug);
         }
         setProfileOwnerId(owner);
         setProfileLoading(false);
@@ -378,6 +376,7 @@ export function TechnicianAreaPage() {
     if (form.service_slugs.some((slug) => !services.some((service) => service.slug === slug && form.specialties.includes(service.category_slug)))) return setMsg("Os serviços precisam pertencer às categorias selecionadas e estar ativos.");
     writeDraft(form, 3); // Secure recovery point before publication request.
     setSaving(true);
+    setJustPublishedProfile(null);
     setMsg(null);
     try {
       // Só a RPC do servidor define o status público; a tela não pode aprovar um perfil incompleto.
@@ -414,7 +413,6 @@ export function TechnicianAreaPage() {
         clearProtectedDraft("tecnico", savingOwner);
         setStatus("aprovado");
         setProfileId(persisted.id);
-        setProfileSlug(persisted.public_slug);
         setJustPublishedProfile(persisted.public_slug || persisted.id);
         setMsg("Perfil salvo e conferido no servidor. Complete também a foto, a cobertura e o contato privado nas abas do seu painel.");
       } else {
@@ -505,7 +503,7 @@ export function TechnicianAreaPage() {
               </p>
             )}
             <p className="mt-2 text-sm text-muted-foreground">
-              Cadastro gratuito: informe nome, cidade, especialidades e pelo menos um serviço executado. Ao publicar, seu perfil entra na busca automaticamente, sem certificação de capacidade técnica pelo portal.
+              Cadastro gratuito: informe nome, cidade, especialidades e pelo menos um serviço executado. Você pode consultar aqui se a ficha está disponível no catálogo. O portal não certifica a capacidade técnica do profissional.
             </p>
             <section aria-labelledby="eut-enriquecimento-titulo" className="mt-6 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
               <h2 id="eut-enriquecimento-titulo" className="text-lg font-bold text-foreground">Valorize sua apresentação profissional</h2>
@@ -530,10 +528,9 @@ export function TechnicianAreaPage() {
               <p className="mt-3 text-xs text-muted-foreground">Informações digitadas podem estar em rascunho. Uma edição só está salva quando o servidor confirma a gravação.</p>
             </section>
             {currentStatus === "aprovado" && profileId && (
-              <Link to="/tecnicos/$tecnicoId" params={{ tecnicoId: profileSlug || profileId }}
-                className="mt-3 inline-flex min-h-11 items-center rounded-md border border-primary px-4 text-sm font-semibold text-primary">
+              <TechnicianPublicProfileLink ownerId={user.id} profileId={profileId}>
                 Conferir meu perfil publicado
-              </Link>
+              </TechnicianPublicProfileLink>
             )}
             <div className="mt-7 grid gap-3 sm:grid-cols-2">
               {([
@@ -892,11 +889,10 @@ export function TechnicianAreaPage() {
                 </div>
               )}
               {msg && <p role="alert" className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm text-foreground">{msg}</p>}
-              {step === 3 && currentStatus === "aprovado" && justPublishedProfile && (
-                <Link to="/tecnicos/$tecnicoId" params={{ tecnicoId: justPublishedProfile }}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-primary px-4 py-2 text-sm font-bold text-primary hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+              {step === 3 && currentStatus === "aprovado" && justPublishedProfile && profileId && (
+                <TechnicianPublicProfileLink ownerId={user.id} profileId={profileId}>
                   Abrir meu perfil publicado <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Link>
+                </TechnicianPublicProfileLink>
               )}
               <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 -mx-4 flex items-center gap-2 border-t border-border bg-background/95 px-4 py-3 pb-[calc(12px+env(safe-area-inset-bottom))] shadow-lg backdrop-blur sm:static sm:mx-0 sm:rounded-xl sm:border sm:shadow-none">
                 {step > 1 && (
