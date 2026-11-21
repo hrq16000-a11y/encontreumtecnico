@@ -10,8 +10,7 @@ import { ConnectedGoogleIdentity } from "@/components/connected-google-identity"
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveCategories } from "@/hooks/use-active-categories";
 import { LegacyAccountActivation } from "@/components/legacy-account-activation";
-import { CustomerLocationButton } from "@/components/customer-location-button";
-import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
+import { LocationField, type LocationFieldValue } from "@/components/location-field";
 import { ClientTechnicianPicker } from "@/components/client-technician-picker";
 import { SelectedTechnicianLoginHint } from "@/components/selected-technician-login-hint";
 import { consumeTriageDraft } from "@/lib/triage-draft";
@@ -70,7 +69,9 @@ export function ClientAreaPage({ tecnico, modo, categoria }: ClientAreaPageProps
   const ownRows = accountScopedRows(rows, rowsOwnerId, roles.includes("cliente") ? user?.id : null);
   const { categories, loading: catalogLoading, error: catalogError } = useActiveCategories();
   const [form, setForm] = useState({ title: "", description: "", category: "", city: "", region: "" });
-  const { area: regionalHint } = useRegionalSuggestion();
+  const [clientUf, setClientUf] = useState("");
+  const [clientCityId, setClientCityId] = useState<number | null>(null);
+  const [clientPostalCode, setClientPostalCode] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [step, setStep] = useState<ClientRequestStep>(1);
@@ -93,6 +94,7 @@ export function ClientAreaPage({ tecnico, modo, categoria }: ClientAreaPageProps
     // only after a verified client role has loaded.
     setDraftRestoredOwnerId(null);
     setForm({ title: "", description: "", category: "", city: "", region: "" });
+    setClientUf(""); setClientCityId(null); setClientPostalCode("");
     setMsg(null);
     setSaving(false);
     setStep(1);
@@ -176,63 +178,6 @@ export function ClientAreaPage({ tecnico, modo, categoria }: ClientAreaPageProps
   }, [loading, user?.id, roles.join(",")]);
 
   useEffect(() => {
-    // A region suggestion never overrides the user's city or a prior triage.
-    if (loading || !user || !roles.includes("cliente") || !regionalHint) return;
-    setForm(previous => previous.city.trim() ? previous : {
-      ...previous, city: regionalHint.city, region: previous.region || regionalHint.neighborhood,
-    });
-  }, [loading, user?.id, roles.join(","), regionalHint?.city, regionalHint?.uf]);
-
-  async function load() {
-    if (!user || !roles.includes("cliente")) return;
-    const owner = user.id;
-    const version = ++loadVersion.current;
-    const current = () => canAcceptAccountResult(owner, currentUserIdRef.current, version, loadVersion.current);
-    setRows(null);
-    setRowsOwnerId(null);
-    setRowsError(false);
-    setReplyLoadError(false);
-    setSharedIds(new Set());
-    setReplyByRequest({});
-
-    try {
-      const { data, error } = await supabase.from("service_requests")
-        .select("*").eq("client_id", owner).order("created_at", { ascending: false });
-      if (!current()) return;
-      if (error) throw error;
-
-      const mine = data ?? [];
-      setRows(mine);
-      setRowsOwnerId(owner);
-      if (!mine.length) return;
-
-      const [shares, replies] = await Promise.all([
-        directDb.from("eut_direct_request_consents").select("request_id").eq("client_id", owner),
-        directDb.from("eut_direct_request_replies").select("request_id,body,created_at")
-          .in("request_id", mine.map((item) => item.id)),
-      ]);
-      if (!current()) return;
-      if (shares.error || replies.error) {
-        setReplyLoadError(true);
-      }
-      if (!shares.error) {
-        setSharedIds(new Set((shares.data ?? []).map((entry: { request_id: string }) => entry.request_id)));
-      }
-      if (!replies.error) {
-        setReplyByRequest(Object.fromEntries(((replies.data ?? []) as DirectReply[])
-          .map((entry) => [entry.request_id, entry])));
-      }
-    } catch {
-      if (!current()) return;
-      // Never turn a failed private query into "you have no requests".
-      setRowsError(true);
-      setRows(null);
-      setRowsOwnerId(null);
-      setSharedIds(new Set());
-      setReplyByRequest({});
-    }
-  }
-  useEffect(() => {
     void load();
     // Invalidate in-flight account-owned queries when the component unmounts.
     return () => { loadVersion.current++; };
@@ -292,6 +237,7 @@ export function ClientAreaPage({ tecnico, modo, categoria }: ClientAreaPageProps
   }
 
   function advance() {
+    if (step === 2 && !clientCityId) { setMsg("Confirme o município IBGE antes de continuar."); return; }
     const error = clientRequestStepError(step, form, availableCategories,
       catalogUnavailable, regionalRequest ? false : shareNow, effectiveTechnicianTarget);
     if (error) { setMsg(error); return; }
@@ -305,6 +251,7 @@ export function ClientAreaPage({ tecnico, modo, categoria }: ClientAreaPageProps
     const problemError = clientRequestStepError(1, form, availableCategories, catalogUnavailable, regionalRequest ? false : shareNow, effectiveTechnicianTarget);
     const locationError = clientRequestStepError(2, form, availableCategories, catalogUnavailable, regionalRequest ? false : shareNow, effectiveTechnicianTarget);
     const recipientError = clientRequestStepError(3, form, availableCategories, catalogUnavailable, regionalRequest ? false : shareNow, effectiveTechnicianTarget);
+    if (!clientCityId) { setMsg("Selecione e confirme o município IBGE para o atendimento."); return; }
     if (problemError || locationError || recipientError) {
       setMsg(problemError || locationError || recipientError);
       return;
@@ -524,30 +471,18 @@ export function ClientAreaPage({ tecnico, modo, categoria }: ClientAreaPageProps
               )}
               {step === 2 && (
                 <div className="grid gap-4">
-                  {regionalHint && <p className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
-                    <strong className="text-foreground">Cidade sugerida: {regionalHint.city}/{regionalHint.uf}.</strong>
-                    {" "}Estimativa aproximada, não sua localização exata. Confira antes de enviar.
-                  </p>}
-                  <CustomerLocationButton onLocated={(area, source) => {
-                    // Automatic hints never override a city the client typed.
-                    const nextForm = source === "automatic" && form.city.trim() ? form :
-                      { ...form, city: area.city, region: area.neighborhood };
-                    if (nextForm !== form) {
+                  <LocationField label="Local do atendimento" required
+                    value={{ uf: clientUf, city: form.city, municipalityIbgeId: clientCityId,
+                      neighborhood: form.region, postalCode: clientPostalCode }}
+                    onChange={(next: LocationFieldValue) => {
+                      setClientUf(next.uf);
+                      setClientCityId(next.municipalityIbgeId);
+                      setClientPostalCode(next.postalCode);
+                      const nextForm = { ...form, city: next.city, region: next.neighborhood };
                       saveLiveDraft(nextForm, step);
                       setForm(nextForm);
                       setShareNow(false);
-                    }
-                  }} />
-                  <label className="text-sm font-medium text-foreground">Cidade do atendimento
-                    <input maxLength={80} className={input} value={form.city}
-                      autoComplete="address-level2" placeholder="Ex.: Curitiba"
-                      onChange={(e) => updateRequestField("city", e.target.value)} />
-                  </label>
-                  <label className="text-sm font-medium text-foreground">Bairro ou região aproximada (opcional)
-                    <input maxLength={120} className={input} value={form.region}
-                      autoComplete="address-level3" placeholder="Ex.: Centro"
-                      onChange={(e) => updateRequestField("region", e.target.value)} />
-                  </label>
+                    }} />
                   <p className="text-xs text-muted-foreground">
                     Não precisamos do número da sua casa. A localização exata do GPS
                     não é armazenada nem compartilhada pelo portal.
