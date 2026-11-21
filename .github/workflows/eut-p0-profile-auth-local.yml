@@ -1,0 +1,78 @@
+name: EUT P0 — cadastro técnico Auth + persistência local
+
+on:
+  pull_request:
+    paths:
+      - 'tests/profile-local/**'
+      - '.github/workflows/eut-p0-profile-auth-local.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eut-p0-local-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  technician-persistence:
+    name: Auth real + publicação + readback (somente localhost)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      SUPABASE_ACCESS_TOKEN: ''
+      SUPABASE_DB_PASSWORD: ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 3.2.0
+
+      - name: Iniciar exclusivamente Supabase local descartável
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase --help >/dev/null
+          supabase start
+          supabase status -o env > "$RUNNER_TEMP/eut-p0-local.env"
+
+      - name: Aplicar apenas contratos e dados sintéticos locais
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          source "$RUNNER_TEMP/eut-p0-local.env"
+          set +a
+          node --input-type=module -e '
+            for (const [key, port] of [["API_URL", "54321"], ["DB_URL", "54322"]]) {
+              const value = new URL(process.env[key] || "");
+              if (!["localhost", "127.0.0.1"].includes(value.hostname) || value.port !== port) {
+                throw Error(`FAIL CLOSED: ${key} não é localhost:${port}`);
+              }
+            }
+            if (!process.env.ANON_KEY || !process.env.SERVICE_ROLE_KEY) {
+              throw Error("Chaves efêmeras locais ausentes");
+            }
+          '
+          command -v psql >/dev/null
+
+          # Reutiliza o bootstrap local já existente, sem chamar banco remoto.
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f tests/otp-local/bootstrap.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f tests/profile-local/bootstrap.sql
+
+          # Definição de escolha de papel que já está versionada no repositório.
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f docs/sql/eut-choose-new-role-without-wp-rule.sql
+
+          # Corpo literal da RPC capturado anteriormente via pg_get_functiondef.
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f tests/profile-local/official-publish-rpc.sql
+
+          # Permissões da função oficial: anon=false, authenticated=true.
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -c "REVOKE ALL ON FUNCTION public.eut_publish_my_technician(text,text,text,text[],text[],text,text,text) FROM PUBLIC, anon, authenticated"
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -c "GRANT EXECUTE ON FUNCTION public.eut_publish_my_technician(text,text,text,text[],text[],text,text,text) TO authenticated"
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -c "NOTIFY pgrst, 'reload schema'"
+
+          # Nenhum JWT fabricado; token emitido pelo GoTrue local via login real.
+          node tests/profile-local/persist.mjs
