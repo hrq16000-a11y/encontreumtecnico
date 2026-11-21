@@ -72,6 +72,8 @@ export function TechnicianAreaPage() {
   const [status, setStatus] = useState<keyof typeof STATUS_LABEL | null>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
   const [profileSlug, setProfileSlug] = useState<string | null>(null);
+  // Set only after verifying this account's published row in the server.
+  const [justPublishedProfile, setJustPublishedProfile] = useState<string | null>(null);
   const [savedCoverageIds, setSavedCoverageIds] = useState<number[]>([]);
   const [savedRadius, setSavedRadius] = useState<number | null>(null);
   const [avatarPath, setAvatarPath] = useState<string | null>(null);
@@ -180,6 +182,7 @@ export function TechnicianAreaPage() {
     setStatus(null);
     setProfileId(null);
     setProfileSlug(null);
+    setJustPublishedProfile(null);
     setSavedCoverageIds([]);
     setSavedRadius(null);
     setAvatarPath(null);
@@ -419,6 +422,7 @@ export function TechnicianAreaPage() {
         setStatus("aprovado");
         setProfileId(persisted.id);
         setProfileSlug(persisted.public_slug);
+        setJustPublishedProfile(persisted.public_slug || persisted.id);
         setMsg("Perfil salvo e conferido no servidor. Complete também a foto, a cobertura e o contato privado nas abas do seu painel.");
       } else {
         setMsg("A publicação não foi concluída. Tente novamente.");
@@ -895,6 +899,12 @@ export function TechnicianAreaPage() {
                 </div>
               )}
               {msg && <p role="alert" className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm text-foreground">{msg}</p>}
+              {step === 3 && currentStatus === "aprovado" && justPublishedProfile && (
+                <Link to="/tecnicos/$tecnicoId" params={{ tecnicoId: justPublishedProfile }}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-primary px-4 py-2 text-sm font-bold text-primary hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                  Abrir meu perfil publicado <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              )}
               <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 -mx-4 flex items-center gap-2 border-t border-border bg-background/95 px-4 py-3 pb-[calc(12px+env(safe-area-inset-bottom))] shadow-lg backdrop-blur sm:static sm:mx-0 sm:rounded-xl sm:border sm:shadow-none">
                 {step > 1 && (
                   <button type="button" onClick={() => moveToStep((step - 1) as RegistrationStep)}
