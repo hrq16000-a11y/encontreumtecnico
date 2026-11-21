@@ -112,6 +112,25 @@ describe("filas administrativas em interação real de React", () => {
     expect(await screen.findByText("Pedido 21")).toBeTruthy();
   });
 
+  it("descarta confirmação de mensagem ao mudar filtro sem executar ação", async () => {
+    const id = "a8d48d0f-a011-4a1c-a6a7-3ebd210dc258";
+    mockDb.messages = [{ id, name: "Cliente", subject: "Mensagem pendente",
+      status: "nova", email: "cliente@example.test", message: "Conteúdo de teste",
+      created_at: "2026-11-14T00:00:00Z" }];
+    render(<AdminMessageQueue />);
+    expect(await screen.findByText("Mensagem pendente")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Marcar respondida/ }));
+    expect(screen.getByRole("button", { name: "Confirmar e auditar" })).toBeTruthy();
+    fireEvent.change(screen.getByRole("combobox", { name: "Situação" }),
+      { target: { value: "respondida" } });
+    expect(await screen.findByText("Nenhuma mensagem para este filtro.")).toBeTruthy();
+    fireEvent.change(screen.getByRole("combobox", { name: "Situação" }),
+      { target: { value: "todas" } });
+    expect(await screen.findByText("Mensagem pendente")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Confirmar e auditar" })).toBeNull();
+    expect(mockDb.updates).toBe(0);
+  });
+
   it("só confirma mensagem após RPC auditada e releitura do estado persistido", async () => {
     const id = "a8d48d0f-a011-4a1c-a6a7-3ebd210dc258";
     mockDb.messages = [{ id, name: "Cliente", subject: "Preciso de atendimento",
