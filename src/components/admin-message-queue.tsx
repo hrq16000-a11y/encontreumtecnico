@@ -49,7 +49,8 @@ export function AdminMessageQueue() {
   }, [draft, term, busyId]);
   useEffect(() => {
     let active = true;
-    setLoading(true); setError(null);
+    setLoading(true);
+    if (!refreshRequired) setError(null);
     let query = supabase.from("contact_messages").select("*", { count: "exact" });
     if (focusedId) query = query.eq("id", focusedId);
     else {
@@ -69,6 +70,7 @@ export function AdminMessageQueue() {
           if (refreshAfterFailureRequested.current && Array.isArray(data) &&
               typeof count === "number" && Number.isSafeInteger(count) && count >= 0) {
             setRefreshRequired(false);
+            setError(null);
           }
           refreshAfterFailureRequested.current = false;
         }
@@ -167,7 +169,10 @@ export function AdminMessageQueue() {
       <button type="button" onClick={leaveFocusedRecord} disabled={navigationLocked}
         className="min-h-11 rounded-lg border border-input bg-background px-3 font-semibold">Voltar à lista</button>
     </div>}
-    {error && <p role="alert" className="rounded-lg border border-destructive/30 p-3 text-sm text-destructive">{error}</p>}
+    {(error || refreshRequired) && <p role="alert" className="rounded-lg border border-destructive/30 p-3 text-sm text-destructive">
+      {error}{refreshRequired && !error?.includes("Atualize a lista") &&
+        " A confirmação anterior permanece inconclusiva. Atualize a lista antes de agir novamente."}
+    </p>}
     {success && <p role="status" className="rounded-lg border border-emerald-500/40 p-3 text-sm">{success}</p>}
     <p className="text-sm text-muted-foreground" role="status">{loading ? "Carregando…" :
       total === null ? "Total indisponível" : `${total.toLocaleString("pt-BR")} mensagem(ns) · página ${page + 1} de ${pages}`}</p>
