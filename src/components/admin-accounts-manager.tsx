@@ -56,6 +56,11 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
   const [bulkAction, setBulkAction] = useState<"block_account" | "unblock_account" | null>(null);
   const [bulkReason, setBulkReason] = useState("");
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [detailId, setDetailId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (detailId) document.getElementById("eut-admin-account-detail")?.focus();
+  }, [detailId]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -73,6 +78,7 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
     setLoading(true);
     // Never leave controls for the previous filter/page actionable during a new read.
     setSnapshot(null);
+    setDetailId(null);
     setSelection(null);
     setSelectedIds(new Set());
     setBulkAction(null);
@@ -231,6 +237,12 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
     } finally { setBusy(false); }
   }
 
+  const detailAccount = snapshot?.accounts.find((account) => account.id === detailId) ?? null;
+  function closeDetail() {
+    const trigger = detailId ? document.getElementById(`eut-admin-open-detail-${layout}-${detailId}`) : null;
+    setDetailId(null);
+    trigger?.focus();
+  }
   const maxPage = snapshot ? Math.max(1, Math.ceil(snapshot.total / snapshot.page_size)) : 1;
   const eligibleAccounts = (snapshot?.accounts ?? []).filter((account) => !account.is_admin);
   const allSelected = eligibleAccounts.length > 0 && eligibleAccounts.every((account) => selectedIds.has(account.id));
@@ -390,6 +402,12 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
             </td>
             <td className="hidden px-3 py-3 text-xs text-muted-foreground lg:table-cell">{account.created_at ? new Date(account.created_at).toLocaleDateString("pt-BR") : "—"}</td>
             <td className="block pt-2 md:table-cell md:px-3 md:py-3">
+              <button type="button" id={`eut-admin-open-detail-table-${account.id}`}
+                aria-label={`Ver ficha de ${account.full_name}`} aria-expanded={detailId === account.id}
+                aria-controls="eut-admin-account-detail" onClick={() => setDetailId(account.id)}
+                className="min-h-10 rounded-lg border border-primary/40 px-3 text-xs font-semibold text-primary hover:bg-accent">
+                Ver ficha
+              </button>
               {!account.is_admin && <div className="flex flex-wrap gap-1.5">
                 <button type="button" onClick={() => choose("edit_name", account)} disabled={busy || bulkBusy}
                   className="min-h-10 rounded-lg border border-input px-3 text-xs font-semibold hover:bg-accent">Editar nome</button>
@@ -426,7 +444,13 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
               <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">Sem bloqueio</span>}
           </div>
         </div>
-        {!account.is_admin && <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4"><button type="button" id={`eut-admin-open-detail-cards-${account.id}`}
+                aria-label={`Ver ficha de ${account.full_name}`} aria-expanded={detailId === account.id}
+                aria-controls="eut-admin-account-detail" onClick={() => setDetailId(account.id)}
+                className="min-h-10 rounded-lg border border-primary/40 px-3 text-xs font-semibold text-primary hover:bg-accent">
+                Ver ficha
+              </button></div>
+        {!account.is_admin && <div className="mt-3 flex flex-wrap gap-2">
           <button type="button" onClick={() => choose("edit_name", account)}
             className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-input px-3 text-sm font-semibold text-foreground hover:bg-accent">
             <Pencil className="h-4 w-4" aria-hidden="true" /> Editar nome</button>
@@ -440,6 +464,29 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
         </div>}
       </li>)}
     </ul>}
+    {detailAccount && <section id="eut-admin-account-detail" role="region" tabIndex={-1}
+      aria-label={`Ficha rápida de ${detailAccount.full_name}`}
+      className="scroll-mt-4 rounded-2xl border border-primary/30 bg-card p-4 outline-offset-2 focus-visible:outline-2 focus-visible:outline-primary sm:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-lg font-bold text-foreground">Ficha rápida · {detailAccount.full_name}</h3>
+          <p className="mt-1 text-xs text-muted-foreground">Consulta restrita ao painel administrativo, com contatos mascarados.</p>
+        </div>
+        <button type="button" onClick={closeDetail}
+          className="min-h-11 rounded-lg border border-input px-4 text-sm font-semibold hover:bg-accent">Fechar ficha</button>
+      </div>
+      <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-3">
+        <div><dt className="text-xs text-muted-foreground">Papel</dt><dd className="mt-1 font-semibold">{detailAccount.roles || "Não definido"}</dd></div>
+        <div><dt className="text-xs text-muted-foreground">E-mail mascarado</dt><dd className="mt-1 break-all">{detailAccount.masked_email || "Indisponível"}</dd></div>
+        <div><dt className="text-xs text-muted-foreground">Telefone mascarado</dt><dd className="mt-1">{detailAccount.masked_phone || "Indisponível"}</dd></div>
+        <div><dt className="text-xs text-muted-foreground">E-mail confirmado</dt><dd className="mt-1">{detailAccount.email_confirmed ? "Sim" : "Não"}</dd></div>
+        <div><dt className="text-xs text-muted-foreground">Conta</dt><dd className="mt-1">{detailAccount.blocked_account ? "Banida" : detailAccount.is_admin ? "Administrador protegido" : "Sem banimento"}</dd></div>
+        <div><dt className="text-xs text-muted-foreground">Telefone</dt><dd className="mt-1">{detailAccount.blocked_phone ? "Restrito" : "Sem restrição"}</dd></div>
+        <div><dt className="text-xs text-muted-foreground">Perfil técnico</dt><dd className="mt-1">{detailAccount.technician_status || "Status indisponível"}</dd></div>
+        <div><dt className="text-xs text-muted-foreground">Cadastro</dt><dd className="mt-1">{detailAccount.created_at ? new Date(detailAccount.created_at).toLocaleDateString("pt-BR") : "Indisponível"}</dd></div>
+        <div><dt className="text-xs text-muted-foreground">Identificador interno</dt><dd className="mt-1 break-all font-mono text-xs">{detailAccount.id}</dd></div>
+      </dl>
+    </section>}
     <div className="flex justify-between gap-2">
       <button type="button" disabled={loading || page===0} onClick={() => setPage((x) => Math.max(0,x-1))}
         className="min-h-11 rounded-lg border border-input px-4 text-sm text-foreground disabled:opacity-40">Anterior</button>
