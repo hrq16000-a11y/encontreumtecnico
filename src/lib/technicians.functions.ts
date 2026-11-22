@@ -344,8 +344,12 @@ export const getApprovedTechnician = createServerFn({ method: "GET" })
     if (!eligible.length) return null; // Suspended/banned/not eligible => real 404 in route loader.
     const profile = (await withCoverageCities(await withReferralHighlights(await withPioneerBadges(await withOnlineStatus([sanitizePublicTechnician(eligible[0]!)])))))[0];
     if (!profile) return null;
-    // Optional until the isolated SQL proposal passes its release gate. The server
-    // projects a strict allowlist; never forward unvalidated RPC JSON to the browser.
+    // Off by default until the optional public RPC is approved and installed.
+    // This server-only opt-in never bypasses the existing eligibility check.
+    if (process.env["EUT_PUBLIC_TECHNICIAN_OPERATIONS_ENABLED"] !== "true") {
+      return { ...profile, operations: null };
+    }
+    // Project a strict allowlist; never forward unvalidated RPC JSON to the browser.
     const { data: operations, error: operationsError } = await (publicClient() as unknown as SupabaseClient)
       .rpc("eut_public_technician_operations", { _technician_id: profile.id });
     if (operationsError) {
