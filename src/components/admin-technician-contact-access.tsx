@@ -63,7 +63,7 @@ export function AdminTechnicianContactAccess({ recordKey }: { recordKey: string 
       await navigator.clipboard.writeText(safePhone);
       setCopiedRecordKey(recordKey);
     } catch {
-      setCopiedRecordKey(null);
+      setCopiedRecordKey((current) => current === recordKey ? null : current);
     }
   }
 
