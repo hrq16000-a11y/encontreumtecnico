@@ -6,9 +6,14 @@ const read = (path: string) => readFileSync(path, "utf8");
 
 describe("cadastro manual: modal e persistencia protegida", () => {
   it("aceita nome de homologacao com data real sem liberar sequencias de telefone", () => {
-    expect(publicTextProblem("EUT QA Cadastro Sintetico 20261122", "identity")).toBeNull();
+    expect(publicTextProblem("EUT QA Cadastro Sintetico 20261122", "identity")).not.toBeNull();
+    expect(publicTextProblem("EUT QA Cadastro Sintetico 20261122", "identity",
+      { allowInternalQaDate: true })).toBeNull();
+    expect(publicTextProblem("EUT QA Cadastro Sintetico 20260230", "identity",
+      { allowInternalQaDate: true })).not.toBeNull();
     expect(publicTextProblem("Assistencia 20260230", "identity")).not.toBeNull();
-    expect(publicTextProblem("Assistencia 20261122", "identity")).not.toBeNull();
+    expect(publicTextProblem("Assistencia 20261122", "identity",
+      { allowInternalQaDate: true })).not.toBeNull();
     expect(publicTextProblem("Contato 41999999999", "identity")).not.toBeNull();
     expect(publicTextProblem("Empresa 12345678", "identity")).not.toBeNull();
     expect(publicTextProblem("Empresa whats app", "identity")).not.toBeNull();
@@ -41,6 +46,7 @@ describe("cadastro manual: modal e persistencia protegida", () => {
     expect(editor).toContain('db.rpc("eut_admin_technician_record_archive"');
     expect(editor).toContain("existing?.admin_active ?? (createOrigin ===");
     expect(editor).toContain("citySearch.trim() && cityId === null");
+    expect(editor).toContain('allowInternalQaDate: !existing && createOrigin === "manual"');
     expect(editor).not.toContain("auth.admin.createUser");
   });
 });

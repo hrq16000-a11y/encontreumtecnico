@@ -222,7 +222,8 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
       setError("Identificador do cadastro inválido. Nenhum dado foi alterado."); return;
     }
     const cleanedName = name.trim();
-    if (cleanedName.length < 3 || cleanedName.length > 120 || publicTextProblem(cleanedName, "identity")) {
+    if (cleanedName.length < 3 || cleanedName.length > 120 || publicTextProblem(cleanedName, "identity",
+      { allowInternalQaDate: !existing && createOrigin === "manual" })) {
       setError("Informe um nome profissional válido, sem contatos."); return;
     }
     if (region.length > 120 || publicTextProblem(region, "identity") ||

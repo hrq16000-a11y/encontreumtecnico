@@ -10,8 +10,8 @@ const NUMBER_WORDS = new Set([
 ]);
 const CONTACT_WORDS = /(?:whats[\s\-]*app|wpp|zap|telegram|instagram|tiktok|facebook|telefone|celular|ligue|arroba|ponto\s*(?:com|br|net)|me\s*cham[ae]|chama\s*(?:no|na)\s*(?:zap|whats))/iu;
 const LINK = /(?:https?\s*:\s*\/|www\s*\.|(?:w[\s.\-]*){3}\.|wa\s*\.\s*me|t\s*\.\s*me|api\s*\.\s*whatsapp|[\p{L}\p{N}_-]+\s*@\s*[\p{L}\p{N}_-]+|[\p{L}\p{N}_-]+\s*\.\s*(?:com|br|net|org|info|app|site|io|me|link|tech)\b)/iu;
-/** A standalone calendar date in a name (e.g. a QA label) is not a phone number.
- * Keep rejecting arbitrary 8+ digits, including Brazilian local/mobile numbers.
+/** A reserved QA label may contain a real date only when explicitly opted in.
+ * The public-name guard never opts in and continues rejecting 8+ digits.
  */
 function containsOnlyOneCalendarDate(value: string): boolean {
   // Only the internal QA fixture is exempt; ordinary professional names remain protected.
@@ -29,7 +29,7 @@ function containsOnlyOneCalendarDate(value: string): boolean {
 }
 
 
-export function publicTextProblem(raw: string | null | undefined, kind: PublicTextKind): string | null {
+export function publicTextProblem(raw: string | null | undefined, kind: PublicTextKind, options?: { allowInternalQaDate?: boolean }): string | null {
   if (!raw?.trim()) return null;
   const value = raw.normalize("NFKC").replace(/\p{Cf}/gu, "").toLocaleLowerCase("pt-BR");
   if (kind === "bio" && /\p{N}/u.test(value)) {
@@ -43,7 +43,7 @@ export function publicTextProblem(raw: string | null | undefined, kind: PublicTe
     return "Não inclua links ou canais de contato, mesmo com letras separadas.";
   }
   if (kind === "identity" && [...value.matchAll(/\p{N}/gu)].length >= 8 &&
-    !containsOnlyOneCalendarDate(value)) {
+    !(options?.allowInternalQaDate && containsOnlyOneCalendarDate(value))) {
     return "Números de contato não são permitidos em nomes ou regiões públicas.";
   }
   let run = 0;
