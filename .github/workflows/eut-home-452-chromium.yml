@@ -1,0 +1,81 @@
+name: EUT Home 452 Chromium QA isolado
+on:
+  push:
+    branches:
+      - qa/eut-home-452-chromium-20261122
+    paths:
+      - .github/workflows/eut-home-452-chromium.yml
+      - tests/visual/eut-home-452.cjs
+
+permissions:
+  contents: read
+concurrency:
+  group: eut-home-452-chromium-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  visual-only:
+    name: Chromium Home 390/1440 sem deploy e sem banco
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      EXPECTED_452_HEAD: e60aedcc6aed5389690c3d51dd49ebec5722b65d
+      SUPABASE_URL: http://127.0.0.1:59999
+      SUPABASE_PUBLISHABLE_KEY: sb_publishable_QA_local_only
+      VITE_EUT_VISITOR_ACCESS_ENABLED: 'false'
+      VITE_EUT_ABUSE_ADMIN_ENABLED: 'false'
+      EUT_QA_BASE_URL: http://127.0.0.1:4318
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Provar HEAD original da PR 452, sem alterar codigo da aplicacao
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_452_HEAD"
+          git diff --name-only HEAD^ HEAD | LC_ALL=C sort > "$RUNNER_TEMP/actual-files"
+          printf '%s\n' .github/workflows/eut-home-452-chromium.yml tests/visual/eut-home-452.cjs | LC_ALL=C sort > "$RUNNER_TEMP/allowed-files"
+          diff -u "$RUNNER_TEMP/allowed-files" "$RUNNER_TEMP/actual-files"
+          echo "Fonte original: $EXPECTED_452_HEAD; apenas 2 arquivos QA adicionados."
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Dependencias da aplicacao, sem executar CI geral
+        run: bun install --frozen-lockfile
+      - name: Chromium isolado sem novas dependencias no repositorio
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/eut-home-452-playwright"
+          npm --prefix "$RUNNER_TEMP/eut-home-452-playwright" install --no-fund --no-audit --no-save playwright@1.56.1
+          "$RUNNER_TEMP/eut-home-452-playwright/node_modules/.bin/playwright" install chromium
+      - name: Servir aplicacao somente em localhost
+        shell: bash
+        run: |
+          set -euo pipefail
+          (bun run dev --host 127.0.0.1 --port 4318 > "$RUNNER_TEMP/eut-home-452-server.log" 2>&1 &)
+          ready=0
+          for n in $(seq 1 75); do
+            if curl -fsS --max-time 2 http://127.0.0.1:4318/ -o /dev/null; then ready=1; break; fi
+            sleep 2
+          done
+          if [ "$ready" != 1 ]; then
+            echo "Servidor local nao iniciou; veja log do artefato" >&2
+            exit 1
+          fi
+      - name: QA real em Chromium com rede externa bloqueada
+        env:
+          NODE_PATH: ${{ runner.temp }}/eut-home-452-playwright/node_modules
+        run: node tests/visual/eut-home-452.cjs
+      - name: Preservar capturas e relatorio ainda que o gate falhe
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eut-home-452-chromium-${{ github.run_id }}
+          path: |
+            artifacts/eut-home-452-visual/
+            ${{ runner.temp }}/eut-home-452-server.log
+          retention-days: 7
+          if-no-files-found: warn
