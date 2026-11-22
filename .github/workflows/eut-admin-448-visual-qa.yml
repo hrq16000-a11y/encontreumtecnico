@@ -20,6 +20,8 @@ jobs:
       EUT_QA448_REPORT_DIR: qa-448-results
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 8
       - name: Enforce exact approved base and three QA-only files
         shell: bash
         run: |
