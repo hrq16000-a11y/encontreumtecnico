@@ -37,3 +37,7 @@ Use em tarefas não triviais de UI, portfólios **novos**, React/TanStack, QA re
 - **Demais projetos**: usar o mesmo método de seleção, subordinado aos `AGENTS.md` locais, stack, marca e regras comerciais; funcionalidades sem UI não precisam de motion.
 
 **Estado da referência:** método documentado; nenhum código externo, skill executável, CLI ou dependência do Reanimate/Gists foi instalado ou homologado em runtime.
+
+## Roteamento adicional por produto — 21/11/2026
+
+No Encontre um Técnico, consultar `docs/integrations/agent-tools-selection-2026-11-21.md` antes de propor novas ferramentas para admin, busca, perfil, conteúdo ou segurança. A matriz distingue método seguro de instalação e complementa as políticas de RLS/contatos, sem novas dependências ou autorização de deploy. Projetos não herdam o acesso aos dados de outros projetos.
