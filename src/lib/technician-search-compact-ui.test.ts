@@ -62,6 +62,16 @@ describe("Busca compacta: filtros e perfis com privacidade", () => {
     expect(page).toContain("Perfis públicos declarados");
   });
 
+  it("recupera paginação vazia sem confundir com ausência de técnicos ou abrir convite automático", () => {
+    expect(page).toContain("search.pagina > 1 ? (");
+    expect(page).toContain("Esta página da busca não tem resultados");
+    expect(page).toContain('onClick={() => void update({ pagina: 1 })}');
+    expect(page).toContain("Voltar à primeira página");
+    expect(page).toContain("if (technicians.length > 0 || !searchArea || search.pagina > 1) return;");
+    expect(page).toContain("search.servico, search.pagina]);");
+    expect(page).toContain('title="Nenhum técnico encontrado com estes filtros"');
+  });
+
   it("preserva foto real e apenas sinais factuais, sem telefone ou avaliações inventadas", () => {
     expect(card).toContain('avatarPath={t.avatar_path}');
     expect(card).toContain('params={{ tecnicoId: t.public_slug }}');
