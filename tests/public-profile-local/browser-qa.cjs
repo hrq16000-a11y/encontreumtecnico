@@ -11,13 +11,19 @@ assert.equal(process.env.SUPABASE_URL, API, "FAIL CLOSED: server uses nonlocal A
 assert(process.env.ANON_KEY && process.env.SERVICE_ROLE_KEY, "Missing ephemeral keys");
 assert.equal(process.env.SUPABASE_PUBLISHABLE_KEY, process.env.ANON_KEY);
 assert.equal(process.env.SUPABASE_SERVICE_ROLE_KEY, process.env.SERVICE_ROLE_KEY);
+assert.equal(process.env.QA_EGRESS_FIREWALL, "enforced",
+  "FAIL CLOSED: no verified OS egress firewall");
 const email = "eut-public-profile-qa@example.invalid";
 const password = "LocalSyntheticOnly!2026";
 
+const allowedOrigins = new Set([
+  "http://127.0.0.1:54321", "http://localhost:54321",
+  "http://127.0.0.1:4173", "http://localhost:4173",
+  "ws://127.0.0.1:4173", "ws://localhost:4173",
+]);
 const loopback = (href) => {
-  const url = new URL(href);
-  return ["http:", "https:", "ws:", "wss:"].includes(url.protocol)
-    && ["127.0.0.1", "localhost", "::1", "[::1]"].includes(url.hostname);
+  try { return allowedOrigins.has(new URL(href).origin); }
+  catch { return false; }
 };
 async function localRequest(path, options = {}) {
   const url = new URL(path, API);
@@ -108,7 +114,9 @@ async function main() {
     await page.getByLabel("E-mail", { exact: true }).fill(email);
     await page.getByLabel("Senha", { exact: true }).fill(password);
     await page.getByRole("button", { name: "Entrar", exact: true }).click();
-    await page.goto(APP + "/area-tecnico", { waitUntil: "domcontentloaded" });
+    // Wait for the authenticated, role-aware redirect before reading the panel.
+    await page.waitForURL(url => url.origin === APP && url.pathname === "/area-tecnico",
+      { timeout: 30000 });
 
     const profileLink = page.getByRole("link", { name: /Conferir meu perfil publicado/ });
     await profileLink.waitFor({ state: "visible", timeout: 30000 });
@@ -116,20 +124,43 @@ async function main() {
     await profileLink.click();
     await page.waitForURL(APP + target, { timeout: 30000 });
 
-    // This is the real HTTP gate; SPA navigation alone does not prove SSR 200.
-    const response = await page.goto(APP + target, { waitUntil: "domcontentloaded" });
-    assert(response && response.status() === 200, "Profile SSR did not return HTTP 200");
-    assert((await page.locator("body").innerText()).includes("Profissional Local QA"));
+    // A fresh, anonymous context must obtain the real SSR HTTP 200.
+    const anonymous = await browser.newContext({
+      locale: "pt-BR", viewport: { width: 390, height: 844 }, serviceWorkers: "block",
+    });
+    await anonymous.route("**/*", async (route) => {
+      if (!loopback(route.request().url())) {
+        external.push(route.request().url());
+        await route.abort("blockedbyclient");
+      } else await route.continue();
+    });
+    await anonymous.routeWebSocket("**/*", async (ws) => {
+      if (!loopback(ws.url())) {
+        external.push(ws.url());
+        await ws.close();
+      } else await ws.connectToServer();
+    });
+    const publicPage = await anonymous.newPage();
+    const response = await publicPage.goto(APP + target, { waitUntil: "domcontentloaded" });
+    assert(response && response.status() === 200, "Anonymous SSR profile did not return HTTP 200");
+    assert((await publicPage.locator("body").innerText()).includes("Profissional Local QA"));
     assert.equal(
-      await page.locator('link[rel="canonical"]').first().getAttribute("href"),
+      await publicPage.locator('link[rel="canonical"]').first().getAttribute("href"),
       "https://www.encontreumtecnico.com.br" + target,
     );
-    const html = await page.content();
+    const html = await publicPage.content();
     assert(!html.includes(email), "Private account email leaked in public HTML");
     assert(!html.includes("phone_e164") && !html.includes("contact_phone"),
       "Private contact field leaked in public HTML");
+    const localClientProof = await publicPage.evaluate(async () => {
+      const response = await fetch("/__eut_qa_local_client", { cache: "no-store" });
+      if (!response.ok) throw Error("FAIL CLOSED: client interception not confirmed");
+      return response.json();
+    });
+    assert.equal(localClientProof.intercepted, true, "QA did not use the local client");
     assert.deepEqual(external, [], "Browser attempted nonlocal network access");
-    console.log("PASS isolated browser: Auth UI, stable ID, canonical slug, HTTP 200, no private contact");
+    console.log("PASS local QA: Auth UI, anonymous SSR 200, canonical, no private contact");
+    await anonymous.close();
     await context.close();
   } finally {
     await browser.close();

@@ -3,18 +3,24 @@ name: EUT public technician profile — synthetic localhost browser QA
 on:
   pull_request:
     types: [labeled]
+    branches: [main]
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
-  group: eut-public-profile-local-once
+  group: eut-public-profile-local-once-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:
   local-browser:
     # A Draft PR and deliberate label are both required. No push/PR-open trigger.
-    if: github.event.pull_request.draft && github.event.label.name == 'qa-eut-public-profile-local-approved'
+    if: >-
+      github.event.pull_request.draft &&
+      github.event.label.name == 'qa-eut-public-profile-local-approved' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'qa/eut-public-profile-local-20261122'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -22,6 +28,26 @@ jobs:
       SUPABASE_DB_PASSWORD: ''
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Reject re-runs or repeat label events before setup
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          QA_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = '1'
+          test "$GITHUB_HEAD_REF" = 'qa/eut-public-profile-local-20261122'
+          test "$(git rev-parse HEAD)" = "$QA_HEAD_SHA"
+          test -n "$GH_TOKEN"
+          runs_url="https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/eut-public-profile-local-qa.yml/runs?event=pull_request&branch=qa/eut-public-profile-local-20261122&per_page=100"
+          curl --fail --silent --show-error --max-time 30             -H "Authorization: Bearer $GH_TOKEN"             -H "Accept: application/vnd.github+json" "$runs_url"             -o "$RUNNER_TEMP/eut-one-shot.json"
+          jq -e --argjson id "$GITHUB_RUN_ID" '
+            .total_count == 1 and (.workflow_runs | length == 1) and
+            .workflow_runs[0].id == $id and .workflow_runs[0].run_attempt == 1
+          ' "$RUNNER_TEMP/eut-one-shot.json" >/dev/null
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -34,7 +60,8 @@ jobs:
         run: |
           set -euo pipefail
           bun install --frozen-lockfile
-          mkdir -p "$RUNNER_TEMP/eut-browser"
+          export PLAYWRIGHT_BROWSERS_PATH="$RUNNER_TEMP/eut-browser-bins"
+          mkdir -p "$RUNNER_TEMP/eut-browser" "$PLAYWRIGHT_BROWSERS_PATH"
           npm install --prefix "$RUNNER_TEMP/eut-browser" --no-audit --no-fund --save-exact playwright@1.56.1
           "$RUNNER_TEMP/eut-browser/node_modules/.bin/playwright" install chromium
       - name: Local-only Supabase, app SSR and one browser proof
@@ -57,6 +84,21 @@ jobs:
           export VITE_SUPABASE_PUBLISHABLE_KEY="$ANON_KEY"
           export SUPABASE_PROJECT_ID=local
           export VITE_SUPABASE_PROJECT_ID=local
+
+          # Per-UID OS egress control for ALL app/Node/Chromium subprocesses.
+          # Missing iptables/IPv6 support or a failed rule aborts before app start.
+          command -v iptables >/dev/null
+          command -v ip6tables >/dev/null
+          command -v sudo >/dev/null
+          qa_user=eutpublicqa
+          sudo -n useradd -m -s /bin/bash "$qa_user"
+          qa_uid="$(id -u "$qa_user")"
+          sudo -n chown -R "$qa_user:$qa_user" "$GITHUB_WORKSPACE"             "$RUNNER_TEMP/eut-browser" "$RUNNER_TEMP/eut-browser-bins"
+          sudo -n iptables -I OUTPUT 1 -m owner --uid-owner "$qa_uid" ! -o lo -j REJECT
+          sudo -n ip6tables -I OUTPUT 1 -m owner --uid-owner "$qa_uid" ! -o lo -j REJECT
+          sudo -n iptables -C OUTPUT -m owner --uid-owner "$qa_uid" ! -o lo -j REJECT
+          sudo -n ip6tables -C OUTPUT -m owner --uid-owner "$qa_uid" ! -o lo -j REJECT
+          export QA_EGRESS_FIREWALL=enforced
 
           # A process-level remote-socket and fetch guard applies to the Vite
           # SSR process and Node browser setup. Browser requests have a second
@@ -101,9 +143,13 @@ jobs:
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -c "GRANT EXECUTE ON FUNCTION public.eut_publish_my_technician(text,text,text,text[],text[],text,text,text) TO authenticated"
           psql "$DB_URL" -X -v ON_ERROR_STOP=1 -c "NOTIFY pgrst, 'reload schema'"
 
-          ./node_modules/.bin/vite --config tests/public-profile-local/vite-local.config.ts > "$RUNNER_TEMP/eut-vite-qa.log" 2>&1 &
+          # Never start the browser or the application under the runner UID.
+          qa_run() {
+            sudo -n -u "$qa_user" /usr/bin/env               HOME="/home/$qa_user" PATH="$PATH"               API_URL="$API_URL" DB_URL="$DB_URL"               ANON_KEY="$ANON_KEY" SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"               SUPABASE_URL="$SUPABASE_URL"               SUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY"               SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY"               VITE_SUPABASE_URL="$VITE_SUPABASE_URL"               VITE_SUPABASE_PUBLISHABLE_KEY="$VITE_SUPABASE_PUBLISHABLE_KEY"               SUPABASE_PROJECT_ID=local VITE_SUPABASE_PROJECT_ID=local               QA_EGRESS_FIREWALL=enforced               PLAYWRIGHT_BROWSERS_PATH="$RUNNER_TEMP/eut-browser-bins"               NODE_OPTIONS="$NODE_OPTIONS"               NODE_PATH="$RUNNER_TEMP/eut-browser/node_modules" "$@"
+          }
+          qa_run "$GITHUB_WORKSPACE/node_modules/.bin/vite" --config tests/public-profile-local/vite-local.config.ts > "$RUNNER_TEMP/eut-vite-qa.log" 2>&1 &
           app_pid=$!
-          trap 'kill "$app_pid" 2>/dev/null || true' EXIT
+          trap 'sudo -n pkill -u "$qa_user" 2>/dev/null || true; kill "$app_pid" 2>/dev/null || true' EXIT
           ready=0
           for i in $(seq 1 40); do
             if curl --fail --silent http://127.0.0.1:4173/entrar -o /dev/null; then
@@ -113,4 +159,4 @@ jobs:
             sleep 2
           done
           test "$ready" -eq 1 || { tail -n 80 "$RUNNER_TEMP/eut-vite-qa.log"; exit 1; }
-          NODE_PATH="$RUNNER_TEMP/eut-browser/node_modules" node tests/public-profile-local/browser-qa.cjs
+          qa_run node tests/public-profile-local/browser-qa.cjs
