@@ -47,6 +47,16 @@ BEGIN
      OR v_before.proretset IS DISTINCT FROM true
      OR pg_catalog.pg_get_function_result(v_before.oid) <> 'SETOF jsonb'
      OR v_before.pronargdefaults <> 8
+     -- Baseline function properties must remain the audited SQL defaults.
+     -- Any drift, including a changed arg default tree, stops before DDL.
+     OR v_before.proparallel IS DISTINCT FROM 'u'
+     OR v_before.proisstrict IS DISTINCT FROM false
+     OR v_before.proleakproof IS DISTINCT FROM false
+     OR v_before.procost IS DISTINCT FROM 100
+     OR v_before.prorows IS DISTINCT FROM 1000
+     OR v_before.proargdefaults IS NULL
+     OR v_before.prosqlbody IS NOT NULL
+     OR v_before.probin IS NOT NULL
      OR v_before.proconfig IS DISTINCT FROM ARRAY['search_path=pg_catalog']::text[]
      OR v_before.proacl::text IS DISTINCT FROM v_acl
      OR pg_catalog.has_function_privilege('anon', v_before.oid, 'EXECUTE') IS DISTINCT FROM true
@@ -86,7 +96,18 @@ BEGIN
      OR v_after.provolatile IS DISTINCT FROM v_before.provolatile
      OR v_after.prorettype IS DISTINCT FROM v_before.prorettype
      OR v_after.proretset IS DISTINCT FROM v_before.proretset
+     OR v_after.proparallel IS DISTINCT FROM v_before.proparallel
+     OR v_after.proisstrict IS DISTINCT FROM v_before.proisstrict
+     OR v_after.proleakproof IS DISTINCT FROM v_before.proleakproof
+     OR v_after.procost IS DISTINCT FROM v_before.procost
+     OR v_after.prorows IS DISTINCT FROM v_before.prorows
+     OR v_after.proargdefaults::text IS DISTINCT FROM v_before.proargdefaults::text
      OR pg_catalog.pg_get_function_identity_arguments(v_after.oid) <> v_signature
+     -- Complete pg_proc comparison (including arg type/default metadata,
+     -- owner, ACL, language and execution attributes), excluding only prosrc.
+     -- An unexpected reconstruction change aborts this entire transaction.
+     OR (pg_catalog.to_jsonb(v_after) - 'prosrc')
+        IS DISTINCT FROM (pg_catalog.to_jsonb(v_before) - 'prosrc')
   THEN
     RAISE EXCEPTION 'EUT admin public RPC: postcheck failed, transaction must roll back';
   END IF;
