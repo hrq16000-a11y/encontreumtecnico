@@ -17,7 +17,7 @@ jobs:
     env:
       SUPABASE_ACCESS_TOKEN: ''
       SUPABASE_DB_PASSWORD: ''
-      EUT_QA448_REPORT_DIR: ${{ runner.temp }}/eut-qa448-results
+      EUT_QA448_REPORT_DIR: qa-448-results
     steps:
       - uses: actions/checkout@v4
       - name: Enforce exact approved base and three QA-only files
