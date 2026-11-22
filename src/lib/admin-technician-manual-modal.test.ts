@@ -37,7 +37,7 @@ describe("cadastro manual: modal e persistencia protegida", () => {
     expect(editor).toContain('const auditReason = existing ?');
     expect(editor).toContain("_reason: auditReason");
     expect(editor).toContain('db.rpc("eut_admin_technician_record_save"');
-    expect(editor).toContain('db.rpc("eut_admin_technician_registry_list"');
+    expect(editor).toMatch(/db\.rpc\(\s*"eut_admin_technician_registry_list"/);
     expect(editor).toContain('db.rpc("eut_admin_technician_record_archive"');
     expect(editor).toContain("existing?.admin_active ?? (createOrigin ===");
     expect(editor).toContain("citySearch.trim() && cityId === null");
