@@ -69,4 +69,26 @@ describe("contato privado: isolamento entre fichas administrativas", () => {
     expect(screen.getByRole("button", { name: "Copiar telefone" }).textContent).toContain("Copiar");
     expect(screen.getByRole("button", { name: "Copiar telefone" }).textContent).not.toContain("Copiado");
   });
+
+  it("descarta cópia pendente ao voltar à mesma ficha após alternar", async () => {
+    let finishCopy: (() => void) | undefined;
+    const writeText = vi.fn(() => new Promise<void>((resolve) => { finishCopy = resolve; }));
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true, value: { writeText },
+    });
+    const { rerender } = render(<AdminTechnicianContactAccess recordKey="registry:qa-a" />);
+    await act(async () => returnPhone("registry:qa-a", "+5541999990001"));
+    fireEvent.click(screen.getByRole("button", { name: "Copiar telefone" }));
+    expect(writeText).toHaveBeenCalledWith("+5541999990001");
+
+    rerender(<AdminTechnicianContactAccess recordKey="registry:qa-b" />);
+    await act(async () => returnPhone("registry:qa-b", "+5541999990002"));
+    rerender(<AdminTechnicianContactAccess recordKey="registry:qa-a" />);
+    await act(async () => returnPhone("registry:qa-a", "+5541999990001"));
+    await act(async () => finishCopy?.());
+
+    const button = screen.getByRole("button", { name: "Copiar telefone" });
+    expect(button.textContent).toContain("Copiar");
+    expect(button.textContent).not.toContain("Copiado");
+  });
 });

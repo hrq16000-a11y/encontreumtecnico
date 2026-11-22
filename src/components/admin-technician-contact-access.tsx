@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Copy, Phone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,9 +21,12 @@ export function AdminTechnicianContactAccess({ recordKey }: { recordKey: string 
   // A reused panel must never render the previous technician's private phone.
   const [resolvedRecordKey, setResolvedRecordKey] = useState<string | null>(null);
   const [copiedRecordKey, setCopiedRecordKey] = useState<string | null>(null);
+  // Discard clipboard completions from an older view, even after A → B → A.
+  const copyAttemptRef = useRef(0);
 
   useEffect(() => {
     let current = true;
+    copyAttemptRef.current += 1;
     setLoading(true);
     setError(false);
     setPhone(null);
@@ -49,7 +52,7 @@ export function AdminTechnicianContactAccess({ recordKey }: { recordKey: string 
       }
     })
       .finally(() => { if (current) setLoading(false); });
-    return () => { current = false; };
+    return () => { current = false; copyAttemptRef.current += 1; };
   }, [recordKey]);
 
   // The equality guard also covers the render before the new key's effect runs.
@@ -59,11 +62,12 @@ export function AdminTechnicianContactAccess({ recordKey }: { recordKey: string 
 
   async function copyPhone() {
     if (!safePhone) return;
+    const attempt = ++copyAttemptRef.current;
     try {
       await navigator.clipboard.writeText(safePhone);
-      setCopiedRecordKey(recordKey);
+      if (copyAttemptRef.current === attempt) setCopiedRecordKey(recordKey);
     } catch {
-      setCopiedRecordKey((current) => current === recordKey ? null : current);
+      if (copyAttemptRef.current === attempt) setCopiedRecordKey(null);
     }
   }
 
