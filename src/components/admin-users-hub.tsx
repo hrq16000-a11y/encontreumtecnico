@@ -1,9 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState, type KeyboardEvent } from "react";
-import { ShieldCheck, UsersRound, Wrench } from "lucide-react";
+import { ShieldCheck, UsersRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminAccountsManager } from "@/components/admin-accounts-manager";
-import { AdminTechnicianUnifiedDirectory } from "@/components/admin-technician-unified-directory";
 
 const USER_TABS = [
   { key: "todos", label: "Todos" },
@@ -72,12 +71,20 @@ function AdminUsersList({ openAccount }: { openAccount: (id: string) => void }) 
     <p role="status" className="text-sm text-muted-foreground">{loading ? "Consultando administradores…" : error ? "Consulta indisponível" : total === null ? "Total indisponível" : `${total} administrador(es) · página ${page + 1}`}</p>
     {error && <p role="alert" className="rounded-xl border border-destructive/30 p-4 text-sm">Não foi possível consultar os administradores com a permissão atual.</p>}
     {!error && !loading && rows.length === 0 && <p className="text-sm text-muted-foreground">Nenhum administrador encontrado nesta página.</p>}
-    <ul className="grid gap-2">
-      {rows.map((item) => <li key={item.user_id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-4">
-        <div className="min-w-0"><p className="font-semibold">{item.name}</p><p className="mt-1 break-all text-xs text-muted-foreground">ID {item.user_id}</p></div>
-        <button type="button" onClick={() => openAccount(item.user_id)} className="inline-flex min-h-11 items-center rounded-lg border border-input px-3 text-sm font-semibold">Consultar conta</button>
-      </li>)}
-    </ul>
+    <div className="overflow-hidden rounded-xl border border-border">
+      <table className="w-full text-left text-sm" aria-label="Administradores cadastrados">
+        <thead className="bg-muted/40 text-xs text-muted-foreground">
+          <tr><th scope="col" className="p-3">Administrador</th><th scope="col" className="p-3 text-right">Ação</th></tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {rows.map((item) => <tr key={item.user_id}>
+            <td className="min-w-0 p-3"><strong className="font-semibold">{item.name}</strong><p className="break-all text-xs text-muted-foreground">ID {item.user_id}</p></td>
+            <td className="p-3 text-right"><button type="button" onClick={() => openAccount(item.user_id)}
+              className="min-h-10 rounded-lg border border-input px-3 text-xs font-semibold hover:bg-accent">Consultar conta</button></td>
+          </tr>)}
+        </tbody>
+      </table>
+    </div>
     <div className="flex justify-between gap-3">
       <button type="button" disabled={loading || page === 0} onClick={() => setPage((value) => value - 1)} className="min-h-11 rounded-lg border border-input px-4 disabled:opacity-40">Anterior</button>
       <button type="button" disabled={loading || total === null || (page + 1) * 20 >= total} onClick={() => setPage((value) => value + 1)} className="min-h-11 rounded-lg border border-input px-4 disabled:opacity-40">Próximo</button>
@@ -85,7 +92,7 @@ function AdminUsersList({ openAccount }: { openAccount: (id: string) => void }) 
   </section>;
 }
 
-export function AdminUsersHub({ adminOwnerId }: { adminOwnerId: string }) {
+export function AdminUsersHub(_props: { adminOwnerId: string }) {
   const [tab, setTab] = useState<UserTab>("todos");
   useEffect(() => {
     const syncTabFromUrl = () => setTab(validUserTab(new URLSearchParams(window.location.search).get("perfil")));
@@ -117,10 +124,18 @@ export function AdminUsersHub({ adminOwnerId }: { adminOwnerId: string }) {
   }
 
   return <section aria-labelledby="admin-usuarios-title" className="min-w-0 space-y-5">
-    <div>
-      <h2 id="admin-usuarios-title" className="flex items-center gap-2 text-xl font-extrabold"><UsersRound className="h-6 w-6" aria-hidden="true" /> Central única de Usuários</h2>
-      <p className="mt-2 text-sm text-muted-foreground">Gestão centralizada de contas, papéis e perfis técnicos. As operações continuam usando os contratos administrativos existentes.</p>
-    </div>
+    <header className="flex flex-wrap items-start justify-between gap-3">
+      <div className="min-w-0">
+        <h2 id="admin-usuarios-title" className="flex items-center gap-2 text-xl font-extrabold">
+          <UsersRound className="h-6 w-6" aria-hidden="true" /> Usuários
+        </h2>
+        <p className="mt-1 max-w-xl text-sm text-muted-foreground">Pessoas, papéis e segurança em uma central compacta. Consulte os detalhes profissionais nos módulos especializados.</p>
+      </div>
+      <Link to="/admin/$secao" params={{ secao: "tecnicos" }}
+        className="inline-flex min-h-11 items-center rounded-lg border border-input px-4 text-sm font-semibold hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        Gerenciar fichas técnicas
+      </Link>
+    </header>
     <div role="tablist" aria-label="Perfis dos usuários" className="flex flex-wrap gap-2">
       {USER_TABS.map((item) => <button key={item.key} id={`eut-user-tab-${item.key}`} role="tab" type="button"
         aria-selected={tab === item.key} aria-controls="eut-users-panel"
@@ -132,16 +147,16 @@ export function AdminUsersHub({ adminOwnerId }: { adminOwnerId: string }) {
         {item.label}</button>)}
     </div>
     <div id="eut-users-panel" role="tabpanel" aria-labelledby={`eut-user-tab-${tab}`} className="min-w-0">
-      {tab === "todos" && <AdminAccountsManager key="todos" initialFilter="todos" lockFilter />}
+      {tab === "todos" && <AdminAccountsManager key="todos" initialFilter="todos" lockFilter initialLayout="table" />}
       {tab === "admins" && <AdminUsersList openAccount={(id) => selectTab("todos", id)} />}
-      {tab === "clientes" && <AdminAccountsManager key="clientes" initialFilter="clientes" lockFilter />}
-      {tab === "tecnicos" && <div className="space-y-4">
-        <div className="flex items-center gap-2 text-sm font-semibold"><Wrench className="h-5 w-5" aria-hidden="true" /> Fichas e edição de técnicos</div>
-        <AdminTechnicianUnifiedDirectory adminOwnerId={adminOwnerId} />
-        <details className="rounded-xl border border-border p-4">
-          <summary className="cursor-pointer font-semibold">Contas e bloqueios dos técnicos</summary>
-          <div className="mt-4 min-w-0"><AdminAccountsManager key="tecnicos" initialFilter="tecnicos" lockFilter /></div>
-        </details>
+      {tab === "clientes" && <AdminAccountsManager key="clientes" initialFilter="clientes" lockFilter initialLayout="table" />}
+      {tab === "tecnicos" && <div className="space-y-3">
+        <p className="rounded-lg border border-border bg-muted/20 p-3 text-xs text-muted-foreground">
+          Esta lista mostra contas vinculadas ao papel técnico. Para consultar e editar fichas profissionais,
+          inclusive cadastros anteriores sem identidade vinculada, use
+          {" "}<Link to="/admin/$secao" params={{ secao: "tecnicos" }} className="font-semibold text-primary underline">Gestão detalhada de técnicos</Link>.
+        </p>
+        <AdminAccountsManager key="tecnicos" initialFilter="tecnicos" lockFilter initialLayout="table" />
       </div>}
     </div>
     <details className="rounded-xl border border-border bg-card p-4">
