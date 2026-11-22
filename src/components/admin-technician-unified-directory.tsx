@@ -10,6 +10,7 @@ import { AdminTechnicianContactAccess } from "@/components/admin-technician-cont
 import { AdminTechnician360SheetContent } from "@/components/admin-technician-360-sheet";
 import { TechnicianAvatar } from "@/components/technician-avatar";
 import { Sheet, SheetTrigger } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Link } from "@tanstack/react-router";
 import { useActiveCategories } from "@/hooks/use-active-categories";
 import { useActiveServices } from "@/hooks/use-active-services";
@@ -675,15 +676,25 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
       nome, cidade, especialidades e contato privado no celular ou computador.
     </p>
     <div className="mt-4 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <button type="button" onClick={openManualForm} aria-expanded={Boolean(manualSourceId)}
+      <button type="button" onClick={openManualForm}
+        aria-haspopup="dialog" aria-expanded={Boolean(manualSourceId)}
         className="min-h-12 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground">
-        {manualSourceId ? "Fechar cadastro" : "+ Adicionar técnico"}
+        + Adicionar técnico
       </button>
       {registryError && <p role="status" className="text-xs text-amber-700 dark:text-amber-400">{registryError}</p>}
     </div>
-    {manualSourceId && <AdminTechnicianRecordEditor key={manualSourceId} sourceId={manualSourceId}
-      available={registryAvailable} onCancel={() => setManualSourceId(null)}
-      onSaved={(message) => { refreshAfterSaved(); setFeedback(message); }} />}
+    <Dialog open={Boolean(manualSourceId)} onOpenChange={(open) => { if (!open) setManualSourceId(null); }}>
+      <DialogContent className="max-h-[94dvh] w-[calc(100%-1rem)] max-w-2xl gap-3 overflow-y-auto p-4 sm:p-6"
+        aria-describedby="admin-new-technician-description">
+        <DialogTitle>Novo técnico</DialogTitle>
+        <DialogDescription id="admin-new-technician-description">
+          Cadastre nome, telefone e cidade. Os demais dados podem ser preenchidos depois.
+        </DialogDescription>
+        {manualSourceId && <AdminTechnicianRecordEditor key={manualSourceId} sourceId={manualSourceId}
+          available={registryAvailable} inDialog onCancel={() => setManualSourceId(null)}
+          onSaved={(message) => { refreshAfterSaved(); setFeedback(message); }} />}
+      </DialogContent>
+    </Dialog>
     <div role="group" aria-label="Navegação entre técnicos" className="mt-4 flex flex-wrap gap-2">
       <button type="button" aria-pressed={!recentOnly} onClick={() => { setRecentOnly(false); setSort("name-asc"); setPage(0); setSelectedKey(null); setImportKey(null); }}
         className={"min-h-11 rounded-lg border px-4 text-sm font-semibold " + (!recentOnly ? "bg-primary text-primary-foreground" : "border-input text-foreground")}>
