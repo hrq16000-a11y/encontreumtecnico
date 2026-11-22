@@ -31,7 +31,7 @@ export function NationalCoverage() {
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">
           <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-primary">
-            <Home className="h-4 w-4" aria-hidden /> Rede nacional de atendimento
+            <Home className="h-4 w-4" aria-hidden /> Busca nacional por localidade
           </span>
           <h3 id="cobertura-nacional" className="mt-3 text-2xl font-bold text-foreground md:text-3xl">
             Busque técnicos nas capitais e em outras cidades
@@ -44,8 +44,8 @@ export function NationalCoverage() {
         <div className="grid grid-cols-3 gap-2 text-center sm:gap-3 lg:min-w-[280px]">
           {[
             { number: CAPITAL_CITIES.length, label: "capitais para busca" },
-            { number: PARTNER_CITY_COUNT, label: "cidades informadas" },
-            { number: DISTINCT_COVERAGE_CITY_COUNT, label: "localidades distintas" },
+            { number: PARTNER_CITY_COUNT, label: "cidades para pesquisa" },
+            { number: DISTINCT_COVERAGE_CITY_COUNT, label: "localidades para pesquisa" },
           ].map((item) => (
             <div key={item.label} className="rounded-xl border border-border bg-card px-2 py-3">
               <div className="text-xl font-bold text-primary md:text-2xl">{item.number}</div>
@@ -79,7 +79,7 @@ export function NationalCoverage() {
       </div>
 
       <div className="mt-9">
-        <h4 className="text-lg font-bold text-foreground">Cidades com técnicos na rede</h4>
+        <h4 className="text-lg font-bold text-foreground">Cidades informadas para pesquisa</h4>
         <p className="mt-1 text-sm text-muted-foreground">
           Selecione seu estado e clique na cidade para consultar os perfis públicos da região.
         </p>
@@ -100,7 +100,7 @@ export function NationalCoverage() {
           ))}
         </div>
         <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-          A relação não significa técnico online, disponibilidade garantida ou certificação pelo portal.
+          Esta lista serve à pesquisa e não comprova profissionais ativos em cada município, atendimento imediato ou certificação pelo portal.
           Confirme atendimento, deslocamento e condições diretamente com o prestador antes da contratação.
         </p>
       </div>
