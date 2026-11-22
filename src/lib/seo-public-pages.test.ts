@@ -198,8 +198,11 @@ describe("SEO global do Encontre um Técnico", () => {
     const sitemap = buildPublicSitemapXml([]);
     expect(route).toContain("getPublicCoverageOverview");
     expect(route).toContain('rel: "canonical", href: SITE + "/cobertura"');
-    expect(source).toContain('.eq("status", "aprovado")');
-    expect(source).toContain('.select("public_slug,display_name,city,state_uf")');
+    expect(source).toContain("getPublicGraphSnapshot()");
+    expect(source).toContain("groupPublishedCoverage(graph.profiles)");
+    const graphSource = read("src/lib/public-seo-graph.functions.ts");
+    expect(graphSource).toContain("readPublicEligibleRows(");
+    expect(graphSource).toContain('rpc("eut_public_admin_technicians"');
     expect(sitemap).toContain("<loc>" + SITE + "/cobertura</loc>");
     expect(read("src/components/site-footer.tsx")).toContain('to="/cobertura"');
     expect(read("src/components/public-technician-profile.tsx")).toContain('to="/cobertura"');
