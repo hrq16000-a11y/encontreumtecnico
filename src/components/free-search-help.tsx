@@ -23,6 +23,7 @@ export function FreeSearchHelp() {
   const [open, setOpen] = useState(false);
   const [context, setContext] = useState<FreeHelpContext>({});
   const closeRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
@@ -40,7 +41,31 @@ export function FreeSearchHelp() {
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     closeRef.current?.focus();
-    const key = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    const key = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { setOpen(false); return; }
+      if (event.key !== "Tab" || !dialogRef.current) return;
+      const dialog = dialogRef.current;
+      // Recalculate on each Tab: the lazy wizard changes its controls between steps.
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+        'a[href], button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
+      )).filter(element =>
+        element.tabIndex >= 0 && !element.closest("[hidden], [inert]") &&
+        window.getComputedStyle(element).display !== "none" &&
+        window.getComputedStyle(element).visibility !== "hidden",
+      );
+      if (focusable.length === 0) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey ? active === first || !dialog.contains(active) : active === last || !dialog.contains(active)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first)?.focus();
+      }
+    };
     window.addEventListener("keydown", key);
     return () => {
       document.body.style.overflow = previous;
@@ -62,7 +87,7 @@ export function FreeSearchHelp() {
       {open && (
         <div className="fixed inset-0 z-[90] flex items-end justify-center bg-slate-950/65 backdrop-blur-[3px] sm:items-center sm:p-4"
           onMouseDown={event => { if (event.target === event.currentTarget) setOpen(false); }}>
-          <section id="eut-free-help-dialog" role="dialog" aria-modal="true"
+          <section id="eut-free-help-dialog" ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true"
             aria-labelledby="eut-help-title"
             className="max-h-[94dvh] w-full overflow-y-auto rounded-t-3xl border border-border bg-card shadow-2xl sm:max-w-xl sm:rounded-3xl">
             <div className="relative bg-gradient-to-r from-brand-navy to-primary p-5 text-white sm:p-6">
