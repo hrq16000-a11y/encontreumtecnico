@@ -67,6 +67,34 @@ describe("Funil flutuante de atendimento", () => {
     fireEvent.click(screen.getByRole("button", { name: "Fechar atendimento" }));
     expect(document.activeElement).toBe(mobileHelp);
   });
+  it("devolve foco ao CTA contextual que abriu o atendimento após Escape", () => {
+    render(<><button type="button" onClick={() => openFreeHelp({ city: "Curitiba" })}>Ajuda contextual</button><FreeSearchHelp /></>);
+    const opener = screen.getByRole("button", { name: "Ajuda contextual" });
+    opener.focus();
+    fireEvent.click(opener);
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Fechar atendimento" }));
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it("usa o botão flutuante quando o CTA contextual é removido", () => {
+    routeState.pathname = "/tecnicos/tecnico-exemplo";
+    const contextual = <button type="button" onClick={() => openFreeHelp({ city: "Curitiba" })}>Ajuda contextual removível</button>;
+    const { rerender } = render(<><div>{contextual}</div><FreeSearchHelp /></>);
+    const opener = screen.getByRole("button", { name: "Ajuda contextual removível" });
+    const fallback = screen.getByRole("button", { name: /preciso de ajuda/i });
+    opener.focus();
+    fireEvent.click(opener);
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    rerender(<><div /><FreeSearchHelp /></>);
+    expect(opener.isConnected).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Fechar atendimento" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(fallback);
+  });
+
   it("recebe contexto regional do fluxo sem resultados", async () => {
     render(<FreeSearchHelp />);
     act(() => openFreeHelp({ city: "Curitiba", uf: "PR", service: "redes" }));
