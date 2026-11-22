@@ -82,7 +82,7 @@ export function HomeCommunityInvite() {
     // floating promotional invite needs an explicit advertising opt-in as well.
     if (!advertisingConsent()) return;
     let alreadyShown = true;
-    try { alreadyShown = sessionStorage.getItem(SEEN_KEY) === "1";
+    try { alreadyShown = sessionStorage.getItem(SEEN_KEY) === "1"; }
     catch { return; } // Storage blocked: avoid repeated interruptions.
     if (alreadyShown) return;
 
