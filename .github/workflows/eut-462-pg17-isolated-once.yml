@@ -1,0 +1,106 @@
+name: EUT 462 PG17 isolated once
+on:
+  push:
+    branches:
+      - qa/eut-462-pg17-isolated-once-20261122
+    paths:
+      - .github/workflows/eut-462-pg17-isolated-once.yml
+      - .github/qa/eut-462-pg17-isolated-once/**
+permissions:
+  contents: read
+concurrency:
+  group: eut-462-pg17-isolated-once-20261122
+  cancel-in-progress: false
+jobs:
+  pg17:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      QA_SHA: fb302d7a4887760f73ebd821ebb68224f7e72395
+      QA_DIR: .github/qa/eut-462-pg17-isolated-once
+    steps:
+      - name: Checkout frozen original and QA-only extension
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Guard exact parent, PG17 SQL, no secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$QA_SHA"
+          diff -u <(git diff --name-only HEAD^ HEAD | LC_ALL=C sort) <(printf '%s\n'             '.github/workflows/eut-462-pg17-isolated-once.yml'             '.github/qa/eut-462-pg17-isolated-once/fixture.sql'             '.github/qa/eut-462-pg17-isolated-once/assertions.sql' | LC_ALL=C sort)
+          test -f docs/sql/eut-public-admin-valid-phone-20261122.sql
+          test -f docs/sql/eut-public-admin-valid-phone-rollback-20261122.sql
+          test -f docs/sql/eut-signed-technicians-public-catalog-20261117.sql
+          echo "Frozen SQL commit: $QA_SHA"
+      - name: Run exactly one PostgreSQL 17 instance without any container network
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/eut-462-evidence" "$RUNNER_TEMP/eut-462-sql"
+          cleanup() {
+            if [ -n "${CID:-}" ]; then
+              docker rm -f -v "$CID" >/dev/null 2>&1 || true
+              echo 'Ephemeral PG17 container and data volume removed'
+            fi
+          }
+          trap cleanup EXIT
+          python3 - <<'PY'
+          from pathlib import Path
+          doc=Path('docs/sql/eut-signed-technicians-public-catalog-20261117.sql').read_text()
+          head='CREATE OR REPLACE FUNCTION public.eut_public_admin_technicians('
+          assert doc.count(head)==1
+          start=doc.index(head)
+          finish=doc.index('$rpc$;',start)+len('$rpc$;')
+          fragment=doc[start:finish]
+          assert fragment.count('    AND c.contact_suspended = false')==1
+          assert 'AND c.phone_e164 ~' not in fragment
+          Path(__import__('os').environ['RUNNER_TEMP']+'/eut-462-sql/original.sql').write_text(fragment+'\n')
+          PY
+          cp "$QA_DIR/fixture.sql" "$RUNNER_TEMP/eut-462-sql/fixture.sql"
+          cp "$QA_DIR/assertions.sql" "$RUNNER_TEMP/eut-462-sql/assertions.sql"
+          cp docs/sql/eut-public-admin-valid-phone-20261122.sql "$RUNNER_TEMP/eut-462-sql/forward.sql"
+          cp docs/sql/eut-public-admin-valid-phone-rollback-20261122.sql "$RUNNER_TEMP/eut-462-sql/rollback.sql"
+          cat > "$RUNNER_TEMP/eut-462-sql/master.sql" <<'SQL'
+          \set ON_ERROR_STOP on
+          \i /qa/fixture.sql
+          \i /qa/original.sql
+          \i /qa/assertions.sql
+          SQL
+          docker pull postgres:17-alpine
+          CID="$(docker run --rm -d --network none --tmpfs /var/lib/postgresql/data:rw,nosuid,nodev,size=512m -e POSTGRES_HOST_AUTH_METHOD=trust postgres:17-alpine)"
+          echo "Container: $CID (network disabled)"
+          NETWORK_MODE="$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$CID")"
+          [ "$NETWORK_MODE" = none ] || { echo 'Isolation failed'; exit 1; }
+          echo "Network mode verified: $NETWORK_MODE" | tee "$RUNNER_TEMP/eut-462-evidence/network.txt"
+          docker exec -u 0 "$CID" mkdir -p /qa
+          docker cp "$RUNNER_TEMP/eut-462-sql/." "$CID:/qa/"
+          ready=0
+          for i in $(seq 1 35); do
+            if docker exec "$CID" pg_isready -h /var/run/postgresql -U postgres >/dev/null 2>&1; then ready=1; break; fi
+            sleep 1
+          done
+          [ "$ready" -eq 1 ] || { docker logs "$CID" | tail -40; exit 1; }
+          docker exec "$CID" psql -U postgres -d postgres -Atqc "SHOW server_version_num;" | tee "$RUNNER_TEMP/eut-462-evidence/version.txt"
+          version="$(cat "$RUNNER_TEMP/eut-462-evidence/version.txt")"
+          case "$version" in 17*) ;; *) echo "Expected PostgreSQL 17, got $version"; exit 1 ;; esac
+          set +e
+          docker exec "$CID" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 -a -f /qa/master.sql             > "$RUNNER_TEMP/eut-462-evidence/pg17-qa.log" 2>&1
+          rc=$?
+          set -e
+          tail -65 "$RUNNER_TEMP/eut-462-evidence/pg17-qa.log"
+          if [ "$rc" -eq 0 ]; then
+            echo 'GO: synthetic forward / rollback / grants / metadata assertions passed' | tee "$RUNNER_TEMP/eut-462-evidence/decision.txt"
+          else
+            echo "NO-GO: local PG17 assertion failed (exit $rc); no hosted DB touched" | tee "$RUNNER_TEMP/eut-462-evidence/decision.txt"
+            exit "$rc"
+          fi
+      - name: Upload synthetic QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eut-462-pg17-one-shot-evidence
+          path: ${{ runner.temp }}/eut-462-evidence/
+          retention-days: 7
+          if-no-files-found: warn
