@@ -33,6 +33,7 @@ export function AdminRequestQueue() {
   }, [draft]);
   useEffect(() => {
     let active = true;
+    let correctingPage = false;
     setLoading(true); setError(false);
     let query = supabase.from("service_requests")
       .select("*", { count: "exact" });
@@ -47,9 +48,20 @@ export function AdminRequestQueue() {
       .then(({ data, count, error: queryError }) => {
         if (!active) return;
         if (queryError) { setError(true); setRows([]); setTotal(null); }
-        else { setRows(data ?? []); setTotal(count ?? null); }
+        else {
+          // Counts may shrink between pages (another operator can close/remove a request).
+          // Refetch the last valid page rather than displaying "Página 2 de 1" as empty.
+          const lastPage = count === null ? page : Math.max(0, Math.ceil(count / PAGE_SIZE) - 1);
+          if (page > lastPage) {
+            correctingPage = true;
+            setPage(lastPage);
+            return;
+          }
+          setRows(data ?? []);
+          setTotal(count ?? null);
+        }
       }).catch(() => { if (active) { setError(true); setRows([]); setTotal(null); } })
-      .finally(() => { if (active) setLoading(false); });
+      .finally(() => { if (active && !correctingPage) setLoading(false); });
     return () => { active = false; };
   }, [status, term, focusedId, page, revision]);
 
