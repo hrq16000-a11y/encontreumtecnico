@@ -100,6 +100,18 @@ describe("Perfil técnico premium sem prova social fabricada", () => {
     render(<PublicTechnicianProfile technician={profile} />);
     expect(screen.queryByRole("searchbox", { name: "Encontrar serviço neste perfil" })).toBeNull();
   });
+  it("não atribui automaticamente o primeiro serviço nos pedidos genéricos do perfil", () => {
+    vi.mocked(openFreeHelp).mockClear();
+    render(<PublicTechnicianProfile technician={profile} />);
+    fireEvent.click(screen.getByRole("button", { name: "Solicitar contato via atendimento" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pedir contato" }));
+    expect(openFreeHelp).toHaveBeenCalledTimes(2);
+    for (const [context] of vi.mocked(openFreeHelp).mock.calls) {
+      expect(context).toEqual({
+        mode: "direct", technicianId: profile.id, technicianName: profile.display_name,
+      });
+    }
+  });
   it("abre o atendimento com o serviço específico escolhido e a ficha técnica correta", () => {
     render(<PublicTechnicianProfile technician={profile} />);
     fireEvent.click(screen.getByRole("button", { name: "Solicitar atendimento para wifi" }));
