@@ -4,6 +4,7 @@ import { PageShell } from "@/components/page-placeholder";
 import { getGuideArtwork } from "@/lib/guide-artwork";
 import { SERVICE_CATEGORIES, getEnrichedServiceCategory } from "@/lib/service-catalog";
 import { SITE } from "@/lib/public-sitemap";
+import { openFreeHelp } from "@/lib/free-search-help";
 
 /** Historic /guias hub now serves as a thematic bridge INTO the directory.
  * It is not a chronological blog or a competing news section.
@@ -62,7 +63,12 @@ function ServiceTopicsNavigation() {
                 <p className="mt-3 text-xs leading-5 text-muted-foreground">Informações práticas: {guide.title}</p>
                 <Link to="/servicos/$categoria" params={{ categoria: category.slug }}
                   className="mt-4 inline-flex min-h-11 items-center text-sm font-bold text-primary hover:underline">
-                  Ver profissionais e informações desta categoria →
+                  Ver orientações e serviços desta categoria →
+                </Link>
+                <Link to="/tecnicos"
+                  search={{ especialidade: category.slug, cidade: "", regiao: "" }}
+                  className="mt-2 inline-flex min-h-11 items-center text-sm font-bold text-primary underline-offset-2 hover:underline">
+                  Consultar técnicos de {category.name} →
                 </Link>
               </div>
             </li>
@@ -74,9 +80,20 @@ function ServiceTopicsNavigation() {
             Veja as demais especialidades, escolha sua cidade ou bairro e consulte os perfis que informaram atuar na região.
             O portal não divulga dados privados de contato sem autorização.
           </p>
-          <Link to="/servicos" className="mt-4 inline-flex min-h-11 items-center font-bold text-primary hover:underline">
-            Abrir o catálogo completo de especialidades →
-          </Link>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <Link to="/servicos" className="inline-flex min-h-11 items-center font-bold text-primary hover:underline">
+              Abrir o catálogo completo de especialidades →
+            </Link>
+            <button type="button"
+              onClick={() => openFreeHelp({ mode: "managed", service: "Outro serviço" })}
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-primary/30 bg-card px-4 py-2 text-sm font-bold text-primary hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+              Pedir orientação da equipe
+            </button>
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Você descreve a necessidade e escolhe a cidade no atendimento guiado.
+            Nenhum pedido é enviado sem sua confirmação.
+          </p>
         </section>
       </main>
     </PageShell>
