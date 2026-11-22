@@ -401,13 +401,9 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
     {phoneLoadError && <p role="alert" className="text-xs text-destructive">
       O telefone atual não pôde ser consultado. Salvar a edição está bloqueado para proteger o contato.
     </p>}
-    {phoneAction === "replace" && existing && <label className="flex min-h-10 items-center gap-2 text-xs text-foreground">
-      <input type="checkbox" checked={contactSuspended}
-        onChange={(event) => setContactSuspended(event.target.checked)} />
-      Preservar suspensão deste contato
-    </label>}
     {existing && contactSuspended && <p className="text-xs text-muted-foreground">
-      O contato está suspenso. Alterá-lo exige uma operação de moderação separada.
+      Este contato está suspenso. A suspensão permanece mesmo se o telefone for substituído;
+      sua reativação exige uma operação de moderação separada.
     </p>}
     <div className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">
       <label htmlFor="admin-record-city-search">
