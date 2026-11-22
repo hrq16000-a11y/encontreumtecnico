@@ -29,10 +29,12 @@ describe("Rodada 2: central única de usuários", () => {
     const hub = read("src/components/admin-users-hub.tsx");
     const accounts = read("src/components/admin-accounts-manager.tsx");
     const directory = read("src/components/admin-technician-unified-directory.tsx");
-    expect(hub).toContain('<AdminAccountsManager key="todos" initialFilter="todos" lockFilter />');
-    expect(hub).toContain('<AdminAccountsManager key="clientes" initialFilter="clientes" lockFilter />');
-    expect(hub).toContain('initialFilter="tecnicos" lockFilter');
-    expect(hub).toContain("<AdminTechnicianUnifiedDirectory adminOwnerId={adminOwnerId} />");
+    expect(hub).toContain('<AdminAccountsManager key="todos" initialFilter="todos" lockFilter initialLayout="table" />');
+    expect(hub).toContain('<AdminAccountsManager key="clientes" initialFilter="clientes" lockFilter initialLayout="table" />');
+    expect(hub).toContain('initialFilter="tecnicos" lockFilter initialLayout="table"');
+    expect(hub).not.toContain("<AdminTechnicianUnifiedDirectory");
+    expect(hub).toContain('params={{ secao: "tecnicos" }}');
+    expect(hub).toContain('aria-label="Administradores cadastrados"');
     expect(hub).toContain('.from("user_roles")');
     expect(hub).toContain('.eq("role", "admin")');
     expect(accounts).toContain('db.rpc("eut_admin_accounts_snapshot"');
@@ -41,6 +43,20 @@ describe("Rodada 2: central única de usuários", () => {
     expect(directory).toContain('eut_admin_technician_registry_list');
     expect(hub).not.toContain('auth.admin');
     expect(hub).not.toContain('service_role');
+  });
+  it("mostra tabelas operacionais compactas sem criar nova fonte de dados", () => {
+    const hub = read("src/components/admin-users-hub.tsx");
+    const accounts = read("src/components/admin-accounts-manager.tsx");
+    expect(hub).toContain('initialLayout="table"');
+    expect(accounts).toContain('aria-label="Contas cadastradas"');
+    expect(accounts).toContain('aria-label="Modo de visualização"');
+    expect(accounts).toContain('md:table-header-group');
+    expect(accounts).toContain('block px-3 py-3 md:table-row');
+    expect(accounts).toContain('initialLayout = "cards"');
+    expect(accounts).toContain('masked_email');
+    expect(accounts).toContain('db.rpc("eut_admin_accounts_snapshot"');
+    expect(accounts).not.toContain("auth.admin");
+    expect(accounts).not.toContain("service_role");
   });
   it("centraliza o menu sem apagar os caminhos legados ou alterar banco", () => {
     const navigation = read("src/components/admin-navigation.tsx");
