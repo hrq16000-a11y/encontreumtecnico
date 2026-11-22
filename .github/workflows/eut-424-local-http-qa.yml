@@ -1,0 +1,26 @@
+name: EUT #424 — QA-A/QA-B local (blocked draft)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  qa424:
+    # Deliberately disabled until another explicit authorization with all blockers resolved.
+    if: ${{ false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      SUPABASE_ACCESS_TOKEN: ''
+      SUPABASE_DB_PASSWORD: ''
+    steps:
+      - name: Gate — no tests, browser or SQL
+        shell: bash
+        run: |
+          echo 'BLOCKED: two live functions and Data API schema exposure not verified'
+          exit 1
+      # After separate authorization: frozen checkout and hashes; reuse #429 local
+      # bootstraps (not its test run); synthesize verified IBGE record; apply
+      # local-contract.sql only on 127.0.0.1:54322; assert PostgREST schema list.
+      # Enforce localhost-only egress and ephemeral Supabase frontend substitutions.
+      # Run browser-http.mjs against local Chrome 390/1440; discard ephemeral state.
+      # Never add push, pull_request, or pull_request_target triggers.
