@@ -83,7 +83,7 @@ async function checkViewport(browser, width, token) {
 
     await page.getByRole("checkbox", { name: "Selecionar Cliente Sintético 01" }).check();
     await page.getByText("1 selecionada(s)").waitFor();
-    await page.getByRole("button", { name: "Banir selecionadas" }).click();
+    await page.getByRole("button", { name: "Banir selecionadas", exact: true }).click();
     assert.equal(await page.getByRole("button", { name: "Confirmar ações auditadas" }).isDisabled(), true);
     await page.getByRole("button", { name: "Limpar seleção" }).click();
     assert.equal(await page.getByRole("button", { name: "Confirmar ações auditadas" }).count(), 0);
