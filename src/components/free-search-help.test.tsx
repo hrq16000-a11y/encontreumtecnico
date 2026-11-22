@@ -35,6 +35,41 @@ describe("Funil flutuante de atendimento", () => {
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
   });
+  it("contém Tab e Shift+Tab no diálogo, sem perder rascunho, Escape ou foco de retorno", async () => {
+    render(<><button type="button">Fora do diálogo</button><FreeSearchHelp /></>);
+    const outside = screen.getByRole("button", { name: "Fora do diálogo" });
+    const trigger = screen.getByRole("button", { name: /preciso de ajuda/i });
+    fireEvent.click(trigger);
+    const close = screen.getByRole("button", { name: "Fechar atendimento" });
+    const draft = await screen.findByRole("textbox", { name: /rascunho de teste/i });
+    expect(document.activeElement).toBe(close);
+
+    const pressTab = (shiftKey = false) => {
+      const event = new KeyboardEvent("keydown", { key: "Tab", shiftKey, bubbles: true, cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    fireEvent.change(draft, { target: { value: "Texto preservado durante a navegação" } });
+    close.focus();
+    expect(pressTab(true)).toBe(true);
+    expect(document.activeElement).toBe(draft);
+    expect(pressTab(false)).toBe(true);
+    expect(document.activeElement).toBe(close);
+    expect(pressTab(false)).toBe(false); // Internal forward navigation remains native.
+
+    outside.focus();
+    expect(pressTab(false)).toBe(true);
+    expect(document.activeElement).toBe(close);
+    outside.focus();
+    expect(pressTab(true)).toBe(true);
+    expect(document.activeElement).toBe(draft);
+    expect((draft as HTMLTextAreaElement).value).toBe("Texto preservado durante a navegação");
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
   it.each(["/area-tecnico", "/lp2/meu-perfil"])("não sobrepõe o rodapé sticky do Wizard em 390px (%s), sem desativar o atendimento", async (pathname) => {
     routeState.pathname = pathname;
     const previousWidth = window.innerWidth;
