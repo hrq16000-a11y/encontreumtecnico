@@ -13,7 +13,7 @@ O registro de backend anteriormente homologado em transação com `ROLLBACK` mos
 3. **Categorias e serviços** e **Informações adicionais** ficam em seções recolhidas, sem perder dados existentes na edição. Campos desconhecidos permanecem vazios; não derivar município exato do DDD.
 4. Não solicitar justificativa/termo de consentimento do administrador a cada inclusão ou edição. O frontend envia uma razão padronizada por operação, enquanto a RPC conserva identidade autenticada, controles de permissão, versão e auditoria do servidor. Ações de arquivamento ainda exigem confirmação.
 5. **Cadastro manual** nasce administrativamente ativo; contato pago/publicidade não são automaticamente liberados. Contato, suspensão, RLS e controles de elegibilidade não são modificados.
-6. Corrigir a validação de nomes para aceitar **uma data de calendário válida de oito dígitos associada a texto**, sem permitir telefones, sequências arbitrárias de oito dígitos ou links.
+6. Corrigir o bloqueio do identificador **sintético e estritamente interno** `EUT QA Cadastro Sintetico YYYYMMDD`, validando uma data de calendário real. Os nomes profissionais comuns continuam impedidos de divulgar sequências de oito algarismos, telefones ou links.
 7. As respostas de erro devem permanecer seguras (sem eco de telefone ou mensagens brutas da RPC); reconsulta do registro após salvar permanece obrigatória; não repetir automaticamente uma gravação de resultado incerto.
 
 ## Limites e decisão de release
