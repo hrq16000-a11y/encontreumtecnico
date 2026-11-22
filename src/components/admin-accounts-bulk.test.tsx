@@ -133,4 +133,28 @@ describe("moderação administrativa em lote", () => {
     await waitFor(() => expect(window.confirm).toHaveBeenCalledTimes(1));
     expect(mockDb.actions).toHaveLength(0);
   });
+  it("apresenta tabela compacta e alterna a visualização sem alterar contas", async () => {
+    render(<AdminAccountsManager initialLayout="table" />);
+    expect(await screen.findByRole("table", { name: "Contas cadastradas" })).toBeTruthy();
+    expect(screen.getByText("Cliente Um")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Tabela" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.queryByRole("checkbox", { name: "Selecionar Administrador" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Cartões" }));
+    expect(screen.queryByRole("table", { name: "Contas cadastradas" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Cartões" }).getAttribute("aria-pressed")).toBe("true");
+    expect(mockDb.actions).toHaveLength(0);
+  });
+
+  it("mantém confirmação e motivos auditados na tabela operacional", async () => {
+    render(<AdminAccountsManager initialLayout="table" />);
+    expect(await screen.findByRole("table", { name: "Contas cadastradas" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Selecionar Cliente Um" }));
+    expect(screen.getByText(/1 selecionada\(s\)/)).toBeTruthy();
+    expect(mockDb.actions).toHaveLength(0);
+    fireEvent.click(screen.getByRole("button", { name: "Banir selecionadas" }));
+    expect(screen.getByRole("button", { name: "Confirmar ações auditadas" }).hasAttribute("disabled")).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Limpar seleção" }));
+    expect(mockDb.actions).toHaveLength(0);
+  });
+
 });
