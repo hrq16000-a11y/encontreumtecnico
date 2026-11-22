@@ -27,13 +27,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 3
       - name: Validar fonte e escopo exato sem rodar CI geral
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = "$EXPECTED_452_PARENT"
-          git diff --name-only HEAD^ HEAD | LC_ALL=C sort > "$RUNNER_TEMP/qa-actual"
+          git merge-base --is-ancestor "$EXPECTED_452_PARENT" HEAD
+          git diff --name-only "$EXPECTED_452_PARENT" HEAD | LC_ALL=C sort > "$RUNNER_TEMP/qa-actual"
           printf '%s\n' .github/workflows/eut-home-452-popup-390-qa.yml src/components/home-community-invite.tsx tests/visual/eut-home-452-popup-390.cjs | LC_ALL=C sort > "$RUNNER_TEMP/qa-allowed"
           diff -u "$RUNNER_TEMP/qa-allowed" "$RUNNER_TEMP/qa-actual"
           echo "Fonte #452: $EXPECTED_452_PARENT; apenas 1 arquivo funcional e 2 arquivos QA."

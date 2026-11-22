@@ -75,7 +75,7 @@ async function searchRect() {
     await page.evaluate(() => window.scrollBy(0, 40));
     await page.waitForTimeout(300);
     const partly = await searchRect();
-    assert.ok(partly && partly.bottom > 0 && partly.top < innerHeight, 'Form should still be partially visible');
+    assert.ok(partly && partly.bottom > 0 && partly.top < evidence.viewport.height, 'Form should still be partially visible');
     assert.equal(await popup.count(), 0, 'Invite appeared during partial scroll over form');
     await capture('02-busca-parcial-sem-popup');
     record('Scroll parcial preserva Busca sem popup', { partly });
