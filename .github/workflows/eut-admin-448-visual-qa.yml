@@ -1,0 +1,89 @@
+name: EUT PR 448 isolated authenticated Chromium QA
+on:
+  push:
+    branches:
+      - qa/admin-448-visual-20261122
+    paths:
+      - .github/workflows/eut-admin-448-visual-qa.yml
+permissions:
+  contents: read
+concurrency:
+  group: eut-qa448-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  qa448:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      SUPABASE_ACCESS_TOKEN: ''
+      SUPABASE_DB_PASSWORD: ''
+      EUT_QA448_REPORT_DIR: ${{ runner.temp }}/eut-qa448-results
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enforce exact approved base and three QA-only files
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE=d0ebe8f07d31fa587c35a3425320be1bcf900d35
+          git cat-file -e "$BASE^{commit}"
+          git merge-base --is-ancestor "$BASE" HEAD
+          git diff --name-only "$BASE"..HEAD | sort > "$RUNNER_TEMP/eut-qa448-files"
+          printf '%s\n' \
+            .github/qa/eut-admin-448/browser-qa.cjs \
+            .github/qa/eut-admin-448/fixture.mjs \
+            .github/workflows/eut-admin-448-visual-qa.yml | sort > "$RUNNER_TEMP/eut-qa448-allowed"
+          diff -u "$RUNNER_TEMP/eut-qa448-allowed" "$RUNNER_TEMP/eut-qa448-files"
+          test "$GITHUB_REF_NAME" = "qa/admin-448-visual-20261122"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@v2
+      - name: Install application dependencies without repeating CI tests
+        run: bun install --frozen-lockfile
+      - uses: supabase/setup-cli@v1
+        with:
+          version: '2.81.3'
+      - name: Start disposable local GoTrue and PostgreSQL only
+        working-directory: .github/qa/eut-operations-368
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase start -x realtime,storage-api,imgproxy,postgres-meta,studio,edge-runtime,logflare,vector,supavisor,mailpit
+          supabase status >/dev/null
+      - name: Install isolated Chromium
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/eut-qa448-browser"
+          cd "$RUNNER_TEMP/eut-qa448-browser"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund playwright@1.56.1
+          npx playwright install chromium
+      - name: Start localhost-only synthetic Vite fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          node .github/qa/eut-admin-448/fixture.mjs > "$RUNNER_TEMP/eut-qa448-fixture.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/eut-qa448-fixture.pid"
+          for n in $(seq 1 60); do
+            if curl --silent --fail --max-time 1 \
+              http://127.0.0.1:4188/.github/qa/eut-admin-448/.runtime/index.html >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          echo 'QA448_GO_NO_GO: local fixture did not start'
+          tail -n 20 "$RUNNER_TEMP/eut-qa448-fixture.log" | sed -E 's/[A-Za-z0-9_-]{80,}/[redacted]/g'
+          exit 1
+      - name: Authenticated synthetic Chromium QA 390 and 1440
+        shell: bash
+        run: |
+          set -euo pipefail
+          NODE_PATH="$RUNNER_TEMP/eut-qa448-browser/node_modules" \
+            node .github/qa/eut-admin-448/browser-qa.cjs
+      - name: Upload synthetic screenshots and structured report only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-448-chromium-synthetic
+          path: ${{ env.EUT_QA448_REPORT_DIR }}
+          retention-days: 1
+          if-no-files-found: warn
