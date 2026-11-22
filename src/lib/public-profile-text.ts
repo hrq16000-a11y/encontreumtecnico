@@ -10,6 +10,22 @@ const NUMBER_WORDS = new Set([
 ]);
 const CONTACT_WORDS = /(?:whats[\s\-]*app|wpp|zap|telegram|instagram|tiktok|facebook|telefone|celular|ligue|arroba|ponto\s*(?:com|br|net)|me\s*cham[ae]|chama\s*(?:no|na)\s*(?:zap|whats))/iu;
 const LINK = /(?:https?\s*:\s*\/|www\s*\.|(?:w[\s.\-]*){3}\.|wa\s*\.\s*me|t\s*\.\s*me|api\s*\.\s*whatsapp|[\p{L}\p{N}_-]+\s*@\s*[\p{L}\p{N}_-]+|[\p{L}\p{N}_-]+\s*\.\s*(?:com|br|net|org|info|app|site|io|me|link|tech)\b)/iu;
+/** A standalone calendar date in a name (e.g. a QA label) is not a phone number.
+ * Keep rejecting arbitrary 8+ digits, including Brazilian local/mobile numbers.
+ */
+function containsOnlyOneCalendarDate(value: string): boolean {
+  const digits = value.match(/\p{N}+/gu) ?? [];
+  if (digits.length !== 1 || !/\p{L}/u.test(value)) return false;
+  const token = digits[0];
+  if (!/^(?:19|20)\d{6}$/.test(token)) return false;
+  const year = Number(token.slice(0, 4));
+  const month = Number(token.slice(4, 6));
+  const day = Number(token.slice(6, 8));
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day;
+}
+
 
 export function publicTextProblem(raw: string | null | undefined, kind: PublicTextKind): string | null {
   if (!raw?.trim()) return null;
@@ -24,7 +40,8 @@ export function publicTextProblem(raw: string | null | undefined, kind: PublicTe
   if (/(?:whatsapp|instagram|telegram|www|https?|wame|pontocom|arroba)/u.test(compact)) {
     return "Não inclua links ou canais de contato, mesmo com letras separadas.";
   }
-  if (kind === "identity" && [...value.matchAll(/\p{N}/gu)].length >= 8) {
+  if (kind === "identity" && [...value.matchAll(/\p{N}/gu)].length >= 8 &&
+    !containsOnlyOneCalendarDate(value)) {
     return "Números de contato não são permitidos em nomes ou regiões públicas.";
   }
   let run = 0;
