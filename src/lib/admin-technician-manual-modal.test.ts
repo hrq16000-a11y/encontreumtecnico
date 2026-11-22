@@ -8,6 +8,7 @@ describe("cadastro manual: modal e persistencia protegida", () => {
   it("aceita nome de homologacao com data real sem liberar sequencias de telefone", () => {
     expect(publicTextProblem("EUT QA Cadastro Sintetico 20261122", "identity")).toBeNull();
     expect(publicTextProblem("Assistencia 20260230", "identity")).not.toBeNull();
+    expect(publicTextProblem("Assistencia 20261122", "identity")).not.toBeNull();
     expect(publicTextProblem("Contato 41999999999", "identity")).not.toBeNull();
     expect(publicTextProblem("Empresa 12345678", "identity")).not.toBeNull();
     expect(publicTextProblem("Empresa whats app", "identity")).not.toBeNull();
