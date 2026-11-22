@@ -18,7 +18,9 @@ export function AdminTechnicianContactAccess({ recordKey }: { recordKey: string 
   const [suspended, setSuspended] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [copied, setCopied] = useState(false);
+  // A reused panel must never render the previous technician's private phone.
+  const [resolvedRecordKey, setResolvedRecordKey] = useState<string | null>(null);
+  const [copiedRecordKey, setCopiedRecordKey] = useState<string | null>(null);
 
   useEffect(() => {
     let current = true;
@@ -26,7 +28,8 @@ export function AdminTechnicianContactAccess({ recordKey }: { recordKey: string 
     setError(false);
     setPhone(null);
     setSuspended(false);
-    setCopied(false);
+    setResolvedRecordKey(null);
+    setCopiedRecordKey(null);
     void Promise.resolve(db.rpc("eut_admin_unified_contact", {
       _record_key: recordKey,
       _reason: null,
@@ -38,32 +41,43 @@ export function AdminTechnicianContactAccess({ recordKey }: { recordKey: string 
       }
       setPhone(result.available && typeof result.phone === "string" ? result.phone : null);
       setSuspended(Boolean(result.contact_suspended));
-    }).catch(() => { if (current) setError(true); })
+      setResolvedRecordKey(recordKey);
+    }).catch(() => {
+      if (current) {
+        setError(true);
+        setResolvedRecordKey(recordKey);
+      }
+    })
       .finally(() => { if (current) setLoading(false); });
     return () => { current = false; };
   }, [recordKey]);
 
+  // The equality guard also covers the render before the new key's effect runs.
+  const matchesCurrentRecord = resolvedRecordKey === recordKey;
+  const safePhone = matchesCurrentRecord && !loading && !error ? phone : null;
+  const safeSuspended = matchesCurrentRecord && !loading && !error && suspended;
+
   async function copyPhone() {
-    if (!phone) return;
+    if (!safePhone) return;
     try {
-      await navigator.clipboard.writeText(phone);
-      setCopied(true);
+      await navigator.clipboard.writeText(safePhone);
+      setCopiedRecordKey(recordKey);
     } catch {
-      setCopied(false);
+      setCopiedRecordKey(null);
     }
   }
 
   return <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-foreground">
     <Phone className="h-4 w-4 shrink-0" aria-hidden="true" />
     <span className="min-w-0 break-all" role="status">
-      {loading ? "Telefone: carregando…" : error ? "Telefone indisponível" :
-        `Telefone: ${phone ?? "não informado"}`}
-      {!loading && suspended && " · contato suspenso"}
+      {loading || !matchesCurrentRecord ? "Telefone: carregando…" : error ? "Telefone indisponível" :
+        `Telefone: ${safePhone ?? "não informado"}`}
+      {safeSuspended && " · contato suspenso"}
     </span>
-    {phone && <button type="button" onClick={() => void copyPhone()}
+    {safePhone && <button type="button" onClick={() => void copyPhone()}
       aria-label="Copiar telefone"
       className="inline-flex min-h-10 items-center gap-1 rounded-lg border border-input px-2 font-semibold text-foreground">
-      <Copy className="h-4 w-4" aria-hidden="true" /> {copied ? "Copiado" : "Copiar"}
+      <Copy className="h-4 w-4" aria-hidden="true" /> {copiedRecordKey === recordKey ? "Copiado" : "Copiar"}
     </button>}
   </div>;
 }
