@@ -77,7 +77,7 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
   const [categories, setCategories] = useState<string[]>(existing?.category_slugs ?? []);
   const [services, setServices] = useState<string[]>(existing?.service_slugs ?? []);
   const [availableServices, setAvailableServices] = useState<CatalogService[]>([]);
-  const [active, setActive] = useState(existing?.admin_active ?? true);
+  const [active, setActive] = useState(existing?.admin_active ?? (createOrigin === "manual" && !importedDemo));
   const [phone, setPhone] = useState("");
   const [originalPhone, setOriginalPhone] = useState("");
   const [phoneLoaded, setPhoneLoaded] = useState(!existing);
