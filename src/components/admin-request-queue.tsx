@@ -28,9 +28,12 @@ export function AdminRequestQueue() {
   const [revision, setRevision] = useState(0);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => { setTerm(cleanAdminQuery(draft)); setPage(0); }, 280);
+    const nextTerm = cleanAdminQuery(draft);
+    // Do not reset pagination on mount or when the normalized search did not change.
+    if (nextTerm === term) return;
+    const timer = window.setTimeout(() => { setTerm(nextTerm); setPage(0); }, 280);
     return () => window.clearTimeout(timer);
-  }, [draft]);
+  }, [draft, term]);
   useEffect(() => {
     let active = true;
     let correctingPage = false;
