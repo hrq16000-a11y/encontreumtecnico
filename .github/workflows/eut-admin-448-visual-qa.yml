@@ -5,6 +5,7 @@ on:
       - qa/admin-448-visual-20261122
     paths:
       - .github/workflows/eut-admin-448-visual-qa.yml
+      - .github/qa/eut-admin-448/browser-qa.cjs
 permissions:
   contents: read
 concurrency:
