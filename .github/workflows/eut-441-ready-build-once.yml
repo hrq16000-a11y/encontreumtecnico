@@ -1,0 +1,42 @@
+name: EUT 441 READY build once
+
+on:
+  push:
+    branches:
+      - qa/eut-441-build-once-20261122
+    paths:
+      - .github/workflows/eut-441-ready-build-once.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: >-
+      github.event.before == '4e5991a9e9bc545fc6c0d8d2f1753bf44c07379c' &&
+      github.event.head_commit.message == 'qa: run eut-441 READY build once'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+
+    steps:
+      - name: Checkout fixed release composition
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: 4e5991a9e9bc545fc6c0d8d2f1753bf44c07379c
+          persist-credentials: false
+
+      - name: Verify exact SHA
+        run: |
+          test "$(git rev-parse HEAD)" = \
+            "4e5991a9e9bc545fc6c0d8d2f1753bf44c07379c"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.3"
+
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build TanStack
+        run: bun run build
