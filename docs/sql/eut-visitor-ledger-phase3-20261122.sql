@@ -149,8 +149,8 @@ DECLARE v_actor uuid := auth.uid(); v_accepted timestamptz;
 BEGIN
   IF v_actor IS NULL OR current_setting('request.jwt.claim.role',true) IS DISTINCT FROM 'authenticated'
   THEN RAISE EXCEPTION 'authenticated account required' USING ERRCODE='42501'; END IF;
-  IF _terms_version IS DISTINCT FROM '2026-11-11' OR
-     _privacy_version IS DISTINCT FROM '2026-11-11'
+  IF _terms_version IS DISTINCT FROM '2026-11-22' OR
+     _privacy_version IS DISTINCT FROM '2026-11-22'
   THEN RETURN jsonb_build_object('ok',false); END IF;
   INSERT INTO eut_moderation.eut_account_legal_receipts(account_id,terms_version,privacy_version)
   VALUES(v_actor,_terms_version,_privacy_version)

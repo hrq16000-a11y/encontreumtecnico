@@ -3,8 +3,8 @@
  */
 export const EUT_COOKIE_KEY = "eut-cookie-consent";
 export const EUT_VISITOR_CONSENT_VERSION = "2026-11-22.1";
-export const EUT_TERMS_VERSION = "2026-11-11";
-export const EUT_PRIVACY_VERSION = "2026-11-11";
+export const EUT_TERMS_VERSION = "2026-11-22";
+export const EUT_PRIVACY_VERSION = "2026-11-22";
 
 export type CookieChoice = {
   necessary: true;
