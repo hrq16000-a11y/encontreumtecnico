@@ -23,8 +23,7 @@ export const Route = createFileRoute("/cobertura")({
 });
 
 function CoveragePage() {
-  const locations = Route.useLoaderData();
-  const approvedCount = locations.reduce((total, location) => total + location.profiles.length, 0);
+  const { locations, publishedCount, locatedCount } = Route.useLoaderData();
 
   return (
     <PageShell>
@@ -43,10 +42,13 @@ function CoveragePage() {
             e perfis que deixam de ser públicos saem do diretório.
           </p>
           <p className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm leading-6 text-foreground">
-            <strong>{approvedCount} {approvedCount === 1 ? "perfil publicado" : "perfis publicados"}</strong>
+            <strong>{publishedCount} {publishedCount === 1 ? "perfil no catálogo público" : "perfis no catálogo público"}</strong>
             {" · "}
-            <strong>{locations.length} {locations.length === 1 ? "localidade informada" : "localidades informadas"}</strong>.
-            Estas quantidades refletem o catálogo público consultado, não a rede inteira nem um compromisso de atendimento.
+            <strong>{locatedCount} {locatedCount === 1 ? "perfil com cidade-base nesta lista" : "perfis com cidade-base nesta lista"}</strong>
+            {" · "}
+            <strong>{locations.length} {locations.length === 1 ? "localidade com perfis" : "localidades com perfis"}</strong>.
+            Os três indicadores usam o mesmo catálogo público elegível, mas perfis sem cidade-base agrupável não entram na lista por localidade.
+            A lista nacional abaixo é um índice de pesquisa, não uma contagem de profissionais em cada município.
           </p>
         </header>
 
