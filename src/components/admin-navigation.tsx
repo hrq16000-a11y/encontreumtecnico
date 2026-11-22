@@ -66,6 +66,7 @@ export function AdminNavigation({ active }: { active: AdminSection }) {
   const [recent, setRecent] = useState<AdminSection[]>([]);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const root = useRef<HTMLElement | null>(null);
+  const mobileMenuButton = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
     setMobileOpen(false);
     setModuleQuery("");
@@ -135,7 +136,14 @@ export function AdminNavigation({ active }: { active: AdminSection }) {
         setMobileOpen(false);
     }
     function escape(event: KeyboardEvent) {
-      if (event.key === "Escape") setMobileOpen(false);
+      if (event.key !== "Escape" || !(event.target instanceof Node)) return;
+      const menu = root.current?.querySelector("#eut-admin-navigation");
+      // A portal dialog (such as global search) owns its own Escape handling.
+      if (!menu?.contains(event.target) && event.target !== mobileMenuButton.current) return;
+      event.preventDefault();
+      setMobileOpen(false);
+      // The focused input/link is about to be hidden: return focus to its trigger.
+      mobileMenuButton.current?.focus();
     }
     document.addEventListener("pointerdown", outside);
     window.addEventListener("keydown", escape);
@@ -228,6 +236,7 @@ export function AdminNavigation({ active }: { active: AdminSection }) {
           <p className="mt-1 text-xs text-muted-foreground">Módulos administrativos</p>
         </div>
         <button
+          ref={mobileMenuButton}
           type="button"
           aria-controls="eut-admin-navigation"
           aria-expanded={mobileOpen}
