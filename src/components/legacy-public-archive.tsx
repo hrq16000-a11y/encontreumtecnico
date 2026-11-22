@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { legacyAvatarUrl } from "@/lib/legacy-avatar-urls";
-import { suggestLegacyDisplayName } from "@/lib/legacy-display-name";
+import { publicLegacyDisplayName } from "@/lib/legacy-display-name";
 import { getLegacyApproximateRegion } from "@/lib/legacy-ddd-region";
 
 type HistoricalProfile = {
@@ -74,25 +74,27 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
           </p>
           {!loading && !error && profiles.length > 0 && (
             <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {profiles.map((profile) => (
+              {profiles.map((profile) => {
+                const publicName = publicLegacyDisplayName(profile.display_name);
+                return (
                 <li key={profile.wp_post_id}
                   className="eut-card-lift rounded-lg border border-primary/20 bg-card p-5">
                   <div className="flex items-start gap-3">
                     {legacyAvatarUrl(profile.wp_post_id) ? (
                       <img src={legacyAvatarUrl(profile.wp_post_id)!}
-                        alt={`Foto do perfil de ${profile.display_name}`}
+                        alt={`Foto do perfil de ${publicName.display}`}
                         loading="lazy" width={64} height={64}
                         className="h-16 w-16 shrink-0 rounded-lg border border-border object-cover" />
                     ) : (
                       <div aria-hidden="true" className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-muted text-lg font-semibold text-muted-foreground">
-                        {profile.display_name.trim().slice(0,1).toLocaleUpperCase("pt-BR") || "?"}
+                        {publicName.initial}
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <h3 className="break-words font-semibold text-card-foreground">{suggestLegacyDisplayName(profile.display_name).display}</h3>
-                      {suggestLegacyDisplayName(profile.display_name).suggested && (
+                      <h3 className="break-words font-semibold text-card-foreground">{publicName.display}</h3>
+                      {publicName.suggested && (
                         <p className="mt-1 break-all text-xs text-muted-foreground">
-                          Nome sugerido (não verificado) · nome no cadastro: {profile.display_name}
+                          Nome sugerido (não verificado) · nome no cadastro: {publicName.original}
                         </p>
                       )}
                       <span className="mt-1 inline-flex rounded border border-primary/20 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">Técnico</span>
@@ -111,7 +113,8 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
                     ))}
                   </ul>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
           {!loading && !error && count > PAGE_SIZE && (
