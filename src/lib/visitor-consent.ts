@@ -18,7 +18,7 @@ export function visitorConsentAllowed(raw: string | null): boolean {
   try {
     if (!raw) return false;
     const parsed = JSON.parse(raw) as Record<string, unknown>;
-    return parsed.version === EUT_VISITOR_CONSENT_VERSION && parsed.visitorAnalytics === true;
+    return parsed["version"] === EUT_VISITOR_CONSENT_VERSION && parsed["visitorAnalytics"] === true;
   } catch { return false; }
 }
 

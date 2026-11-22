@@ -244,6 +244,7 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
 
   useEffect(() => {
     if (loading || !user || roles.length === 0) return;
+    const verifiedOwnerId = user.id;
     let active = true;
     async function continueLogin() {
       // Reentrar com conta antiga já ativada também reconcilia o vínculo.
@@ -261,7 +262,7 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
         }
       }
       if (!active) return;
-      const receipt = await flushPendingLegalAcceptance(user.id);
+      const receipt = await flushPendingLegalAcceptance(verifiedOwnerId);
       if (receipt === "failed") {
         if (active) setError("Não foi possível confirmar o aceite do cadastro. Tente entrar novamente.");
         return;
