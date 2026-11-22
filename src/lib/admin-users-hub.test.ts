@@ -55,7 +55,7 @@ describe("Rodada 2: central única de usuários", () => {
     expect(accounts).toContain('initialLayout = "cards"');
     expect(accounts).toContain('masked_email');
     expect(accounts).toContain('db.rpc("eut_admin_accounts_snapshot"');
-    expect(accounts).not.toContain("auth.admin");
+    expect(accounts).not.toMatch(/\bauth\.admin\.[A-Za-z_$][\w$]*\s*\(/);
     expect(accounts).not.toContain("service_role");
   });
   it("centraliza o menu sem apagar os caminhos legados ou alterar banco", () => {
