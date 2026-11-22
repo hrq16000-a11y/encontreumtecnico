@@ -1,0 +1,55 @@
+name: EUT 419 production staging (DORMANT - requires separate approval)
+
+# Deliberately no push/pull_request/schedule triggers.
+# This workflow is staged only on a non-default branch and its job is disabled.
+# Do not remove the fail-closed job guard until environment protection,
+# dedicated environment secret, current production baseline and rollback are verified.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eut-419-production-stage-single
+  cancel-in-progress: false
+
+jobs:
+  production-stage:
+    if: ${{ false }} # Hard block: preparation only; future activation requires a separate reviewed change
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    environment:
+      name: eut-419-production-stage
+    env:
+      VERCEL_ORG_ID: team_m7IZ2zkytSEOtp2bTsQy0R0A
+      VERCEL_PROJECT_ID: prj_VaqJJAu3HfqcsRtUqZmeD8LCOaIy
+      VERCEL_CLI_VERSION: ${{ vars.EUT_419_VERCEL_CLI_VERSION }}
+    steps:
+      - name: Checkout the audited #419 SHA
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: 5622a15e9c422860aa00fea1d944e20356ad783c
+          persist-credentials: false
+      - name: Fail if checkout differs from the audited SHA
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "5622a15e9c422860aa00fea1d944e20356ad783c"
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Verify a reviewed exact Vercel CLI version
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${VERCEL_CLI_VERSION:-}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+      - name: Install pinned Vercel CLI
+        run: npm install -g "vercel@${VERCEL_CLI_VERSION}"
+      - name: Stage production build without assigning domains
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ secrets.EUT_419_VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "${VERCEL_TOKEN:-}"
+          vercel deploy --prod --skip-domain --yes
