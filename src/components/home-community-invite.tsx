@@ -86,8 +86,18 @@ export function HomeCommunityInvite() {
     catch { return; } // Storage blocked: avoid repeated interruptions.
     if (alreadyShown) return;
 
-    const timer = window.setTimeout(() => {
-      if (document.visibilityState !== "visible" || !advertisingConsent()) return;
+    // At mobile widths a floating invite can cover the Home search CTA.
+    // Wait for the visitor to scroll past the whole search form before showing it.
+    // Do not consume the session's only invitation while the form is on screen.
+    let delayElapsed = false;
+    let shown = false;
+    const tryShow = () => {
+      if (!delayElapsed || shown || document.visibilityState !== "visible" || !advertisingConsent()) return;
+      if (window.innerWidth < 1024) {
+        const form = document.getElementById("busca-especialidade")?.closest("form");
+        const bounds = form?.getBoundingClientRect();
+        if (bounds && bounds.top < window.innerHeight && bounds.bottom > 0) return;
+      }
       // A primeira visita deve concluir a escolha de cookies antes do convite.
       // Não consumir a exibição única enquanto o aviso de privacidade cobre a tela.
       if (document.querySelector('[role="dialog"][aria-label="Aviso de cookies"]')) return;
@@ -95,10 +105,16 @@ export function HomeCommunityInvite() {
       if (focused instanceof HTMLElement &&
         (focused.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(focused.tagName))) return;
       try { sessionStorage.setItem(SEEN_KEY, "1"); } catch { return; }
+      shown = true;
       setPopupCard(approvedCard);
       setShowPopup(true);
-    }, 11000);
-    return () => window.clearTimeout(timer);
+    };
+    const timer = window.setTimeout(() => { delayElapsed = true; tryShow(); }, 11000);
+    window.addEventListener("scroll", tryShow, { passive: true });
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("scroll", tryShow);
+    };
   }, [approvedCard, consentRevision]);
 
   return (
