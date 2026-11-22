@@ -1,7 +1,8 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { AlertTriangle, Ban, CheckCircle2, LockKeyhole, Pencil, RotateCcw, Search, ShieldCheck, Smartphone, UsersRound, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 type Filter = "todos" | "tecnicos" | "clientes" | "sem_papel" | "bloqueados";
 type Account = {
@@ -31,14 +32,30 @@ const ACTION_NAMES: Record<Action, string> = {
   unblock_phone: "Retirar restrição do telefone",
 };
 
+function initialLinkedAccountId(): string | null {
+  if (typeof window === "undefined") return null;
+  const id = new URLSearchParams(window.location.search).get("registro");
+  return id && /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id) ? id : null;
+}
+function QuickField({ label, children }: { label: string; children: ReactNode }) {
+  return <div className="min-w-0 rounded-lg border border-border bg-background/80 p-3">
+    <dt className="text-xs text-muted-foreground">{label}</dt>
+    <dd className="mt-1 break-words text-sm font-medium text-foreground">{children}</dd>
+  </div>;
+}
+
 /** Read and write only through explicitly admin-guarded RPCs. Never use auth.admin in the browser. */
 export function AdminAccountsManager({ initialFilter = "todos", lockFilter = false, initialLayout = "cards" }: {
   initialFilter?: Filter; lockFilter?: boolean; initialLayout?: "cards" | "table";
 }) {
   const [filter, setFilter] = useState<Filter>(initialFilter);
   const [layout, setLayout] = useState<"cards" | "table">(initialLayout);
-  const [draftSearch, setDraftSearch] = useState(() => typeof window === "undefined" ? "" :
-    new URLSearchParams(window.location.search).get("q")?.slice(0, 80) ?? "");
+  const [draftSearch, setDraftSearch] = useState(() => {
+    if (typeof window === "undefined") return "";
+    const params = new URLSearchParams(window.location.search);
+    return (initialLinkedAccountId() ?? params.get("busca") ?? params.get("q") ?? "")
+      .trim().replace(/[\p{C}]/gu, "").slice(0, 80);
+  });
   const [search, setSearch] = useState(draftSearch);
   const [page, setPage] = useState(0);
   const [version, setVersion] = useState(0);
@@ -56,6 +73,15 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
   const [bulkAction, setBulkAction] = useState<"block_account" | "unblock_account" | null>(null);
   const [bulkReason, setBulkReason] = useState("");
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [detailId, setDetailId] = useState<string | null>(initialLinkedAccountId);
+  const editNameInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (selection?.action === "edit_name") editNameInputRef.current?.focus();
+  }, [selection]);
+  useEffect(() => {
+    if (snapshot && detailId && !snapshot.accounts.some((account) => account.id === detailId))
+      setDetailId(null);
+  }, [detailId, snapshot]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -119,6 +145,7 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
   function submitSearch(event: FormEvent) {
     event.preventDefault();
     setSearch(draftSearch.trim().slice(0, 80));
+    setDetailId(null);
     setPage(0);
     setSelection(null);
     setSelectedIds(new Set());
@@ -237,6 +264,8 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
   const selectedAccounts = eligibleAccounts.filter((account) => selectedIds.has(account.id));
   const actionableCount = selectedAccounts.filter((account) => bulkAction === "block_account"
     ? !account.blocked_account : account.blocked_account).length;
+  const detailAccount = !loading && snapshot
+    ? snapshot.accounts.find((account) => account.id === detailId) ?? null : null;
   return <section aria-label="Contas e bloqueios administrativos" className="mt-2 space-y-5">
     {initialLayout === "cards" && <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5">
       <div className="flex items-center gap-3">
@@ -273,7 +302,7 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
     </form>
     {!lockFilter && <div className="flex gap-2 overflow-x-auto pb-2" aria-label="Filtro de contas">
       {FILTERS.map((item) => <button key={item.value} type="button"
-        aria-pressed={filter === item.value} onClick={() => { setFilter(item.value); setPage(0); setSelection(null); setSelectedIds(new Set()); setBulkAction(null); }}
+        aria-pressed={filter === item.value} onClick={() => { setFilter(item.value); setDetailId(null); setPage(0); setSelection(null); setSelectedIds(new Set()); setBulkAction(null); }}
         className={"min-h-11 shrink-0 rounded-full border px-4 text-sm font-semibold " +
           (filter === item.value ? "border-primary bg-primary text-primary-foreground" : "border-input bg-card text-foreground hover:bg-accent")}>
         {item.label}</button>)}
@@ -292,7 +321,7 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
           className="rounded-lg border border-input p-2 text-foreground"><X className="h-5 w-5" aria-hidden="true" /></button>
       </div>
       {selection.action === "edit_name" && <label className="block text-sm font-semibold text-foreground">Nome completo
-        <input required minLength={3} maxLength={100} value={value} onChange={(e) => setValue(e.target.value)}
+        <input ref={editNameInputRef} required minLength={3} maxLength={100} value={value} onChange={(e) => setValue(e.target.value)}
           className="mt-2 min-h-12 w-full rounded-lg border border-input bg-background px-3 text-foreground" /></label>}
       {selection.action === "block_phone" && <label className="block text-sm font-semibold text-foreground">Telefone com DDD
         <input type="tel" required maxLength={20} value={value} onChange={(e) => setValue(e.target.value)}
@@ -314,14 +343,14 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
       <p role="status" className="text-sm text-muted-foreground">
         {loading ? "Consultando contas…" : !snapshot ? "Consulta indisponível" : `${snapshot.total} conta(s) · página ${page + 1} de ${maxPage}`}
       </p>
-      <button type="button" onClick={() => setVersion((v) => v + 1)}
+      <button type="button" onClick={() => { setDetailId(null); setVersion((v) => v + 1); }}
         className="min-h-10 rounded-lg border border-input px-4 text-sm text-foreground hover:bg-accent">Atualizar</button>
     </div>
     {snapshot && <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/20 p-3" aria-label="Organização dos cadastros">
       <span className="text-xs font-semibold text-muted-foreground">Por data de cadastro:</span>
-      <button type="button" disabled={loading || bulkBusy} onClick={() => { setPage(0); setSelectedIds(new Set()); setBulkAction(null); }}
+      <button type="button" disabled={loading || bulkBusy} onClick={() => { setDetailId(null); setPage(0); setSelectedIds(new Set()); setBulkAction(null); }}
         className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm font-semibold">Mais recentes</button>
-      <button type="button" disabled={loading || bulkBusy} onClick={() => { setPage(maxPage - 1); setSelectedIds(new Set()); setBulkAction(null); }}
+      <button type="button" disabled={loading || bulkBusy} onClick={() => { setDetailId(null); setPage(maxPage - 1); setSelectedIds(new Set()); setBulkAction(null); }}
         className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm font-semibold">Cadastros mais antigos</button>
       <span className="text-xs text-muted-foreground">20 por página · ordem cronológica do banco</span>
     </div>}
@@ -390,6 +419,8 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
             </td>
             <td className="hidden px-3 py-3 text-xs text-muted-foreground lg:table-cell">{account.created_at ? new Date(account.created_at).toLocaleDateString("pt-BR") : "—"}</td>
             <td className="block pt-2 md:table-cell md:px-3 md:py-3">
+              <button type="button" aria-label={`Ver ficha de ${account.full_name}`} onClick={() => setDetailId(account.id)}
+                disabled={busy || bulkBusy} className="mb-1.5 min-h-10 rounded-lg border border-input px-3 text-xs font-semibold hover:bg-accent">Ver ficha</button>
               {!account.is_admin && <div className="flex flex-wrap gap-1.5">
                 <button type="button" onClick={() => choose("edit_name", account)} disabled={busy || bulkBusy}
                   className="min-h-10 rounded-lg border border-input px-3 text-xs font-semibold hover:bg-accent">Editar nome</button>
@@ -426,6 +457,10 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
               <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">Sem bloqueio</span>}
           </div>
         </div>
+        <div className="mt-4">
+          <button type="button" aria-label={`Ver ficha de ${account.full_name}`} onClick={() => setDetailId(account.id)}
+            disabled={busy || bulkBusy} className="min-h-11 rounded-lg border border-input px-3 text-sm font-semibold hover:bg-accent">Ver ficha</button>
+        </div>
         {!account.is_admin && <div className="mt-4 flex flex-wrap gap-2">
           <button type="button" onClick={() => choose("edit_name", account)}
             className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-input px-3 text-sm font-semibold text-foreground hover:bg-accent">
@@ -441,12 +476,51 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
       </li>)}
     </ul>}
     <div className="flex justify-between gap-2">
-      <button type="button" disabled={loading || page===0} onClick={() => setPage((x) => Math.max(0,x-1))}
+      <button type="button" disabled={loading || page===0} onClick={() => { setDetailId(null); setPage((x) => Math.max(0,x-1)); }}
         className="min-h-11 rounded-lg border border-input px-4 text-sm text-foreground disabled:opacity-40">Anterior</button>
       <button type="button" disabled={loading || !snapshot || (page+1)*snapshot.page_size>=snapshot.total}
-        onClick={() => setPage((x) => x + 1)}
+        onClick={() => { setDetailId(null); setPage((x) => x + 1); }}
         className="min-h-11 rounded-lg border border-input px-4 text-sm text-foreground disabled:opacity-40">Próximo</button>
     </div>
+
+    <Sheet open={Boolean(detailAccount)} onOpenChange={(open) => { if (!open) setDetailId(null); }}>
+      {detailAccount && <SheetContent side="right"
+        onCloseAutoFocus={(event) => { if (selection?.action === "edit_name") event.preventDefault(); }}
+        className="flex h-dvh w-full max-w-full flex-col gap-0 overflow-hidden p-0 sm:w-[min(92vw,42rem)] sm:max-w-[42rem] motion-reduce:transition-none">
+        <SheetHeader className="shrink-0 border-b border-border px-4 pb-4 pt-6 pr-12 text-left sm:px-6 sm:pr-12">
+          <SheetTitle className="break-words text-xl">Ficha rápida de pessoa · {detailAccount.full_name}</SheetTitle>
+          <SheetDescription>Dados do cadastro autorizados para consulta administrativa. Contatos permanecem mascarados.</SheetDescription>
+        </SheetHeader>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
+          <dl className="grid min-w-0 gap-3 sm:grid-cols-2">
+            <QuickField label="Nome">{detailAccount.full_name}</QuickField>
+            <QuickField label="Identificador">{detailAccount.id}</QuickField>
+            <QuickField label="Papéis">{detailAccount.roles || "Não informado"}</QuickField>
+            <QuickField label="E-mail protegido">{detailAccount.masked_email ?? "Não informado"}</QuickField>
+            <QuickField label="Telefone protegido">{detailAccount.masked_phone ?? "Não informado"}</QuickField>
+            <QuickField label="Confirmação do e-mail">{detailAccount.email_confirmed ? "Confirmado" : "Não confirmado"}</QuickField>
+            <QuickField label="Situação da conta">{detailAccount.blocked_account ? "Conta banida" : "Sem banimento"}</QuickField>
+            <QuickField label="Restrição de telefone">{detailAccount.blocked_phone ? "Telefone restrito" : "Sem restrição"}</QuickField>
+            <QuickField label="Vínculo técnico">{detailAccount.technician_id ?? (detailAccount.is_technician ? "Não vinculado" : "Não se aplica")}</QuickField>
+            <QuickField label="Situação do perfil técnico">{detailAccount.technician_status ?? "Não informado"}</QuickField>
+            <QuickField label="Data de cadastro">{detailAccount.created_at && Number.isFinite(Date.parse(detailAccount.created_at))
+              ? new Date(detailAccount.created_at).toLocaleDateString("pt-BR") : "Não informado"}</QuickField>
+          </dl>
+          {detailAccount.is_admin && <p role="status" className="mt-4 rounded-lg border border-border bg-muted/30 p-3 text-sm">
+            Administrador protegido — somente consulta. Nenhuma edição é permitida neste módulo.
+          </p>}
+        </div>
+        <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-border bg-background px-4 py-3 sm:px-6">
+          <SheetClose asChild><button type="button"
+            className="min-h-11 rounded-lg border border-input px-4 text-sm font-semibold hover:bg-accent">Fechar ficha</button></SheetClose>
+          {!detailAccount.is_admin && <button type="button" disabled={busy || bulkBusy}
+            onClick={() => { setDetailId(null); choose("edit_name", detailAccount); }}
+            className="min-h-11 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
+            Editar nome na ficha
+          </button>}
+        </div>
+      </SheetContent>}
+    </Sheet>
     <section className="rounded-2xl border border-border bg-card p-5" aria-label="Telefones restritos">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="flex items-center gap-2 font-bold text-foreground"><Smartphone className="h-5 w-5" aria-hidden="true" /> Telefones restritos</h3>

@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 const mockDb = vi.hoisted(() => ({
   accounts: [] as Array<Record<string, unknown>>,
   actions: [] as Array<Record<string, unknown>>,
+  edits: [] as Array<Record<string, unknown>>,
   checks: [] as string[],
   delayNextSnapshot: null as Promise<void> | null,
 }));
@@ -26,6 +27,13 @@ vi.mock("@/integrations/supabase/client", () => ({
           accounts: rows, total: rows.length, page: 0, page_size: 20,
           audit: [], blocked_phones: [],
         }, error: null };
+      }
+      if (name === "eut_admin_account_edit_name") {
+        mockDb.edits.push(args);
+        const target = mockDb.accounts.find((row) => row["id"] === args["_user_id"]);
+        if (!target) return { data: null, error: { message: "not_found" } };
+        target["full_name"] = args["_full_name"];
+        return { data: { ok: true, user_id: args["_user_id"], full_name: args["_full_name"] }, error: null };
       }
       if (name === "eut_admin_contact_action") {
         mockDb.actions.push(args);
@@ -56,6 +64,7 @@ beforeEach(() => {
     account("cccccccc-cccc-4ccc-cccc-cccccccccccc", "Cliente Dois"),
   ];
   mockDb.actions = [];
+  mockDb.edits = [];
   mockDb.checks = [];
   mockDb.delayNextSnapshot = null;
   vi.spyOn(window, "confirm").mockReturnValue(true);
@@ -155,6 +164,76 @@ describe("moderação administrativa em lote", () => {
     expect(screen.getByRole("button", { name: "Confirmar ações auditadas" }).hasAttribute("disabled")).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Limpar seleção" }));
     expect(mockDb.actions).toHaveLength(0);
+  });
+
+  it("abre ficha somente com dados autorizados da tabela e contatos mascarados", async () => {
+    mockDb.accounts[1]!["masked_phone"] = "•••• 1234";
+    render(<AdminAccountsManager initialLayout="table" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Ver ficha de Cliente Um" }));
+    expect(screen.getByRole("dialog", { name: /Ficha rápida de pessoa · Cliente Um/ })).toBeTruthy();
+    expect(screen.getAllByText("a•••@example.test").length).toBeGreaterThan(0);
+    expect(screen.getByText("•••• 1234")).toBeTruthy();
+    expect(screen.getByText("bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb")).toBeTruthy();
+    expect(mockDb.actions).toHaveLength(0);
+    expect(mockDb.edits).toHaveLength(0);
+    fireEvent.click(screen.getByRole("button", { name: "Fechar ficha" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("abre ficha em cartões e fecha com Escape sem executar ações", async () => {
+    render(<AdminAccountsManager />);
+    fireEvent.click(await screen.findByRole("button", { name: "Ver ficha de Cliente Dois" }));
+    expect(screen.getByRole("dialog", { name: /Ficha rápida de pessoa · Cliente Dois/ })).toBeTruthy();
+    fireEvent.keyDown(document, { key: "Escape", code: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(mockDb.actions).toHaveLength(0);
+  });
+
+  it("exibe administradores em modo exclusivamente de consulta", async () => {
+    render(<AdminAccountsManager initialLayout="table" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Ver ficha de Administrador" }));
+    expect(screen.getByRole("dialog", { name: /Ficha rápida de pessoa · Administrador/ })).toBeTruthy();
+    expect(screen.getByText(/Administrador protegido — somente consulta/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Editar nome na ficha" })).toBeNull();
+    expect(mockDb.edits).toHaveLength(0);
+  });
+
+  it("reutiliza edição existente e RPC auditada depois de fechar a ficha", async () => {
+    render(<AdminAccountsManager initialLayout="table" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Ver ficha de Cliente Um" }));
+    fireEvent.click(screen.getByRole("button", { name: "Editar nome na ficha" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByRole("form", { name: "Confirmar alteração de conta" })).toBeTruthy();
+    fireEvent.change(screen.getByRole("textbox", { name: "Nome completo" }), { target: { value: "Cliente Atualizado" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Motivo administrativo obrigatório" }), {
+      target: { value: "Correção solicitada e conferida" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar e registrar" }));
+    await waitFor(() => expect(mockDb.edits).toHaveLength(1));
+    expect(mockDb.edits[0]?.["_user_id"]).toBe("bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb");
+    expect(mockDb.edits[0]?.["_reason"]).toBe("Correção solicitada e conferida");
+    expect(await screen.findByText("Cliente Atualizado")).toBeTruthy();
+    expect(mockDb.actions).toHaveLength(0);
+  });
+
+  it("abre conta autorizada por registro na URL sem consultar outros dados", async () => {
+    window.history.replaceState({}, "", "/admin/usuarios?registro=bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb");
+    render(<AdminAccountsManager initialLayout="table" />);
+    expect(await screen.findByRole("dialog", { name: /Ficha rápida de pessoa · Cliente Um/ })).toBeTruthy();
+    expect(mockDb.checks).toContain("bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb");
+    expect(mockDb.actions).toHaveLength(0);
+  });
+
+  it("fecha ficha durante atualização e não reabre dados anteriores", async () => {
+    render(<AdminAccountsManager initialLayout="table" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Ver ficha de Cliente Um" }));
+    let finishRead: () => void = () => {};
+    mockDb.delayNextSnapshot = new Promise<void>((resolve) => { finishRead = resolve; });
+    fireEvent.click(screen.getByRole("button", { name: "Atualizar" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    finishRead();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Ver ficha de Cliente Um" })).toBeTruthy());
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
 });
