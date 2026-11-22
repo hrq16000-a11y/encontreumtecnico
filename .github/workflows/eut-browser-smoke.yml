@@ -1,46 +1,183 @@
-name: EUT Chromium live navigation smoke (read only)
+name: EUT PR 456 single isolated Chromium QA (manual only)
 on:
-  pull_request:
-    paths:
-      - '.github/workflows/eut-browser-smoke.yml'
-      - 'scripts/eut-browser-smoke.cjs'
-      - 'src/routes/tecnicos.index.tsx'
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: eut-456-chromium-once
+  cancel-in-progress: false
 jobs:
-  public-browser-smoke:
+  chromium:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/qa/eut-456-chromium-once-20261122'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout frozen PR 456
+        uses: actions/checkout@v4
         with:
-          node-version: '22'
-      - name: Assert location touch targets in the reviewed source
+          ref: e1b056dd65311931abb3aa858f58e3a62762dbe8
+          persist-credentials: false
+      - name: Fail closed on unexpected SHA, branch or repository configuration
+        shell: bash
         run: |
-          node <<'NODE'
-          const { readFileSync } = require('node:fs');
-          const assert = require('node:assert/strict');
-          const src = readFileSync('src/routes/tecnicos.index.tsx', 'utf8');
-          const ufStart = src.indexOf('id="filtro-uf"');
-          assert(ufStart >= 0 && src.slice(ufStart, ufStart + 300).includes('min-h-11'),
-            'UF select must have 44px minimum height');
-          assert(src.includes('id="filtro-cidade"'), 'Manual city correction must remain available');
-          const advancedStart = src.indexOf('aria-controls="filtros-avancados"');
-          assert(advancedStart >= 0 && src.slice(advancedStart, advancedStart + 360).includes('min-h-11'),
-            'Advanced filters control must have 44px minimum height');
-          assert(!src.includes('CustomerLocationButton'), 'Search must not prompt for precise GPS');
-          console.log('UF and advanced filter touch targets >= 44px; city input remains, GPS prompt absent');
-          NODE
-      - name: Install isolated Chromium runner
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "hrq16000-a11y/encontreumtecnico"
+          test "$GITHUB_REF" = "refs/heads/qa/eut-456-chromium-once-20261122"
+          test "$(git rev-parse HEAD)" = "e1b056dd65311931abb3aa858f58e3a62762dbe8"
+          test "$(git rev-parse HEAD^)" = "e82617ea07a8224dbf5a550e5627c086377e9100"
+          test "$(git status --porcelain --untracked-files=no)" = ""
+          node -e 'const c=require("./vercel.json"); if(c.git?.deploymentEnabled!==false)process.exit(1)'
+      - name: Prepare Bun and ephemeral Playwright dependencies
+        uses: oven-sh/setup-bun@v2
+      - name: Install frozen application dependencies only
+        run: bun install --frozen-lockfile
+      - name: Single local-only Chromium session in a network namespace
+        shell: bash
         run: |
-          mkdir -p "$RUNNER_TEMP/eut-browser"
-          cd "$RUNNER_TEMP/eut-browser"
-          npm init -y >/dev/null
-          npm install --no-audit --no-fund playwright@1.56.1
-          npx playwright install chromium
-      - name: Real public navigation in Chromium and mobile emulation
-        env:
-          EUT_BASE_URL: https://www.encontreumtecnico.com.br
-        run: NODE_PATH="$RUNNER_TEMP/eut-browser/node_modules" node scripts/eut-browser-smoke.cjs
+          set -euo pipefail
+          for tool in sudo unshare ip runuser node npm curl timeout bun; do command -v "$tool" >/dev/null; done
+          sudo -n true
+          QA_DIR="$RUNNER_TEMP/eut-456-chromium"
+          mkdir -p "$QA_DIR"
+          export PLAYWRIGHT_BROWSERS_PATH="$QA_DIR/browsers"
+          npm install --prefix "$QA_DIR" --ignore-scripts --no-audit --no-fund --no-save playwright@1.56.1
+          "$QA_DIR/node_modules/.bin/playwright" install chromium
+          cat > "$QA_DIR/inside.sh" <<'INSIDE'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE"
+          test -z "$(ip -4 route show default)"
+          test -z "$(ip -6 route show default)"
+          test "$(ip -o link show | wc -l | tr -d ' ')" = "1"
+          test "$(git rev-parse HEAD)" = "e1b056dd65311931abb3aa858f58e3a62762dbe8"
+          bun run dev -- --host 127.0.0.1 --port 4173 --strictPort > "$QA_DIR/server.log" 2>&1 &
+          app_pid=$!
+          trap 'kill "$app_pid" 2>/dev/null || true; wait "$app_pid" 2>/dev/null || true' EXIT
+          started=0
+          for i in $(seq 1 90); do
+            if curl -fsS --max-time 2 http://127.0.0.1:4173/contato >/dev/null; then started=1; break; fi
+            if ! kill -0 "$app_pid" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          if [ "$started" != 1 ]; then
+            echo "NO-GO: isolated application did not start"
+            tail -n 25 "$QA_DIR/server.log" || true
+            exit 1
+          fi
+          NODE_PATH="$QA_DIR/node_modules" node "$QA_DIR/chromium.cjs"
+          test "$(git status --porcelain --untracked-files=no)" = ""
+          INSIDE
+          cat > "$QA_DIR/chromium.cjs" <<'BROWSER'
+          "use strict";
+          const assert = require("node:assert/strict");
+          const path = require("node:path");
+          const { chromium } = require("playwright");
+          const base = "http://127.0.0.1:4173";
+          const selector = 'a[href],button:not(:disabled),input:not(:disabled):not([type="hidden"]),select:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])';
+          const focusEdges = () => {
+            const dialog = document.querySelector('[role="dialog"]');
+            if (!dialog) return { inside: false };
+            const controls = [...dialog.querySelectorAll(selector)].filter(el =>
+              el.tabIndex >= 0 && !el.closest("[hidden],[inert]") &&
+              getComputedStyle(el).display !== "none" &&
+              getComputedStyle(el).visibility !== "hidden");
+            return {
+              inside: dialog.contains(document.activeElement),
+              first: controls.length > 0 && document.activeElement === controls[0],
+              last: controls.length > 0 && document.activeElement === controls[controls.length - 1],
+              count: controls.length
+            };
+          };
+          async function runWidth(browser, width) {
+            const context = await browser.newContext({
+              viewport: { width, height: 900 }, locale: "pt-BR", serviceWorkers: "block",
+              acceptDownloads: false
+            });
+            const blocked = [];
+            await context.route("**/*", route => {
+              const request = route.request();
+              const url = request.url();
+              const safe = url.startsWith(base + "/") &&
+                (request.method() === "GET" || request.method() === "HEAD");
+              if (!safe) {
+                blocked.push({ method: request.method(), external: !url.startsWith(base + "/") });
+                return route.abort("blockedbyclient");
+              }
+              return route.continue();
+            });
+            const page = await context.newPage();
+            try {
+              const response = await page.goto(base + "/contato", { waitUntil: "domcontentloaded", timeout: 30000 });
+              assert(response && response.status() === 200, "local /contato unavailable");
+              const trigger = page.getByRole("button", { name: "Pedir ajuda ao portal" }).first();
+              await trigger.waitFor({ state: "visible" });
+              await trigger.focus();
+              await trigger.click();
+              const dialog = page.getByRole("dialog");
+              await dialog.waitFor({ state: "visible" });
+              const close = page.getByRole("button", { name: "Fechar atendimento" });
+              await close.waitFor({ state: "visible" });
+              assert(await close.evaluate(el => document.activeElement === el), "initial focus not on close button");
+              console.log("PASS " + width + " initial focus");
+              const problem = page.getByLabel("Qual problema está acontecendo?");
+              await problem.waitFor({ state: "visible", timeout: 15000 });
+              await close.focus();
+              await page.keyboard.press("Shift+Tab");
+              assert((await page.evaluate(focusEdges)).last, "Shift+Tab did not wrap to last control");
+              await page.keyboard.press("Tab");
+              assert((await page.evaluate(focusEdges)).first, "Tab did not wrap to first control");
+              await page.keyboard.press("Tab");
+              const internal = await page.evaluate(focusEdges);
+              assert(internal.inside && !internal.first && internal.count >= 3, "internal Tab navigation failed");
+              console.log("PASS " + width + " Tab, Shift+Tab and dynamic controls");
+              const synthetic = "Teste sintético de rede sem envio ao portal, mantendo texto entre focos.";
+              await problem.fill(synthetic);
+              await problem.focus();
+              for (let i = 0; i < 15; i++) {
+                await page.keyboard.press("Tab");
+                assert((await page.evaluate(focusEdges)).inside, "Tab escaped dialog");
+              }
+              for (let i = 0; i < 15; i++) {
+                await page.keyboard.press("Shift+Tab");
+                assert((await page.evaluate(focusEdges)).inside, "Shift+Tab escaped dialog");
+              }
+              assert.equal(await problem.inputValue(), synthetic, "draft changed during keyboard navigation");
+              console.log("PASS " + width + " synthetic draft retention");
+              const overflow = await page.evaluate(() => ({
+                content: document.documentElement.scrollWidth,
+                viewport: document.documentElement.clientWidth
+              }));
+              assert(overflow.content <= overflow.viewport + 1, "horizontal page overflow");
+              assert((await page.evaluate(focusEdges)).inside, "focus left dialog");
+              await page.screenshot({ path: path.join(process.env.QA_DIR, "chromium-" + width + ".png") });
+              console.log("PASS " + width + " viewport and screenshot (temporary only)");
+              await page.keyboard.press("Escape");
+              await dialog.waitFor({ state: "hidden" });
+              assert(await trigger.evaluate(el => document.activeElement === el), "Escape did not restore trigger focus");
+              assert(!blocked.some(x => x.method !== "GET" && x.method !== "HEAD"), "write request attempted");
+              console.log("PASS " + width + " Escape and focus restoration; all external requests blocked");
+            } finally {
+              await context.close();
+            }
+          }
+          (async () => {
+            const browser = await chromium.launch({ headless: true });
+            try {
+              await runWidth(browser, 390);
+              await runWidth(browser, 1440);
+              console.log("QA456 PASS: one isolated Chromium execution, two viewports");
+            } finally {
+              await browser.close();
+            }
+          })().catch(error => { console.error("QA456 NO-GO:", error.message); process.exitCode = 1; });
+          BROWSER
+          chmod 700 "$QA_DIR/inside.sh"
+          echo "Isolated runner gate: new network namespace, loopback only, no default routes"
+          sudo -n unshare --net -- /bin/bash -ceu '
+            command -v ip >/dev/null
+            ip link set lo up
+            test "$(ip -o link show | wc -l | tr -d " ")" = "1"
+            test -z "$(ip -4 route show default)"
+            test -z "$(ip -6 route show default)"
+            exec runuser -u "$1" -- env QA_DIR="$2" GITHUB_WORKSPACE="$3" PATH="$4" PLAYWRIGHT_BROWSERS_PATH="$2/browsers" /bin/bash "$2/inside.sh"
+          ' _ "$(id -un)" "$QA_DIR" "$GITHUB_WORKSPACE" "$PATH"
