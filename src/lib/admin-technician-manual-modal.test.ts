@@ -48,5 +48,10 @@ describe("cadastro manual: modal e persistencia protegida", () => {
     expect(editor).toContain("citySearch.trim() && cityId === null");
     expect(editor).toContain('allowInternalQaDate: !existing && createOrigin === "manual"');
     expect(editor).not.toContain("auth.admin.createUser");
+    // A substituição do telefone não pode desbloquear um contato suspenso.
+    expect(editor).toContain("setContactSuspended(data.contact_suspended === true)");
+    expect(editor).toContain('payload["contact_suspended"] = contactSuspended');
+    expect(editor).not.toContain("setContactSuspended(event.target.checked)");
+    expect(editor).toContain("sua reativação exige uma operação de moderação separada.");
   });
 });
