@@ -1,26 +1,124 @@
-name: EUT #424 — QA-A/QA-B local (blocked draft)
+# EUT #424: PREPARATION ONLY. Never run SQL against official Supabase.
+# The manual trigger in this branch is not permission to execute any stage.
+name: EUT #424 — local QA-A/QA-B (blocked)
 on:
   workflow_dispatch:
+
 permissions:
   contents: read
+
+concurrency:
+  group: eut-424-qa-readiness
+  cancel-in-progress: false
+
 jobs:
   qa424:
-    # Deliberately disabled until another explicit authorization with all blockers resolved.
+    # KEEP DISABLED until separate, explicit execution authorization.
     if: ${{ false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
+      EUT_424_HEAD: '8eba79ea49bccbb5a2dcaa4751cc97f990653865'
+      EUT_429_REF: '4c246f9fa9b05df6dc2b8cda9d1ac28685cb4464'
       SUPABASE_ACCESS_TOKEN: ''
       SUPABASE_DB_PASSWORD: ''
+
     steps:
-      - name: Gate — no tests, browser or SQL
+      - name: Hard stop before checkout, network, installation and SQL
         shell: bash
         run: |
-          echo 'BLOCKED: two live functions and Data API schema exposure not verified'
+          set -euo pipefail
+          echo 'NO-GO: pending independent Data API, active functions, network isolation and browser gates'
           exit 1
-      # After separate authorization: frozen checkout and hashes; reuse #429 local
-      # bootstraps (not its test run); synthesize verified IBGE record; apply
-      # local-contract.sql only on 127.0.0.1:54322; assert PostgREST schema list.
-      # Enforce localhost-only egress and ephemeral Supabase frontend substitutions.
-      # Run browser-http.mjs against local Chrome 390/1440; discard ephemeral state.
-      # Never add push, pull_request, or pull_request_target triggers.
+
+      # All steps below are unreachable and exist only as a reviewed plan.
+      - name: Frozen checkout of the isolated #424 commit
+        uses: actions/checkout@v4
+        with:
+          ref: 8eba79ea49bccbb5a2dcaa4751cc97f990653865
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Verify commit, unchanged QA input blobs and hard blocks
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EUT_424_HEAD"
+          test "$(git rev-parse HEAD:tests/eut-424/local-contract.sql)" = '8fa4cb00960ac2f4fa48b7c7c03c646f35b320a7'
+          test "$(git rev-parse HEAD:tests/eut-424/browser-http.mjs)" = 'c0fd3667e08751980922901fd14b321ae74805c7'
+          grep -Fq 'if: ${{ false }}' .github/workflows/eut-424-local-http-qa.yml
+          grep -Fq 'EXECUTION_ENABLED = false' tests/eut-424/browser-http.mjs
+          grep -Fq "RAISE EXCEPTION 'EUT424 BLOCKED" tests/eut-424/local-contract.sql
+
+      - name: Recover only pinned #429 blobs into ephemeral temp
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "$EUT_429_REF"
+          while read -r file expected; do
+            test "$(git rev-parse "$EUT_429_REF:$file")" = "$expected"
+            target="$RUNNER_TEMP/eut-429/$file"
+            mkdir -p "$(dirname "$target")"
+            git show "$EUT_429_REF:$file" > "$target"
+            test "$(git hash-object "$target")" = "$expected"
+          done <<'EUT429_BLOBS'
+          tests/otp-local/bootstrap.sql 14f05aec2fb50ed048402f3b52e76deaa38790e6
+          tests/profile-local/bootstrap.sql 9e5bf5087aff26026c79dd596a1f40653ec7e4b5
+          tests/profile-local/official-publish-rpc.sql ecc1a0fdad6b6e341d04e6c810eb451e4d7f1127
+          tests/profile-local/persist.mjs cfeaa2c6d916a443f8b167a6c386eea82ac2fef7
+          .github/workflows/eut-p0-profile-auth-local.yml b7138968f193c13438e3ca1b72c2be57cb0afff0
+          EUT429_BLOBS
+          # Reuse contracts, NEVER re-run the completed #429 test script/workflow.
+
+      - name: NO-GO — active SQL bodies and official Data API exposure
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Independent official metadata evidence REQUIRED that eut_visibility
+          # is absent from the exposed schemas; grants do not prove this.
+          # Inject both exact functions only through a PRIVATE, temporary path.
+          # pg_proc.prosrc MD5 phone: af0e1c0ae8a0d850ad6619b4b4242d79
+          # pg_proc.prosrc MD5 IDs: 8e4e8f56ceb5bc3457164335722125f1
+          # Never log or publish live function definitions.
+          echo 'NO-GO: official Data API and active-function evidence unavailable'
+          exit 1
+
+      - name: NO-GO — proven deny-all egress in a disposable local network
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Future setup must isolate app + local GoTrue/PostgREST + PostgreSQL +
+          # Chromium in ONE namespace. Enforce/prove external egress deny-all
+          # BEFORE any SQL, app start or browser navigation.
+          # No boolean env flag can substitute for an actual isolation proof.
+          # Replace fixed browser-side official Supabase endpoint only in the
+          # ephemeral workspace; verify SSR and browser use localhost.
+          # If namespace networking is unsupported, stop; no fallback to internet.
+          echo 'NO-GO: isolation and localhost frontend override not proven'
+          exit 1
+
+      - name: NO-GO — local PostgreSQL DSN, RLS, RPC and SQL readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Known bug to fix in a separate authorization: browser-http.mjs
+          # validates DB_URL as HTTP instead of postgresql://localhost:54322.
+          # Reuse the #429 bootstraps WITHOUT rerunning its QA.
+          # Future local-only fixture requires exact two active bodies, private
+          # phone guard, restrictive RLS, correct grants, synthetic IBGE seed.
+          # Keep local-contract.sql's first unconditional abort until approved.
+          # Reconfirm local PostgREST excludes eut_visibility after setup.
+          # No official DB connections, migrations, reset, or supabase link.
+          echo 'NO-GO: local SQL and PostgreSQL DSN guards unresolved'
+          exit 1
+
+      - name: NO-GO — QA-A/QA-B HTTP and Chromium at 390 and 1440
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Do not install or launch Chrome/Node dependencies in this round.
+          # Future one-shot needs GoTrue session, actual 200/301/404/5xx,
+          # no contact/JWT leaks, keyboard focus, 390/1440 and safe cleanup.
+          # browser-http.mjs remains blocked by EXECUTION_ENABLED=false.
+          echo 'NO-GO: Chromium and HTTP QA execution not approved'
+          exit 1
