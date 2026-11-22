@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { createElement } from "react";
@@ -55,6 +55,7 @@ import { getApprovedTechnician } from "./technicians.functions";
 const id = "12345678-1234-4234-8234-123456789abc";
 
 beforeEach(() => {
+  vi.stubEnv("EUT_PUBLIC_TECHNICIAN_OPERATIONS_ENABLED", "");
   mocks.query.select.mockClear();
   mocks.query.eq.mockClear();
   mocks.query.maybeSingle.mockReset();
@@ -68,6 +69,8 @@ beforeEach(() => {
     error: null,
   }));
 });
+
+afterEach(() => vi.unstubAllEnvs());
 
 describe("public technician profile lookup", () => {
   it("returns null only for a confirmed no-match", async () => {
@@ -150,12 +153,71 @@ describe("public technician profile lookup", () => {
     mocks.query.maybeSingle.mockResolvedValue({ data: profile, error: null });
     const result = await getApprovedTechnician({ data: { id } });
     expect(result).toEqual({ ...profile, online_now: false, pioneer_bronze: false, referral_highlight: false, coverage_cities: [], operations: null });
-    expect(mocks.client.rpc).toHaveBeenCalledWith("eut_public_technician_operations", { _technician_id: id });
+    expect(mocks.client.rpc).not.toHaveBeenCalledWith("eut_public_technician_operations", { _technician_id: id });
     const selectedFields = String(mocks.query.select.mock.calls[0]?.[0]);
     expect(selectedFields).not.toMatch(/phone|email|contact|password/i);
   });
 
+  it("does not call a missing optional RPC while the server flag is off", async () => {
+    const profile = { id, public_slug: "qa-optional-disabled", display_name: "Técnico de exemplo",
+      city: "Curitiba", state_uf: "PR", specialties: ["computadores"], service_slugs: [] };
+    mocks.query.maybeSingle.mockResolvedValue({ data: profile, error: null });
+    mocks.client.rpc.mockImplementation((name: string, args?: { _ids?: string[] }) => {
+      if (name === "eut_public_technician_operations") throw new Error("PGRST202: optional RPC unavailable");
+      return Promise.resolve({ data: name === "eut_public_eligible_technician_ids"
+        ? (args?._ids ?? []).map(technician_id => ({ technician_id })) : [], error: null });
+    });
+    const result = await getApprovedTechnician({ data: { id } });
+    expect(result?.id).toBe(id);
+    expect(result?.specialties).toEqual(["computadores"]);
+    expect(result?.operations).toBeNull();
+    expect(mocks.client.rpc.mock.calls.map(([name]) => name)).not.toContain("eut_public_technician_operations");
+    expect(mocks.client.rpc.mock.calls.map(([name]) => name)).toContain("eut_public_eligible_technician_ids");
+  });
+
+  it("keeps an eligible profile visible if the enabled optional RPC returns PGRST202", async () => {
+    vi.stubEnv("EUT_PUBLIC_TECHNICIAN_OPERATIONS_ENABLED", "true");
+    const profile = { id, public_slug: "qa-optional-fallback", display_name: "Técnico de exemplo",
+      city: "Curitiba", state_uf: "PR", specialties: ["computadores"], service_slugs: [] };
+    mocks.query.maybeSingle.mockResolvedValue({ data: profile, error: null });
+    mocks.client.rpc.mockImplementation((name: string, args?: { _ids?: string[] }) => Promise.resolve({
+      data: name === "eut_public_eligible_technician_ids"
+        ? (args?._ids ?? []).map(technician_id => ({ technician_id })) : null,
+      error: name === "eut_public_technician_operations" ? { code: "PGRST202" } : null,
+    }));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const result = await getApprovedTechnician({ data: { id } });
+      expect(result?.public_slug).toBe(profile.public_slug);
+      expect(result?.operations).toBeNull();
+      expect(mocks.client.rpc).toHaveBeenCalledWith("eut_public_technician_operations", { _technician_id: id });
+      expect(warn).toHaveBeenCalledWith("public operational profile unavailable", "PGRST202");
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("projects validated structured fields only after explicit server opt-in", async () => {
+    vi.stubEnv("EUT_PUBLIC_TECHNICIAN_OPERATIONS_ENABLED", "true");
+    const profile = { id, public_slug: "qa-optional-enabled", display_name: "Técnico de exemplo",
+      city: "Curitiba", state_uf: "PR", specialties: ["computadores"], service_slugs: [],
+      coverage_city_ids: [] };
+    mocks.query.maybeSingle.mockResolvedValue({ data: profile, error: null });
+    const allowed = { ...EMPTY_OPERATIONS, equipment: ["notebook"] };
+    mocks.client.rpc.mockImplementation((name: string, args?: { _ids?: string[] }) => Promise.resolve({
+      data: name === "eut_public_eligible_technician_ids"
+        ? (args?._ids ?? []).map(technician_id => ({ technician_id }))
+        : name === "eut_public_technician_operations" ? allowed : [],
+      error: null,
+    }));
+    const result = await getApprovedTechnician({ data: { id } });
+    expect(result?.operations).toEqual(allowed);
+    expect(mocks.client.rpc).toHaveBeenCalledWith("eut_public_technician_operations", { _technician_id: id });
+    expect(JSON.stringify(result)).not.toMatch(/contact_phone|password|email/i);
+  });
+
   it("refuses extra private keys from an operational RPC even for an eligible professional", async () => {
+    vi.stubEnv("EUT_PUBLIC_TECHNICIAN_OPERATIONS_ENABLED", "true");
     const profile = { id, public_slug: "qa-structured", display_name: "Técnica sintética",
       city: "Curitiba", state_uf: "PR", specialties: [], service_slugs: [],
       coverage_city_ids: [4106902] };
