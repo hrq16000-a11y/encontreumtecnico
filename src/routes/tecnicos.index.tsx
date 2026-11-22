@@ -182,7 +182,7 @@ function TechniciansPage() {
           <span className="relative inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-widest text-brand-glow"><ListFilter className="h-4 w-4" aria-hidden="true" /> Diretório de profissionais</span>
           <h1 className="relative mt-3 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">Encontre técnicos na sua região</h1>
           <p className="relative mt-3 max-w-2xl text-sm leading-6 text-white/85">
-            A busca prioriza profissionais com atendimento na região aproximada, quando disponível. Você também pode escolher especialidade, cidade e estado.
+            Encontre técnicos por serviço, especialidade e cidade, com resultados organizados para facilitar sua escolha.
           </p>
           <div className="relative mt-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold text-white/90">
             <ShieldCheck className="h-4 w-4 text-brand-glow" aria-hidden="true" /> Contatos particulares continuam protegidos
