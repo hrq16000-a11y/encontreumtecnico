@@ -19,6 +19,7 @@ import { AdminTechnicianUnifiedDirectory } from "@/components/admin-technician-u
 import { AdminOwnTechnicianRole } from "@/components/admin-own-technician-role";
 import { AdminMemberInvites } from "@/components/admin-member-invites";
 import { AdminAccountsManager } from "@/components/admin-accounts-manager";
+import { AdminAbuseControls } from "@/components/admin-abuse-controls";
 import { AdminContactsDashboard } from "@/components/admin-contacts-dashboard";
 import { AdminClientInsights } from "@/components/admin-client-insights";
 import { AdminUsersHub } from "@/components/admin-users-hub";
@@ -119,7 +120,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
             {section === "legado" && <section aria-label="Acervo WordPress"><div id="admin-legado"><LegacyReviewQueue /></div></section>}
             {section === "reivindicacoes" && <section aria-label="Reivindicações"><div id="admin-reivindicacoes"><LegacyClaimReview /></div></section>}
             {section === "catalogo" && <section aria-label="Categorias e serviços"><div id="admin-catalogo"><EutAdminManager /></div></section>}
-            {section === "contas" && <section aria-label="Contas e bloqueios"><AdminMemberInvites /><AdminAccountsManager /></section>}
+            {section === "contas" && <section aria-label="Contas e bloqueios"><AdminMemberInvites /><AdminAccountsManager /><AdminAbuseControls /></section>}
             {section === "usuarios" && <AdminUsersHub adminOwnerId={user.id} />}
             {section === "contatos" && <section aria-label="Contatos administrativos"><AdminContactsDashboard adminId={user.id} /></section>}
             {section === "tecnicos" && <section aria-label="Gestão de técnicos">
