@@ -1,0 +1,60 @@
+name: EUT PR452 proof3 fail-closed Chromium QA
+on:
+  push:
+    branches:
+      - qa/eut-pr452-public-proof3-20261122
+    paths:
+      - .github/workflows/eut-pr452-public-proof3-qa.yml
+      - tests/visual/eut-pr452-public-proof3.cjs
+permissions:
+  contents: read
+concurrency:
+  group: eut-pr452-proof3-20261122
+  cancel-in-progress: false
+jobs:
+  proof3:
+    name: Public proof 3 - contract preflight before any records
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      EUT_PR_HEAD: 3acded06517bda1651551b2a1c097731a60a2bd1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Confirm exact parent and only 2 QA files
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$EUT_PR_HEAD"
+          git diff --name-only HEAD^ HEAD | LC_ALL=C sort > "$RUNNER_TEMP/files-real"
+          printf '%s\n' .github/workflows/eut-pr452-public-proof3-qa.yml tests/visual/eut-pr452-public-proof3.cjs | LC_ALL=C sort > "$RUNNER_TEMP/files-allowed"
+          diff -u "$RUNNER_TEMP/files-allowed" "$RUNNER_TEMP/files-real"
+          echo "Commit original PR452 fixed: $EUT_PR_HEAD"
+      - name: Verify source without reading records
+        id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/visual/eut-pr452-public-proof3.cjs preflight
+      - name: Enforce NO-GO if no safe public source
+        if: steps.gate.outputs.go != 'true'
+        shell: bash
+        run: |
+          echo "::error::NO-GO - cannot attest active eligible bounded source. Zero public row reads."
+          exit 1
+      - name: Fail closed if unimplemented Chromium stage were reached
+        if: steps.gate.outputs.go == 'true'
+        shell: bash
+        run: |
+          echo "::error::Unexpected GO: Chromium requires separate valid live source attestation."
+          exit 1
+      - name: Preserve gate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eut-pr452-proof3-preflight
+          path: artifacts/eut-pr452-proof3/
+          retention-days: 7
+          if-no-files-found: error
