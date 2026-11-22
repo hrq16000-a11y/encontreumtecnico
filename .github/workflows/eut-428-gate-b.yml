@@ -1,0 +1,41 @@
+name: EUT 428 - Gate B isolado
+
+on:
+  push:
+    branches:
+      - qa/eut-428-gate-b-20261122
+    paths:
+      - .github/workflows/eut-428-gate-b.yml
+
+permissions:
+  contents: read
+
+jobs:
+  gate-b:
+    if: github.event.head_commit.message == 'qa: run eut-428 Gate B once'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout da release aprovada
+        uses: actions/checkout@v4
+        with:
+          ref: bb82e7a18952f4d6259f537451146f869fd6c845
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Instalar dependencias
+        run: bun install --frozen-lockfile
+
+      - name: Teste dirigido
+        run: bunx vitest run src/components/free-search-help.test.tsx
+
+      - name: Build
+        run: bun run build
+
+      - name: TypeScript
+        run: bunx tsc --noEmit --pretty false
