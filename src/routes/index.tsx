@@ -169,7 +169,7 @@ function HomePage() {
               </div>
             ) : (
             <form
-              className="mt-7 flex flex-col gap-3 rounded-2xl border border-primary/15 bg-accent/40 p-3 shadow-sm sm:flex-row"
+              className="mt-7 flex min-w-0 flex-col gap-3 rounded-2xl border border-primary/15 bg-accent/40 p-3 shadow-sm lg:flex-row"
               onSubmit={(e) => {
                 e.preventDefault();
                 window.__lovableEvents?.track?.("project.technician_search", {
@@ -190,7 +190,7 @@ function HomePage() {
                 value={specialty}
                 onChange={(e) => { saveUiTextDraft("home", { specialty:e.target.value, city, uf:locationUf, neighborhood:locationNeighborhood }); setSpecialty(e.target.value); }}
                 placeholder="Especialidade (ex.: Computador)"
-                className="h-11 min-h-11 w-full shrink-0 sm:w-auto sm:flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="h-11 min-h-11 min-w-0 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring lg:flex-1"
               />
               <label className="sr-only" htmlFor="busca-cidade">Município</label>
               <input
@@ -199,16 +199,20 @@ function HomePage() {
                 value={city}
                 onChange={(e) => { cityEditedByUser.current = true; saveUiTextDraft("home", { specialty, city:e.target.value, uf:"", neighborhood:"" }); setCity(e.target.value); setLocationUf(""); setLocationNeighborhood(""); }}
                 placeholder="Município (ex.: São José dos Pinhais)"
-                className="h-11 min-h-11 w-full shrink-0 sm:w-auto sm:flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="h-11 min-h-11 min-w-0 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring lg:flex-1"
               />
               <button
                 type="submit"
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                className="inline-flex h-11 min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 lg:w-auto"
               >
                 <Search className="h-4 w-4" aria-hidden="true" /> Buscar
               </button>
             </form>
             )}
+            <p className="mt-4 text-xs leading-5 text-muted-foreground">
+              Sem avaliações inventadas: <a href="#perfis-reais" className="font-semibold text-primary underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-primary">veja exemplos de perfis publicados no diretório</a>.
+              A região sugerida é aproximada e pode ser alterada na busca.
+            </p>
             <ul className="mt-5 flex flex-wrap gap-2 text-xs text-muted-foreground">
               {CHIPS.map(({ i: I, t }) => (
                 <li key={t} className="inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-1.5 font-medium text-foreground shadow-sm">

@@ -29,6 +29,8 @@ export function HomeCommunityInvite() {
       // The currently displayed snapshot may already be paused or expired.
       setApprovedCard(null);
       setPopupCard(null);
+      // A paused campaign or withdrawn consent must close any visible promotion.
+      setShowPopup(false);
     };
     const load = () => {
       const request = ++generation;
@@ -76,13 +78,16 @@ export function HomeCommunityInvite() {
     // The persistent, accessible banner is always available, including mobile.
     // The optional responsive popup is non-modal: it cannot erase a draft, block
     // navigation or steal focus from the search form.
+    // A community link remains accessible in the Home section; the unsolicited
+    // floating promotional invite needs an explicit advertising opt-in as well.
+    if (!advertisingConsent()) return;
     let alreadyShown = true;
-    try { alreadyShown = sessionStorage.getItem(SEEN_KEY) === "1"; }
+    try { alreadyShown = sessionStorage.getItem(SEEN_KEY) === "1";
     catch { return; } // Storage blocked: avoid repeated interruptions.
     if (alreadyShown) return;
 
     const timer = window.setTimeout(() => {
-      if (document.visibilityState !== "visible") return;
+      if (document.visibilityState !== "visible" || !advertisingConsent()) return;
       // A primeira visita deve concluir a escolha de cookies antes do convite.
       // Não consumir a exibição única enquanto o aviso de privacidade cobre a tela.
       if (document.querySelector('[role="dialog"][aria-label="Aviso de cookies"]')) return;
@@ -90,7 +95,7 @@ export function HomeCommunityInvite() {
       if (focused instanceof HTMLElement &&
         (focused.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(focused.tagName))) return;
       try { sessionStorage.setItem(SEEN_KEY, "1"); } catch { return; }
-      setPopupCard(advertisingConsent() ? approvedCard : null);
+      setPopupCard(approvedCard);
       setShowPopup(true);
     }, 11000);
     return () => window.clearTimeout(timer);
@@ -136,7 +141,7 @@ export function HomeCommunityInvite() {
 
       {showPopup && (
         <aside aria-label={popupCard ? "Campanha publicitária aprovada" : "Convite para profissionais participarem da comunidade"}
-          className="fixed bottom-24 left-3 right-3 z-40 mx-auto w-auto max-w-[342px] rounded-2xl border border-primary/20 bg-card p-4 text-card-foreground shadow-2xl lg:bottom-44 lg:left-auto lg:right-6 lg:mx-0 lg:p-5">
+          className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] left-3 right-3 z-40 mx-auto w-auto max-w-[342px] max-h-[min(70dvh,490px)] overflow-y-auto overscroll-contain rounded-2xl border border-primary/20 bg-card p-4 text-card-foreground shadow-2xl lg:bottom-44 lg:left-auto lg:right-6 lg:mx-0 lg:p-5">
           <button type="button" aria-label={popupCard ? "Dispensar campanha" : "Dispensar convite da comunidade"}
             onClick={() => setShowPopup(false)}
             className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary">

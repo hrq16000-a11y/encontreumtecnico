@@ -54,7 +54,9 @@ describe("prova social sem dados inventados", () => {
       "/tecnicos/tecnico-a-pr", "/tecnicos/tecnico-b-sp", "/tecnicos/tecnico-c-rs",
     ]);
     expect(screen.queryByText("Sem slug")).toBeNull();
-    expect(screen.queryByText(/5 estrelas|depoimento verificado/i)).toBeNull();
+    expect(screen.queryByText(/5 estrelas|depoimento verificado|técnicos online agora/i)).toBeNull();
+    expect(screen.getByText(/A publicação de um perfil não representa certificação técnica/)).toBeTruthy();
+    expect(screen.getByText(/Nenhum telefone privado é exibido nesta seção/)).toBeTruthy();
   });
 
   it("não exibe prova inventada quando a consulta falha", () => {

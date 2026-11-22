@@ -14,7 +14,8 @@ export function AdminPublicExperience() {
         <h3 className="font-bold">Pop-up de campanha aprovada</h3>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
           O anúncio do espaço <code>home.content_1</code> também pode aparecer como pop-up na Home,
-          somente com consentimento de Publicidade. Criar, editar, aprovar e pausar continuam no formulário abaixo,
+          somente com consentimento de Publicidade. Sem essa opção, o convite editorial da comunidade
+          permanece na Home, mas nenhum pop-up promocional é aberto. Criar, editar, aprovar e pausar continuam no formulário abaixo,
           com as exigências contratuais e auditoria existentes.
         </p>
         <a href="#admin-patrocinadores-formulario" className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground">
