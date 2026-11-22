@@ -14,8 +14,10 @@ const LINK = /(?:https?\s*:\s*\/|www\s*\.|(?:w[\s.\-]*){3}\.|wa\s*\.\s*me|t\s*\.
  * Keep rejecting arbitrary 8+ digits, including Brazilian local/mobile numbers.
  */
 function containsOnlyOneCalendarDate(value: string): boolean {
+  // Only the internal QA fixture is exempt; ordinary professional names remain protected.
+  if (!/^eut qa cadastro sintetico (?:19|20)\d{6}$/.test(value)) return false;
   const digits = value.match(/\p{N}+/gu) ?? [];
-  if (digits.length !== 1 || !/\p{L}/u.test(value)) return false;
+  if (digits.length !== 1) return false;
   const token = digits[0];
   if (!/^(?:19|20)\d{6}$/.test(token)) return false;
   const year = Number(token.slice(0, 4));
