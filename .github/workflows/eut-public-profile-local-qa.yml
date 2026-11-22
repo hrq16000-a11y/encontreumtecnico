@@ -1,0 +1,116 @@
+name: EUT public technician profile — synthetic localhost browser QA
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eut-public-profile-local-once
+  cancel-in-progress: false
+
+jobs:
+  local-browser:
+    # A Draft PR and deliberate label are both required. No push/PR-open trigger.
+    if: github.event.pull_request.draft && github.event.label.name == 'qa-eut-public-profile-local-approved'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      SUPABASE_ACCESS_TOKEN: ''
+      SUPABASE_DB_PASSWORD: ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: oven-sh/setup-bun@v2
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 3.2.0
+      - name: Install locked app and isolated Chromium (no new repo dependency)
+        shell: bash
+        run: |
+          set -euo pipefail
+          bun install --frozen-lockfile
+          mkdir -p "$RUNNER_TEMP/eut-browser"
+          npm install --prefix "$RUNNER_TEMP/eut-browser" --no-audit --no-fund --save-exact playwright@1.56.1
+          "$RUNNER_TEMP/eut-browser/node_modules/.bin/playwright" install chromium
+      - name: Local-only Supabase, app SSR and one browser proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase start
+          supabase status -o env > "$RUNNER_TEMP/eut-local.env"
+          set -a
+          source "$RUNNER_TEMP/eut-local.env"
+          set +a
+          test "$API_URL" = 'http://127.0.0.1:54321'
+          test "$DB_URL" = 'postgresql://postgres:postgres@127.0.0.1:54322/postgres'
+          test -n "$ANON_KEY"
+          test -n "$SERVICE_ROLE_KEY"
+          export SUPABASE_URL="$API_URL"
+          export SUPABASE_PUBLISHABLE_KEY="$ANON_KEY"
+          export SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          export VITE_SUPABASE_URL="$API_URL"
+          export VITE_SUPABASE_PUBLISHABLE_KEY="$ANON_KEY"
+          export SUPABASE_PROJECT_ID=local
+          export VITE_SUPABASE_PROJECT_ID=local
+
+          # A process-level remote-socket and fetch guard applies to the Vite
+          # SSR process and Node browser setup. Browser requests have a second
+          # allowlist in browser-qa.cjs. This file is ephemeral, never committed.
+          cat > "$RUNNER_TEMP/eut-loopback-only.cjs" <<'NODE'
+          const net = require("node:net");
+          const allowed = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
+          const originalConnect = net.Socket.prototype.connect;
+          net.Socket.prototype.connect = function (...args) {
+            const options = args[0];
+            if (options && typeof options === "object" && options.path) {
+              return originalConnect.apply(this, args);
+            }
+            const host = options && typeof options === "object"
+              ? (options.host || "localhost")
+              : (typeof args[1] === "string" ? args[1] : "localhost");
+            if (!allowed.has(host)) throw Error("FAIL CLOSED: remote socket blocked");
+            return originalConnect.apply(this, args);
+          };
+          const originalFetch = globalThis.fetch;
+          globalThis.fetch = function (input, init) {
+            const raw = typeof input === "string" || input instanceof URL
+              ? input : input.url;
+            const u = new URL(raw);
+            if (!allowed.has(u.hostname) || !["http:", "https:"].includes(u.protocol)) {
+              throw Error("FAIL CLOSED: remote fetch blocked");
+            }
+            return originalFetch.call(this, input, init);
+          };
+          NODE
+          export NODE_OPTIONS="--require=$RUNNER_TEMP/eut-loopback-only.cjs"
+
+          # SQL below runs solely on ephemeral local Postgres, never official.
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f tests/otp-local/bootstrap.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f tests/profile-local/bootstrap.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f tests/public-profile-local/bootstrap.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f docs/sql/eut-technician-public-slugs-20261110.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f docs/sql/eut-public-eligibility-moderation-proposal-20261111.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f docs/sql/eut-choose-new-role-without-wp-rule.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f tests/profile-local/official-publish-rpc.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -c "REVOKE ALL ON FUNCTION public.eut_publish_my_technician(text,text,text,text[],text[],text,text,text) FROM PUBLIC, anon, authenticated"
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -c "GRANT EXECUTE ON FUNCTION public.eut_publish_my_technician(text,text,text,text[],text[],text,text,text) TO authenticated"
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -c "NOTIFY pgrst, 'reload schema'"
+
+          ./node_modules/.bin/vite --config tests/public-profile-local/vite-local.config.ts > "$RUNNER_TEMP/eut-vite-qa.log" 2>&1 &
+          app_pid=$!
+          trap 'kill "$app_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 40); do
+            if curl --fail --silent http://127.0.0.1:4173/entrar -o /dev/null; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          test "$ready" -eq 1 || { tail -n 80 "$RUNNER_TEMP/eut-vite-qa.log"; exit 1; }
+          NODE_PATH="$RUNNER_TEMP/eut-browser/node_modules" node tests/public-profile-local/browser-qa.cjs
