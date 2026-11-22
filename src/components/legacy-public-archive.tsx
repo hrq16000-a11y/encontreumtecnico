@@ -1,26 +1,15 @@
 import { useEffect, useState } from "react";
-import type { SupabaseClient } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { readPublicLegacyArchivePage, type PublicLegacyArchiveProfile } from "@/lib/public-legacy-archive-rpc";
 import { legacyAvatarUrl } from "@/lib/legacy-avatar-urls";
 import { publicLegacyDisplayName } from "@/lib/legacy-display-name";
 import { getLegacyApproximateRegion } from "@/lib/legacy-ddd-region";
 
-type HistoricalProfile = {
-  wp_post_id: number;
-  display_name: string;
-  sector_tags: string[];
-  country_label: string;
-  validation_status: "em_validacao";
-};
-
 const PAGE_SIZE = 24;
-// A public, sanitized read-only historical snapshot, NOT public.technicians.
-// It includes only profiles published on the old portal. No contact methods.
-const archiveDb = supabase as unknown as SupabaseClient;
+// Public archive is read only through the sanitized RPC, never the original table.
 
 export function LegacyPublicArchive({ show }: { show: boolean }) {
   const [page, setPage] = useState(0);
-  const [profiles, setProfiles] = useState<HistoricalProfile[]>([]);
+  const [profiles, setProfiles] = useState<PublicLegacyArchiveProfile[]>([]);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
@@ -31,20 +20,10 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
     setLoading(true);
     setError(false);
     async function load() {
-      const response = await archiveDb.from("legacy_public_archive")
-        .select("wp_post_id,display_name,sector_tags,country_label,validation_status", { count: "exact" })
-        .eq("validation_status", "em_validacao")
-        .order("wp_post_id", { ascending: true })
-        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+      const result = await readPublicLegacyArchivePage(PAGE_SIZE, page * PAGE_SIZE);
       if (!mounted) return;
-      if (response.error) {
-        setError(true);
-        setCount(0);
-        setProfiles([]);
-      } else {
-        setProfiles((response.data ?? []) as HistoricalProfile[]);
-        setCount(response.count ?? 0);
-      }
+      setProfiles(result.profiles);
+      setCount(result.count);
       setLoading(false);
     }
     // A rejected request (network/offline) must not leave the public list loading forever.
