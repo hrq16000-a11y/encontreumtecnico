@@ -47,7 +47,14 @@ export function LegacyPublicArchive({ show }: { show: boolean }) {
       }
       setLoading(false);
     }
-    void load();
+    // A rejected request (network/offline) must not leave the public list loading forever.
+    void load().catch(() => {
+      if (!mounted) return;
+      setError(true);
+      setCount(0);
+      setProfiles([]);
+      setLoading(false);
+    });
     return () => { mounted = false; };
   }, [page, show]);
 
