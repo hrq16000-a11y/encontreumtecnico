@@ -136,14 +136,15 @@ export function AdminNavigation({ active }: { active: AdminSection }) {
         setMobileOpen(false);
     }
     function escape(event: KeyboardEvent) {
-      if (event.key !== "Escape" || !(event.target instanceof Node)) return;
-      const menu = root.current?.querySelector("#eut-admin-navigation");
-      // A portal dialog (such as global search) owns its own Escape handling.
-      if (!menu?.contains(event.target) && event.target !== mobileMenuButton.current) return;
-      event.preventDefault();
-      setMobileOpen(false);
-      // The focused input/link is about to be hidden: return focus to its trigger.
-      mobileMenuButton.current?.focus();
+      if (event.key === "Escape" && event.target instanceof Node) {
+        const menu = root.current?.querySelector("#eut-admin-navigation");
+        // A portal dialog (such as global search) owns its own Escape handling.
+        if (!menu?.contains(event.target) && event.target !== mobileMenuButton.current) return;
+        event.preventDefault();
+        setMobileOpen(false);
+        // The focused input/link is about to be hidden: return focus to its trigger.
+        mobileMenuButton.current?.focus();
+      }
     }
     document.addEventListener("pointerdown", outside);
     window.addEventListener("keydown", escape);
