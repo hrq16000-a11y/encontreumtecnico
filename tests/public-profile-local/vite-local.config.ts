@@ -63,6 +63,10 @@ function enforceLocalClient(): Plugin {
   };
 }
 export default defineConfig({
+  tanstackStart: {
+    // Match the official vite.config.ts SSR error-wrapper entry exactly.
+    server: { entry: "server" },
+  },
   vite: {
     plugins: [enforceLocalClient()],
     server: { host: "127.0.0.1", port: 4173, strictPort: true },

@@ -42,12 +42,45 @@ jobs:
           test "$GITHUB_HEAD_REF" = 'qa/eut-public-profile-local-20261122'
           test "$(git rev-parse HEAD)" = "$QA_HEAD_SHA"
           test -n "$GH_TOKEN"
-          runs_url="https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/eut-public-profile-local-qa.yml/runs?event=pull_request&branch=qa/eut-public-profile-local-20261122&per_page=100"
-          curl --fail --silent --show-error --max-time 30             -H "Authorization: Bearer $GH_TOKEN"             -H "Accept: application/vnd.github+json" "$runs_url"             -o "$RUNNER_TEMP/eut-one-shot.json"
-          jq -e --argjson id "$GITHUB_RUN_ID" '
-            .total_count == 1 and (.workflow_runs | length == 1) and
-            .workflow_runs[0].id == $id and .workflow_runs[0].run_attempt == 1
-          ' "$RUNNER_TEMP/eut-one-shot.json" >/dev/null
+          # Resolve this run's workflow ID, rather than a file path that may not
+          # yet be registered in the default branch for a Draft PR.
+          api="https://api.github.com/repos/$GITHUB_REPOSITORY/actions"
+          headers=(-H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json")
+          curl --fail --silent --show-error --max-time 20 "${headers[@]}" \
+            "$api/runs/$GITHUB_RUN_ID" -o "$RUNNER_TEMP/eut-current-run.json"
+          workflow_id="$(jq -er --argjson id "$GITHUB_RUN_ID" \
+            --arg sha "$QA_HEAD_SHA" '
+            select(.id == $id and .head_sha == $sha and
+              .event == "pull_request" and .run_attempt == 1) | .workflow_id
+          ' "$RUNNER_TEMP/eut-current-run.json")"
+          [[ "$workflow_id" =~ ^[0-9]+$ ]]
+          # Indexing is eventually consistent. Retry reads briefly; never
+          # accept an absent/current-only ambiguous history as a pass.
+          runs_url="$api/workflows/$workflow_id/runs?event=pull_request&branch=qa/eut-public-profile-local-20261122&per_page=100"
+          verified=0
+          for attempt in 1 2 3 4 5 6; do
+            curl --fail --silent --show-error --max-time 20 "${headers[@]}" \
+              "$runs_url" -o "$RUNNER_TEMP/eut-one-shot.json"
+            if jq -e --argjson id "$GITHUB_RUN_ID" --argjson workflow "$workflow_id" '
+              .total_count == 1 and (.workflow_runs | length == 1) and
+              .workflow_runs[0].id == $id and
+              .workflow_runs[0].workflow_id == $workflow and
+              .workflow_runs[0].run_attempt == 1
+            ' "$RUNNER_TEMP/eut-one-shot.json" >/dev/null; then
+              verified=1
+              break
+            fi
+            # Any previously recorded attempt fails closed immediately.
+            if jq -e '.total_count > 1' "$RUNNER_TEMP/eut-one-shot.json" >/dev/null; then
+              echo "FAIL CLOSED: duplicate or previous QA workflow run" >&2
+              exit 1
+            fi
+            sleep 3
+          done
+          test "$verified" = 1 || {
+            echo "FAIL CLOSED: unable to prove first and only QA run" >&2
+            exit 1
+          }
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
