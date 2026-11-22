@@ -22,8 +22,8 @@ describe("Fase 3 — consentimento não é vigilância", () => {
     expect(notice).toContain("visitorAnalytics");
     expect(notice).toContain("makeCookieChoice(c)");
     expect(notice).toContain('writeVisitorOptInEvent("consent_revoked")');
-    expect(module).toContain("parsed.version === EUT_VISITOR_CONSENT_VERSION");
-    expect(module).toContain("parsed.visitorAnalytics === true");
+    expect(module).toContain('parsed["version"] === EUT_VISITOR_CONSENT_VERSION');
+    expect(module).toContain('parsed["visitorAnalytics"] === true');
     expect(notice).not.toContain("getCurrentPosition");
   });
 });
