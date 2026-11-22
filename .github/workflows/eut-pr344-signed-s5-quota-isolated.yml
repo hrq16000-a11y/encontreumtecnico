@@ -1,0 +1,126 @@
+name: EUT PR344 — signed S5 shared quotas isolated only
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/eut-pr344-signed-s5-quota-isolated.yml'
+      - 'qa/pr344-signed-s5-disposable.sql'
+      - 'qa/pr344-signed-s5-host-only.mjs'
+      - 'qa/pr344-signed-s5-concurrency.test.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  s5-two-synthetic-hosts:
+    if: github.event.pull_request.number == 344
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      PR344_LOCAL_ONLY: 'yes'
+      PR344_ISSUE_TEST_ONLY: 'enabled'
+      PR344_S5_SIMULATED: 'enabled'
+      SUPABASE_ACCESS_TOKEN: ''
+      VITE_EUT_HTTP_PRESENCE_INGEST: 'disabled'
+      VITE_EUT_HTTP_PRESENCE_ADMIN_READ: 'disabled'
+      VITE_EUT_PRIVATE_REALTIME_PRESENCE: 'disabled'
+      PGHOST: '127.0.0.1'
+      PGPORT: '54322'
+      PGUSER: 'postgres'
+      PGPASSWORD: 'postgres'
+      PGDATABASE: 'postgres'
+      SUPABASE_YES: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: supabase/setup-cli@v1
+        with:
+          version: '3.2.0'
+
+      - name: Preflight — enforce QA-only S5 and no official connection
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$PR344_LOCAL_ONLY" = yes
+          test "$PR344_ISSUE_TEST_ONLY" = enabled
+          test "$PR344_S5_SIMULATED" = enabled
+          test -z "$SUPABASE_ACCESS_TOKEN"
+          test "$VITE_EUT_HTTP_PRESENCE_INGEST" = disabled
+          test "$VITE_EUT_HTTP_PRESENCE_ADMIN_READ" = disabled
+          test "$VITE_EUT_PRIVATE_REALTIME_PRESENCE" = disabled
+          test "$PGHOST" = 127.0.0.1
+          test "$PGPORT" = 54322
+          node --check qa/pr344-signed-s5-host-only.mjs
+          node --check qa/pr344-signed-s5-concurrency.test.mjs
+          if grep -R -nE 'pr344-signed-s5-host-only|pr344-signed-s5-concurrency' src; then
+            echo "QA-only S5 must not be imported by application src" >&2
+            exit 1
+          fi
+          if grep -En 'encontreumtecnico\.com\.br|SUPABASE_DB_PASSWORD|https://[^ ]*supabase\.co' \
+            qa/pr344-signed-s5-host-only.mjs qa/pr344-signed-s5-concurrency.test.mjs qa/pr344-signed-s5-disposable.sql; then
+            echo "S5 runner cannot contain official project references" >&2
+            exit 1
+          fi
+          echo "S5 preflight: disposable-only and browser feature flags OFF"
+
+      - name: Install existing lockfile dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Start fresh unlinked Supabase on localhost
+        shell: bash
+        run: |
+          set -euo pipefail
+          stack="$(mktemp -d "$RUNNER_TEMP/pr344-s5-XXXXXX")"
+          echo "PR344_S5_STACK=$stack" >> "$GITHUB_ENV"
+          cd "$stack"
+          supabase init
+          test -f supabase/config.toml
+          supabase start >"$RUNNER_TEMP/pr344-s5-start.log" 2>&1
+          echo "S5: isolated Supabase started on localhost"
+
+      - name: Apply ONLY synthetic S5 SQL and verify service-only access
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = 127.0.0.1
+          test "$PGPORT" = 54322
+          command -v psql >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+          psql -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/qa/pr344-signed-s5-disposable.sql" >/dev/null
+          allowed="$(psql -XAt -v ON_ERROR_STOP=1 -c "SELECT CASE WHEN l.relrowsecurity AND b.relrowsecurity AND NOT has_table_privilege('anon','public.pr344_signed_s5_budgets','SELECT') AND NOT has_table_privilege('authenticated','public.pr344_signed_s5_leases','SELECT') AND NOT has_function_privilege('anon','public.pr344_signed_s5_apply(text,text,text,timestamptz,timestamptz,timestamptz)','EXECUTE') AND NOT has_function_privilege('authenticated','public.pr344_signed_s5_apply(text,text,text,timestamptz,timestamptz,timestamptz)','EXECUTE') AND has_function_privilege('service_role','public.pr344_signed_s5_apply(text,text,text,timestamptz,timestamptz,timestamptz)','EXECUTE') THEN 'ok' ELSE 'bad' END FROM pg_class l CROSS JOIN pg_class b WHERE l.oid='public.pr344_signed_s5_leases'::regclass AND b.oid='public.pr344_signed_s5_budgets'::regclass")"
+          test "$allowed" = ok
+          sleep 3
+          echo "S5: RLS/REVOKE/EXECUTE gates passed in disposable DB"
+
+      - name: Export only ephemeral localhost Supabase test credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$PR344_S5_STACK"
+          set -a
+          source <(supabase status -o env)
+          set +a
+          [[ "$API_URL" =~ ^http://127\.0\.0\.1:[0-9]+$ ]] || exit 1
+          test -n "$ANON_KEY"
+          test -n "$SERVICE_ROLE_KEY"
+          test "$ANON_KEY" != "$SERVICE_ROLE_KEY"
+          echo "::add-mask::$ANON_KEY"
+          echo "::add-mask::$SERVICE_ROLE_KEY"
+          {
+            echo "PR344_API_URL=$API_URL"
+            echo "PR344_ANON_KEY=$ANON_KEY"
+            echo "PR344_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+          } >> "$GITHUB_ENV"
+          echo "S5: localhost-only secrets exported without revealing values"
+
+      - name: S5 ONLY — two-host atomic quota, retries and untrusted headers
+        run: timeout --signal=TERM --kill-after=5s 100s node --test qa/pr344-signed-s5-concurrency.test.mjs
+
+      - name: Remove disposable Supabase without backup on all outcomes
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "$PR344_S5_STACK" ] && [ -f "$PR344_S5_STACK/supabase/config.toml" ]; then
+            cd "$PR344_S5_STACK"
+            supabase stop --no-backup >/dev/null 2>&1 || true
+          fi
+          echo "S5: disposable database discarded with no backup"
