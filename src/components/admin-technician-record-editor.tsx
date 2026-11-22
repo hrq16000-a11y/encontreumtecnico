@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveCategories } from "@/hooks/use-active-categories";
@@ -54,7 +54,7 @@ function safeRegistryError(error: unknown): string {
 }
 
 export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin = "manual",
-  importedName = "", importedRegion = "", importedCityIbgeId = null, importedDemo = false, available, onSaved, onCancel }: {
+  importedName = "", importedRegion = "", importedCityIbgeId = null, importedDemo = false, available, inDialog = false, onSaved, onCancel }: {
   sourceId: string;
   existing?: AdminTechnicianRegistryRecord;
   createOrigin?: "manual" | "wordpress" | "guiafix";
@@ -63,6 +63,7 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
   importedCityIbgeId?: number | null;
   importedDemo?: boolean;
   available: boolean;
+  inDialog?: boolean;
   onSaved: (message: string) => void;
   onCancel: () => void;
 }) {
@@ -76,7 +77,7 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
   const [categories, setCategories] = useState<string[]>(existing?.category_slugs ?? []);
   const [services, setServices] = useState<string[]>(existing?.service_slugs ?? []);
   const [availableServices, setAvailableServices] = useState<CatalogService[]>([]);
-  const [active, setActive] = useState(existing?.admin_active ?? !importedDemo);
+  const [active, setActive] = useState(existing?.admin_active ?? (createOrigin === "manual" && !importedDemo));
   const [phone, setPhone] = useState("");
   const [originalPhone, setOriginalPhone] = useState("");
   const [phoneLoaded, setPhoneLoaded] = useState(!existing);
@@ -88,12 +89,17 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
   const [identityLoadError, setIdentityLoadError] = useState(false);
   // Suspension remains a status; it does not hide the telephone from administration.
   const [contactSuspended, setContactSuspended] = useState(false);
-  const [reason, setReason] = useState("");
-  const [acknowledged, setAcknowledged] = useState(false);
+  // An audit reason is still sent to the server; the owner is not asked to invent one.
+  const auditReason = existing ? "Atualizacao de cadastro pelo painel administrativo" : "Cadastro de tecnico pelo painel administrativo";
+  const errorRef = useRef<HTMLParagraphElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [catalogError, setCatalogError] = useState(false);
   const { categories: catalogCategories, loading: categoryLoading, error: categoryError } = useActiveCategories();
+
+  useEffect(() => {
+    if (error) errorRef.current?.focus();
+  }, [error]);
 
   useEffect(() => {
     const initialCityId = existing?.city_ibge_id ?? importedCityIbgeId;
@@ -207,7 +213,7 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (busy || !available || !acknowledged || existing?.archived || importedDemo) return;
+    if (busy || !available || existing?.archived || importedDemo) return;
     setError(null);
     if (importedCreation && (
       (createOrigin === "wordpress" && !/^wordpress_20261108:[0-9]{1,9}$/.test(sourceId)) ||
@@ -223,14 +229,14 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
       (ddd && !/^[1-9][0-9]$/.test(ddd))) {
       setError("Região ou DDD inválido. DDD identifica região aproximada, não município exato."); return;
     }
-    if (reason.trim().length < 8 || reason.trim().length > 400 || publicTextProblem(reason, "identity")) {
-      setError("Justificativa obrigatória de 8 a 400 caracteres, sem dados privados ou links."); return;
-    }
     if (existing && (!phoneLoaded || !identityLoaded)) {
       setError("Não foi possível carregar os dados atuais. Atualize a ficha antes de gravar."); return;
     }
     if (phone.trim() && !normalizedPhoneDraft) {
       setError("Informe um telefone brasileiro válido com DDD."); return;
+    }
+    if (citySearch.trim() && cityId === null) {
+      setError("Escolha uma cidade da lista ou deixe o campo vazio."); return;
     }
     const email = identity.email.trim();
     const postalCode = identity.postal_code.replace(/\D/g, "");
@@ -241,9 +247,11 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
     const identityPayload = technicianIdentityPayload(identity);
     const writeIdentity = shouldWriteTechnicianIdentity(identityPayload, originalIdentity, Boolean(existing));
     const normalizedPhone = phoneAction === "replace" ? normalizedPhoneDraft : null;
+    const effectiveDdd = phoneAction === "replace" && normalizedPhoneDraft
+      ? normalizedPhoneDraft.slice(3, 5) : ddd;
     const payload: Record<string, unknown> = {
       display_name: cleanedName, city_ibge_id: cityId,
-      ddd: ddd || null,
+      ddd: effectiveDdd || null,
       region_approx: region.trim() || null,
       category_slugs: categories,
       service_slugs: services,
@@ -260,7 +268,7 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
       const { data, error: writeError } = await db.rpc("eut_admin_technician_record_save", {
         _origin: existing?.origin ?? createOrigin, _source_id: sourceId,
         _expected_updated_at: existing?.updated_at ?? null,
-        _payload: payload, _reason: reason.trim(),
+        _payload: payload, _reason: auditReason,
       });
       if (writeError) throw writeError;
       if (data?.ok !== true || !data.technician_id || !data.updated_at)
@@ -272,7 +280,7 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
           _record_key: `registry:${data.technician_id}`,
           _expected_updated_at: identityRevision,
           _payload: identityPayload,
-          _reason: reason.trim(),
+          _reason: auditReason,
         });
         if (identityError || savedIdentity?.ok !== true || !savedIdentity.updated_at) {
           setError("A ficha profissional foi salva, mas e-mail/endereço não foram confirmados. " +
@@ -299,7 +307,7 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
       if (readError || !verified ||
           verified.display_name !== cleanedName ||
           verified.city_ibge_id !== cityId ||
-          (verified.ddd ?? null) !== (ddd || null) ||
+          (verified.ddd ?? null) !== (effectiveDdd || null) ||
           (verified.region_approx ?? null) !== (region.trim() || null) ||
           verified.admin_active !== payload["admin_active"] ||
           !sameSlugs(verified.category_slugs, categories) ||
@@ -340,10 +348,7 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
   }
 
   async function archiveOrRestore() {
-    if (!existing || busy || !available || !acknowledged) return;
-    if (reason.trim().length < 8 || reason.trim().length > 400 || publicTextProblem(reason, "identity")) {
-      setError("Informe a justificativa de 8 a 400 caracteres, sem contatos privados."); return;
-    }
+    if (!existing || busy || !available) return;
     const action = existing.archived ? "restore" : "archive";
     const prompt = existing.archived
       ? "Restaurar a condição administrativa anterior? Os contatos privados continuarão protegidos."
@@ -355,7 +360,8 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
       const { data, error: actionError } = await db.rpc("eut_admin_technician_record_archive", {
         _technician_id: existing.technician_id,
         _expected_updated_at: existing.updated_at,
-        _action: action, _reason: reason.trim(),
+        _action: action,
+        _reason: action === "archive" ? "Arquivamento pelo painel administrativo" : "Restauracao pelo painel administrativo",
       });
       if (actionError) throw actionError;
       if (!confirmedTechnicianArchiveResult(data, existing.technician_id, action))
@@ -367,170 +373,181 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
   }
 
   return <form onSubmit={(event) => void submit(event)}
-    className="mt-4 grid min-w-0 gap-4 rounded-xl border border-primary/20 bg-card p-3 sm:p-5"
-    aria-label={existing ? `Editar técnico ${existing.display_name}` : importedCreation ? "Editar técnico do diretório" : "Adicionar técnico manualmente"}>
-    <h3 className="text-lg font-bold text-foreground">{existing ? "Editar ficha do técnico" : importedCreation ? "Completar cadastro e salvar técnico" : "Adicionar técnico"}</h3>
-    <p className="text-xs leading-5 text-muted-foreground">
-      Informe os dados deste técnico e salve com auditoria. O contato é privado; esta operação não publica
-      telefone, não cria conta de login e não libera acesso pago ao número.
-    </p>
+    className={inDialog ? "grid min-w-0 gap-4" : "mt-4 grid min-w-0 gap-4 rounded-xl border border-primary/20 bg-card p-3 sm:p-5"}
+    aria-label={existing ? "Editar técnico " + existing.display_name : importedCreation ? "Completar cadastro do técnico" : "Adicionar técnico manualmente"}>
+    {!inDialog && <h3 className="text-lg font-bold text-foreground">
+      {existing ? "Editar técnico" : importedCreation ? "Completar cadastro" : "Novo técnico"}
+    </h3>}
     {!available && <p role="alert" className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-foreground">
-      O banco ainda não possui as novas RPCs de cadastro. O formulário está disponível para conferência,
-      mas salvar está bloqueado até a instalação autorizada e homologada.
+      O cadastro está temporariamente indisponível. Nenhum dado foi enviado.
     </p>}
-    <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">Nome profissional
-      <input className={field} required minLength={3} maxLength={120} value={name}
-        onChange={(event) => setName(event.target.value)} />
+    {error && <p ref={errorRef} tabIndex={-1} role="alert"
+      className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+      {error}
+    </p>}
+    <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">
+      Nome <span className="text-xs font-normal text-muted-foreground">Obrigatório</span>
+      <input className={field} required minLength={3} maxLength={120} autoComplete="off" autoFocus={!existing}
+        value={name} onChange={(event) => { setName(event.target.value); setError(null); }}
+        placeholder="Nome ou nome da empresa" />
     </label>
-    <>
-    <div className="grid min-w-0 gap-3 sm:grid-cols-[90px_minmax(0,1fr)]">
-      <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">DDD
-        <input className={field} inputMode="numeric" maxLength={2} value={ddd}
-          placeholder="41" onChange={(event) => setDdd(event.target.value.replace(/\D/g, "").slice(0, 2))} />
-      </label>
-      <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">Região aproximada (se comprovada)
-        <input className={field} maxLength={120} value={region}
-          onChange={(event) => setRegion(event.target.value)} placeholder="Não inventar município pelo DDD" />
-      </label>
-    </div>
+    <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">
+      Telefone <span className="text-xs font-normal text-muted-foreground">Opcional · privado</span>
+      <input className={field} inputMode="tel" autoComplete="off" placeholder="(41) 99999-9999"
+        value={phone} disabled={Boolean(existing) && !phoneLoaded}
+        onChange={(event) => setPhone(event.target.value)} />
+    </label>
+    {phoneLoadError && <p role="alert" className="text-xs text-destructive">
+      O telefone atual não pôde ser consultado. Salvar a edição está bloqueado para proteger o contato.
+    </p>}
+    {phoneAction === "replace" && existing && <label className="flex min-h-10 items-center gap-2 text-xs text-foreground">
+      <input type="checkbox" checked={contactSuspended}
+        onChange={(event) => setContactSuspended(event.target.checked)} />
+      Preservar suspensão deste contato
+    </label>}
+    {existing && contactSuspended && <p className="text-xs text-muted-foreground">
+      O contato está suspenso. Alterá-lo exige uma operação de moderação separada.
+    </p>}
     <div className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">
-      <label htmlFor="admin-record-city-search">Município IBGE verificado (opcional)</label>
-      <input id="admin-record-city-search" className={field} value={citySearch}
-        onChange={(event) => { setCitySearch(event.target.value); setCityId(null); }}
-        placeholder="Buscar município pelo nome" />
-      {cityId !== null && <button type="button" onClick={() => { setCityId(null); setCitySearch(""); }}
+      <label htmlFor="admin-record-city-search">
+        Cidade <span className="text-xs font-normal text-muted-foreground">Opcional</span>
+      </label>
+      <input id="admin-record-city-search" className={field} autoComplete="off"
+        value={citySearch} onChange={(event) => { setCitySearch(event.target.value); setCityId(null); }}
+        placeholder="Digite o nome e escolha uma sugestão" />
+      {cityId !== null && <button type="button"
+        onClick={() => { setCityId(null); setCitySearch(""); setCities([]); }}
         className="min-h-10 rounded-lg border border-input px-3 text-left text-xs font-medium text-foreground">
-        Município IBGE selecionado: {cityId} · Remover seleção
+        Remover cidade selecionada
       </button>}
-      {cities.length > 0 && <div className="grid max-h-44 gap-1 overflow-y-auto rounded-lg border border-border p-1">
+      {cities.length > 0 && <div className="grid max-h-44 gap-1 overflow-y-auto rounded-lg border border-border p-1"
+        role="group" aria-label="Cidades encontradas">
         {cities.map((city) => <button type="button" key={city.id}
-          onClick={() => { setCityId(city.id); setCitySearch(`${city.name}/${city.uf}`); setCities([]); }}
+          onClick={() => { setCityId(city.id); setCitySearch(city.name + "/" + city.uf); setCities([]); }}
           className="min-h-10 rounded-md p-2 text-left text-xs text-foreground hover:bg-accent">
-          {city.name}/{city.uf} · IBGE {city.id}
+          {city.name}/{city.uf}
         </button>)}
       </div>}
     </div>
-    {categoryLoading && <p className="text-xs text-muted-foreground">Carregando categorias…</p>}
-    {(categoryError || catalogError) && <p role="alert" className="text-xs text-destructive">Catálogo indisponível; verifique a conexão antes de escolher serviços.</p>}
-    <fieldset className="min-w-0">
-      <legend className="text-sm font-semibold text-foreground">Categorias comprovadas (opcional)</legend>
-      <div className="mt-2 grid min-w-0 gap-2 sm:grid-cols-2">
-        {catalogCategories.map((item) => <label key={item.slug} className="flex min-h-11 items-center gap-2 rounded-lg border border-border px-3 text-xs text-foreground">
-          <input type="checkbox" checked={categories.includes(item.slug)}
-            onChange={(event) => toggleCategory(item.slug, event.target.checked)} />
-          {item.label}
-        </label>)}
+    <details className="min-w-0 rounded-xl border border-border px-3 py-3">
+      <summary className="cursor-pointer text-sm font-semibold text-foreground">
+        Categorias e serviços (opcional)
+      </summary>
+      <div className="mt-3 grid gap-4">
+        {categoryLoading && <p className="text-xs text-muted-foreground">Carregando categorias…</p>}
+        {(categoryError || catalogError) && <p role="alert" className="text-xs text-destructive">
+          As especialidades estão indisponíveis. Você pode salvar o cadastro e completar depois.
+        </p>}
+        <fieldset className="min-w-0">
+          <legend className="text-sm font-semibold text-foreground">Categorias</legend>
+          <div className="mt-2 grid min-w-0 gap-2 sm:grid-cols-2">
+            {catalogCategories.map((item) => <label key={item.slug}
+              className="flex min-h-11 items-center gap-2 rounded-lg border border-input px-3 text-xs text-foreground">
+              <input type="checkbox" checked={categories.includes(item.slug)}
+                onChange={(event) => toggleCategory(item.slug, event.target.checked)} />
+              {item.label}
+            </label>)}
+          </div>
+        </fieldset>
+        {categories.length > 0 && <fieldset className="min-w-0">
+          <legend className="text-sm font-semibold text-foreground">Serviços</legend>
+          <div className="mt-2 grid min-w-0 gap-2 sm:grid-cols-2">
+            {availableServices.filter((item) => categories.includes(item.category_slug)).map((item) =>
+              <label key={item.slug} className="flex min-h-11 items-center gap-2 rounded-lg border border-input px-3 text-xs text-foreground">
+                <input type="checkbox" checked={services.includes(item.slug)}
+                  onChange={(event) => setServices((before) => event.target.checked
+                    ? [...before, item.slug] : before.filter((slug) => slug !== item.slug))} />
+                {item.label}
+              </label>)}
+          </div>
+        </fieldset>}
       </div>
-    </fieldset>
-    {categories.length > 0 && <fieldset className="min-w-0">
-      <legend className="text-sm font-semibold text-foreground">Serviços comprovados (opcional)</legend>
-      <div className="mt-2 grid min-w-0 gap-2 sm:grid-cols-2">
-        {availableServices.filter((item) => categories.includes(item.category_slug)).map((item) =>
-          <label key={item.slug} className="flex min-h-11 items-center gap-2 rounded-lg border border-border px-3 text-xs text-foreground">
-            <input type="checkbox" checked={services.includes(item.slug)}
-              onChange={(event) => setServices((before) => event.target.checked
-                ? [...before, item.slug] : before.filter((slug) => slug !== item.slug))} />
-            {item.label}
-          </label>)}
+    </details>
+    <details className="min-w-0 rounded-xl border border-border px-3 py-3">
+      <summary className="cursor-pointer text-sm font-semibold text-foreground">
+        Informações adicionais (opcional)
+      </summary>
+      <div className="mt-3 grid min-w-0 gap-3">
+        <label className="grid gap-1 text-sm font-medium text-foreground">
+          Região atendida
+          <input className={field} maxLength={120} value={region}
+            onChange={(event) => setRegion(event.target.value)} placeholder="Se informada pelo técnico" />
+        </label>
+        {existing && <label className="grid gap-1 text-sm font-medium text-foreground">
+          DDD de referência
+          <input className={field} inputMode="numeric" maxLength={2} value={ddd}
+            onChange={(event) => setDdd(event.target.value.replace(/\D/g, "").slice(0, 2))} />
+        </label>}
+        <fieldset className="grid min-w-0 gap-3 rounded-lg border border-border p-3"
+          disabled={Boolean(existing) && !identityLoaded}>
+          <legend className="px-1 text-sm font-semibold text-foreground">Contato e endereço administrativos</legend>
+          <label className="grid gap-1 text-sm font-medium text-foreground">
+            E-mail (não altera o login)
+            <input className={field} type="email" maxLength={254} autoComplete="off"
+              value={identity.email} onChange={(event) => changeIdentity("email", event.target.value)} />
+          </label>
+          <div className="grid gap-3 sm:grid-cols-[9rem_minmax(0,1fr)]">
+            <label className="grid gap-1 text-sm font-medium text-foreground">CEP
+              <input className={field} inputMode="numeric" maxLength={9} value={identity.postal_code}
+                onChange={(event) => changeIdentity("postal_code", event.target.value.replace(/[^\d-]/g, ""))} />
+            </label>
+            <label className="grid gap-1 text-sm font-medium text-foreground">Rua
+              <input className={field} maxLength={200} value={identity.street}
+                onChange={(event) => changeIdentity("street", event.target.value)} />
+            </label>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-[7rem_minmax(0,1fr)]">
+            <label className="grid gap-1 text-sm font-medium text-foreground">Número
+              <input className={field} maxLength={25} value={identity.number}
+                onChange={(event) => changeIdentity("number", event.target.value)} />
+            </label>
+            <label className="grid gap-1 text-sm font-medium text-foreground">Complemento
+              <input className={field} maxLength={120} value={identity.complement}
+                onChange={(event) => changeIdentity("complement", event.target.value)} />
+            </label>
+          </div>
+          <label className="grid gap-1 text-sm font-medium text-foreground">Bairro
+            <input className={field} maxLength={120} value={identity.neighborhood}
+              onChange={(event) => changeIdentity("neighborhood", event.target.value)} />
+          </label>
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_5.5rem]">
+            <label className="grid gap-1 text-sm font-medium text-foreground">Cidade do endereço
+              <input className={field} maxLength={120} value={identity.city}
+                onChange={(event) => changeIdentity("city", event.target.value)} />
+            </label>
+            <label className="grid gap-1 text-sm font-medium text-foreground">UF
+              <input className={field} maxLength={2} value={identity.uf}
+                onChange={(event) => changeIdentity("uf", event.target.value.toUpperCase().replace(/[^A-Z]/g, ""))} />
+            </label>
+          </div>
+        </fieldset>
+        {identityLoadError && <p role="alert" className="text-xs text-destructive">
+          Não foi possível consultar os dados cadastrais. A edição está bloqueada.
+        </p>}
       </div>
-    </fieldset>}
-    </>
-    <label className="flex min-h-11 items-center gap-2 text-sm text-foreground">
-      <input type="checkbox" checked={active} disabled={existing?.is_demo || importedDemo}
+    </details>
+    {existing && <label className="flex min-h-11 items-center gap-2 text-sm text-foreground">
+      <input type="checkbox" checked={active} disabled={existing.is_demo || importedDemo}
         onChange={(event) => setActive(event.target.checked)} />
-      Habilitado no catálogo, sem distinção de origem ou reivindicação obrigatória
-    </label>
-    <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">Telefone com DDD
-      <input className={field} inputMode="tel" autoComplete="off"
-        value={phone} disabled={Boolean(existing) && !phoneLoaded}
-        onChange={(event) => setPhone(event.target.value)}
-        placeholder="(41) 99999-9999" />
-    </label>
-    {phoneLoadError && <p role="alert" className="text-xs text-destructive">
-      Não foi possível carregar o número cadastrado; os demais dados não foram alterados.
-    </p>}
-    {phoneAction === "replace" && <label className="flex min-h-10 items-center gap-2 text-xs text-foreground">
-      <input type="checkbox" checked={contactSuspended}
-        onChange={(event) => setContactSuspended(event.target.checked)} />
-      Manter contato suspenso (restrição de atendimento ao cliente)
+      Cadastro ativo
     </label>}
-    {existing && contactSuspended && <p className="text-xs text-muted-foreground">
-      Contato suspenso: o telefone é visível, mas sua alteração exige tratamento da restrição no banco.
-    </p>}
-    <fieldset className="grid min-w-0 gap-3 rounded-lg border border-border p-3" disabled={Boolean(existing) && !identityLoaded}>
-      <legend className="px-1 text-sm font-bold text-foreground">E-mail e endereço cadastrais</legend>
-      <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">E-mail completo
-        <input className={field} type="email" maxLength={254} autoComplete="off"
-          value={identity.email} placeholder="Não informado"
-          onChange={(event) => changeIdentity("email", event.target.value)} />
-      </label>
-      <p className="text-xs text-muted-foreground">E-mail administrativo de contato; não altera o e-mail de login.</p>
-      <div className="grid min-w-0 gap-3 sm:grid-cols-[9rem_minmax(0,1fr)]">
-        <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">CEP
-          <input className={field} inputMode="numeric" maxLength={9}
-            value={identity.postal_code} placeholder="00000-000"
-            onChange={(event) => changeIdentity("postal_code", event.target.value.replace(/[^\d-]/g, ""))} />
-        </label>
-        <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">Logradouro
-          <input className={field} maxLength={200} value={identity.street}
-            onChange={(event) => changeIdentity("street", event.target.value)} />
-        </label>
-      </div>
-      <div className="grid min-w-0 gap-3 sm:grid-cols-[7rem_minmax(0,1fr)]">
-        <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">Número
-          <input className={field} maxLength={25} value={identity.number}
-            onChange={(event) => changeIdentity("number", event.target.value)} placeholder="S/N" />
-        </label>
-        <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">Complemento
-          <input className={field} maxLength={120} value={identity.complement}
-            onChange={(event) => changeIdentity("complement", event.target.value)} />
-        </label>
-      </div>
-      <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">Bairro
-        <input className={field} maxLength={120} value={identity.neighborhood}
-          onChange={(event) => changeIdentity("neighborhood", event.target.value)} />
-      </label>
-      <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_5.5rem]">
-        <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">Cidade do endereço
-          <input className={field} maxLength={120} value={identity.city}
-            onChange={(event) => changeIdentity("city", event.target.value)} />
-        </label>
-        <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">UF
-          <input className={field} maxLength={2} value={identity.uf}
-            onChange={(event) => changeIdentity("uf", event.target.value.toUpperCase().replace(/[^A-Z]/g, ""))} />
-        </label>
-      </div>
-      <p className="text-xs text-muted-foreground">Dados completos para a administração; não alteram cobertura pública nem autorizam divulgação.</p>
-    </fieldset>
-    {identityLoadError && <p role="alert" className="text-xs text-destructive">
-      Não foi possível carregar e-mail e endereço existentes. Salvar está temporariamente bloqueado.
-    </p>}
-    <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">Justificativa de auditoria
-      <textarea className={field} required minLength={8} maxLength={400} rows={2} value={reason}
-        onChange={(event) => setReason(event.target.value)} placeholder="Motivo verificável desta inclusão ou edição" />
-    </label>
-    <label className="flex min-h-11 items-start gap-2 text-xs leading-5 text-foreground">
-      <input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} />
-      Confirmo que posso cadastrar ou corrigir os dados deste técnico e que a operação não autoriza
-      divulgação do telefone nem criação de login.
-    </label>
-    {error && <p role="alert" className="rounded-lg border border-destructive/30 p-3 text-sm text-destructive">{error}</p>}
     {existing?.archived && <p className="rounded-lg border border-amber-500/40 p-3 text-xs text-foreground">
-      Esta ficha está arquivada. Restaure primeiro para voltar a editá-la;
-      a restauração recupera a condição administrativa anterior sem alterar contatos privados ou acesso pago.
+      Esta ficha está arquivada. Restaure para voltar a editá-la.
     </p>}
     {existing && !existing.archived && !existing.is_demo &&
       <AdminTechnicianCoverageEditor technicianId={existing.technician_id} onSaved={onSaved} />}
-    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-      <button type="button" className="min-h-11 rounded-lg border border-input px-4 text-foreground" onClick={onCancel}>Cancelar</button>
-      {existing && <button type="button" disabled={!available || busy || !acknowledged}
+    <div className="sticky bottom-0 z-10 flex flex-col-reverse gap-2 border-t border-border bg-background/95 pt-3 pb-1 sm:flex-row sm:justify-end">
+      <button type="button" className="min-h-11 rounded-lg border border-input px-4 text-foreground"
+        onClick={onCancel}>Cancelar</button>
+      {existing && <button type="button" disabled={!available || busy}
         onClick={() => void archiveOrRestore()}
-        className="min-h-11 rounded-lg border border-amber-500/50 px-4 text-sm font-bold text-foreground disabled:opacity-50">
+        className="min-h-11 rounded-lg border border-amber-500/50 px-4 text-sm font-semibold text-foreground disabled:opacity-50">
         {busy ? "Aguarde…" : existing.archived ? "Restaurar ficha" : "Arquivar ficha"}
       </button>}
-      <button type="submit" disabled={!available || busy || !acknowledged || Boolean(existing?.archived) || importedDemo || Boolean(existing && !identityLoaded)}
-        className="min-h-12 rounded-lg bg-primary px-5 text-sm font-bold text-primary-foreground disabled:opacity-50">
-        {busy ? "Gravando no banco…" : existing ? "Salvar edição" : importedCreation ? "Salvar técnico" : "Adicionar técnico"}
+      <button type="submit"
+        disabled={!available || busy || Boolean(existing?.archived) || importedDemo || Boolean(existing && !identityLoaded)}
+        className="min-h-11 rounded-lg bg-primary px-5 text-sm font-bold text-primary-foreground disabled:opacity-50">
+        {busy ? "Salvando…" : existing ? "Salvar alterações" : "Salvar técnico"}
       </button>
     </div>
   </form>;
