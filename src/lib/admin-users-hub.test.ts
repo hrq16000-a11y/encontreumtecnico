@@ -124,6 +124,8 @@ describe("Rodada 2: central única de usuários", () => {
     expect(hub).toContain('href="/admin/legado"');
     expect(hub).toContain('get("busca")');
     expect(hub).toContain('encodeURIComponent(`id:${item.user_key}`)');
+    expect(hub).toContain('if (/^id:(?:wp:');
+    expect(hub).toContain('else url.searchParams.delete("busca")');
     expect(hub).not.toContain('history ? "legado" : null');
     expect(sql).toContain("x.user_key = pg_catalog.substr(v_search, 4)");
     expect(sql).toContain("OR (pg_catalog.left(v_search, 3) <> 'id:'");
