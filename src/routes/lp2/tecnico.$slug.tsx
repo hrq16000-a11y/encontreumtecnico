@@ -20,7 +20,7 @@ export const Route=createFileRoute('/lp2/tecnico/$slug')({
  component:TechnicianProfile,
 })
 function TechnicianProfile(){
- const p=Route.useLoaderData()
+ const p: Awaited<ReturnType<typeof getApprovedTechnician>> = Route.useLoaderData()
  const {categories}=useActiveCategories()
  const {services}=useActiveServices()
  if(!p)return <main className="container"><div className="info-empty"><h1>Perfil indisponível</h1><p>Este cadastro ainda não está publicado ou não foi encontrado. Apenas técnicos aprovados aparecem no diretório.</p><Link to="/lp2/galeria" search={{q:'',city:''}} className="btn">Voltar à galeria</Link></div></main>
