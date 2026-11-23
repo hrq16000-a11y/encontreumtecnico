@@ -97,4 +97,13 @@ describe("Rodada 2: central única de usuários", () => {
     expect(hub).toContain('to="/admin/$secao"');
     expect(page).toContain('<AdminContactsDashboard adminId={user.id} />');
   });
+  it("oferece recuperação da lista de admins sem refazer a navegação ou alterar contas", () => {
+    const hub = read("src/components/admin-users-hub.tsx");
+    expect(hub).toContain("const [refreshRevision, setRefreshRevision] = useState(0)");
+    expect(hub).toContain("}, [page, refreshRevision]);");
+    expect(hub).toContain("onClick={() => setRefreshRevision((revision) => revision + 1)}");
+    expect(hub).toContain('{error ? "Tentar novamente" : "Atualizar lista"}');
+    expect(hub).toContain('disabled={loading}');
+    expect(hub).toContain("if (active) setLoading(false)");
+  });
 });
