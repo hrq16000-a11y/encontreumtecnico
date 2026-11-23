@@ -45,7 +45,7 @@ export const Route = createFileRoute("/servicos")({
 
 function ServicesPage() {
   const isCategoryDetail = useRouterState({ select: state => state.location.pathname.startsWith("/servicos/") });
-  const { categories, services, unavailable, servicesUnavailable } = Route.useLoaderData();
+  const { categories, services, unavailable, servicesUnavailable }: Awaited<ReturnType<typeof getPublicServiceCategories>> = Route.useLoaderData();
   // TanStack file route /servicos is the parent of /servicos/$categoria.
   // It must render the nested Outlet or the child can only contribute metadata.
   if (isCategoryDetail) return <Outlet />;
