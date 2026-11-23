@@ -29,11 +29,11 @@ jobs:
       - name: Checkout the audited #419 SHA
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          ref: 5622a15e9c422860aa00fea1d944e20356ad783c
+          ref: 6ba8a1c34025122be7eb452ab7e9f81f6578a6bd
           persist-credentials: false
       - name: Fail if checkout differs from the audited SHA
         shell: bash
-        run: test "$(git rev-parse HEAD)" = "5622a15e9c422860aa00fea1d944e20356ad783c"
+        run: test "$(git rev-parse HEAD)" = "6ba8a1c34025122be7eb452ab7e9f81f6578a6bd"
       - name: Set up Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
