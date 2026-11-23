@@ -32,10 +32,11 @@ const ACTION_NAMES: Record<Action, string> = {
 };
 
 /** Read and write only through explicitly admin-guarded RPCs. Never use auth.admin in the browser. */
-export function AdminAccountsManager({ initialFilter = "todos", lockFilter = false }: {
-  initialFilter?: Filter; lockFilter?: boolean;
+export function AdminAccountsManager({ initialFilter = "todos", lockFilter = false, initialLayout = "cards" }: {
+  initialFilter?: Filter; lockFilter?: boolean; initialLayout?: "cards" | "table";
 }) {
   const [filter, setFilter] = useState<Filter>(initialFilter);
+  const [layout, setLayout] = useState<"cards" | "table">(initialLayout);
   const [draftSearch, setDraftSearch] = useState(() => typeof window === "undefined" ? "" :
     new URLSearchParams(window.location.search).get("q")?.slice(0, 80) ?? "");
   const [search, setSearch] = useState(draftSearch);
@@ -85,7 +86,17 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
           setSnapshot(null);
           setError("Não foi possível carregar a gestão de contas. Confirme a sessão administrativa e as permissões.");
         } else {
-          setSnapshot(data as Snapshot);
+          const nextSnapshot = data as Snapshot;
+          // If the result set shrinks, recover the last valid server-side page.
+          // Never show stale records or apply bulk actions while reloading it.
+          const pageSize = Number.isFinite(nextSnapshot.page_size) && nextSnapshot.page_size > 0
+            ? nextSnapshot.page_size : 20;
+          const lastPage = Math.max(0, Math.ceil(Math.max(0, nextSnapshot.total) / pageSize) - 1);
+          if (page > lastPage) {
+            setPage(lastPage);
+            return;
+          }
+          setSnapshot(nextSnapshot);
           setError(null);
         }
       } catch {
@@ -258,7 +269,7 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
   const actionableCount = selectedAccounts.filter((account) => bulkAction === "block_account"
     ? !account.blocked_account : account.blocked_account).length;
   return <section aria-label="Contas e bloqueios administrativos" className="mt-2 space-y-5">
-    <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5">
+    {initialLayout === "cards" && <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5">
       <div className="flex items-center gap-3">
         <ShieldCheck className="h-7 w-7 shrink-0 text-primary" aria-hidden="true" />
         <div>
@@ -269,7 +280,19 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
           </p>
         </div>
       </div>
-    </div>
+    </div>}
+    {initialLayout === "table" && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/20 p-3">
+      <div>
+        <h3 className="text-base font-bold text-foreground">Contas cadastradas</h3>
+        <p className="text-xs text-muted-foreground">Visualização de identidades autorizadas; contatos permanecem mascarados.</p>
+      </div>
+      <div role="group" aria-label="Modo de visualização" className="inline-flex rounded-lg border border-input bg-background p-1">
+        <button type="button" aria-pressed={layout === "table"} onClick={() => setLayout("table")}
+          className={"min-h-10 rounded-md px-3 text-sm font-semibold " + (layout === "table" ? "bg-primary text-primary-foreground" : "hover:bg-accent")}>Tabela</button>
+        <button type="button" aria-pressed={layout === "cards"} onClick={() => setLayout("cards")}
+          className={"min-h-10 rounded-md px-3 text-sm font-semibold " + (layout === "cards" ? "bg-primary text-primary-foreground" : "hover:bg-accent")}>Cartões</button>
+      </div>
+    </div>}
     <form className="flex flex-col gap-2 sm:flex-row" onSubmit={submitSearch}>
       <label className="sr-only" htmlFor="eut-admin-account-search">Pesquisar contas</label>
       <input id="eut-admin-account-search" value={draftSearch} onChange={(e) => setDraftSearch(e.target.value)}
@@ -365,7 +388,54 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
       <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
         Nenhuma conta neste filtro. Usuários WordPress antigos só aparecem aqui após confirmar sua identidade no sistema novo.
       </div>}
-    <ul className="grid gap-3">
+    {layout === "table" && <div className="overflow-hidden rounded-xl border border-border bg-card" aria-label="Lista operacional de contas">
+      <table className="w-full text-left text-sm" aria-label="Contas cadastradas">
+        <thead className="hidden border-b border-border bg-muted/40 text-xs font-semibold text-muted-foreground md:table-header-group">
+          <tr>
+            <th scope="col" className="w-10 px-3 py-3">Lote</th>
+            <th scope="col" className="px-3 py-3">Pessoa</th>
+            <th scope="col" className="hidden px-3 py-3 lg:table-cell">Papel</th>
+            <th scope="col" className="px-3 py-3">Situação</th>
+            <th scope="col" className="hidden px-3 py-3 lg:table-cell">Cadastro</th>
+            <th scope="col" className="px-3 py-3">Ações</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {snapshot?.accounts.map((account) => <tr key={account.id} className="block px-3 py-3 md:table-row md:px-0 md:py-0">
+            <td className="float-left mr-2 py-1 md:float-none md:px-3 md:py-3">
+              {!account.is_admin && <input type="checkbox" disabled={busy || bulkBusy}
+                checked={selectedIds.has(account.id)} onChange={() => toggleAccountSelection(account.id)}
+                aria-label={`Selecionar ${account.full_name}`} />}
+            </td>
+            <td className="block min-w-0 py-1 md:table-cell md:px-3 md:py-3">
+              <p className="break-words font-semibold text-foreground">{account.full_name}</p>
+              <p className="break-all text-xs text-muted-foreground">{account.masked_email ?? "Sem e-mail"}</p>
+              <p className="text-xs text-muted-foreground lg:hidden">{account.roles || "Papel não escolhido"}</p>
+            </td>
+            <td className="hidden px-3 py-3 text-xs text-muted-foreground lg:table-cell">{account.roles || "Papel não escolhido"}</td>
+            <td className="block py-1 text-xs text-muted-foreground md:table-cell md:px-3 md:py-3">
+              <span className={account.blocked_account || account.blocked_phone ? "font-semibold text-destructive" : "text-foreground"}>
+                {account.blocked_account ? "Conta banida" : account.blocked_phone ? "Telefone restrito" : account.is_admin ? "Administrador protegido" : "Sem bloqueio"}
+              </span>
+              {account.technician_status && <p className="mt-1">Técnico: {account.technician_status}</p>}
+            </td>
+            <td className="hidden px-3 py-3 text-xs text-muted-foreground lg:table-cell">{account.created_at ? new Date(account.created_at).toLocaleDateString("pt-BR") : "—"}</td>
+            <td className="block pt-2 md:table-cell md:px-3 md:py-3">
+              {!account.is_admin && <div className="flex flex-wrap gap-1.5">
+                <button type="button" onClick={() => choose("edit_name", account)} disabled={busy || bulkBusy}
+                  className="min-h-10 rounded-lg border border-input px-3 text-xs font-semibold hover:bg-accent">Editar nome</button>
+                <button type="button" onClick={() => choose(account.blocked_account ? "unblock_account" : "block_account", account)}
+                  disabled={busy || bulkBusy} className="min-h-10 rounded-lg border border-input px-3 text-xs font-semibold hover:bg-accent">
+                  {account.blocked_account ? "Desbanir conta" : "Banir conta"}
+                </button>
+              </div>}
+              {account.is_admin && <span className="text-xs text-muted-foreground">Somente consulta</span>}
+            </td>
+          </tr>)}
+        </tbody>
+      </table>
+    </div>}
+    {layout === "cards" && <ul className="grid gap-3">
       {snapshot?.accounts.map((account) => <li key={account.id}
         className="rounded-2xl border border-border bg-card p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -400,7 +470,7 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
               <Ban className="h-4 w-4" aria-hidden="true" /> Banir conta</button>}
         </div>}
       </li>)}
-    </ul>
+    </ul>}
     <div className="flex justify-between gap-2">
       <button type="button" disabled={loading || page===0} onClick={() => setPage((x) => Math.max(0,x-1))}
         className="min-h-11 rounded-lg border border-input px-4 text-sm text-foreground disabled:opacity-40">Anterior</button>
