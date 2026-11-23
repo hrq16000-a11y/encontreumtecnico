@@ -257,7 +257,11 @@ BEGIN
       ON r.origin = 'wordpress'
       AND r.source_id ~ '^wordpress_20261108:[0-9]{1,9}$'
       AND ld.source_key = 'wordpress_20261108'
-      AND ld.wp_post_id = pg_catalog.split_part(r.source_id, ':', 2)::bigint
+      AND ld.wp_post_id = CASE
+        WHEN r.source_id ~ '^wordpress_20261108:[0-9]{1,9}$'
+          THEN pg_catalog.split_part(r.source_id, ':', 2)::bigint
+        ELSE NULL::bigint
+      END
       AND ld.kind = 'candidate'
     WHERE linked.id IS NULL
       AND NOT EXISTS (
