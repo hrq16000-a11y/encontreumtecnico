@@ -118,8 +118,9 @@ const LIST_SIZE = 30;
 function UnifiedUsersList({ role, openAccount }: {
   role: UnifiedRole; openAccount: (id: string) => void;
 }) {
-  const [draft, setDraft] = useState("");
-  const [search, setSearch] = useState("");
+  const [draft, setDraft] = useState(() => typeof window === "undefined" ? "" :
+    (new URLSearchParams(window.location.search).get("busca") ?? "").trim().slice(0, 80));
+  const [search, setSearch] = useState(draft);
   const [state, setState] = useState<"todos" | "ativo" | "suspenso">("todos");
   const [cursors, setCursors] = useState<Array<UnifiedCursor | null>>([null]);
   const [page, setPage] = useState(0);
@@ -174,7 +175,12 @@ function UnifiedUsersList({ role, openAccount }: {
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSearch(draft.trim().slice(0, 80));
+    const next = draft.trim().slice(0, 80);
+    setSearch(next);
+    const url = new URL(window.location.href);
+    if (next) url.searchParams.set("busca", next);
+    else url.searchParams.delete("busca");
+    window.history.replaceState(window.history.state, "", url);
     setCursors([null]);
     setPage(0);
     setRefresh((value) => value + 1);
@@ -235,7 +241,7 @@ function UnifiedUsersList({ role, openAccount }: {
         const history = item.record_key.startsWith("wp:") ||
           item.record_key.startsWith("legacy-account:");
         const linked = [...(item.linked_imports ?? []), ...(item.linked_legacy_accounts ?? []), ...(item.profiles ?? [])];
-        const managementSection = technician ? "tecnicos" : history ? "legado" : null;
+        const managementSection = technician ? "tecnicos" : null;
         return <li key={item.user_key} className="min-w-0 rounded-xl border border-border bg-card p-4">
           <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
@@ -277,8 +283,16 @@ function UnifiedUsersList({ role, openAccount }: {
             {managementSection &&
               <a href={`/admin/${managementSection}?busca=${encodeURIComponent(item.name)}`}
                 className="inline-flex min-h-11 items-center rounded-lg border border-input px-3 text-sm font-semibold hover:bg-accent">
-                {technician ? "Abrir gestão de técnicos" : "Abrir acervo histórico"}
+                Abrir gestão de técnicos
               </a>}
+            {history && <a href={`/admin/usuarios?busca=${encodeURIComponent(`id:${item.user_key}`)}`}
+              className="inline-flex min-h-11 items-center rounded-lg border border-input px-3 text-sm font-semibold hover:bg-accent">
+              Consultar histórico por ID
+            </a>}
+            {history && <a href="/admin/legado"
+              className="inline-flex min-h-11 items-center rounded-lg border border-input px-3 text-sm font-semibold hover:bg-accent">
+              Abrir acervo histórico
+            </a>}
           </div>
           {item.record_key.startsWith("imported:") && !item.auth_user_id &&
             <p className="mt-2 text-xs text-muted-foreground">
@@ -305,7 +319,13 @@ export function AdminUsersHub(_props: { adminOwnerId: string }) {
   const [tab, setTab] = useState<UserTab>("todos");
   const [managedAccountId, setManagedAccountId] = useState<string | null>(null);
   useEffect(() => {
-    const syncTabFromUrl = () => setTab(validUserTab(new URLSearchParams(window.location.search).get("perfil")));
+    const syncTabFromUrl = () => {
+      const record = new URLSearchParams(window.location.search).get("registro");
+      const selected = record && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(record)
+        ? record : null;
+      setManagedAccountId(selected);
+      setTab(selected ? "todos" : validUserTab(new URLSearchParams(window.location.search).get("perfil")));
+    };
     syncTabFromUrl();
     window.addEventListener("popstate", syncTabFromUrl);
     return () => window.removeEventListener("popstate", syncTabFromUrl);
