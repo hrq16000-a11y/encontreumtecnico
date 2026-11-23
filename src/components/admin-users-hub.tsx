@@ -144,10 +144,10 @@ function UnifiedUsersList({ role, openAccount }: {
     setResponse(null); // Never expose actions for a stale filtered page.
     setError(false);
     const cursor = cursors[page] ?? null;
-    void adminDb.rpc("eut_admin_users_unified_360", {
+    void Promise.resolve(adminDb.rpc("eut_admin_users_unified_360", {
       _search: search, _state: state, _role: role, _limit: LIST_SIZE,
       _after_name: cursor?.after_name ?? null, _after_key: cursor?.after_key ?? null,
-    }).then(({ data, error: queryError }) => {
+    })).then(({ data, error: queryError }) => {
       if (!active) return;
       if (queryError?.code === "PGRST202" || queryError?.code === "42883") {
         setMissingRpc(true); // Fallback only when the function is not installed.
