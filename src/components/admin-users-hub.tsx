@@ -33,6 +33,7 @@ type AdminUserProfile = { id: string; full_name: string | null };
 /** Uses the existing admin-authorized user_roles/profiles RLS policies; no role mutations. */
 function AdminUsersList({ openAccount }: { openAccount: (id: string) => void }) {
   const [page, setPage] = useState(0);
+  const [refreshRevision, setRefreshRevision] = useState(0);
   const [rows, setRows] = useState<Array<AdminUserRole & { name: string }>>([]);
   const [total, setTotal] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -63,14 +64,21 @@ function AdminUsersList({ openAccount }: { openAccount: (id: string) => void }) 
       } finally { if (active) setLoading(false); }
     })();
     return () => { active = false; };
-  }, [page]);
+  }, [page, refreshRevision]);
 
   return <section aria-label="Usuários administradores" className="space-y-4">
     <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
       <h3 className="flex items-center gap-2 text-lg font-bold"><ShieldCheck className="h-5 w-5" aria-hidden="true" /> Administradores</h3>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">Os papéis são consultados pelas permissões já existentes. Mudanças de privilégio e banimentos de administradores não estão disponíveis pelo CRUD atual.</p>
     </div>
-    <p role="status" className="text-sm text-muted-foreground">{loading ? "Consultando administradores…" : error ? "Consulta indisponível" : total === null ? "Total indisponível" : `${total} administrador(es) · página ${page + 1}`}</p>
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <p role="status" className="text-sm text-muted-foreground">{loading ? "Consultando administradores…" : error ? "Consulta indisponível" : total === null ? "Total indisponível" : `${total} administrador(es) · página ${page + 1}`}</p>
+      <button type="button" disabled={loading}
+        onClick={() => setRefreshRevision((revision) => revision + 1)}
+        className="min-h-11 rounded-lg border border-input px-4 text-sm font-semibold hover:bg-accent disabled:opacity-40">
+        {error ? "Tentar novamente" : "Atualizar lista"}
+      </button>
+    </div>
     {error && <p role="alert" className="rounded-xl border border-destructive/30 p-4 text-sm">Não foi possível consultar os administradores com a permissão atual.</p>}
     {!error && !loading && rows.length === 0 && <p className="text-sm text-muted-foreground">Nenhum administrador encontrado nesta página.</p>}
     <div className="overflow-hidden rounded-xl border border-border">
@@ -137,10 +145,10 @@ function UnifiedUsersList({ role, openAccount }: {
     setResponse(null); // Never expose actions for a stale filtered page.
     setError(false);
     const cursor = cursors[page] ?? null;
-    void adminDb.rpc("eut_admin_users_unified_360", {
+    void Promise.resolve(adminDb.rpc("eut_admin_users_unified_360", {
       _search: search, _state: state, _role: role, _limit: LIST_SIZE,
       _after_name: cursor?.after_name ?? null, _after_key: cursor?.after_key ?? null,
-    }).then(({ data, error: queryError }) => {
+    })).then(({ data, error: queryError }) => {
       if (!active) return;
       if (queryError?.code === "PGRST202" || queryError?.code === "42883") {
         setMissingRpc(true); // Fallback only when the function is not installed.

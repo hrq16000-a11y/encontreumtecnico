@@ -157,6 +157,42 @@ function assertPrivateProof(userId, email) {
 const owner = await makeUser(ownerEmail, 'tecnico');
 const other = await makeUser(otherEmail, 'cliente');
 
+// E2E real e sintético: GoTrue, papel cliente, PostgREST, RLS, gravação e releitura.
+// Todos os endpoints permanecem protegidos pelo guard localhost acima.
+const requestId = crypto.randomUUID();
+const privateProfile = successful(await request(
+  '/rest/v1/profiles?select=id&id=eq.' + other.id, { token: other.token },
+), 'Cliente recupera seu próprio perfil');
+assert.equal(privateProfile.length, 1, 'Perfil da conta cliente ausente');
+assert.equal(privateProfile[0].id, other.id);
+successful(await request('/rest/v1/service_requests', {
+  method: 'POST', token: other.token,
+  body: {
+    id: requestId, client_id: other.id, technician_id: null,
+    title: 'Roteador sem conexão', description: 'Internet oscilando e interrompendo o acesso',
+    category: 'informatica', city: 'Curitiba', region: 'Centro',
+  },
+}), 'Cliente salva solicitação particular');
+async function readOwnRequest(token) {
+  return successful(await request(
+    '/rest/v1/service_requests?select=id,client_id,title,description,status&id=eq.' + requestId,
+    { token },
+  ), 'Cliente lê uma solicitação autenticada');
+}
+const savedRequest = await readOwnRequest(other.token);
+assert.equal(savedRequest.length, 1, 'Pedido salvo não reapareceu');
+assert.equal(savedRequest[0].client_id, other.id);
+assert.equal(savedRequest[0].title, 'Roteador sem conexão');
+assert.equal(savedRequest[0].status, 'aberta');
+const anotherClient = await makeUser('eut-otp-ci-another-client@example.invalid', 'cliente');
+assert.equal((await readOwnRequest(anotherClient.token)).length, 0,
+  'RLS permitiu que cliente distinto consultasse pedido particular');
+successful(await rpc('set_request_status', other.token, {
+  _id: requestId, _status: 'cancelada',
+}), 'Titular cancela sua própria solicitação');
+assert.equal((await readOwnRequest(other.token))[0]?.status, 'cancelada');
+console.log('PASS: cadastro de cliente, pedido salvo/reaberto, isolamento RLS e cancelamento (localhost).');
+
 // Reproduz precisamente a condição das contas legítimas bloqueadas: o
 // e-mail autoconfirmado por administração não é, sozinho, prova de titularidade.
 psql(`DO $check$ BEGIN
@@ -184,6 +220,11 @@ assert(!sent?.access_token, 'OTP não pode emitir JWT sem verificar link');
 await rejected('/rest/v1/rpc/eut_attest_technician_email_otp',
   { method: 'POST', body: {}, token: owner.token }, 'Sessão de senha não prova link enviado');
 
+// GoTrue emits integer-second AMR timestamps while auth.users.recovery_sent_at
+// retains subsecond precision. Verify the actual emailed link in the NEXT
+// second so the unchanged SQL check v_authenticated_at >= v_sent_at is meaningful.
+// Do not alter JWT, timestamps, Auth records, or the server-side guard.
+await new Promise((resolve) => setTimeout(resolve, 1200));
 const verifiedToken = await accessTokenFromLink(await mailpitMagicLink());
 const claims = jwtClaims(verifiedToken);
 assert.equal(claims.sub, owner.id, 'Link não pertence à conta técnica');
