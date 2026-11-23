@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import type { ReactNode } from "react";
 import { LegacyReviewQueue } from "./legacy-review-queue";
 
-const { from, rpc } = vi.hoisted(() => ({ from: vi.fn(), rpc: vi.fn() }));
+const { from, rpc, eqSpy } = vi.hoisted(() => ({ from: vi.fn(), rpc: vi.fn(), eqSpy: vi.fn() }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { from, rpc } }));
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, className }: { children: ReactNode; className?: string }) =>
@@ -26,13 +26,23 @@ const profiles = [
 ];
 
 beforeEach(() => {
+  window.history.replaceState(null, "", "/admin/legado");
+  eqSpy.mockReset();
   from.mockImplementation((table: string) => {
     const query: Record<string, (...args: unknown[]) => unknown> = {};
+    let selectedId: number | null = null;
     query["select"] = () => query;
-    query["eq"] = () => query;
+    query["eq"] = (key: unknown, value: unknown) => {
+      eqSpy(key, value);
+      if (key === "wp_post_id") selectedId = Number(value);
+      return query;
+    };
     query["ilike"] = () => query;
     query["order"] = () => query;
-    query["range"] = async () => ({ data: profiles, count: profiles.length, error: null });
+    query["range"] = async () => {
+      const matching = selectedId === null ? profiles : profiles.filter((row) => row.wp_post_id === selectedId);
+      return { data: matching, count: matching.length, error: null };
+    };
     query["in"] = async () => ({
       data: [{ wp_post_id: 207, record_state: "excluido", corrected_name: null, admin_notes: null }],
       error: null,
@@ -92,4 +102,29 @@ describe("gestão visual do acervo histórico", () => {
     await waitFor(() => expect(screen.getByRole("form", { name: "Confirmar gestão histórica" })).toBeTruthy());
     expect(rpc).not.toHaveBeenCalled();
   });
+  it("abre a ficha WordPress pelo ID original, preservando edição auditada", async () => {
+    window.history.replaceState(null, "", "/admin/legado?registro=wp:candidate:301");
+    render(<LegacyReviewQueue />);
+    const selected = await screen.findByRole("button", { name: "Ocultar ficha · Técnico Sintético" });
+    expect(eqSpy).toHaveBeenCalledWith("wp_post_id", 301);
+    expect(eqSpy).toHaveBeenCalledWith("kind", "candidate");
+    expect(selected.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.queryByRole("button", { name: "Ver ficha · Wanda Histórica" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Editar nome" }));
+    expect(screen.getByRole("form", { name: "Confirmar gestão histórica" })).toBeTruthy();
+    expect(rpc).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Mostrar todos os cadastros" }));
+    await screen.findByRole("button", { name: "Ver ficha · Wanda Histórica" });
+    expect(window.location.search).not.toContain("registro=");
+  });
+
+  it("rejeita registro URL inválido, sem selecionar outra ficha por nome", async () => {
+    window.history.replaceState(null, "", "/admin/legado?registro=wp:candidate:301-errado");
+    render(<LegacyReviewQueue />);
+    expect(await screen.findByRole("button", { name: "Ver ficha · Wanda Histórica" })).toBeTruthy();
+    expect(eqSpy).not.toHaveBeenCalledWith("wp_post_id", expect.anything());
+    expect(screen.queryByRole("button", { name: "Mostrar todos os cadastros" })).toBeNull();
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
 });
