@@ -61,19 +61,31 @@ export function AdminVisitorActivity() {
 
   useEffect(() => {
     let active = true;
+    let reading = false;
     const load = async () => {
-      if (document.visibilityState === "hidden") return;
+      if (!active || reading || document.visibilityState === "hidden") return;
+      reading = true;
       setBusy(true);
       try {
         const next = await readRecentSearchActivity();
         if (active) { setSnapshot(next); setError(""); }
       } catch {
         if (active) { setSnapshot(null); setError("Atividade indisponível ou sem permissão de consulta."); }
-      } finally { if (active) setBusy(false); }
+      } finally {
+        reading = false;
+        if (active) setBusy(false);
+      }
     };
+    // Resume immediately when the tab is visible again instead of waiting 30 seconds.
+    const onVisible = () => { if (document.visibilityState === "visible") void load(); };
+    document.addEventListener("visibilitychange", onVisible);
     void load();
     const timer = window.setInterval(() => { void load(); }, 30_000);
-    return () => { active = false; window.clearInterval(timer); };
+    return () => {
+      active = false;
+      document.removeEventListener("visibilitychange", onVisible);
+      window.clearInterval(timer);
+    };
   }, [revision]);
 
   const cutoff = snapshot ? snapshot.checkedAt.getTime() - period * 60_000 : 0;
