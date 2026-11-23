@@ -97,4 +97,36 @@ describe("Rodada 2: central única de usuários", () => {
     expect(hub).toContain('to="/admin/$secao"');
     expect(page).toContain('<AdminContactsDashboard adminId={user.id} />');
   });
+  it("preserva registros WordPress sem legacy_accounts e pesquisa e-mail profissional", () => {
+    const sql = read("docs/sql/eut-admin-users-unified-read-360-v12-20261122.sql");
+    expect(sql).toContain("pg_catalog.concat_ws(' ', u.email, i.contact_email,");
+    expect(sql).toContain("AND ld.wp_post_id IS NOT NULL");
+    expect(sql).toContain("la.source_key = ld.source_key AND la.wp_user_id = ld.wp_user_id");
+    expect(sql).not.toContain("AND ld.wp_post_id IS NULL");
+    expect(sql).toContain("AND x.user_key = pg_catalog.substr(v_search, 4)");
+    expect(sql).toContain("pg_catalog.left(v_search, 3) <> 'id:'");
+    expect(sql).toContain("AND NOT EXISTS (\n        SELECT 1 FROM eut_moderation.admin_technician_records r");
+    expect(sql).toContain("GRANT EXECUTE ON FUNCTION public.eut_admin_users_unified_360(");
+  });
+  it("restaura registro administrativo após refresh ou popstate, sem selecionar UUID inválido", () => {
+    const hub = read("src/components/admin-users-hub.tsx");
+    expect(hub).toContain('new URLSearchParams(window.location.search).get("registro")');
+    expect(hub).toContain("setManagedAccountId(selected)");
+    expect(hub).toContain('setTab(selected ? "todos" : validUserTab(');
+    expect(hub).toContain('window.addEventListener("popstate", syncTabFromUrl)');
+    expect(hub).toContain("test(record)");
+    expect(hub).toContain('key={managedAccountId}');
+  });
+  it("localiza identidade histórica exata na central e preserva acesso ao acervo", () => {
+    const hub = read("src/components/admin-users-hub.tsx");
+    const sql = read("docs/sql/eut-admin-users-unified-read-360-v12-20261122.sql");
+    expect(hub).toContain("Consultar histórico por ID");
+    expect(hub).toContain('href="/admin/legado"');
+    expect(hub).toContain('get("busca")');
+    expect(hub).toContain('encodeURIComponent(`id:${item.user_key}`)');
+    expect(hub).not.toContain('history ? "legado" : null');
+    expect(sql).toContain("x.user_key = pg_catalog.substr(v_search, 4)");
+    expect(sql).toContain("OR (pg_catalog.left(v_search, 3) <> 'id:'");
+  });
+
 });
