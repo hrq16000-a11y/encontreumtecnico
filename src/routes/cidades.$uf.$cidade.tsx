@@ -45,7 +45,7 @@ export const Route = createFileRoute("/cidades/$uf/$cidade")({
 });
 
 function CitySeoPage() {
-  const { city, profiles, categories, relatedCities } = Route.useLoaderData();
+  const { city, profiles, categories, relatedCities }: NonNullable<Awaited<ReturnType<typeof getSeoCity>>> = Route.useLoaderData();
   return <PageShell>
     <PublicSeoDirectory
       heading={`Técnicos em ${city.name}/${city.uf}`}
