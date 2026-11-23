@@ -57,6 +57,7 @@ describe("convite factual para comunidade", () => {
   });
 
   it("oferece um popup discreto após atraso no desktop e permite fechar", () => {
+    localStorage.setItem("eut-cookie-consent", '{"advertising":true}');
     render(<HomeCommunityInvite />);
     act(() => { vi.advanceTimersByTime(11000); });
     const popup = screen.getByRole("complementary", { name: /convite para profissionais/i });
@@ -68,6 +69,7 @@ describe("convite factual para comunidade", () => {
   });
 
   it("aguarda o fechamento do aviso de cookies antes de consumir o convite da sessão", () => {
+    localStorage.setItem("eut-cookie-consent", '{"advertising":true}');
     const notice = document.createElement("div");
     notice.setAttribute("role", "dialog");
     notice.setAttribute("aria-label", "Aviso de cookies");
@@ -87,6 +89,7 @@ describe("convite factual para comunidade", () => {
   });
 
   it("oferece convite compacto no celular após atraso, sem bloquear o conteúdo", () => {
+    localStorage.setItem("eut-cookie-consent", '{"advertising":true}');
     vi.mocked(window.matchMedia).mockImplementation((query) => ({
       matches: false,
       media: query,
@@ -98,12 +101,14 @@ describe("convite factual para comunidade", () => {
     act(() => { vi.advanceTimersByTime(11000); });
     const popup = screen.getByRole("complementary", { name: /convite para profissionais/i });
     expect(popup.className).not.toContain("hidden");
-    expect(popup.className).toContain("bottom-24");
+    expect(popup.className).toContain("safe-area-inset-bottom");
+    expect(popup.className).toContain("overflow-y-auto");
     fireEvent.click(screen.getByRole("button", { name: "Dispensar convite da comunidade" }));
     expect(popup.isConnected).toBe(false);
   });
 
   it("não interrompe quem estiver digitando na busca da Home", () => {
+    localStorage.setItem("eut-cookie-consent", '{"advertising":true}');
     render(<><input aria-label="Cidade da busca" /><HomeCommunityInvite /></>);
     screen.getByRole("textbox", { name: "Cidade da busca" }).focus();
     act(() => { vi.advanceTimersByTime(11000); });
@@ -111,6 +116,7 @@ describe("convite factual para comunidade", () => {
   });
 
   it("não repete o popup na mesma sessão", () => {
+    localStorage.setItem("eut-cookie-consent", '{"advertising":true}');
     sessionStorage.setItem("eut-community-invite-home-v1", "1");
     render(<HomeCommunityInvite />);
     act(() => { vi.advanceTimersByTime(20000); });
@@ -154,11 +160,34 @@ describe("convite factual para comunidade", () => {
     expect(ads.rpc).toHaveBeenCalledTimes(2);
   });
 
+  it("fecha o convite se a publicidade for revogada, inclusive na mesma aba", async () => {
+    localStorage.setItem("eut-cookie-consent", '{"advertising":true}');
+    render(<HomeCommunityInvite />);
+    await act(async () => { await Promise.resolve(); });
+    act(() => { vi.advanceTimersByTime(11000); });
+    expect(screen.getByRole("complementary", { name: /convite para profissionais/i })).toBeTruthy();
+    localStorage.setItem("eut-cookie-consent", '{"advertising":false,"analytics":true}');
+    await act(async () => { window.dispatchEvent(new Event("eut-consent-changed")); await Promise.resolve(); });
+    expect(screen.queryByRole("complementary", { name: /convite para profissionais/i })).toBeNull();
+    expect(screen.getByRole("region", { name: /Você não precisa trabalhar isolado/i })).toBeTruthy();
+  });
+
+  it("aceitar só Análise ou Funcionais não ativa o popup e não consulta patrocinador", () => {
+    localStorage.setItem("eut-cookie-consent", '{"analytics":true,"functional":true}');
+    render(<HomeCommunityInvite />);
+    act(() => { vi.advanceTimersByTime(11000); });
+    expect(screen.queryByRole("complementary", { name: /convite para profissionais/i })).toBeNull();
+    expect(ads.rpc).not.toHaveBeenCalled();
+  });
+
   it("não consulta patrocinadores sem a escolha explícita de publicidade", () => {
     localStorage.setItem("eut-cookie-consent", '{"analytics":true,"advertising":false}');
     render(<HomeCommunityInvite />);
     act(() => { vi.advanceTimersByTime(11000); });
     expect(ads.rpc).not.toHaveBeenCalled();
-    expect(screen.getByRole("complementary", { name: /convite para profissionais/i })).toBeTruthy();
+    expect(screen.queryByRole("complementary", { name: /convite para profissionais/i })).toBeNull();
+    // The editorial community card is still available without optional cookies.
+    expect(screen.getByRole("region", { name: /Você não precisa trabalhar isolado/i })).toBeTruthy();
+    expect(sessionStorage.getItem("eut-community-invite-home-v1")).toBeNull();
   });
 });
