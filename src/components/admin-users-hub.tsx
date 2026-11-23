@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
+import { lazy, Suspense, useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
 import { ShieldCheck, UsersRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminAccountsManager } from "@/components/admin-accounts-manager";
@@ -102,6 +102,8 @@ function AdminUsersList({ openAccount }: { openAccount: (id: string) => void }) 
 }
 
 const adminDb = supabase as unknown as SupabaseClient;
+const AdminRegistryRecordInlineEditor = lazy(() => import("@/components/admin-registry-record-inline-editor")
+  .then((module) => ({ default: module.AdminRegistryRecordInlineEditor })));
 type UnifiedRole = "todos" | "tecnico" | "cliente";
 type UnifiedCursor = { after_name: string; after_key: string };
 type LinkedIdentity = {
@@ -134,6 +136,8 @@ function UnifiedUsersList({ role, openAccount }: {
   const [refresh, setRefresh] = useState(0);
   const [response, setResponse] = useState<UnifiedPage | null>(null);
   const [missingRpc, setMissingRpc] = useState(false);
+  const [editingRegistryKey, setEditingRegistryKey] = useState<string | null>(null);
+  const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -224,6 +228,7 @@ function UnifiedUsersList({ role, openAccount }: {
         </select>
       </label>
     </form>
+    {savedMessage && <p role="status" className="rounded-lg border border-border p-3 text-sm">{savedMessage}</p>}
     <p role="status" className="text-sm text-muted-foreground">
       {loading ? "Consultando usuários…" : error ? "Consulta unificada indisponível." :
         response ? `${response.total.toLocaleString("pt-BR")} usuário(s) · página ${page + 1} · até ${LIST_SIZE} por página` :
@@ -238,6 +243,9 @@ function UnifiedUsersList({ role, openAccount }: {
       <p className="rounded-lg border border-border p-4 text-sm">Nenhum usuário encontrado neste filtro.</p>}
     <ul className="grid min-w-0 gap-3">
       {response?.items.map((item) => {
+        const importedRegistryKey = item.auth_user_id === null && item.linked_imports?.length &&
+          /^registry:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.record_key)
+            ? item.record_key : null;
         const technician = item.record_key.startsWith("registry:") ||
           item.record_key.startsWith("portal:");
         const history = item.record_key.startsWith("wp:") ||
@@ -282,12 +290,31 @@ function UnifiedUsersList({ role, openAccount }: {
                 className="min-h-11 rounded-lg border border-primary/40 bg-primary/10 px-3 text-sm font-semibold text-primary">
                 Gerenciar conta
               </button>}
+            {importedRegistryKey && <button type="button"
+              aria-expanded={editingRegistryKey === importedRegistryKey}
+              onClick={() => setEditingRegistryKey((current) =>
+                current === importedRegistryKey ? null : importedRegistryKey)}
+              className="min-h-11 rounded-lg border border-primary/40 px-3 text-sm font-semibold text-primary">
+              {editingRegistryKey === importedRegistryKey ? "Fechar edição" : "Editar ficha vinculada"}
+            </button>}
             {managementSection &&
               <a href={`/admin/${managementSection}?busca=${encodeURIComponent(item.name)}`}
                 className="inline-flex min-h-11 items-center rounded-lg border border-input px-3 text-sm font-semibold hover:bg-accent">
                 {technician ? "Abrir gestão de técnicos" : "Abrir acervo histórico"}
               </a>}
           </div>
+          {importedRegistryKey && editingRegistryKey === importedRegistryKey &&
+            <Suspense fallback={<p role="status" className="mt-2 text-sm">Abrindo editor auditado…</p>}>
+              <AdminRegistryRecordInlineEditor key={importedRegistryKey}
+                recordKey={importedRegistryKey} name={item.name}
+                onCancel={() => setEditingRegistryKey(null)}
+                onSaved={(message) => {
+                  setEditingRegistryKey(null);
+                  setSavedMessage(message);
+                  setResponse(null);
+                  setRefresh((value) => value + 1);
+                }} />
+            </Suspense>}
           {item.record_key.startsWith("imported:") && !item.auth_user_id &&
             <p className="mt-2 text-xs text-muted-foreground">
               Este cadastro importado ainda não possui vínculo com um editor específico. A consulta é somente leitura.
