@@ -3,8 +3,15 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { brokeredPreviewStorage } from './previewAuthStorage';
 
-const SUPABASE_URL = "https://pqtzhctvjbfcunmrvxne.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable__zZHvgUWLxuwBuNIAGOBiQ_vp3Vmj4e";
+// QA-ONLY branch: fail closed unless the local disposable Supabase is used.
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+if (import.meta.env.VITE_EUT_QA_ONLY !== "true" ||
+    !SUPABASE_PUBLISHABLE_KEY ||
+    new URL(SUPABASE_URL).hostname !== "127.0.0.1" ||
+    new URL(SUPABASE_URL).port !== "54321") {
+  throw new Error("QA 483 refuses any nonlocal Supabase client");
+}
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";

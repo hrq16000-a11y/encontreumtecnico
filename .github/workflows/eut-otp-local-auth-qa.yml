@@ -21,6 +21,7 @@ concurrency:
 
 jobs:
   otp-local:
+    if: github.event_name == 'pull_request'
     name: Auth real + Mailpit + SQL auditado (localhost)
     runs-on: ubuntu-24.04
     timeout-minutes: 25
@@ -88,3 +89,97 @@ jobs:
             -c "NOTIFY pgrst, 'reload schema'"
           sleep 2
           node tests/otp-local/auth-otp.mjs
+
+  qa483-isolated:
+    name: QA #483 GoTrue + ranking persistente + Chromium local
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 23
+    env:
+      SUPABASE_ACCESS_TOKEN: ''
+      SUPABASE_DB_PASSWORD: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Verify candidate code is identical to approved #483
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "09d1342956ff24a57dbade4fbf4bae2ffd81bc9d"
+          git diff --exit-code HEAD^ HEAD -- src/lib src/components src/routes
+          git diff --exit-code HEAD^ HEAD -- docs/sql/eut-owner-directory-display-20261120.sql
+          test "$(git diff --name-only HEAD^ HEAD | wc -l)" -eq 5
+          grep -q 'VITE_EUT_QA_ONLY' src/integrations/supabase/client.ts
+          ! grep -q 'pqtzhctvjbfcunmrvxne' src/integrations/supabase/client.ts
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: oven-sh/setup-bun@v2
+      - uses: supabase/setup-cli@v1
+        with:
+          version: '3.2.0'
+      - name: Start disposable localhost Supabase Auth/PostgREST/Postgres
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd .github/qa/eut-admin-346
+          supabase start -x realtime,storage-api,imgproxy,postgres-meta,studio,edge-runtime,logflare,vector,supavisor,mailpit
+          supabase status -o env > "$RUNNER_TEMP/eut483-local.env"
+      - name: Install exact approved #377 SQL ONLY in disposable local database
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          source "$RUNNER_TEMP/eut483-local.env"
+          set +a
+          node --input-type=module -e '
+            for(const [key,port] of [["API_URL","54321"],["DB_URL","54322"]]){
+              const u=new URL(process.env[key]||"");
+              if(!["127.0.0.1","localhost"].includes(u.hostname)||u.port!==port)
+                throw Error("Remote Supabase refused");
+            }
+          '
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f .github/qa/eut-483-directory/fixture.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f docs/sql/eut-owner-directory-display-20261120.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -c "NOTIFY pgrst, 'reload schema'"
+          sleep 2
+      - name: Genuine synthetic GoTrue owner, PostgREST persistence and audit
+        run: node .github/qa/eut-483-directory/authenticated-check.mjs
+      - name: Prepare Chromium without changing project lockfiles
+        shell: bash
+        run: |
+          set -euo pipefail
+          bun install --frozen-lockfile
+          npm install --no-audit --no-fund --no-save playwright@1.56.1
+          npx playwright install chromium
+      - name: Chromium 390/1440 against local candidate + local Auth only
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -a
+          source "$RUNNER_TEMP/eut483-local.env"
+          set +a
+          export SUPABASE_URL="$API_URL"
+          export SUPABASE_PUBLISHABLE_KEY="$ANON_KEY"
+          export SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          export VITE_SUPABASE_URL="$API_URL"
+          export VITE_SUPABASE_PUBLISHABLE_KEY="$ANON_KEY"
+          export VITE_EUT_QA_ONLY=true
+          test "$VITE_SUPABASE_URL" = http://127.0.0.1:54321
+          bun run dev --host 127.0.0.1 --port 3000 > "$RUNNER_TEMP/eut483-vite.log" 2>&1 &
+          app_pid=$!
+          trap 'kill "$app_pid" 2>/dev/null || true' EXIT
+          for i in $(seq 1 50); do
+            if curl -sf http://127.0.0.1:3000/entrar >/dev/null; then break; fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:3000/entrar >/dev/null
+          node .github/qa/eut-483-directory/visual-check.mjs
+      - name: Preserve synthetic QA screenshots and non-sensitive assertions
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eut483-local-qa-09d13429
+          path: artifacts/eut-483/
+          if-no-files-found: warn
+          retention-days: 7
