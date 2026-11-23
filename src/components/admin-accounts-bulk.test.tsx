@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 const mockDb = vi.hoisted(() => ({
   accounts: [] as Array<Record<string, unknown>>,
@@ -171,6 +171,29 @@ describe("moderação administrativa em lote", () => {
     fireEvent.click(screen.getByRole("button", { name: "Banir selecionadas" }));
     expect(screen.getByRole("button", { name: "Confirmar ações auditadas" }).hasAttribute("disabled")).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Limpar seleção" }));
+    expect(mockDb.actions).toHaveLength(0);
+  });
+
+  it("abre ficha rápida sanitizada e devolve o foco ao botão após fechar", async () => {
+    mockDb.accounts[1] = { ...mockDb.accounts[1], masked_phone: "(**) *****-1234", technician_status: "habilitado" };
+    render(<AdminAccountsManager initialLayout="table" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Ver ficha de Cliente Um" }));
+    const panel = screen.getByRole("region", { name: "Ficha rápida de Cliente Um" });
+    expect(within(panel).getByText("(**) *****-1234")).toBeTruthy();
+    expect(within(panel).getByText("habilitado")).toBeTruthy();
+    expect(within(panel).getByText("a•••@example.test")).toBeTruthy();
+    expect(mockDb.actions).toHaveLength(0);
+    fireEvent.click(within(panel).getByRole("button", { name: "Fechar ficha" }));
+    expect(screen.queryByRole("region", { name: "Ficha rápida de Cliente Um" })).toBeNull();
+    expect(document.activeElement?.getAttribute("aria-label")).toBe("Ver ficha de Cliente Um");
+  });
+
+  it("remove a ficha antiga ao atualizar a consulta sem executar moderação", async () => {
+    render(<AdminAccountsManager />);
+    fireEvent.click(await screen.findByRole("button", { name: "Ver ficha de Cliente Um" }));
+    expect(screen.getByRole("region", { name: "Ficha rápida de Cliente Um" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Atualizar" }));
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Ficha rápida de Cliente Um" })).toBeNull());
     expect(mockDb.actions).toHaveLength(0);
   });
 
