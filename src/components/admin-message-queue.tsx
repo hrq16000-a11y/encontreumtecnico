@@ -52,6 +52,7 @@ export function AdminMessageQueue() {
   }, [draft, term, busyId]);
   useEffect(() => {
     let active = true;
+    let correctingPage = false;
     const requested = manualRefresh.current;
     const unlockOnThisRead = requested !== null && requested.revision === revision &&
       requested.term === term && requested.filter === filter &&
@@ -72,6 +73,14 @@ export function AdminMessageQueue() {
         if (!active) return;
         if (queryError) {
           setError("Não foi possível consultar mensagens."); setRows([]); setTotal(null);
+        } else if (count !== null && page > 0 && page * PAGE_SIZE >= count) {
+          // A status change can remove the only row from the final filtered page.
+          // Re-read the last valid page; never repeat the audited status action.
+          // Context correction must not inherit a manual unlock permit.
+          correctingPage = true;
+          setRows([]);
+          setTotal(count);
+          setPage(Math.max(0, Math.ceil(count / PAGE_SIZE) - 1));
         } else {
           setRows(data ?? []); setTotal(count ?? null);
           // An inconclusive audit only unlocks after an explicit and complete refresh.
@@ -84,7 +93,7 @@ export function AdminMessageQueue() {
       }).catch(() => { if (active) {
         setError("Não foi possível consultar mensagens."); setRows([]); setTotal(null);
       } })
-      .finally(() => { if (active) setLoading(false); });
+      .finally(() => { if (active && !correctingPage) setLoading(false); });
     return () => { active = false; };
   }, [term, filter, focusedId, page, revision]);
 
