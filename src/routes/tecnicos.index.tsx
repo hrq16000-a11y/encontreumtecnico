@@ -101,7 +101,7 @@ function TechniciansPage() {
   const search = Route.useSearch();
   const { categories, loading: catalogLoading } = useActiveCategories();
   const { services, loading: servicesLoading } = useActiveServices();
-  const technicians = Route.useLoaderData();
+  const technicians: Awaited<ReturnType<typeof listApprovedTechnicians>> = Route.useLoaderData();
   const navigate = useNavigate({ from: "/tecnicos/" });
   const lastRecorded = useRef("");
   const [consentRevision, setConsentRevision] = useState(0);
@@ -161,7 +161,7 @@ function TechniciansPage() {
   const directoryServiceOptions = directoryServiceChoices(services, categories, specialty, serviceQuery, search.servico);
 
   const update = (patch: Partial<typeof search>) =>
-    navigate({ search: (prev) => ({ ...prev, ...patch, pagina: patch.pagina ?? 1 }), replace: true });
+    navigate({ search: (prev: z.output<typeof searchSchema>) => ({ ...prev, ...patch, pagina: patch["pagina"] ?? 1 }), replace: true });
 
   return (
     <PageShell>
