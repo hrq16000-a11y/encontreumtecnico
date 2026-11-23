@@ -18,6 +18,7 @@ import { categoryKeyword, UNIFIED_DIRECTORY_PAGE_SIZE, unifiedPageCount, unified
 import { canBulkAct, orderTechnicians, technicianState, type TechnicianBulkAction,
   type TechnicianSortMode, type TechnicianStateFilter, type TechnicianViewMode } from "@/lib/admin-technician-directory-view";
 import { Copy, Grid2X2, LayoutGrid, List, SlidersHorizontal } from "lucide-react";
+import { portalTechnicianSearchOr } from "@/lib/admin-technician-locality-search";
 import { csvImportErrorText, prepareTechnicianCsv, type TechnicianImportRow } from "@/lib/admin-technician-csv-import";
 
 // The three imports are independent sources, NOT additional approved accounts.
@@ -162,7 +163,7 @@ export function AdminTechnicianUnifiedDirectory({ adminOwnerId }: { adminOwnerId
         for (let start = 0; start < needed && current; start += FETCH_CHUNK) {
           let query = db.from("technicians")
             .select("id,display_name,city,state_uf,region,specialties,service_slugs,status,created_at,updated_at,avatar_path", { count: "exact" });
-          if (term) query = query.ilike("display_name", `%${term}%`);
+          if (term) query = query.or(portalTechnicianSearchOr(term));
           if (region) query = region.length === 2 ? query.eq("state_uf", region.toUpperCase())
             : query.or(["city", "region"].map((field) => `${field}.ilike.%${region}%`).join(","));
           if (specialtyTerm) query = query.overlaps("specialties", matchedSlugs);
