@@ -37,7 +37,7 @@ describe("Identidade visual: adição sem remoção das imagens existentes", () 
 
   it("destaca visualmente a primeira tela e aproxima as artes dos serviços do topo", () => {
     expect(home).toContain('bg-gradient-to-br from-brand-navy');
-    expect(home).toContain('rounded-3xl border border-white/15 bg-card');
+    expect(home).toContain('rounded-[28px] border border-white/20 bg-card');
     expect(home).toContain('sm:grid-cols-2 lg:grid-cols-4');
     const hero = home.indexOf('bg-gradient-to-br from-brand-navy');
     const illustrations = home.indexOf('aria-labelledby="home-visual-servicos"');
@@ -45,8 +45,8 @@ describe("Identidade visual: adição sem remoção das imagens existentes", () 
     const proof = home.indexOf('<HomePublicProof />');
     expect(hero).toBeGreaterThan(0);
     expect(illustrations).toBeGreaterThan(hero);
-    expect(illustrations).toBeLessThan(channels);
-    expect(channels).toBeLessThan(proof);
+    expect(illustrations).toBeLessThan(proof);
+    expect(proof).toBeLessThan(channels);
     expect(home.match(/aria-labelledby="home-visual-servicos"/g)).toHaveLength(1);
   });
 
