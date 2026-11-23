@@ -51,9 +51,9 @@ vi.mock("@supabase/supabase-js", () => ({
           if (coverageIds) state.coverageReads++;
           else state.baseReads++;
           const matches = state.candidates.filter(row => {
-            if (requestedUf && row.state_uf !== requestedUf) return false;
-            if (requestedCity && !String(row.city).toLowerCase().includes(requestedCity)) return false;
-            if (coverageIds && !(row.coverage_city_ids as number[]).some(id => coverageIds!.includes(id))) return false;
+            if (requestedUf && row['state_uf'] !== requestedUf) return false;
+            if (requestedCity && !String(row['city']).toLowerCase().includes(requestedCity)) return false;
+            if (coverageIds && !(row['coverage_city_ids'] as number[]).some(id => coverageIds!.includes(id))) return false;
             return true;
           });
           return { data: matches.slice(from, to + 1), error: null };
