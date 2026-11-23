@@ -86,7 +86,17 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
           setSnapshot(null);
           setError("Não foi possível carregar a gestão de contas. Confirme a sessão administrativa e as permissões.");
         } else {
-          setSnapshot(data as Snapshot);
+          const nextSnapshot = data as Snapshot;
+          // If the result set shrinks, recover the last valid server-side page.
+          // Never show stale records or apply bulk actions while reloading it.
+          const pageSize = Number.isFinite(nextSnapshot.page_size) && nextSnapshot.page_size > 0
+            ? nextSnapshot.page_size : 20;
+          const lastPage = Math.max(0, Math.ceil(Math.max(0, nextSnapshot.total) / pageSize) - 1);
+          if (page > lastPage) {
+            setPage(lastPage);
+            return;
+          }
+          setSnapshot(nextSnapshot);
           setError(null);
         }
       } catch {
