@@ -29,9 +29,15 @@ describe("Rodada 2: central única de usuários", () => {
     const hub = read("src/components/admin-users-hub.tsx");
     const accounts = read("src/components/admin-accounts-manager.tsx");
     const directory = read("src/components/admin-technician-unified-directory.tsx");
-    expect(hub).toContain('<AdminAccountsManager key="todos" initialFilter="todos" lockFilter initialLayout="table" />');
-    expect(hub).toContain('<AdminAccountsManager key="clientes" initialFilter="clientes" lockFilter initialLayout="table" />');
-    expect(hub).toContain('initialFilter="tecnicos" lockFilter initialLayout="table"');
+    expect(hub).toContain('<UnifiedUsersList key="todos" role="todos" openAccount={openManagedAccount} />');
+    expect(hub).toContain('<UnifiedUsersList key="clientes" role="cliente" openAccount={openManagedAccount} />');
+    expect(hub).toContain('<UnifiedUsersList key="tecnicos" role="tecnico" openAccount={openManagedAccount} />');
+    expect(hub).toContain('adminDb.rpc("eut_admin_users_unified_360"');
+    expect(hub).toContain('queryError?.code === "PGRST202" || queryError?.code === "42883"');
+    expect(hub).toContain('if (missingRpc) {');
+    expect(hub).toContain('initialFilter={role === "todos" ? "todos" : role === "tecnico" ? "tecnicos" : "clientes"}');
+    expect(hub).toContain('lockFilter initialLayout="table" />');
+    expect(hub).toContain('<AdminAccountsManager key={managedAccountId} initialFilter="todos" lockFilter initialLayout="table" />');
     expect(hub).not.toContain("<AdminTechnicianUnifiedDirectory");
     expect(hub).toContain('params={{ secao: "tecnicos" }}');
     expect(hub).toContain('aria-label="Administradores cadastrados"');
