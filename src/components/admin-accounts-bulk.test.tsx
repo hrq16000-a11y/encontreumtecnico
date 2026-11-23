@@ -70,7 +70,7 @@ describe("moderação administrativa em lote", () => {
   it("retorna à última página existente quando o total de contas diminui", async () => {
     mockDb.accounts = Array.from({ length: 24 }, (_, i) =>
       account(`bbbbbbbb-bbbb-4bbb-bbbb-${String(i).padStart(12, "0")}`, `Cliente ${i + 1}`));
-    render(<AdminAccountsManager initialLayout="table" />);
+    render(<AdminAccountsManager />);
     expect(await screen.findByText(/24 conta\(s\) · página 1 de 2/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Cadastros mais antigos" }));
     expect(await screen.findByText(/24 conta\(s\) · página 2 de 2/)).toBeTruthy();
