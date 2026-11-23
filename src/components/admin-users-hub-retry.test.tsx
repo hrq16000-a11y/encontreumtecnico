@@ -63,8 +63,8 @@ describe("Painel 360° — recuperação funcional de Administradores", () => {
       .mockReturnValueOnce(pendingRetry.promise);
     profilesMock.mockResolvedValue({
       data: [
-        { id: roles[0].user_id, full_name: "Administradora Sintética A", phone: "SENTINELA_PRIVADA" },
-        { id: roles[1].user_id, full_name: "Administrador Sintético B", phone: "SENTINELA_PRIVADA" },
+        { id: roles[0]!.user_id, full_name: "Administradora Sintética A", phone: "SENTINELA_PRIVADA" },
+        { id: roles[1]!.user_id, full_name: "Administrador Sintético B", phone: "SENTINELA_PRIVADA" },
       ],
       error: null,
     });
