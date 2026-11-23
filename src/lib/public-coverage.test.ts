@@ -28,13 +28,27 @@ describe("cobertura real a partir de perfis públicos", () => {
     expect(rows[0]?.profiles[0]?.displayName).toBe("Profissional cadastrado");
     expect(JSON.stringify(rows)).not.toContain("99999");
   });
-  it("consulta somente perfis aprovados com dados públicos, paginados", () => {
+  it("reutiliza o grafo público elegível que inclui a tabela e a RPC administrativa", () => {
     const source = readFileSync("src/lib/public-coverage.functions.ts", "utf8");
-    expect(source).toContain('.select("public_slug,display_name,city,state_uf")');
-    expect(source).toContain('.eq("status", "aprovado")');
-    expect(source).toContain(".range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)");
-    expect(source).toContain("throw new Error");
+    const graph = readFileSync("src/lib/public-seo-graph.functions.ts", "utf8");
+    expect(source).toContain("getPublicGraphSnapshot()");
+    expect(source).toContain("groupPublishedCoverage(graph.profiles)");
+    expect(source).toContain("publishedCount: graph.profiles.length");
+    expect(graph).toContain('.eq("status", "aprovado")');
+    expect(graph).toContain("readPublicEligibleRows(");
+    expect(graph).toContain('rpc("eut_public_admin_technicians"');
     expect(source).not.toMatch(/SERVICE_ROLE|private_contacts|contact_phone|auth\.users/i);
+  });
+  it("consolida perfis das duas fontes sem inventar localidades nem duplicar slugs", () => {
+    const locations = groupPublishedCoverage([
+      { state_uf: "PR", city: "Curitiba", public_slug: "tecnico-exemplo-pr", display_name: "Primeira origem" },
+      { state_uf: "PR", city: "Curitiba", public_slug: "tecnico-exemplo-pr", display_name: "Registro repetido" },
+      { state_uf: "SC", city: "Tubarão", public_slug: "tecnico-exemplo-sc", display_name: "Segunda origem" },
+      { state_uf: null, city: "", public_slug: "tecnico-sem-cidade", display_name: "Sem cidade-base" },
+    ]);
+    expect(locations).toHaveLength(2);
+    expect(locations.reduce((sum, location) => sum + location.profiles.length, 0)).toBe(2);
+    expect(locations.map((location) => location.city)).toEqual(["Curitiba", "Tubarão"]);
   });
   it("inclui links para busca e perfis, declara limites e mantém canonical oficial", () => {
     const route = readFileSync("src/routes/cobertura.tsx", "utf8");
@@ -43,6 +57,9 @@ describe("cobertura real a partir de perfis públicos", () => {
     expect(route).toContain('to="/tecnicos/$tecnicoId"');
     expect(route).toContain('cidade: location.city');
     expect(route).toContain("A localidade é informada pelo próprio profissional");
+    expect(route).toContain("publishedCount");
+    expect(route).toContain("locatedCount");
+    expect(readFileSync("src/components/national-coverage.tsx", "utf8")).toContain("cidades para pesquisa");
     const sitemap = readFileSync("src/lib/public-sitemap.ts", "utf8");
     expect(sitemap).toContain('"/cobertura"');
     expect(readFileSync("src/components/site-footer.tsx", "utf8")).toContain('to="/cobertura"');

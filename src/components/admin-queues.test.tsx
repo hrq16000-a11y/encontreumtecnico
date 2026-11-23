@@ -10,6 +10,7 @@ const mockDb = vi.hoisted(() => ({
   directUpdates: 0,
   audits: [] as Array<{ id: string; status: string; reason: string }>,
   delayNextMessageQuery: null as Promise<void> | null,
+  delayNextMessageRpc: null as Promise<void> | null,
   failNextMessageRead: false,
 }));
 
@@ -65,6 +66,11 @@ vi.mock("@/integrations/supabase/client", () => ({
       const reason = params["_reason"];
       if (!row || typeof reason !== "string" || reason.trim().length < 8)
         return { data: null, error: { message: "Registro ou motivo inválido" } };
+      if (mockDb.delayNextMessageRpc) {
+        const delay = mockDb.delayNextMessageRpc;
+        mockDb.delayNextMessageRpc = null;
+        await delay;
+      }
       const status = String(params["_message_status"]);
       row["status"] = status;
       mockDb.updates++;
@@ -85,6 +91,7 @@ beforeEach(() => {
   mockDb.directUpdates = 0;
   mockDb.audits = [];
   mockDb.delayNextMessageQuery = null;
+  mockDb.delayNextMessageRpc = null;
   mockDb.failNextMessageRead = false;
   window.history.replaceState({}, "", "/admin");
 });
@@ -110,6 +117,115 @@ describe("filas administrativas em interação real de React", () => {
     fireEvent.click(screen.getByRole("button", { name: /Próxima/ }));
     await waitFor(() => expect(mockDb.ranges.some(({ start, end }) => start === 20 && end === 39)).toBe(true));
     expect(await screen.findByText("Pedido 21")).toBeTruthy();
+  });
+
+  it("descarta confirmação de mensagem ao mudar filtro sem executar ação", async () => {
+    const id = "a8d48d0f-a011-4a1c-a6a7-3ebd210dc258";
+    mockDb.messages = [{ id, name: "Cliente", subject: "Mensagem pendente",
+      status: "nova", email: "cliente@example.test", message: "Conteúdo de teste",
+      created_at: "2026-11-14T00:00:00Z" }];
+    render(<AdminMessageQueue />);
+    expect(await screen.findByText("Mensagem pendente")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Marcar respondida/ }));
+    expect(screen.getByRole("button", { name: "Confirmar e auditar" })).toBeTruthy();
+    fireEvent.change(screen.getByRole("combobox", { name: "Situação" }),
+      { target: { value: "respondida" } });
+    expect(await screen.findByText("Nenhuma mensagem para este filtro.")).toBeTruthy();
+    fireEvent.change(screen.getByRole("combobox", { name: "Situação" }),
+      { target: { value: "todas" } });
+    expect(await screen.findByText("Mensagem pendente")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Confirmar e auditar" })).toBeNull();
+    expect(mockDb.updates).toBe(0);
+  });
+
+  it("bloqueia navegação durante RPC e exige atualização explícita após releitura inconclusiva", async () => {
+    const id = "a8d48d0f-a011-4a1c-a6a7-3ebd210dc258";
+    mockDb.messages = Array.from({ length: 21 }, (_, index) => ({
+      id: index === 0 ? id : "msg-" + index, name: "Cliente",
+      subject: "Mensagem " + (index + 1), status: "nova",
+      email: "cliente@example.test", message: "Conteúdo de teste",
+      created_at: "2026-11-14T00:00:00Z",
+    }));
+    render(<AdminMessageQueue />);
+    expect(await screen.findByText("Mensagem 1")).toBeTruthy();
+    fireEvent.click(screen.getAllByRole("button", { name: /Marcar respondida/ })[0]!);
+    fireEvent.change(screen.getByRole("textbox", { name: /Justificativa de auditoria/ }),
+      { target: { value: "Conferência administrativa pendente" } });
+
+    let releaseRpc!: () => void;
+    mockDb.delayNextMessageRpc = new Promise<void>((resolve) => { releaseRpc = resolve; });
+    mockDb.failNextMessageRead = true;
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar e auditar" }));
+    expect(mockDb.updates).toBe(0);
+    expect(screen.getByRole("textbox", { name: "Localizar mensagem" })).toHaveProperty("disabled", true);
+    expect(screen.getByRole("combobox", { name: "Situação" })).toHaveProperty("disabled", true);
+    expect(screen.getByRole("button", { name: /Atualizar/ })).toHaveProperty("disabled", true);
+    expect(screen.getByRole("button", { name: /Próxima/ })).toHaveProperty("disabled", true);
+    releaseRpc();
+
+    expect(await screen.findByRole("alert")).toHaveProperty("textContent",
+      "O servidor confirmou a alteração, mas a releitura falhou. Atualize a lista antes de agir novamente.");
+    expect(mockDb.updates).toBe(1);
+    expect(mockDb.audits).toHaveLength(1);
+    fireEvent.change(screen.getByRole("combobox", { name: "Situação" }),
+      { target: { value: "respondida" } });
+    await waitFor(() => expect(screen.getByText("1 mensagem(ns) · página 1 de 1")).toBeTruthy());
+    expect(screen.getByRole("button", { name: /Arquivar/ })).toHaveProperty("disabled", true);
+    expect(screen.getByRole("alert")).toHaveProperty("textContent",
+      "O servidor confirmou a alteração, mas a releitura falhou. Atualize a lista antes de agir novamente.");
+
+    const queriesBeforeSearch = mockDb.ranges.length;
+    fireEvent.change(screen.getByRole("textbox", { name: "Localizar mensagem" }),
+      { target: { value: "Mensagem 1" } });
+    await waitFor(() => expect(mockDb.ranges.length).toBeGreaterThan(queriesBeforeSearch));
+    expect(screen.getByRole("alert")).toHaveProperty("textContent",
+      "O servidor confirmou a alteração, mas a releitura falhou. Atualize a lista antes de agir novamente.");
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /Atualizar/ }))
+      .toHaveProperty("disabled", false));
+    fireEvent.click(screen.getByRole("button", { name: /Atualizar/ }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Arquivar/ }))
+      .toHaveProperty("disabled", false));
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(mockDb.updates).toBe(1);
+    expect(mockDb.audits).toHaveLength(1);
+  });
+
+  it("não herda desbloqueio de atualização iniciada antes do debounce", async () => {
+    const id = "e2c9e3de-1b5c-4b5d-8643-9c7dc5ac39b5";
+    mockDb.messages = [{
+      id, name: "Cliente", subject: "Mensagem pendente do debounce",
+      status: "nova", email: "cliente@example.test", message: "Conteúdo de teste",
+      created_at: "2026-11-14T00:00:00Z",
+    }];
+    render(<AdminMessageQueue />);
+    expect(await screen.findByText("Mensagem pendente do debounce")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Marcar respondida/ }));
+    fireEvent.change(screen.getByRole("textbox", { name: /Justificativa de auditoria/ }),
+      { target: { value: "Validação da pesquisa pendente" } });
+    mockDb.failNextMessageRead = true;
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar e auditar" }));
+    expect(await screen.findByRole("alert")).toHaveProperty("textContent",
+      "O servidor confirmou a alteração, mas a releitura falhou. Atualize a lista antes de agir novamente.");
+    expect(screen.getByRole("button", { name: /Arquivar/ })).toHaveProperty("disabled", true);
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Localizar mensagem" }),
+      { target: { value: "Mensagem pendente" } });
+    const refresh = screen.getByRole("button", { name: /Atualizar/ });
+    // Clicking before the 280ms debounce must not authorize an automatic query.
+    expect(refresh).toHaveProperty("disabled", true);
+    fireEvent.click(refresh);
+    await waitFor(() => expect(refresh).toHaveProperty("disabled", false));
+    expect(screen.getByRole("button", { name: /Arquivar/ })).toHaveProperty("disabled", true);
+    expect(screen.getByRole("alert")).toHaveProperty("textContent",
+      "O servidor confirmou a alteração, mas a releitura falhou. Atualize a lista antes de agir novamente.");
+
+    fireEvent.click(refresh);
+    await waitFor(() => expect(screen.getByRole("button", { name: /Arquivar/ }))
+      .toHaveProperty("disabled", false));
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(mockDb.updates).toBe(1);
+    expect(mockDb.audits).toHaveLength(1);
   });
 
   it("só confirma mensagem após RPC auditada e releitura do estado persistido", async () => {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Archive, Check, ChevronLeft, ChevronRight, RefreshCcw, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -28,20 +28,39 @@ export function AdminMessageQueue() {
   const [revision, setRevision] = useState(0);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [refreshRequired, setRefreshRequired] = useState(false);
+  // The unlock permit belongs to one explicit refresh with this exact query context.
+  const manualRefresh = useRef<{
+    revision: number; term: string; filter: Filter; focusedId: string | null; page: number;
+  } | null>(null);
   const [pending, setPending] = useState<{ id: string; status: "respondida" | "arquivada" | "nova" } | null>(null);
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // A pending audit action is valid only for the current query context.
   useEffect(() => {
+    setPending(null);
+    setReason("");
+  }, [draft, term, filter, focusedId, page, revision]);
+
+  useEffect(() => {
+    // No debounced query may change context while an audited RPC is running.
+    if (busyId || cleanAdminQuery(draft) === term) return;
     const timer = window.setTimeout(() => { setTerm(cleanAdminQuery(draft)); setPage(0); }, 280);
     return () => window.clearTimeout(timer);
-  }, [draft]);
+  }, [draft, term, busyId]);
   useEffect(() => {
     let active = true;
     let correctingPage = false;
-    setLoading(true); setError(null);
+    const requested = manualRefresh.current;
+    const unlockOnThisRead = requested !== null && requested.revision === revision &&
+      requested.term === term && requested.filter === filter &&
+      requested.focusedId === focusedId && requested.page === page;
+    // Consume at query start: a later debounce/filter query must never inherit this permit.
+    if (requested?.revision === revision) manualRefresh.current = null;
+    setLoading(true);
+    setError((previous) => previous?.includes("Atualize a lista") ? previous : null);
     let query = supabase.from("contact_messages").select("*", { count: "exact" });
     if (focusedId) query = query.eq("id", focusedId);
     else {
@@ -52,21 +71,44 @@ export function AdminMessageQueue() {
       .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1))
       .then(({ data, count, error: queryError }) => {
         if (!active) return;
-        if (queryError) { setError("Não foi possível consultar mensagens."); setRows([]); setTotal(null); }
-        else if (count !== null && page > 0 && page * PAGE_SIZE >= count) {
+        if (queryError) {
+          setError("Não foi possível consultar mensagens."); setRows([]); setTotal(null);
+        } else if (count !== null && page > 0 && page * PAGE_SIZE >= count) {
           // A status change can remove the only row from the final filtered page.
           // Re-read the last valid page; never repeat the audited status action.
+          // Context correction must not inherit a manual unlock permit.
           correctingPage = true;
           setRows([]);
           setTotal(count);
           setPage(Math.max(0, Math.ceil(count / PAGE_SIZE) - 1));
-        } else { setRows(data ?? []); setTotal(count ?? null); setRefreshRequired(false); }
-      }).catch(() => { if (active) { setError("Não foi possível consultar mensagens."); setRows([]); setTotal(null); } })
+        } else {
+          setRows(data ?? []); setTotal(count ?? null);
+          // An inconclusive audit only unlocks after an explicit and complete refresh.
+          if (unlockOnThisRead && Array.isArray(data) &&
+              typeof count === "number" && Number.isSafeInteger(count) && count >= 0) {
+            setRefreshRequired(false);
+            setError(null);
+          }
+        }
+      }).catch(() => { if (active) {
+        setError("Não foi possível consultar mensagens."); setRows([]); setTotal(null);
+      } })
       .finally(() => { if (active && !correctingPage) setLoading(false); });
     return () => { active = false; };
   }, [term, filter, focusedId, page, revision]);
 
+  function refreshMessages() {
+    // Pending debounce must settle before an explicit refresh can unlock actions.
+    if (busyId || loading || cleanAdminQuery(draft) !== term) return;
+    const nextRevision = revision + 1;
+    manualRefresh.current = refreshRequired
+      ? { revision: nextRevision, term, filter, focusedId, page }
+      : null;
+    setRevision(nextRevision);
+  }
+
   function leaveFocusedRecord() {
+    if (busyId || loading) return;
     clearAdminFocusedRecordQuery();
     setFocusedId(null);
     setPage(0);
@@ -119,22 +161,23 @@ export function AdminMessageQueue() {
   }
 
   const pages = Math.max(1, Math.ceil((total ?? 0) / PAGE_SIZE));
+  const navigationLocked = loading || Boolean(busyId);
   return <section className="mt-5 space-y-4" aria-label="Caixa de entrada administrativa">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><h2 className="text-xl font-bold">Caixa de entrada</h2>
         <p className="mt-1 text-sm text-muted-foreground">Buscar, responder por e-mail externo e registrar alterações com motivo auditável. O painel não confirma o envio de e-mails.</p></div>
-      <button type="button" onClick={() => setRevision((n) => n + 1)} disabled={loading}
+      <button type="button" onClick={refreshMessages} disabled={navigationLocked || cleanAdminQuery(draft) !== term}
         className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-input px-3 text-sm disabled:opacity-40">
         <RefreshCcw className="h-4 w-4" /> Atualizar</button>
     </div>
     <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_190px]">
       <label className="min-w-0 text-sm font-semibold">Localizar mensagem
         <span className="mt-1 flex items-center rounded-xl border border-input bg-background px-3">
-          <Search className="h-4 w-4 text-muted-foreground" /><input value={draft} onChange={(event) => { setDraft(event.target.value); leaveFocusedRecord(); }}
+          <Search className="h-4 w-4 text-muted-foreground" /><input value={draft} disabled={navigationLocked} onChange={(event) => { setDraft(event.target.value); leaveFocusedRecord(); }}
             placeholder="Assunto ou remetente" maxLength={70} className="min-h-12 min-w-0 flex-1 bg-transparent px-2 text-sm outline-none" /></span>
       </label>
       <label className="text-sm font-semibold">Situação
-        <select value={filter} onChange={(event) => { setFilter(event.target.value as Filter); leaveFocusedRecord(); }}
+        <select value={filter} disabled={navigationLocked} onChange={(event) => { setFilter(event.target.value as Filter); leaveFocusedRecord(); }}
           className="mt-1 min-h-12 w-full rounded-xl border border-input bg-background px-3 text-sm">
           <option value="todas">Todas</option><option value="nova">Novas</option>
           <option value="respondida">Respondidas</option><option value="arquivada">Arquivadas</option>
@@ -142,10 +185,13 @@ export function AdminMessageQueue() {
     </div>
     {focusedId && <div className="flex flex-wrap items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm">
       Registro localizado pela pesquisa global.
-      <button type="button" onClick={leaveFocusedRecord}
+      <button type="button" onClick={leaveFocusedRecord} disabled={navigationLocked}
         className="min-h-11 rounded-lg border border-input bg-background px-3 font-semibold">Voltar à lista</button>
     </div>}
-    {error && <p role="alert" className="rounded-lg border border-destructive/30 p-3 text-sm text-destructive">{error}</p>}
+    {(error || refreshRequired) && <p role="alert" className="rounded-lg border border-destructive/30 p-3 text-sm text-destructive">
+      {error}{refreshRequired && !error?.includes("Atualize a lista") &&
+        " A confirmação anterior permanece inconclusiva. Atualize a lista antes de agir novamente."}
+    </p>}
     {success && <p role="status" className="rounded-lg border border-emerald-500/40 p-3 text-sm">{success}</p>}
     <p className="text-sm text-muted-foreground" role="status">{loading ? "Carregando…" :
       total === null ? "Total indisponível" : `${total.toLocaleString("pt-BR")} mensagem(ns) · página ${page + 1} de ${pages}`}</p>
@@ -194,10 +240,10 @@ export function AdminMessageQueue() {
       </li>)}
     </ul>
     <nav aria-label="Paginação de mensagens" className="flex flex-wrap items-center justify-between gap-2">
-      <button type="button" disabled={loading || page === 0} onClick={() => setPage((n) => n - 1)}
+      <button type="button" disabled={navigationLocked || page === 0} onClick={() => setPage((n) => n - 1)}
         className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-input px-3 text-sm disabled:opacity-40"><ChevronLeft className="h-4 w-4" /> Anterior</button>
       <span className="text-sm text-muted-foreground">{page + 1}/{pages}</span>
-      <button type="button" disabled={loading || page + 1 >= pages} onClick={() => setPage((n) => n + 1)}
+      <button type="button" disabled={navigationLocked || page + 1 >= pages} onClick={() => setPage((n) => n + 1)}
         className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-input px-3 text-sm disabled:opacity-40">Próxima <ChevronRight className="h-4 w-4" /></button>
     </nav>
   </section>;

@@ -122,3 +122,31 @@ export function suggestLegacyDisplayName(value: string): LegacyNameSuggestion {
     suggested: true,
   };
 }
+
+/** Public-only presentation guard; original imported identities stay unchanged in storage. */
+export function publicLegacyDisplayName(value: string): {
+  display: string;
+  original: string | null;
+  suggested: boolean;
+  initial: string;
+} {
+  const source = value.trim();
+  // Imported names can be usernames or pasted contact details. Never render
+  // a suspicious value in text, image alt text, initials or suggested-name notes.
+  const containsContact = /@/u.test(source) ||
+    /(?:https?:\/\/|www\.|(?:wa|t)\.me\/)/iu.test(source) ||
+    /\b(?:whats(?:app)?|telefone|tel\.?|celular|contato|instagram|telegram|facebook)\b/iu.test(source) ||
+    /\+?\d(?:[\s()./-]*\d){7,}/u.test(source) ||
+    /\b[\p{L}\d-]+\.(?:com(?:\.br)?|net(?:\.br)?|org(?:\.br)?|br|io|app|dev|info|site|online|me|co)\b/iu.test(source);
+  if (!source || containsContact) {
+    return { display: "Técnico", original: null, suggested: false, initial: "T" };
+  }
+  const suggestion = suggestLegacyDisplayName(source);
+  const display = suggestion.display || "Técnico";
+  return {
+    display,
+    original: suggestion.suggested ? suggestion.original : null,
+    suggested: suggestion.suggested,
+    initial: display.trim().slice(0, 1).toLocaleUpperCase("pt-BR") || "T",
+  };
+}

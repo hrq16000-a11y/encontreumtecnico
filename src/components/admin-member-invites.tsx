@@ -22,6 +22,7 @@ export function AdminMemberInvites({ initialRole = "tecnico" }: { initialRole?: 
   const [createdRole, setCreatedRole] = useState<InvitedRole>("tecnico");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [listError, setListError] = useState(false);
   const [version, setVersion] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -30,12 +31,23 @@ export function AdminMemberInvites({ initialRole = "tecnico" }: { initialRole?: 
   useEffect(() => {
     let active = true;
     setLoading(true);
+    setListError(false);
+    setError(null);
+    // Do not retain stale invitations/actions while refreshing the admin snapshot.
+    setRows([]);
     void Promise.resolve(db.rpc("eut_admin_member_invites_snapshot")).then(({ data, error: loadError }) => {
       if (!active) return;
-      setRows(!loadError && Array.isArray(data?.invites) ? data.invites : []);
-      if (loadError) setError("Não foi possível carregar os convites. Verifique seu acesso administrativo.");
+      if (loadError || !Array.isArray(data?.invites)) {
+        setListError(true);
+        setError("Não foi possível carregar os convites. Verifique seu acesso administrativo.");
+        return;
+      }
+      setRows(data.invites);
     }).catch(() => {
-      if (active) setError("Erro de conexão ao consultar os convites.");
+      if (active) {
+        setListError(true);
+        setError("Erro de conexão ao consultar os convites.");
+      }
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [version]);
@@ -175,6 +187,7 @@ export function AdminMemberInvites({ initialRole = "tecnico" }: { initialRole?: 
           className="min-h-10 rounded-lg border border-input px-3 text-sm">Atualizar</button>
       </div>
       {loading ? <p role="status" className="text-sm text-muted-foreground">Consultando convites…</p> :
+        listError ? null :
         rows.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum convite nesta consulta.</p> :
           <ul className="grid gap-2">
             {rows.map((entry) => <li key={entry.id}

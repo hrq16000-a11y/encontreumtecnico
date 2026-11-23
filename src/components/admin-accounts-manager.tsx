@@ -86,7 +86,17 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
           setSnapshot(null);
           setError("Não foi possível carregar a gestão de contas. Confirme a sessão administrativa e as permissões.");
         } else {
-          setSnapshot(data as Snapshot);
+          const nextSnapshot = data as Snapshot;
+          // If the result set shrinks, recover the last valid server-side page.
+          // Never show stale records or apply bulk actions while reloading it.
+          const pageSize = Number.isFinite(nextSnapshot.page_size) && nextSnapshot.page_size > 0
+            ? nextSnapshot.page_size : 20;
+          const lastPage = Math.max(0, Math.ceil(Math.max(0, nextSnapshot.total) / pageSize) - 1);
+          if (page > lastPage) {
+            setPage(lastPage);
+            return;
+          }
+          setSnapshot(nextSnapshot);
           setError(null);
         }
       } catch {
@@ -203,11 +213,32 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
     setError(null);
     try {
       if (selection.action === "edit_name") {
+        const userId = selection.user?.id;
+        const expectedName = value.trim();
+        if (!userId || expectedName.length < 3 || expectedName.length > 100) {
+          setError("Informe um nome válido de 3 a 100 caracteres.");
+          return;
+        }
         const { data, error: actionError } = await db.rpc("eut_admin_account_edit_name", {
-          _user_id: selection.user?.id, _full_name: value.trim(), _reason: justification,
+          _user_id: userId, _full_name: expectedName, _reason: justification,
         });
-        if (actionError) throw actionError;
-        if (!data?.ok || data?.user_id !== selection.user?.id) throw new Error("O banco não confirmou a edição.");
+        if (actionError || data?.ok !== true || data.user_id !== userId ||
+            data.full_name !== expectedName) {
+          throw new Error("O banco não confirmou a edição.");
+        }
+        // A resposta da escrita não substitui uma releitura pelo próprio identificador.
+        // Não refaça a ação automaticamente se a conferência falhar: ela pode ter sido gravada.
+        const { data: verifiedData, error: verifyError } = await db.rpc("eut_admin_accounts_snapshot", {
+          _search: userId, _filter: "todos", _page: 0,
+        });
+        const verified = (verifiedData as Snapshot | null)?.accounts?.find((row) => row.id === userId);
+        if (verifyError || verified?.full_name !== expectedName) {
+          setSelection(null);
+          setValue("");
+          setError("A edição pode ter sido gravada, mas a releitura administrativa não confirmou o nome. " +
+            "Atualize a lista e confira a conta antes de tentar novamente.");
+          return;
+        }
       } else {
         const args = {
           _action: selection.action,

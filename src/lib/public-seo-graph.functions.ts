@@ -102,8 +102,8 @@ async function loadGraphUncached(): Promise<GraphCatalog> {
     display_name: z.string(), city: z.string(), state_uf: z.string().nullable(),
     specialties: z.array(z.string()), service_slugs: z.array(z.string()),
   });
-  const pageSize = 100;
-  for (let offset = 0; ; offset += pageSize) {
+  const pageSize = 200;
+  for (let offset = 0; ; ) {
     const { data, error } = await (db as unknown as SupabaseClient).rpc("eut_public_admin_technicians", {
       _slug: null, _category: null, _service: null, _uf: null, _city: null, _region: null,
       _limit: pageSize, _offset: offset,
@@ -111,8 +111,9 @@ async function loadGraphUncached(): Promise<GraphCatalog> {
     if (error) throw new Error("Could not load public technician directory");
     const rows = z.array(publicRow).parse(data);
     profiles.push(...rows);
-    if (rows.length < pageSize) break;
+    if (rows.length === 0) break;
     if (offset >= 50_000) throw new Error("Public technician directory requires partitioning");
+    offset += rows.length;
   }
   const { cities, activeCategories } = await getCachedReferenceCatalog();
   return buildPublicGraph(profiles, cities, activeCategories);

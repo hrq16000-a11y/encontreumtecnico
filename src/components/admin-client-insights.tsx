@@ -52,17 +52,20 @@ export function AdminClientInsights() {
           db.rpc("eut_admin_client_insights", {
             _audit_filter: filter, _page: page, _subject_user_id: null,
           }),
-          db.from("legacy_review_profiles").select("wp_post_id", { count: "exact", head: true })
-            .eq("source_key", "wordpress_20261108").eq("kind", "employer"),
+          // An unavailable legacy count must not erase a successful, admin-authorized RPC response.
+          Promise.resolve(db.from("legacy_review_profiles").select("wp_post_id", { count: "exact", head: true })
+            .eq("source_key", "wordpress_20261108").eq("kind", "employer"))
+            .catch(() => ({ count: null, error: true })),
         ]);
         if (!active) return;
-        if (rpcError || imported.error || imported.count === null || !data || !Array.isArray(data.audit) ||
+        if (rpcError || !data || !Array.isArray(data.audit) ||
             !Number.isInteger(data.clients_total) ||
             !Number.isInteger(data.audit_total) || data.audit_page !== page) {
           throw new Error("Resposta administrativa inválida");
         }
         setSnapshot(data as ClientOverview);
-        setImportedClients(imported.count);
+        setImportedClients(!imported.error && typeof imported.count === "number" &&
+          Number.isSafeInteger(imported.count) && imported.count >= 0 ? imported.count : null);
       } catch {
         if (active) setError("Não foi possível confirmar os indicadores e o histórico. Tente atualizar.");
       } finally {
@@ -72,8 +75,8 @@ export function AdminClientInsights() {
     return () => { active = false; };
   }, [filter, page, version]);
 
-  const totals = snapshot && importedClients !== null ? [
-    { label: "Registros de clientes sob gestão", value: snapshot.clients_total + importedClients },
+  const totals = snapshot ? [
+    { label: "Registros de clientes sob gestão", value: importedClients === null ? null : snapshot.clients_total + importedClients },
     { label: "Contas de clientes vinculadas", value: snapshot.clients_total },
     { label: "Fichas importadas gerenciáveis", value: importedClients },
     { label: "E-mails confirmados", value: snapshot.clients_confirmed },
@@ -100,10 +103,16 @@ export function AdminClientInsights() {
     </div>
     {loading && <p role="status" className="text-sm text-muted-foreground">Consultando indicadores…</p>}
     {error && <p role="alert" className="rounded-lg border border-destructive/30 p-3 text-sm text-destructive">{error}</p>}
+    {snapshot && importedClients === null && <p role="status"
+      className="rounded-lg border border-border p-3 text-sm text-muted-foreground">
+      Contagem das fichas importadas indisponível. Os indicadores das contas e o histórico confirmado continuam acessíveis.
+    </p>}
     {snapshot && <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
       {totals.map((item) => <div key={item.label} className="rounded-xl border border-border p-3">
         <dt className="text-xs text-muted-foreground">{item.label}</dt>
-        <dd className="mt-1 text-2xl font-bold text-foreground tabular-nums">{item.value.toLocaleString("pt-BR")}</dd>
+        <dd className="mt-1 text-2xl font-bold text-foreground tabular-nums">
+          {item.value === null ? "Indisponível" : item.value.toLocaleString("pt-BR")}
+        </dd>
       </div>)}
     </dl>}
     <div className="border-t border-border pt-4">
