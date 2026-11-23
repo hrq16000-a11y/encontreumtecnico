@@ -174,6 +174,45 @@ describe("filas administrativas em interação real de React", () => {
     expect(mockDb.updates).toBe(0);
   });
 
+  it("retorna à última página válida após arquivar a 21ª mensagem, sem repetir RPC auditada", async () => {
+    mockDb.messages = Array.from({ length: 21 }, (_, i) => ({
+      id: `00000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`,
+      name: "Cliente", subject: `Mensagem ${i + 1}`, status: "nova",
+      email: "cliente@example.test", message: "Pedido de ajuda",
+      created_at: "2026-11-14T00:00:00Z",
+    }));
+    render(<AdminMessageQueue />);
+    expect(await screen.findByText("Mensagem 1")).toBeTruthy();
+    // Let the initial draft debounce settle before paging.
+    await new Promise((resolve) => setTimeout(resolve, 310));
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Situação" }),
+      { target: { value: "nova" } });
+    expect(await screen.findByText("21 mensagem(ns) · página 1 de 2")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Próxima/ }));
+    expect(await screen.findByText("Mensagem 21")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Arquivar" }));
+    fireEvent.change(screen.getByRole("textbox", { name: /Justificativa de auditoria/ }),
+      { target: { value: "Arquivada após análise do atendimento" } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar e auditar" }));
+
+    expect(await screen.findByText("20 mensagem(ns) · página 1 de 1")).toBeTruthy();
+    expect(screen.getByText("Mensagem 1")).toBeTruthy();
+    expect(screen.queryByText("Mensagem 21")).toBeNull();
+    expect(screen.queryByText("Nenhuma mensagem para este filtro.")).toBeNull();
+    expect(screen.getByRole("combobox", { name: "Situação" })).toHaveProperty("value", "nova");
+    expect(mockDb.messages.filter((row) => row["status"] === "nova")).toHaveLength(20);
+    expect(mockDb.updates).toBe(1);
+    expect(mockDb.directUpdates).toBe(0);
+    expect(mockDb.audits).toEqual([{
+      id: "00000000-0000-4000-8000-000000000021",
+      status: "arquivada", reason: "Arquivada após análise do atendimento",
+    }]);
+    expect(mockDb.ranges.filter(({ table, start, end }) =>
+      table === "contact_messages" && start === 20 && end === 39)).toHaveLength(2);
+  });
+
   it("limpa a URL da mensagem localizada ao voltar à lista", async () => {
     const id = "1c265cd4-0cc8-47e9-84ad-2603f337d927";
     mockDb.messages = [{ id, name: "Teste", subject: "Mensagem localizada", status: "nova",
