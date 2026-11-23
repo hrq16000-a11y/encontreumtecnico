@@ -38,6 +38,10 @@ BEGIN
       SELECT 1 FROM auth.users u
       WHERE u.id = v_actor AND u.email_confirmed_at IS NOT NULL
     )
+    OR EXISTS (
+      SELECT 1 FROM eut_moderation.blocked_accounts ba
+      WHERE ba.user_id = v_actor
+    )
   THEN
     RAISE EXCEPTION 'Acesso administrativo necessário' USING ERRCODE='42501';
   END IF;
