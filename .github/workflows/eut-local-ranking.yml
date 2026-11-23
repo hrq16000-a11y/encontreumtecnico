@@ -5,6 +5,9 @@ on:
     paths:
       - 'src/lib/technician-local-ranking.ts'
       - 'src/lib/technicians.functions.ts'
+      - 'src/lib/directory-display-settings.ts'
+      - 'src/components/admin-directory-display-settings.tsx'
+      - 'src/components/technician-search-card.tsx'
       - 'src/routes/tecnicos.index.tsx'
       - 'src/lib/technician-search-uf-transition.ts'
       - 'src/lib/technician-search-uf-transition.test.ts'
@@ -30,7 +33,7 @@ jobs:
       - name: Unit tests — declared locality first
         run: bun test tests/technician-local-ranking.test.ts
       - name: Unit tests — UF change clears incompatible locality and pending drafts
-        run: bunx vitest run src/lib/technician-search-uf-transition.test.ts
+        run: bunx vitest run src/lib/technician-search-uf-transition.test.ts src/lib/technician-proximity-ranking.test.ts src/lib/technician-city-coverage-search.test.ts src/lib/technician-metro-affinity.test.ts src/lib/directory-display-settings.test.ts src/lib/admin-directory-display-contract.test.ts src/components/technician-search-card.test.tsx
       - name: Build TanStack Start
         run: bun run build
       - name: TypeScript
@@ -53,7 +56,7 @@ jobs:
             'if (!regionalPriority && city)',
             'if (!regionalPriority && bairro)',
             'collectPublicDirectoryPages',
-            'publicDirectoryPage(rankTechniciansByDeclaredArea(unified, rankingArea), data.pagina)'
+            'publicDirectoryPage(rankTechniciansByDeclaredArea(unified, rankingArea, displaySettings), data.pagina)'
           ]) {
             if (!search.includes(term)) throw Error('Regional search contract missing: '+term);
           }
@@ -71,7 +74,9 @@ jobs:
             throw Error('No implicit GPS prompt; coarse IP ranking and manual city control required');
           }
           if (!ranking.includes('b.locationLevel - a.locationLevel') ||
-              !ranking.includes('Number(b.technician.online_now)')) {
+              !ranking.includes('Number(settings.online_priority && b.technician.online_now)') ||
+              !search.includes('readDirectorySettings()') ||
+              !search.includes('displaySettings.auto_region')) {
             throw Error('Online must NOT outrank a nearby technician');
           }
           if (ranking.includes('geolocation')||ranking.includes('GPS coordinates')) {
