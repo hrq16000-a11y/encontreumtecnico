@@ -32,6 +32,7 @@ type AdminUserProfile = { id: string; full_name: string | null };
 /** Uses the existing admin-authorized user_roles/profiles RLS policies; no role mutations. */
 function AdminUsersList({ openAccount }: { openAccount: (id: string) => void }) {
   const [page, setPage] = useState(0);
+  const [refreshRevision, setRefreshRevision] = useState(0);
   const [rows, setRows] = useState<Array<AdminUserRole & { name: string }>>([]);
   const [total, setTotal] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -62,14 +63,21 @@ function AdminUsersList({ openAccount }: { openAccount: (id: string) => void }) 
       } finally { if (active) setLoading(false); }
     })();
     return () => { active = false; };
-  }, [page]);
+  }, [page, refreshRevision]);
 
   return <section aria-label="Usuários administradores" className="space-y-4">
     <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
       <h3 className="flex items-center gap-2 text-lg font-bold"><ShieldCheck className="h-5 w-5" aria-hidden="true" /> Administradores</h3>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">Os papéis são consultados pelas permissões já existentes. Mudanças de privilégio e banimentos de administradores não estão disponíveis pelo CRUD atual.</p>
     </div>
-    <p role="status" className="text-sm text-muted-foreground">{loading ? "Consultando administradores…" : error ? "Consulta indisponível" : total === null ? "Total indisponível" : `${total} administrador(es) · página ${page + 1}`}</p>
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <p role="status" className="text-sm text-muted-foreground">{loading ? "Consultando administradores…" : error ? "Consulta indisponível" : total === null ? "Total indisponível" : `${total} administrador(es) · página ${page + 1}`}</p>
+      <button type="button" disabled={loading}
+        onClick={() => setRefreshRevision((revision) => revision + 1)}
+        className="min-h-11 rounded-lg border border-input px-4 text-sm font-semibold hover:bg-accent disabled:opacity-40">
+        {error ? "Tentar novamente" : "Atualizar lista"}
+      </button>
+    </div>
     {error && <p role="alert" className="rounded-xl border border-destructive/30 p-4 text-sm">Não foi possível consultar os administradores com a permissão atual.</p>}
     {!error && !loading && rows.length === 0 && <p className="text-sm text-muted-foreground">Nenhum administrador encontrado nesta página.</p>}
     <div className="overflow-hidden rounded-xl border border-border">
@@ -244,6 +252,8 @@ function UnifiedUsersList({ role, openAccount }: {
           item.record_key.startsWith("legacy-account:");
         const linked = [...(item.linked_imports ?? []), ...(item.linked_legacy_accounts ?? []), ...(item.profiles ?? [])];
         const managementSection = technician ? "tecnicos" : null;
+        const historicalProfiles = [...(item.profiles ?? []), ...linked.flatMap((entry) => entry.profiles ?? [])]
+          .filter((profile) => /^wp:(candidate|employer):[1-9][0-9]*$/.test(profile.record_key ?? ""));
         return <li key={item.user_key} className="min-w-0 rounded-xl border border-border bg-card p-4">
           <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
@@ -260,7 +270,7 @@ function UnifiedUsersList({ role, openAccount }: {
             <p className="min-w-0 break-all">E-mail: {item.email || item.professional_email || "Não informado"}</p>
             <p className="min-w-0 break-all">Telefone: {item.phone || item.linked_registry_phone || "Não informado"}</p>
           </div>
-          {(linked.length > 0 || item.address) && <details className="mt-3 rounded-lg border border-border p-3">
+          {(linked.length > 0 || item.address || historicalProfiles.length > 0) && <details className="mt-3 rounded-lg border border-border p-3">
             <summary className="cursor-pointer text-sm font-semibold">Outros dados e vínculos desta identidade</summary>
             {item.address && <p className="mt-2 break-words text-xs text-muted-foreground">
               Endereço: {Object.values(item.address).filter(Boolean).join(", ") || "Não informado"}
@@ -275,6 +285,11 @@ function UnifiedUsersList({ role, openAccount }: {
                 className="mt-1 break-all">{profile.record_key || "Perfil"} · {profile.name || "Sem nome"}
                 {profile.phone ? ` · ${profile.phone}` : ""}{profile.email ? ` · ${profile.email}` : ""}</p>)}
             </div>)}
+            {historicalProfiles.map((profile) => <a key={profile.record_key}
+              href={`/admin/legado?registro=${encodeURIComponent(profile.record_key!)}`}
+              className="mt-2 block min-h-10 rounded-lg border border-input px-3 py-2 text-xs font-semibold hover:bg-accent">
+              Abrir ficha WordPress {profile.record_key}
+            </a>)}
           </details>}
           <div className="mt-3 flex flex-wrap gap-2">
             {item.auth_user_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.auth_user_id) &&
@@ -291,6 +306,11 @@ function UnifiedUsersList({ role, openAccount }: {
               className="inline-flex min-h-11 items-center rounded-lg border border-input px-3 text-sm font-semibold hover:bg-accent">
               Consultar histórico por ID
             </a>}
+            {/^wp:(candidate|employer):[1-9][0-9]*$/.test(item.record_key) &&
+              <a href={`/admin/legado?registro=${encodeURIComponent(item.record_key)}`}
+                className="inline-flex min-h-11 items-center rounded-lg border border-input px-3 text-sm font-semibold hover:bg-accent">
+                Abrir ficha histórica
+              </a>}
             {history && <a href="/admin/legado"
               className="inline-flex min-h-11 items-center rounded-lg border border-input px-3 text-sm font-semibold hover:bg-accent">
               Abrir acervo histórico
