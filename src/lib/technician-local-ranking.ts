@@ -3,6 +3,8 @@
  * municipality/UF/neighborhood strings, not GPS, distances or identity checks.
  * Service/category compatibility is enforced by the caller before ranking.
  */
+import { hasSameMetropolitanCore } from "./technician-metro-affinity";
+import { DEFAULT_DIRECTORY_DISPLAY, type DirectoryDisplaySettings } from "./directory-display-settings";
 export type DeclaredArea = { uf: string; cidade: string; bairro: string };
 export type AreaTechnician = {
   state_uf: string | null;
@@ -75,19 +77,29 @@ export function groupTechniciansByDeclaredArea<T extends AreaTechnician>(
 export function rankTechniciansByDeclaredArea<T extends AreaTechnician>(
   technicians: T[],
   area: DeclaredArea,
+  settings: DirectoryDisplaySettings = DEFAULT_DIRECTORY_DISPLAY,
 ): T[] {
   // Always sort a copy; original order is server-retrieved recency and is
   // preserved on a tie. Online is a tiebreaker AFTER location relevance.
-  return technicians.map((technician, index) => ({
-    technician,
-    index,
-    locationLevel: localMatchLevel(technician, area),
-  })).sort((a, b) =>
+  return technicians.map((technician, index) => {
+    const locationLevel = localMatchLevel(technician, area);
+    return {
+      technician,
+      index,
+      locationLevel,
+      // Metropolitan affinity only breaks same-state ties; it is not coverage.
+      metroAffinity: locationLevel === 1 && hasSameMetropolitanCore({
+        queryUf: area.uf, queryCity: area.cidade,
+        technicianUf: technician.state_uf, technicianCity: technician.city,
+      }),
+    };
+  }).sort((a, b) =>
     b.locationLevel - a.locationLevel ||
-    Number(b.technician.online_now) - Number(a.technician.online_now) ||
+    Number(b.metroAffinity) - Number(a.metroAffinity) ||
+    Number(settings.online_priority && b.technician.online_now) - Number(settings.online_priority && a.technician.online_now) ||
     // Nearby services and online availability always outrank referral rewards.
-    Number(Boolean(b.technician.referral_highlight)) - Number(Boolean(a.technician.referral_highlight)) ||
-    Number(Boolean(b.technician.pioneer_bronze)) - Number(Boolean(a.technician.pioneer_bronze)) ||
+    Number(settings.referral_priority && Boolean(b.technician.referral_highlight)) - Number(settings.referral_priority && Boolean(a.technician.referral_highlight)) ||
+    Number(settings.pioneer_priority && Boolean(b.technician.pioneer_bronze)) - Number(settings.pioneer_priority && Boolean(a.technician.pioneer_bronze)) ||
     a.index - b.index
   ).map((item) => item.technician);
 }

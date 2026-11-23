@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import type { PublicTechnician } from "@/lib/technicians.functions";
 import { TechnicianSearchCard } from "./technician-search-card";
+import { DEFAULT_DIRECTORY_DISPLAY } from "@/lib/directory-display-settings";
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ to, params, children, className, ...props }: {
@@ -90,5 +91,16 @@ describe("Cartão do técnico publicado", () => {
     render(<TechnicianSearchCard technician={{ ...person, avatar_path: "avatars/outro.jpg", bio: "Atendimento em informática." }} categories={categories} services={services} />);
     expect(screen.queryByText("Com foto")).toBeNull();
     expect(screen.queryByText("Perfil enriquecido")).toBeNull();
+  });
+
+  it("respeita os controles de contorno e indicação sem revelar completude", () => {
+    const { container } = render(<TechnicianSearchCard technician={{ ...person, online_now: true, referral_highlight: true }}
+      categories={categories} services={services} displaySettings={{ ...DEFAULT_DIRECTORY_DISPLAY,
+        online_outline: false, enriched_outline: false, photo_outline: false, referral_label: false }} />);
+    expect(screen.getByRole("link").className).toContain("border-primary/20");
+    expect(container.querySelector(".ring-4.bg-emerald-300")).toBeNull();
+    expect(screen.queryByText("Destaque por indicações")).toBeNull();
+    expect(screen.getByText("Atividade recente")).toBeTruthy();
+    expect(container.textContent).not.toMatch(/100%|endereço completo|preencheu/i);
   });
 });
