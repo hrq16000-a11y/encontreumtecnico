@@ -13,7 +13,7 @@ permissions:
 jobs:
   build:
     if: >-
-      github.event.before == '4318f49770f53a35dea6d6d0164f71f969f1bc88' &&
+      github.event.before == 'b682aeac099735fd95104d23d04f03dfb2361a39' &&
       github.event.head_commit.message == 'qa: run eut-441 READY build once'
     runs-on: ubuntu-24.04
     timeout-minutes: 18
@@ -22,13 +22,13 @@ jobs:
       - name: Checkout fixed release composition
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: 50fbc56a2d51f2a6268c04b94ec9a909f104aad3
+          ref: fb65cff6755b8b2e604058805ae087b3350fcf3d
           persist-credentials: false
 
       - name: Verify exact SHA
         run: |
           test "$(git rev-parse HEAD)" = \
-            "50fbc56a2d51f2a6268c04b94ec9a909f104aad3"
+            "fb65cff6755b8b2e604058805ae087b3350fcf3d"
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
