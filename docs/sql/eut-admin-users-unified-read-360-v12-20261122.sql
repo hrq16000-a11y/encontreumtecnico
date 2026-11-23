@@ -66,7 +66,7 @@ BEGIN
       'account:' || u.id::text AS user_key,
       pg_catalog.lower(n.full_name) AS sort_name,
       n.full_name AS search_name,
-      pg_catalog.concat_ws(' ', u.email,
+      pg_catalog.concat_ws(' ', u.email, i.contact_email,
         (SELECT pg_catalog.string_agg(la.wp_email, ' ')
          FROM eut_migration.legacy_accounts la WHERE la.auth_user_id = u.id)
       ) AS search_email,
@@ -272,9 +272,13 @@ BEGIN
         SELECT 1 FROM eut_moderation.imported_user_registry ir
         WHERE ir.technician_record_id = r.id AND ir.linked_auth_user_id IS NOT NULL
       )
-      -- Existing WordPress registry profile belongs to a legacy account through
-      -- its exact source_key/wp_post_id, never through name/phone matching.
-      AND ld.wp_post_id IS NULL
+      -- Suppress a WordPress registry row only when the exact legacy account
+      -- represents it. A directory row alone is not an account identity.
+      AND NOT EXISTS (
+        SELECT 1 FROM eut_migration.legacy_accounts la
+        WHERE ld.wp_post_id IS NOT NULL
+          AND la.source_key = ld.source_key AND la.wp_user_id = ld.wp_user_id
+      )
   ),
   -- WordPress people without an imported registry identity remain users to
   -- manage; employers are clients, candidates are technicians. Demonstrations
@@ -461,16 +465,22 @@ BEGIN
     SELECT * FROM unioned x
     WHERE (v_state = 'todos' OR pg_catalog.lower(x.user_state) = v_state)
       AND (v_role = 'todos' OR v_role = ANY(x.roles))
-      AND (v_search = ''
-        OR pg_catalog.strpos(pg_catalog.lower(x.search_name), v_search) > 0
-        OR pg_catalog.strpos(pg_catalog.lower(coalesce(x.search_email, '')), v_search) > 0
-        OR pg_catalog.strpos(pg_catalog.lower(coalesce(x.search_locality, '')), v_search) > 0
-        OR pg_catalog.strpos(x.user_key, v_search) > 0
-        OR (pg_catalog.char_length(v_digits) >= 3
-            AND pg_catalog.strpos(
-              pg_catalog.regexp_replace(coalesce(x.search_phone, ''), '[^0-9]', '', 'g'),
-              v_digits
-            ) > 0))
+      AND (
+        -- Deep links use the complete immutable identity, never a name or substring.
+        (pg_catalog.left(v_search, 3) = 'id:'
+         AND x.user_key = pg_catalog.substr(v_search, 4))
+        OR (pg_catalog.left(v_search, 3) <> 'id:'
+          AND (v_search = ''
+            OR pg_catalog.strpos(pg_catalog.lower(x.search_name), v_search) > 0
+            OR pg_catalog.strpos(pg_catalog.lower(coalesce(x.search_email, '')), v_search) > 0
+            OR pg_catalog.strpos(pg_catalog.lower(coalesce(x.search_locality, '')), v_search) > 0
+            OR pg_catalog.strpos(x.user_key, v_search) > 0
+            OR (pg_catalog.char_length(v_digits) >= 3
+                AND pg_catalog.strpos(
+                  pg_catalog.regexp_replace(coalesce(x.search_phone, ''), '[^0-9]', '', 'g'),
+                  v_digits
+                ) > 0)))
+      )
   ),
   numbered AS (
     SELECT pg_catalog.row_number() OVER (ORDER BY z.sort_name, z.user_key) AS position,
