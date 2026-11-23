@@ -45,7 +45,7 @@ BEGIN
   IF _limit IS NULL OR _limit NOT BETWEEN 1 AND 100
     OR pg_catalog.char_length(v_search) > 80
     OR v_state NOT IN ('todos', 'ativo', 'suspenso')
-    OR v_role NOT IN ('todos', 'tecnico', 'cliente', 'admin', 'parceiro')
+    OR pg_catalog.char_length(v_role) NOT BETWEEN 1 AND 64
     OR (_after_name IS NULL) IS DISTINCT FROM (_after_key IS NULL)
     OR pg_catalog.char_length(coalesce(_after_name, '')) > 160
     OR pg_catalog.char_length(coalesce(_after_key, '')) > 160
@@ -62,8 +62,21 @@ BEGIN
       'account:' || u.id::text AS user_key,
       pg_catalog.lower(n.full_name) AS sort_name,
       n.full_name AS search_name,
-      u.email AS search_email,
-      pg_catalog.concat_ws(' ', c.phone_e164, rc.phone_e164) AS search_phone,
+      pg_catalog.concat_ws(' ', u.email,
+        (SELECT pg_catalog.string_agg(la.wp_email, ' ')
+         FROM eut_migration.legacy_accounts la WHERE la.auth_user_id = u.id)
+      ) AS search_email,
+      pg_catalog.concat_ws(' ', c.phone_e164, rc.phone_e164,
+        (SELECT pg_catalog.string_agg(ir.phone_e164, ' ')
+         FROM eut_moderation.imported_user_registry ir
+         WHERE ir.linked_auth_user_id = u.id
+            OR (r.id IS NOT NULL AND ir.technician_record_id = r.id)),
+        (SELECT pg_catalog.string_agg(d.contact_phone, ' ')
+         FROM eut_migration.legacy_directory d
+         JOIN eut_migration.legacy_accounts la
+           ON la.source_key = d.source_key AND la.wp_user_id = d.wp_user_id
+         WHERE la.auth_user_id = u.id)
+      ) AS search_phone,
       pg_catalog.concat_ws(' ', t.city, t.state_uf, m.name, m.uf) AS search_locality,
       rr.roles AS roles,
       CASE WHEN ba.user_id IS NOT NULL OR t.status::text = 'suspenso'
@@ -95,7 +108,54 @@ BEGIN
         'created_at', u.created_at, 'updated_at', coalesce(r.updated_at, t.updated_at, p.updated_at),
         'technical_status', t.status::text,
         'contact_suspended', rc.contact_suspended,
-        'is_demo', r.is_demo
+        'is_demo', r.is_demo,
+        'linked_imports', coalesce((
+          SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+            'record_key', 'imported:' || ir.id::text, 'source_id', ir.source_id,
+            'technician_record_id', ir.technician_record_id,
+            'name', ir.display_name, 'phone', ir.phone_e164,
+            'role', ir.role, 'role_basis', ir.role_basis,
+            'ddd', ir.ddd, 'region', ir.region_approx,
+            'declared_uf', ir.declared_uf, 'import_sources', ir.import_sources,
+            'status', CASE WHEN NOT ir.admin_active OR ir.blocked_on_import
+                           THEN 'SUSPENSO' ELSE 'ATIVO' END,
+            'created_at', ir.created_at, 'updated_at', ir.updated_at
+          ) ORDER BY ir.id)
+          FROM eut_moderation.imported_user_registry ir
+          WHERE ir.linked_auth_user_id = u.id
+             OR (r.id IS NOT NULL AND ir.technician_record_id = r.id)
+        ), '[]'::jsonb),
+        'linked_legacy_accounts', coalesce((
+          SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+            'user_key', 'legacy-account:' || la.source_key || ':' || la.wp_user_id::text,
+            'name', la.display_name, 'login', la.wp_login, 'email', la.wp_email,
+            'roles', la.roles, 'claim_status', la.claim_status,
+            'profiles', coalesce((
+              SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+                'record_key', 'wp:' || d.kind || ':' || d.wp_post_id::text,
+                'name', d.title, 'kind', d.kind, 'phone', d.contact_phone,
+                'email', d.contact_email, 'specialty', d.specialty_title,
+                'registry', (
+                  SELECT pg_catalog.jsonb_build_object(
+                    'record_key', 'registry:' || tr.id::text,
+                    'name', tr.display_name, 'phone', trc.phone_e164,
+                    'status', CASE WHEN tr.archived_at IS NOT NULL OR NOT tr.admin_active
+                                   THEN 'SUSPENSO' ELSE 'ATIVO' END,
+                    'technician_record_id', tr.id
+                  )
+                  FROM eut_moderation.admin_technician_records tr
+                  LEFT JOIN eut_moderation.admin_technician_record_contacts trc
+                    ON trc.record_id = tr.id
+                  WHERE tr.origin = 'wordpress'
+                    AND tr.source_id = d.source_key || ':' || d.wp_post_id::text
+                )
+              ) ORDER BY d.wp_post_id)
+              FROM eut_migration.legacy_directory d
+              WHERE d.source_key = la.source_key AND d.wp_user_id = la.wp_user_id
+            ), '[]'::jsonb)
+          ) ORDER BY la.source_key, la.wp_user_id)
+          FROM eut_migration.legacy_accounts la WHERE la.auth_user_id = u.id
+        ), '[]'::jsonb)
       ) AS item
     FROM auth.users u
     LEFT JOIN public.profiles p ON p.id = u.id
@@ -119,7 +179,21 @@ BEGIN
         SELECT DISTINCT role_name FROM (
           SELECT ur.role::text AS role_name FROM public.user_roles ur WHERE ur.user_id = u.id
           UNION ALL SELECT 'tecnico'::text WHERE t.id IS NOT NULL
-        ) declared_roles ORDER BY role_name
+          UNION ALL SELECT pg_catalog.lower(pg_catalog.btrim(ir.role))
+            FROM eut_moderation.imported_user_registry ir
+            WHERE ir.linked_auth_user_id = u.id
+          UNION ALL SELECT pg_catalog.lower(pg_catalog.btrim(x.role_name))
+            FROM eut_migration.legacy_accounts la
+            CROSS JOIN LATERAL pg_catalog.unnest(la.roles) AS x(role_name)
+            WHERE la.auth_user_id = u.id
+          UNION ALL SELECT CASE WHEN d.kind = 'candidate' THEN 'tecnico'
+                                WHEN d.kind = 'employer' THEN 'cliente' END
+            FROM eut_migration.legacy_directory d
+            JOIN eut_migration.legacy_accounts la
+              ON la.source_key = d.source_key AND la.wp_user_id = d.wp_user_id
+            WHERE la.auth_user_id = u.id AND d.kind IN ('candidate', 'employer')
+        ) declared_roles WHERE role_name IS NOT NULL
+          AND pg_catalog.btrim(role_name) <> '' ORDER BY role_name
       )::text[] AS roles
     ) rr
   ),
@@ -132,7 +206,11 @@ BEGIN
       r.display_name AS search_name,
       CASE WHEN i.record_key IS NOT NULL THEN i.contact_email
            ELSE ld.contact_email END AS search_email,
-      c.phone_e164 AS search_phone,
+      pg_catalog.concat_ws(' ', c.phone_e164,
+        (SELECT pg_catalog.string_agg(ir.phone_e164, ' ')
+         FROM eut_moderation.imported_user_registry ir
+         WHERE ir.technician_record_id = r.id)
+      ) AS search_phone,
       pg_catalog.concat_ws(' ', m.name, m.uf, r.region_approx, r.ddd) AS search_locality,
       ARRAY['tecnico']::text[] AS roles,
       CASE WHEN r.archived_at IS NOT NULL OR NOT r.admin_active
@@ -157,7 +235,18 @@ BEGIN
         ),
         'created_at', r.created_at, 'updated_at', r.updated_at,
         'contact_suspended', c.contact_suspended, 'is_demo', r.is_demo,
-        'archived', r.archived_at IS NOT NULL
+        'archived', r.archived_at IS NOT NULL,
+        'linked_imports', coalesce((
+          SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+            'record_key', 'imported:' || ir.id::text, 'source_id', ir.source_id,
+            'phone', ir.phone_e164, 'role', ir.role, 'role_basis', ir.role_basis,
+            'status', CASE WHEN NOT ir.admin_active OR ir.blocked_on_import
+                           THEN 'SUSPENSO' ELSE 'ATIVO' END,
+            'import_sources', ir.import_sources
+          ) ORDER BY ir.id)
+          FROM eut_moderation.imported_user_registry ir
+          WHERE ir.technician_record_id = r.id
+        ), '[]'::jsonb)
       ) AS item
     FROM eut_moderation.admin_technician_records r
     LEFT JOIN public.technicians linked ON linked.id = r.portal_technician_id
@@ -171,6 +260,13 @@ BEGIN
       AND ld.wp_post_id = pg_catalog.split_part(r.source_id, ':', 2)::bigint
       AND ld.kind = 'candidate'
     WHERE linked.id IS NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM eut_moderation.imported_user_registry ir
+        WHERE ir.technician_record_id = r.id AND ir.linked_auth_user_id IS NOT NULL
+      )
+      -- Existing WordPress registry profile belongs to a legacy account through
+      -- its exact source_key/wp_post_id, never through name/phone matching.
+      AND ld.wp_post_id IS NULL
   ),
   -- WordPress people without an imported registry identity remain users to
   -- manage; employers are clients, candidates are technicians. Demonstrations
@@ -235,11 +331,123 @@ BEGIN
         WHERE r.origin = 'wordpress'
           AND r.source_id = h.source_key || ':' || h.wp_post_id::text
       )
+      -- An exact WP post/account foreign key means the post is a profile
+      -- of legacy_accounts (or an Auth-linked legacy account), not another user.
+      AND NOT EXISTS (
+        SELECT 1 FROM eut_migration.legacy_directory d
+        JOIN eut_migration.legacy_accounts la
+          ON la.source_key = d.source_key AND la.wp_user_id = d.wp_user_id
+        WHERE d.source_key = h.source_key AND d.wp_post_id = h.wp_post_id
+      )
+  ),
+  -- Imported registry entries without either established Auth/technical FK.
+  imported AS (
+    SELECT
+      'imported:' || ir.id::text AS user_key,
+      pg_catalog.lower(ir.display_name) AS sort_name,
+      ir.display_name AS search_name,
+      NULL::text AS search_email,
+      ir.phone_e164 AS search_phone,
+      pg_catalog.concat_ws(' ', ir.ddd, ir.region_approx, ir.declared_uf) AS search_locality,
+      CASE WHEN pg_catalog.btrim(ir.role) = '' THEN ARRAY[]::text[]
+           ELSE ARRAY[pg_catalog.lower(pg_catalog.btrim(ir.role))]::text[] END AS roles,
+      CASE WHEN NOT ir.admin_active OR ir.blocked_on_import
+           THEN 'SUSPENSO' ELSE 'ATIVO' END AS user_state,
+      pg_catalog.jsonb_build_object(
+        'user_key', 'imported:' || ir.id::text,
+        'record_key', 'imported:' || ir.id::text,
+        'auth_user_id', NULL, 'technician_id', NULL,
+        'name', ir.display_name,
+        'roles', CASE WHEN pg_catalog.btrim(ir.role) = '' THEN ARRAY[]::text[]
+                      ELSE ARRAY[pg_catalog.lower(pg_catalog.btrim(ir.role))]::text[] END,
+        'status', CASE WHEN NOT ir.admin_active OR ir.blocked_on_import
+                       THEN 'SUSPENSO' ELSE 'ATIVO' END,
+        'email', NULL, 'phone', ir.phone_e164,
+        'ddd', ir.ddd, 'region', ir.region_approx, 'declared_uf', ir.declared_uf,
+        'import_sources', ir.import_sources, 'role_basis', ir.role_basis,
+        'source_id', ir.source_id,
+        'created_at', ir.created_at, 'updated_at', ir.updated_at
+      ) AS item
+    FROM eut_moderation.imported_user_registry ir
+    WHERE ir.linked_auth_user_id IS NULL AND ir.technician_record_id IS NULL
+  ),
+  -- Legacy WP login identities with nested profiles linked by real FK.
+  legacy_accounts AS (
+    SELECT
+      'legacy-account:' || la.source_key || ':' || la.wp_user_id::text AS user_key,
+      pg_catalog.lower(n.full_name) AS sort_name,
+      n.full_name AS search_name,
+      la.wp_email AS search_email,
+      (SELECT pg_catalog.string_agg(d.contact_phone, ' ')
+       FROM eut_migration.legacy_directory d
+       WHERE d.source_key = la.source_key AND d.wp_user_id = la.wp_user_id) AS search_phone,
+      (SELECT pg_catalog.string_agg(pg_catalog.concat_ws(' ',d.location1,d.location2,d.location3),' ')
+       FROM eut_migration.legacy_directory d
+       WHERE d.source_key = la.source_key AND d.wp_user_id = la.wp_user_id) AS search_locality,
+      rr.roles AS roles,
+      'ATIVO'::text AS user_state,
+      pg_catalog.jsonb_build_object(
+        'user_key', 'legacy-account:' || la.source_key || ':' || la.wp_user_id::text,
+        'record_key', 'legacy-account:' || la.source_key || ':' || la.wp_user_id::text,
+        'auth_user_id', NULL, 'technician_id', NULL,
+        'name', n.full_name, 'roles', rr.roles, 'status', 'ATIVO',
+        'email', la.wp_email, 'login', la.wp_login, 'legacy_roles', la.roles,
+        'claim_status', la.claim_status, 'imported_at', la.imported_at,
+        'profiles', coalesce((
+          SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+            'record_key', 'wp:' || d.kind || ':' || d.wp_post_id::text,
+            'name', d.title, 'kind', d.kind, 'phone', d.contact_phone,
+            'email', d.contact_email, 'specialty', d.specialty_title,
+            'registry', (
+              SELECT pg_catalog.jsonb_build_object(
+                'record_key', 'registry:' || tr.id::text,
+                'name', tr.display_name, 'phone', trc.phone_e164,
+                'status', CASE WHEN tr.archived_at IS NOT NULL OR NOT tr.admin_active
+                               THEN 'SUSPENSO' ELSE 'ATIVO' END,
+                'technician_record_id', tr.id
+              )
+              FROM eut_moderation.admin_technician_records tr
+              LEFT JOIN eut_moderation.admin_technician_record_contacts trc
+                ON trc.record_id = tr.id
+              WHERE tr.origin = 'wordpress'
+                AND tr.source_id = d.source_key || ':' || d.wp_post_id::text
+            ),
+            'location', pg_catalog.concat_ws(' ',d.location1,d.location2,d.location3),
+            'source_status', d.source_status, 'review_status', d.review_status
+          ) ORDER BY d.wp_post_id)
+          FROM eut_migration.legacy_directory d
+          WHERE d.source_key = la.source_key AND d.wp_user_id = la.wp_user_id
+        ), '[]'::jsonb)
+      ) AS item
+    FROM eut_migration.legacy_accounts la
+    CROSS JOIN LATERAL (
+      SELECT coalesce(nullif(pg_catalog.btrim(la.display_name), ''),
+                      nullif(pg_catalog.btrim(la.wp_login), ''),
+                      'Usuário sem nome') AS full_name
+    ) n
+    CROSS JOIN LATERAL (
+      SELECT ARRAY(
+        SELECT DISTINCT role_name FROM (
+          SELECT pg_catalog.lower(pg_catalog.btrim(x.role_name)) AS role_name
+          FROM pg_catalog.unnest(la.roles) AS x(role_name)
+          UNION ALL
+          SELECT CASE WHEN d.kind = 'candidate' THEN 'tecnico'
+                      WHEN d.kind = 'employer' THEN 'cliente' END
+          FROM eut_migration.legacy_directory d
+          WHERE d.source_key = la.source_key AND d.wp_user_id = la.wp_user_id
+            AND d.kind IN ('candidate', 'employer')
+        ) declared WHERE role_name IS NOT NULL
+          AND pg_catalog.btrim(role_name) <> '' ORDER BY role_name
+      )::text[] AS roles
+    ) rr
+    WHERE la.auth_user_id IS NULL
   ),
   unioned AS (
     SELECT * FROM accounts
     UNION ALL SELECT * FROM registry
     UNION ALL SELECT * FROM historical
+    UNION ALL SELECT * FROM imported
+    UNION ALL SELECT * FROM legacy_accounts
   ),
   eligible AS (
     SELECT * FROM unioned x
