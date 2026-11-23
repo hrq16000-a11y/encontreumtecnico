@@ -22,7 +22,7 @@ import { accountScopedRows, canAcceptAccountResult } from "@/lib/account-scoped-
 import { persistClientRequest } from "@/lib/client-request-save";
 import { saveClientRequestDraftImmediately } from "@/lib/client-request-live-draft";
 import { ownedRequestForAction } from "@/lib/client-request-action";
-import { clientRequestStepError, type ClientRequestDraft, type ClientRequestStep } from "@/lib/client-request-wizard";
+import { clientRequestCityChanged, clientRequestStepError, type ClientRequestDraft, type ClientRequestStep } from "@/lib/client-request-wizard";
 import { mayShareDirectRequest, regionalClientReturnPath, regionalRequestRecipient } from "@/lib/regional-client-intent";
 
 export const Route = createFileRoute("/area-cliente")({
@@ -270,9 +270,10 @@ export function ClientAreaPage({ tecnico, modo, categoria }: ClientAreaPageProps
     const nextForm = { ...form, [key]: value };
     saveLiveDraft(nextForm, step);
     setForm(nextForm);
-    // A professional chosen for an earlier category must not remain the
-    // recipient when the client changes the type of service requested.
-    if (key === "category" && value !== form.category) {
+    // A professional selected for a category or municipality must not silently
+    // remain the recipient after the client changes either one.
+    if ((key === "category" && value !== form.category) ||
+        (key === "city" && clientRequestCityChanged(form.city, value))) {
       clearTechnicianTarget();
       setTechnicianTarget(null);
     }
@@ -535,6 +536,10 @@ export function ClientAreaPage({ tecnico, modo, categoria }: ClientAreaPageProps
                     if (nextForm !== form) {
                       saveLiveDraft(nextForm, step);
                       setForm(nextForm);
+                      if (clientRequestCityChanged(form.city, nextForm.city)) {
+                        clearTechnicianTarget();
+                        setTechnicianTarget(null);
+                      }
                       setShareNow(false);
                     }
                   }} />

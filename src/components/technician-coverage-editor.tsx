@@ -26,41 +26,91 @@ export function TechnicianCoverageEditor({
   const [citiesSelected, setCitiesSelected] = useState<Municipality[]>([]);
   const [radius, setRadius] = useState<number | null>(savedRadius);
   const [saving, setSaving] = useState(false);
+  // Freeze further writes when the server acknowledged a save but readback did not verify it.
+  const [unverifiedWriteOwner, setUnverifiedWriteOwner] = useState<string | null>(null);
+  // Identify persisted input by value, not by the array object's identity.
+  const snapshotKey = JSON.stringify([
+    userId, baseMunicipality?.id ?? null, [...savedCityIds].sort((a, b) => a - b), savedRadius,
+  ]);
+  const latestSnapshot = useRef(snapshotKey);
+  latestSnapshot.current = snapshotKey;
+  const restoredOwner = useRef(userId);
+  const localDirty = useRef(false);
+  const acknowledgedSnapshot = useRef<string | null>(null);
+  const [retryRestore, setRetryRestore] = useState(0);
+  const [existingLoad, setExistingLoad] = useState<{
+    ownerId: string; snapshot: string; state: "loading" | "ready" | "error" | "conflict";
+  }>({ ownerId: userId, snapshot: "", state: "loading" });
   const [message, setMessage] = useState("");
 
   useEffect(() => {
     let live = true;
     const owner = userId;
+    const snapshot = snapshotKey;
+    if (restoredOwner.current !== owner) {
+      restoredOwner.current = owner;
+      localDirty.current = false;
+      acknowledgedSnapshot.current = null;
+      setSaving(false);
+    }
+    // An already-verified local save must not be overwritten by its own callback.
+    if (acknowledgedSnapshot.current === snapshot && !localDirty.current) {
+      acknowledgedSnapshot.current = null;
+      setExistingLoad({ ownerId: owner, snapshot, state: "ready" });
+      return () => { live = false; };
+    }
+    if (localDirty.current) {
+      setExistingLoad({ ownerId: owner, snapshot, state: "conflict" });
+      setMessage("A cobertura cadastrada mudou enquanto você editava. Suas alterações foram preservadas; recarregue a cobertura salva antes de continuar.");
+      return () => { live = false; };
+    }
+
     setMessage("");
     setCitiesSelected([]);
     setRadius(savedRadius);
     setExtraUf(baseMunicipality?.uf || "PR");
-    const extras = savedCityIds.filter((id) => id !== baseMunicipality?.id).slice(0, 5);
-    if (extras.length > 0) {
+    setExistingLoad({ ownerId: owner, snapshot, state: "loading" });
+    const savedExtras = savedCityIds.filter((id) => id !== baseMunicipality?.id);
+    if (new Set(savedCityIds).size !== savedCityIds.length || savedCityIds.length > 5 || savedExtras.length > 4) {
+      setExistingLoad({ ownerId: owner, snapshot, state: "error" });
+      setMessage("A cobertura anterior contém cidades duplicadas ou acima do limite. Recarregue a ficha antes de salvar.");
+    } else if (!savedExtras.length) {
+      setExistingLoad({ ownerId: owner, snapshot, state: "ready" });
+    } else {
       void Promise.resolve(db.from("eut_ibge_municipalities")
-        .select("id,name,uf,latitude,longitude").in("id", extras)).then(({ data, error }) => {
-        if (live && activeUser.current === owner) {
-          if (error) setMessage("Não conseguimos recuperar as cidades anteriores. Recarregue antes de salvar.");
-          else setCitiesSelected((data ?? []) as Municipality[]);
+        .select("id,name,uf,latitude,longitude").in("id", savedExtras)).then(({ data, error }) => {
+        if (!live || activeUser.current !== owner || latestSnapshot.current !== snapshot) return;
+        const rows = Array.isArray(data) ? data as Municipality[] : [];
+        const returnedIds = new Set(rows.map((city) => city.id));
+        const exactIds = rows.length === savedExtras.length &&
+          returnedIds.size === savedExtras.length && savedExtras.every((id) => returnedIds.has(id));
+        if (error || !exactIds) {
+          setExistingLoad({ ownerId: owner, snapshot, state: "error" });
+          setMessage("Não conseguimos recuperar todas as cidades anteriores. Recarregue antes de salvar.");
+          return;
         }
+        setCitiesSelected(rows);
+        setExistingLoad({ ownerId: owner, snapshot, state: "ready" });
       }).catch(() => {
-        if (live && activeUser.current === owner) setMessage("Não conseguimos recuperar as cidades anteriores.");
+        if (!live || activeUser.current !== owner || latestSnapshot.current !== snapshot) return;
+        setExistingLoad({ ownerId: owner, snapshot, state: "error" });
+        setMessage("Não conseguimos recuperar as cidades anteriores. Recarregue antes de salvar.");
       });
     }
     return () => { live = false; };
-    // Reset when the technician account changes; changing the base city is
-    // an explicit save in the main registration form, not a silent reset here.
-  }, [userId]);
+  }, [snapshotKey, retryRestore]);
 
   const extras = citiesSelected.filter((city) => city.id !== baseMunicipality?.id);
   const shown = cities.filter((city) => !search || normalizedCityText(city.name).includes(normalizedCityText(search)))
     .filter((city) => city.id !== baseMunicipality?.id && !extras.some((extra) => extra.id === city.id))
     .slice(0, 20);
   const option = cities.find((city) => city.id === candidateId);
-  const missingExisting = savedCityIds.length > 1 && citiesSelected.length === 0 && Boolean(message);
+  const existingReady = existingLoad.ownerId === userId &&
+    existingLoad.snapshot === snapshotKey && existingLoad.state === "ready" &&
+    unverifiedWriteOwner !== userId;
 
   async function save() {
-    if (!baseMunicipality || saving || missingExisting) return;
+    if (!baseMunicipality || saving || !existingReady || latestSnapshot.current !== snapshotKey) return;
     const codes = [baseMunicipality.id, ...extras.map((city) => city.id)];
     if (codes.length > 5 || new Set(codes).size !== codes.length) {
       setMessage("Escolha no máximo cinco cidades diferentes, contando a cidade-base.");
@@ -73,6 +123,10 @@ export function TechnicianCoverageEditor({
         _radius_km: radius, _city_ids: codes,
       });
       if (activeUser.current !== owner) return;
+      if (latestSnapshot.current !== snapshotKey) {
+        setMessage("A cobertura foi atualizada durante o salvamento. Recarregue a ficha antes de editar novamente.");
+        return;
+      }
       if (error || data?.state !== "salvo") {
         setMessage("Não foi possível salvar. Confirme a cidade-base no cadastro e tente novamente.");
       } else {
@@ -80,9 +134,14 @@ export function TechnicianCoverageEditor({
           .select("coverage_city_ids,service_radius_km").eq("user_id", owner).maybeSingle();
         if (activeUser.current !== owner) return;
         if (readError || !technicianCoverageWasPersisted(codes, radius, persisted)) {
+          setUnverifiedWriteOwner(owner);
           setMessage("O servidor respondeu, mas não confirmou todas as cidades e o raio gravados. Recarregue sua ficha antes de repetir a edição.");
           return;
         }
+        acknowledgedSnapshot.current = JSON.stringify([
+          owner, baseMunicipality.id, [...codes].sort((a, b) => a - b), radius,
+        ]);
+        localDirty.current = false;
         setMessage("Raio e cidades salvos e conferidos no servidor. As distâncias são aproximadas.");
         onSaved?.(codes, radius);
       }
@@ -104,7 +163,8 @@ export function TechnicianCoverageEditor({
         Cidade-base: {baseMunicipality ? baseMunicipality.name + "/" + baseMunicipality.uf : "confirme a cidade-base no formulário acima"}
       </p>
       <label className="mt-4 block text-sm font-semibold text-foreground" htmlFor="eut-service-radius">Raio de atendimento declarado</label>
-      <select id="eut-service-radius" value={radius ?? ""} onChange={(event) => setRadius(event.target.value ? Number(event.target.value) : null)}
+      <select id="eut-service-radius" value={radius ?? ""} disabled={!existingReady || saving}
+        onChange={(event) => { localDirty.current = true; setRadius(event.target.value ? Number(event.target.value) : null); }}
         className="mt-2 min-h-12 w-full rounded-lg border border-input bg-background px-3 text-base text-foreground">
         <option value="">Sem raio declarado (somente cidades selecionadas)</option>
         {RADII.map((km) => <option key={km} value={km}>{km} km aproximados</option>)}
@@ -115,9 +175,9 @@ export function TechnicianCoverageEditor({
           {baseMunicipality && <li className="rounded-lg bg-primary/10 px-3 py-2 text-xs font-semibold text-primary">{baseMunicipality.name}/{baseMunicipality.uf} · base</li>}
           {extras.map((city) => <li key={city.id} className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 pl-3 pr-1 text-xs text-foreground">
             <span>{city.name}/{city.uf}</span>
-            <button type="button" disabled={saving} aria-label={"Remover " + city.name + "/" + city.uf}
+            <button type="button" disabled={saving || !existingReady} aria-label={"Remover " + city.name + "/" + city.uf}
               className="min-h-10 rounded-md px-3 font-bold text-primary hover:bg-accent"
-              onClick={() => setCitiesSelected((current) => current.filter((c) => c.id !== city.id))}>×</button>
+              onClick={() => { localDirty.current = true; setCitiesSelected((current) => current.filter((c) => c.id !== city.id)); }}>×</button>
           </li>)}
         </ul>
       </div>
@@ -142,8 +202,9 @@ export function TechnicianCoverageEditor({
             {shown.map((city) => <option key={city.id} value={city.id}>{city.name}/{city.uf}</option>)}
           </select>
           {error && <p role="alert" className="text-xs text-destructive">Falha ao carregar municípios. <button type="button" className="underline" onClick={retry}>Tentar novamente</button></p>}
-          <button type="button" disabled={!option || saving || loading} onClick={() => {
+          <button type="button" disabled={!option || saving || loading || !existingReady} onClick={() => {
             if (!option) return;
+            localDirty.current = true;
             setCitiesSelected((current) => current.some((x) => x.id === option.id)
               ? current : [...current, option].slice(0, 4));
             setCandidateId(null); setSearch("");
@@ -152,7 +213,19 @@ export function TechnicianCoverageEditor({
           </button>
         </div>
       )}
-      <button type="button" disabled={!baseMunicipality || saving || missingExisting}
+      {!existingReady && existingLoad.state === "loading" && (
+        <p role="status" className="mt-3 text-sm text-muted-foreground">Recuperando cidades já cadastradas…</p>
+      )}
+      {existingLoad.state === "conflict" && existingLoad.snapshot === snapshotKey && (
+        <button type="button" onClick={() => {
+          localDirty.current = false;
+          acknowledgedSnapshot.current = null;
+          setRetryRestore((value) => value + 1);
+        }} className="mt-3 min-h-11 rounded-lg border border-primary px-4 text-sm font-semibold text-primary">
+          Descartar alterações locais e recarregar cobertura salva
+        </button>
+      )}
+      <button type="button" disabled={!baseMunicipality || saving || !existingReady}
         onClick={() => void save()}
         className="mt-5 min-h-12 w-full rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-50">
         {saving ? "Salvando cobertura..." : "Salvar raio e cidades atendidas"}

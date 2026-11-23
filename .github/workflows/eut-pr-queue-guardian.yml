@@ -5,7 +5,7 @@ on:
     - cron: "13,43 * * * *"
   workflow_dispatch:
   pull_request_target:
-    types: [opened, reopened, ready_for_review, converted_to_draft, synchronize, labeled, unlabeled]
+    types: [reopened, ready_for_review, converted_to_draft, synchronize, labeled, unlabeled]
 
 permissions:
   contents: read

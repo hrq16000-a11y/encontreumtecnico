@@ -145,7 +145,7 @@ function TechniciansPage() {
     service: services.find((s) => s.slug === search.servico)?.label || search.servico || (search.especialidade !== "Todas" ? search.especialidade : "") };
 
   useEffect(() => {
-    if (technicians.length > 0 || !searchArea) return;
+    if (technicians.length > 0 || !searchArea || search.pagina > 1) return;
     // One contextual invitation per browser tab; never nag on every filter.
     const popup = window.setTimeout(() => {
       try {
@@ -155,7 +155,7 @@ function TechniciansPage() {
       openFreeHelp({ city: search.cidade, uf: search.uf, neighborhood: search.bairro, service: search.servico });
     }, 850);
     return () => window.clearTimeout(popup);
-  }, [technicians.length, searchArea, search.cidade, search.uf, search.bairro, search.servico]);
+  }, [technicians.length, searchArea, search.cidade, search.uf, search.bairro, search.servico, search.pagina]);
 
   const specialty = categories.some((c) => c.slug === search.especialidade)
     ? search.especialidade
@@ -182,7 +182,7 @@ function TechniciansPage() {
           <span className="relative inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-widest text-brand-glow"><ListFilter className="h-4 w-4" aria-hidden="true" /> Diretório de profissionais</span>
           <h1 className="relative mt-3 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">Encontre técnicos na sua região</h1>
           <p className="relative mt-3 max-w-2xl text-sm leading-6 text-white/85">
-            A busca prioriza profissionais com atendimento na região aproximada, quando disponível. Você também pode escolher especialidade, cidade e estado.
+            Encontre técnicos por serviço, especialidade e cidade, com resultados organizados para facilitar sua escolha.
           </p>
           <div className="relative mt-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold text-white/90">
             <ShieldCheck className="h-4 w-4 text-brand-glow" aria-hidden="true" /> Contatos particulares continuam protegidos
@@ -360,6 +360,18 @@ function TechniciansPage() {
               </ul>
             );
             return technicians.length === 0 ? (
+              search.pagina > 1 ? (
+                <div className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
+                  <h2 className="text-lg font-bold text-foreground">Esta página da busca não tem resultados</h2>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    Pode haver técnicos nas páginas anteriores. Volte à primeira página mantendo os filtros da pesquisa.
+                  </p>
+                  <button type="button" onClick={() => void update({ pagina: 1 })}
+                    className="mt-4 min-h-11 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                    Voltar à primeira página
+                  </button>
+                </div>
+              ) : (
             <div className="space-y-4">
               <EmptyState
                 title="Nenhum técnico encontrado com estes filtros"
@@ -416,6 +428,7 @@ function TechniciansPage() {
                 </div>
               </div>
             </div>
+              )
           ) : regionalGroups ? (
             <div className="space-y-7">
               <section aria-label="Atendimento declarado na localidade pesquisada" className="space-y-3">

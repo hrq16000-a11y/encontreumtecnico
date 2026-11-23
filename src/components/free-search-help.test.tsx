@@ -35,6 +35,41 @@ describe("Funil flutuante de atendimento", () => {
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
   });
+  it("contém Tab e Shift+Tab no diálogo, sem perder rascunho, Escape ou foco de retorno", async () => {
+    render(<><button type="button">Fora do diálogo</button><FreeSearchHelp /></>);
+    const outside = screen.getByRole("button", { name: "Fora do diálogo" });
+    const trigger = screen.getByRole("button", { name: /preciso de ajuda/i });
+    fireEvent.click(trigger);
+    const close = screen.getByRole("button", { name: "Fechar atendimento" });
+    const draft = await screen.findByRole("textbox", { name: /rascunho de teste/i });
+    expect(document.activeElement).toBe(close);
+
+    const pressTab = (shiftKey = false) => {
+      const event = new KeyboardEvent("keydown", { key: "Tab", shiftKey, bubbles: true, cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    fireEvent.change(draft, { target: { value: "Texto preservado durante a navegação" } });
+    close.focus();
+    expect(pressTab(true)).toBe(true);
+    expect(document.activeElement).toBe(draft);
+    expect(pressTab(false)).toBe(true);
+    expect(document.activeElement).toBe(close);
+    expect(pressTab(false)).toBe(false); // Internal forward navigation remains native.
+
+    outside.focus();
+    expect(pressTab(false)).toBe(true);
+    expect(document.activeElement).toBe(close);
+    outside.focus();
+    expect(pressTab(true)).toBe(true);
+    expect(document.activeElement).toBe(draft);
+    expect((draft as HTMLTextAreaElement).value).toBe("Texto preservado durante a navegação");
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
   it.each(["/area-tecnico", "/lp2/meu-perfil"])("não sobrepõe o rodapé sticky do Wizard em 390px (%s), sem desativar o atendimento", async (pathname) => {
     routeState.pathname = pathname;
     const previousWidth = window.innerWidth;
@@ -67,6 +102,34 @@ describe("Funil flutuante de atendimento", () => {
     fireEvent.click(screen.getByRole("button", { name: "Fechar atendimento" }));
     expect(document.activeElement).toBe(mobileHelp);
   });
+  it("devolve foco ao CTA contextual que abriu o atendimento após Escape", () => {
+    render(<><button type="button" onClick={() => openFreeHelp({ city: "Curitiba" })}>Ajuda contextual</button><FreeSearchHelp /></>);
+    const opener = screen.getByRole("button", { name: "Ajuda contextual" });
+    opener.focus();
+    fireEvent.click(opener);
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Fechar atendimento" }));
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it("usa o botão flutuante quando o CTA contextual é removido", () => {
+    routeState.pathname = "/tecnicos/tecnico-exemplo";
+    const contextual = <button type="button" onClick={() => openFreeHelp({ city: "Curitiba" })}>Ajuda contextual removível</button>;
+    const { rerender } = render(<><div>{contextual}</div><FreeSearchHelp /></>);
+    const opener = screen.getByRole("button", { name: "Ajuda contextual removível" });
+    const fallback = screen.getByRole("button", { name: /preciso de ajuda/i });
+    opener.focus();
+    fireEvent.click(opener);
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    rerender(<><div /><FreeSearchHelp /></>);
+    expect(opener.isConnected).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Fechar atendimento" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(fallback);
+  });
+
   it("recebe contexto regional do fluxo sem resultados", async () => {
     render(<FreeSearchHelp />);
     act(() => openFreeHelp({ city: "Curitiba", uf: "PR", service: "redes" }));

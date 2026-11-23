@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { clientRequestStepError, type ClientRequestDraft } from "./client-request-wizard";
+import { clientRequestCityChanged, clientRequestStepError, type ClientRequestDraft } from "./client-request-wizard";
 
 const draft: ClientRequestDraft = {
   title: "Internet instável",
@@ -44,6 +44,33 @@ describe("Pedido guiado no celular", () => {
     expect(src).toContain("Nenhum técnico será avisado.");
     expect(src).toContain("setStep(1)");
     expect(src).toContain("bottom-[calc(3.5rem+env(safe-area-inset-bottom))]");
+  });
+
+  it("descarta o técnico após mudança real de cidade, mas não por formatação", () => {
+    expect(clientRequestCityChanged("Curitiba", "São José dos Pinhais")).toBe(true);
+    expect(clientRequestCityChanged("Curitiba", "")).toBe(true);
+    expect(clientRequestCityChanged("", "Curitiba")).toBe(true);
+    expect(clientRequestCityChanged("São José dos Pinhais", " sao jose  dos pinhais ")).toBe(false);
+    expect(clientRequestCityChanged("Curitiba", " curitiba ")).toBe(false);
+    expect(clientRequestCityChanged("Curitiba", "Curitiba")).toBe(false);
+
+    const route = readFileSync("src/routes/area-cliente.tsx", "utf8");
+    const update = route.slice(route.indexOf("function updateRequestField("),
+      route.indexOf("function chooseTechnicianInWizard("));
+    expect(update).toContain('key === "city" && clientRequestCityChanged(form.city, value)');
+    expect(update).toContain('key === "category" && value !== form.category');
+    expect(update).toContain("clearTechnicianTarget()");
+    expect(update).toContain("setTechnicianTarget(null)");
+    expect(update).toContain("saveLiveDraft(nextForm, step)");
+
+    const locationStart = route.indexOf("<CustomerLocationButton onLocated=");
+    const locationEnd = route.indexOf("}} />", locationStart);
+    const locationHandler = route.slice(locationStart, locationEnd);
+    expect(locationHandler).toContain("clientRequestCityChanged(form.city, nextForm.city)");
+    expect(locationHandler).toContain("clearTechnicianTarget()");
+    expect(locationHandler).toContain("setTechnicianTarget(null)");
+    expect(locationHandler).toContain("saveLiveDraft(nextForm, step)");
+    expect(locationHandler).toContain("setShareNow(false)");
   });
 
   it("impede compartilhar sem destinatário ou com contato pessoal no texto", () => {

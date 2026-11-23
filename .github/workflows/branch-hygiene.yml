@@ -1,0 +1,46 @@
+name: Branch hygiene inventory (dry-run)
+
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: branch-hygiene-${{ github.repository_id }}
+  cancel-in-progress: false
+
+jobs:
+  inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore previous read-only inventory
+        uses: actions/cache/restore@v4
+        with:
+          path: .branch-hygiene-state
+          key: branch-hygiene-v1-${{ github.repository_id }}-${{ github.run_id }}
+          restore-keys: |
+            branch-hygiene-v1-${{ github.repository_id }}-
+      - name: Generate incremental dry-run report
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node .github/scripts/branch-hygiene.mjs
+      - name: Save read-only inventory snapshot
+        uses: actions/cache/save@v4
+        with:
+          path: .branch-hygiene-state
+          key: branch-hygiene-v1-${{ github.repository_id }}-${{ github.run_id }}
+      - name: Keep the report for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: branch-hygiene-dry-run-${{ github.run_id }}
+          path: .branch-hygiene-state/report.*
+          if-no-files-found: error
+          retention-days: 30
+          include-hidden-files: true
