@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildPublicGraph } from "@/lib/public-seo-graph";
+import { buildPublicSitemapPartXml } from "@/lib/public-sitemap-index";
 
 const mocks = vi.hoisted(() => ({
   getPublicGraphSnapshot: vi.fn(),
@@ -27,6 +28,21 @@ beforeEach(() => {
 });
 
 describe("HTTP real das respostas de sitemap segmentado (sem Supabase/produção)", () => {
+  it("gera base.xml idêntico sem consultar o grafo, mesmo quando o backend falharia", async () => {
+    mocks.getPublicGraphSnapshot.mockRejectedValue(new Error("simulated backend outage"));
+    const response = await publicSitemapPartResponse("base");
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("application/xml; charset=utf-8");
+    expect(response.headers.get("cache-control")).toBe("no-store, max-age=0");
+    expect(response.headers.get("cdn-cache-control")).toBe("no-store");
+    expect(response.headers.get("vercel-cdn-cache-control")).toBe("no-store");
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(await response.text()).toBe(buildPublicSitemapPartXml(graph, "base"));
+    expect(mocks.getPublicGraphSnapshot).not.toHaveBeenCalled();
+  });
+
+
   it("retorna Response 200 XML sem cache de perfil moderado", async () => {
     const response = await publicSitemapPartResponse("tecnicos", 1);
     expect(response.status).toBe(200);
