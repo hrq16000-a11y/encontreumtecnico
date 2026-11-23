@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 const mockDb = vi.hoisted(() => ({
   accounts: [] as Array<Record<string, unknown>>,
@@ -23,7 +23,10 @@ vi.mock("@/integrations/supabase/client", () => ({
           (filter !== "bloqueados" || row["blocked_account"] === true));
         if (search.includes("-")) mockDb.checks.push(search);
         return { data: {
-          accounts: rows, total: rows.length, page: 0, page_size: 20,
+        const page = Number(args["_page"] ?? 0);
+        return { data: {
+          accounts: rows.slice(page * 20, (page + 1) * 20),
+          total: rows.length, page, page_size: 20,
           audit: [], blocked_phones: [],
         }, error: null };
       }
@@ -65,6 +68,21 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe("moderação administrativa em lote", () => {
+  it("retorna à última página existente quando o total de contas diminui", async () => {
+    mockDb.accounts = Array.from({ length: 24 }, (_, i) =>
+      account(`bbbbbbbb-bbbb-4bbb-bbbb-${String(i).padStart(12, "0")}`, `Cliente ${i + 1}`));
+    render(<AdminAccountsManager initialLayout="table" />);
+    expect(await screen.findByText(/24 conta\(s\) · página 1 de 2/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Cadastros mais antigos" }));
+    expect(await screen.findByText(/24 conta\(s\) · página 2 de 2/)).toBeTruthy();
+
+    mockDb.accounts = mockDb.accounts.slice(0, 2);
+    fireEvent.click(screen.getByRole("button", { name: "Atualizar" }));
+    expect(await screen.findByText(/2 conta\(s\) · página 1 de 1/)).toBeTruthy();
+    expect(screen.getByText("Cliente 1")).toBeTruthy();
+    expect(mockDb.actions).toHaveLength(0);
+  });
+
   it("fecha a confirmação anterior durante a atualização de contas", async () => {
     let finishRead: () => void = () => {};
     render(<AdminAccountsManager />);
@@ -133,4 +151,28 @@ describe("moderação administrativa em lote", () => {
     await waitFor(() => expect(window.confirm).toHaveBeenCalledTimes(1));
     expect(mockDb.actions).toHaveLength(0);
   });
+
+  it("abre ficha rápida sanitizada e devolve o foco ao botão após fechar", async () => {
+    mockDb.accounts[1] = { ...mockDb.accounts[1], masked_phone: "(**) *****-1234", technician_status: "habilitado" };
+    render(<AdminAccountsManager />);
+    fireEvent.click(await screen.findByRole("button", { name: "Ver ficha de Cliente Um" }));
+    const panel = screen.getByRole("region", { name: "Ficha rápida de Cliente Um" });
+    expect(within(panel).getByText("(**) *****-1234")).toBeTruthy();
+    expect(within(panel).getByText("habilitado")).toBeTruthy();
+    expect(within(panel).getByText("a•••@example.test")).toBeTruthy();
+    expect(mockDb.actions).toHaveLength(0);
+    fireEvent.click(within(panel).getByRole("button", { name: "Fechar ficha" }));
+    expect(screen.queryByRole("region", { name: "Ficha rápida de Cliente Um" })).toBeNull();
+    expect(document.activeElement?.getAttribute("aria-label")).toBe("Ver ficha de Cliente Um");
+  });
+
+  it("remove a ficha antiga ao atualizar a consulta sem executar moderação", async () => {
+    render(<AdminAccountsManager />);
+    fireEvent.click(await screen.findByRole("button", { name: "Ver ficha de Cliente Um" }));
+    expect(screen.getByRole("region", { name: "Ficha rápida de Cliente Um" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Atualizar" }));
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Ficha rápida de Cliente Um" })).toBeNull());
+    expect(mockDb.actions).toHaveLength(0);
+  });
+
 });
