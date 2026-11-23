@@ -22,6 +22,11 @@ vi.mock("@/integrations/supabase/client", () => ({
       const query = {
         select: () => query,
         ilike(_field: string, value: string) { term = value.slice(1, -1); return query; },
+        or(filter: string) {
+          const prefix = "display_name.ilike.%";
+          term = filter.split(",").find((part) => part.startsWith(prefix))?.slice(prefix.length, -1) ?? "";
+          return query;
+        },
         eq: () => query,
         neq: () => query,
         order: () => query,

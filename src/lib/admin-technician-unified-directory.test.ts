@@ -1,12 +1,26 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { cleanUnifiedSearch } from "../components/admin-technician-unified-directory";
+import { portalTechnicianSearchOr } from "./admin-technician-locality-search";
 
 describe("busca administrativa unificada", () => {
   it("normaliza termos sem introduzir operadores PostgREST", () => {
     expect(cleanUnifiedSearch("  Curitiba, (41)   ")).toBe("Curitiba 41");
     expect(cleanUnifiedSearch("São José dos Pinhais")).toBe("São José dos Pinhais");
     expect(cleanUnifiedSearch("Teste interno de homologacao EUT — QA 284")).toBe("Teste interno de homologacao EUT — QA 284");
+  });
+  it("inclui localidade operacional na busca principal e global, sem remover atualização após gravações", () => {
+    expect(portalTechnicianSearchOr("Curitiba")).toBe(
+      "display_name.ilike.%Curitiba%,city.ilike.%Curitiba%,state_uf.ilike.%Curitiba%,region.ilike.%Curitiba%"
+    );
+    expect(portalTechnicianSearchOr("PR")).toContain("state_uf.ilike.%PR%");
+    expect(portalTechnicianSearchOr("Curitiba, (41)")).toContain("city.ilike.%Curitiba 41%");
+    expect(portalTechnicianSearchOr("  ")).toBe("");
+    const directory = readFileSync("src/components/admin-technician-unified-directory.tsx", "utf8");
+    const global = readFileSync("src/components/admin-global-search.tsx", "utf8");
+    expect(directory).toContain("if (term) query = query.or(portalTechnicianSearchOr(term));");
+    expect(global).toContain(".or(portalTechnicianSearchOr(term))");
+    expect(directory).toContain("onUpdated={refreshAfterSaved}");
   });
   it("exibe técnicos das três origens numa única consulta protegida", () => {
     const page = readFileSync("src/routes/admin.tsx", "utf8");
