@@ -27,10 +27,26 @@ const actionLabel: Record<Action, string> = {
 const FIELDS = "source_key,wp_post_id,wp_user_id,kind,slug,title,specialty_title,location1,location2,location3,review_status,demo_candidate";
 const db = supabase as unknown as SupabaseClient;
 
+/** Resolve only exact WordPress IDs, never an editable name or a contact. */
+function parseHistoricRecord(value: string | null): { kind: LegacyKind; id: number } | null {
+  const match = /^wp:(candidate|employer):([1-9][0-9]*)$/.exec(value ?? "");
+  if (!match) return null;
+  const id = Number(match[2]);
+  return Number.isSafeInteger(id) ? { kind: match[1] as LegacyKind, id } : null;
+}
+
 /** WordPress source remains immutable; only an audited, admin-owned review overlay is edited. */
 export function LegacyReviewQueue({ onlyTechnicians = false, onlyClients = false }:
   { onlyTechnicians?: boolean; onlyClients?: boolean } = {}) {
-  const [kind, setKind] = useState<LegacyKind>(onlyClients ? "employer" : "candidate");
+  const [target, setTarget] = useState(() => {
+    const requested = parseHistoricRecord(typeof window === "undefined"
+      ? null : new URLSearchParams(window.location.search).get("registro"));
+    if ((onlyTechnicians && requested?.kind === "employer") ||
+        (onlyClients && requested?.kind === "candidate")) return null;
+    return requested;
+  });
+  const [kind, setKind] = useState<LegacyKind>(() =>
+    onlyClients ? "employer" : onlyTechnicians ? "candidate" : target?.kind ?? "candidate");
   const [draft, setDraft] = useState(() => typeof window === "undefined" ? "" :
     new URLSearchParams(window.location.search).get("busca")?.slice(0, 100) ?? "");
   const [term, setTerm] = useState(() => normalizeLegacyReviewSearch(draft));
@@ -40,7 +56,7 @@ export function LegacyReviewQueue({ onlyTechnicians = false, onlyClients = false
   const [rows, setRows] = useState<LegacyProfile[]>([]);
   const [managed, setManaged] = useState<Record<number, Managed>>({});
   const [selected, setSelected] = useState<number[]>([]);
-  const [expanded, setExpanded] = useState<number[]>([]);
+  const [expanded, setExpanded] = useState<number[]>(() => target ? [target.id] : []);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -57,7 +73,8 @@ export function LegacyReviewQueue({ onlyTechnicians = false, onlyClients = false
       setError(null);
       let query = db.from("legacy_review_profiles")
         .select(FIELDS, { count: "exact" }).eq("source_key", "wordpress_20261108").eq("kind", kind);
-      if (term) query = query.ilike("title", `%${term}%`);
+      if (target) query = query.eq("wp_post_id", target.id);
+      else if (term) query = query.ilike("title", `%${term}%`);
       const { data, error: readError, count } = await query
         .order(order === "name" ? "title" : "imported_at", { ascending: order === "name" || order === "oldest" })
         .order("wp_post_id", { ascending: order === "oldest" })
@@ -89,10 +106,20 @@ export function LegacyReviewQueue({ onlyTechnicians = false, onlyClients = false
     }
     void load();
     return () => { current = false; };
-  }, [kind, page, term, order, version]);
+  }, [kind, page, term, order, version, target]);
+
+  function clearTarget() {
+    if (!target) return;
+    setTarget(null);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("registro");
+    window.history.replaceState(window.history.state, "", url);
+    setSelected([]); setExpanded([]); setPage(0); setAction(null);
+  }
 
   function submitSearch(event: FormEvent) {
     event.preventDefault();
+    clearTarget();
     setTerm(normalizeLegacyReviewSearch(draft));
     setSelected([]); setExpanded([]); setPage(0); setAction(null);
   }
@@ -177,9 +204,16 @@ export function LegacyReviewQueue({ onlyTechnicians = false, onlyClients = false
     {!onlyTechnicians && !onlyClients && <div role="group" aria-label="Tipo de cadastro histórico" className="mt-5 flex flex-wrap gap-2">
       {([{value:"candidate",label:"Técnicos"},{value:"employer",label:"Contratantes"}] as const).map((item) =>
         <button key={item.value} type="button" aria-pressed={kind===item.value}
-          onClick={() => { setKind(item.value); setPage(0); setSelected([]); setExpanded([]); setAction(null); }}
+          onClick={() => { clearTarget(); setKind(item.value); setPage(0); setSelected([]); setExpanded([]); setAction(null); }}
           className={"min-h-11 rounded-xl border px-4 text-sm font-semibold " +
             (kind===item.value?"bg-primary text-primary-foreground":"border-input text-foreground hover:bg-accent")}>{item.label}</button>)}
+    </div>}
+    {target && <div role="status" className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
+      <span>Ficha WordPress selecionada pelo identificador #{target.id}.</span>
+      <button type="button" className="min-h-11 rounded-lg border border-input px-3 font-semibold"
+        onClick={() => { clearTarget(); setDraft(""); setTerm(""); }}>
+        Mostrar todos os cadastros
+      </button>
     </div>}
     <form onSubmit={submitSearch} className="mt-4 flex flex-col gap-2 sm:flex-row">
       <label className="sr-only" htmlFor="legacy-review-search">Buscar nome histórico</label>
