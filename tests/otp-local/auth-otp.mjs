@@ -220,6 +220,11 @@ assert(!sent?.access_token, 'OTP não pode emitir JWT sem verificar link');
 await rejected('/rest/v1/rpc/eut_attest_technician_email_otp',
   { method: 'POST', body: {}, token: owner.token }, 'Sessão de senha não prova link enviado');
 
+// GoTrue emits integer-second AMR timestamps while auth.users.recovery_sent_at
+// retains subsecond precision. Verify the actual emailed link in the NEXT
+// second so the unchanged SQL check v_authenticated_at >= v_sent_at is meaningful.
+// Do not alter JWT, timestamps, Auth records, or the server-side guard.
+await new Promise((resolve) => setTimeout(resolve, 1200));
 const verifiedToken = await accessTokenFromLink(await mailpitMagicLink());
 const claims = jwtClaims(verifiedToken);
 assert.equal(claims.sub, owner.id, 'Link não pertence à conta técnica');
