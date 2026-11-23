@@ -15,11 +15,11 @@ describe("Falhas de publicação sem exposição de dados privados", () => {
     expect(technicianPublishErrorMessage({ code: "23514" })).toMatch(/município/);
     expect(technicianPublishErrorMessage({ code: "P0001" })).toMatch(/regra do cadastro/);
   });
-  it("orienta a recuperar a titularidade sem vazar erro interno", () => {
+  it("não apresenta verificação de e-mail por erro legado nem vaza detalhes internos", () => {
     const raw = "confirmed technician session required; private@example.com";
     const feedback = technicianPublishErrorMessage({ code: "P0001", message: raw });
-    expect(feedback).toMatch(/titularidade do e-mail/);
-    expect(feedback).toMatch(/Não crie outra conta/);
+    expect(feedback).toMatch(/condição de acesso antiga/);
+    expect(feedback).not.toMatch(/titularidade do e-mail|OTP|verificação por SMS/i);
     expect(feedback).not.toContain(raw);
     expect(feedback).not.toContain("private@example.com");
   });

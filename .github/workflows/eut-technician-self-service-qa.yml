@@ -1,0 +1,52 @@
+name: EUT technician self-service isolated SQL QA
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/eut-technician-self-service-qa.yml'
+      - '.github/qa/eut-self-service-357/**'
+      - 'docs/sql/eut-technician-self-service-no-confirmation-proposal-20261120.sql'
+      - 'src/components/technician-profile-removal.tsx'
+      - 'src/routes/area-tecnico.tsx'
+  workflow_dispatch:
+
+# Nenhum secret de repositorio, Supabase externo ou producao.
+permissions:
+  contents: read
+
+jobs:
+  self-service-auth-and-rpc:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      SUPABASE_ACCESS_TOKEN: ''
+      SUPABASE_DB_PASSWORD: ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: supabase/setup-cli@v1
+        with:
+          version: '2.81.3'
+      - name: Iniciar Auth, PostgREST e PostgreSQL descartaveis
+        working-directory: .github/qa/eut-self-service-357
+        run: |
+          set -euo pipefail
+          supabase start --help >/dev/null
+          supabase start -x realtime,storage-api,imgproxy,postgres-meta,studio,edge-runtime,logflare,vector,supavisor,mailpit
+      - name: Instalar estrutura e oito funcoes originais SOMENTE em localhost
+        env:
+          PGHOST: '127.0.0.1'
+          PGPORT: '54322'
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: postgres
+        run: |
+          set -euo pipefail
+          command -v psql || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+          psql -X -v ON_ERROR_STOP=1 -f .github/qa/eut-self-service-357/fixture.sql
+          psql -X -v ON_ERROR_STOP=1 -f .github/qa/eut-self-service-357/baseline.sql
+          psql -X -v ON_ERROR_STOP=1 -c "NOTIFY pgrst, 'reload schema'"
+      - name: Exercitar GoTrue real, RLS, criacao, edicao, releitura e exclusao
+        run: node .github/qa/eut-self-service-357/authenticated-check.mjs

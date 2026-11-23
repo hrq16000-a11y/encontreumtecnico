@@ -11,8 +11,7 @@ export function technicianPublishErrorMessage(error: PublishError): string {
     return `O serviço de publicação está temporariamente indisponível. Não altere seus dados: tente novamente mais tarde. ${recovery}`;
   }
   if (code === "P0001" && /confirmed technician session required/i.test(error?.message ?? "")) {
-    return "Sua conta está conectada, mas o servidor ainda não comprovou a titularidade do e-mail para publicar. " +
-      "O preenchimento permanece preservado nesta aba. Não crie outra conta: solicite a verificação segura do acesso ao suporte.";
+    return `O servidor ainda exige uma condição de acesso antiga. Seu cadastro foi preservado; tente novamente após a atualização do serviço. ${recovery}`;
   }
   if (code === "P0001") {
     return `O servidor recusou a publicação por uma regra do cadastro. Seus dados foram preservados na aba; não crie outra conta. Solicite suporte para identificar a restrição.`;
