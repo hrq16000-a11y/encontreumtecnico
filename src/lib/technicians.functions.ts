@@ -270,7 +270,22 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
         } catch { /* The absence of an official match must not create a location. */ }
       }
     }
-    const globalRanking = rankingArea !== null;
+    // A normal, unambiguous city search must also find declared covered cities,
+    // rather than filtering eligible technicians solely by their base city.
+    // Advanced neighborhood/region filters retain their existing semantics.
+    const cityCoverageSearch = !regionalPriority && Boolean(city) && !bairro && !region;
+    const coverageCityIds: number[] = [];
+    if (cityCoverageSearch) {
+      let municipalities = publicClient().from("eut_ibge_municipalities")
+        .select("id").ilike("name", `%${city}%`);
+      if (uf) municipalities = municipalities.eq("uf", uf);
+      const { data: locations, error: municipalityError } = await municipalities.limit(100);
+      if (municipalityError) throw new Error("Não foi possível consultar os municípios atendidos.");
+      for (const location of locations ?? []) {
+        if (Number.isInteger(location.id)) coverageCityIds.push(location.id);
+      }
+    }
+    const globalRanking = rankingArea !== null || cityCoverageSearch;
     const loadApprovedPage = async (pageOffset: number, limit: number) => {
       let q = publicClient().from("technicians").select(COLUMNS)
         .eq("status", "aprovado")
@@ -289,8 +304,23 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
       }
       return rows ?? [];
     };
-    // With a regional hint, ranking a single pre-paginated slice can exclude
-    // the closest technician entirely. Collect BOTH public sources first.
+    // A municipality may be covered by someone based in another city or UF.
+    // Query coverage IDs in the database, not by scanning the national catalog.
+    const loadCoveragePage = async (pageOffset: number, limit: number) => {
+      if (!coverageCityIds.length) return [];
+      let q = publicClient().from("technicians").select(COLUMNS)
+        .eq("status", "aprovado")
+        .overlaps("coverage_city_ids", coverageCityIds)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: true });
+      if (category) q = q.contains("specialties", [category]);
+      if (data.servico) q = q.contains("service_slugs", [data.servico]);
+      const { data: rows, error } = await q.range(pageOffset, pageOffset + limit - 1);
+      if (error) throw new Error("Não foi possível consultar a cobertura municipal.");
+      return rows ?? [];
+    };
+    // With a regional hint or explicit city search, a pre-paginated slice
+    // can hide matching technicians. Combine eligible sources before paging.
     const adminFilters = {
       ...(category ? { category } : {}),
       ...(data.servico ? { service: data.servico } : {}),
@@ -299,7 +329,7 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
       ...(!regionalPriority && region ? { region } : {}),
       ...(!regionalPriority && bairro ? { neighborhood: bairro } : {}),
     };
-    const [rows, adminPublished] = await Promise.all([
+    const [rows, adminPublished, coveredRows] = await Promise.all([
       globalRanking
         ? collectPublicDirectoryPages(loadApprovedPage, PUBLIC_BATCH, DIRECTORY_CEILING)
         : loadApprovedPage(offset, 100),
@@ -309,10 +339,21 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
           ADMIN_BATCH, DIRECTORY_CEILING,
         )
         : listAdminPublished({ ...adminFilters, offset, limit: 100, hydrateCoverage: false }),
+      cityCoverageSearch && coverageCityIds.length
+        ? collectPublicDirectoryPages(loadCoveragePage, PUBLIC_BATCH, DIRECTORY_CEILING)
+        : Promise.resolve([]),
     ]);
-    const eligible = await readPublicEligibleRows(publicClient() as unknown as PublicEligibilityRpc, rows);
+    const eligible = await readPublicEligibleRows(publicClient() as unknown as PublicEligibilityRpc, [...rows, ...coveredRows]);
     const published = await withReferralHighlights(await withPioneerBadges(await withOnlineStatus(eligible.map(sanitizePublicTechnician))));
     const unified = await withCoverageCities([...published, ...adminPublished]);
+    if (cityCoverageSearch) {
+      // A base-city match can also declare that same city as coverage.
+      // Never return or rank the same public UUID twice.
+      const distinct = [...new Map(unified.map(row => [row.id, row] as const)).values()];
+      return publicDirectoryPage(rankTechniciansByDeclaredArea(
+        distinct, { uf, cidade: city, bairro: "" },
+      ), data.pagina);
+    }
     if (rankingArea) return publicDirectoryPage(rankTechniciansByDeclaredArea(unified, rankingArea), data.pagina);
     return unified.sort((a,b) => Number(b.online_now)-Number(a.online_now) || Number(Boolean(b.referral_highlight))-Number(Boolean(a.referral_highlight)) || Number(Boolean(b.pioneer_bronze))-Number(Boolean(a.pioneer_bronze)));
   });
