@@ -73,9 +73,9 @@ export function SponsoredPublicSlot({ slotKey, routePath }: AdPlacement) {
       const request = generation;
       const controller = new AbortController();
       pending = controller;
-      void db.rpc("eut_ads_public_slot", {
+      void Promise.resolve(db.rpc("eut_ads_public_slot", {
         _slot_key: slotKey, _route_path: routePath,
-      }).abortSignal(controller.signal).then(({ data, error }) => {
+      }).abortSignal(controller.signal)).then(({ data, error }) => {
         // An aborted response cannot restore a campaign after consent revocation.
         if (!active || request !== generation || controller.signal.aborted || !hasAdvertisingConsent()) return;
         setCard(error ? null : asApprovedSponsoredCard(data, slotKey));
