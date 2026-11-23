@@ -22,7 +22,6 @@ vi.mock("@/integrations/supabase/client", () => ({
           (!search || String(row["id"]) === search || String(row["full_name"]).toLowerCase().includes(search.toLowerCase())) &&
           (filter !== "bloqueados" || row["blocked_account"] === true));
         if (search.includes("-")) mockDb.checks.push(search);
-        return { data: {
         const page = Number(args["_page"] ?? 0);
         return { data: {
           accounts: rows.slice(page * 20, (page + 1) * 20),
