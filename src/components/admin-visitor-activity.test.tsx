@@ -88,6 +88,25 @@ describe("atividade de busca consentida no painel", () => {
     expect(screen.getByText(/Nenhuma busca consentida corresponde/)).toBeTruthy();
   });
 
+  it("reconsulta ao retornar da aba oculta sem esperar trinta segundos", async () => {
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    try {
+      render(<AdminVisitorActivity />);
+      expect(mockRead.reads).toHaveLength(0);
+
+      visibility.mockReturnValue("visible");
+      fireEvent(document, new Event("visibilitychange"));
+      await screen.findByText("Informática");
+      expect(mockRead.reads).toHaveLength(3);
+
+      visibility.mockReturnValue("hidden");
+      fireEvent(document, new Event("visibilitychange"));
+      expect(mockRead.reads).toHaveLength(3);
+    } finally {
+      visibility.mockRestore();
+    }
+  });
+
   it("mostra indisponível em erro de consulta e nunca converte falha em zero", async () => {
     mockRead.failed = true;
     render(<AdminVisitorActivity />);
