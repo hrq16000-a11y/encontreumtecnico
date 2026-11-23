@@ -179,7 +179,7 @@ function UnifiedUsersList({ role, openAccount }: {
     setSearch(next);
     const url = new URL(window.location.href);
     // Keep immutable historical IDs reloadable without leaking contact searches into URLs.
-    if (/^id:(?:wp:(?:candidate|employer):[0-9]+|legacy-account:[\\w-]+:[0-9]+)$/.test(next))
+    if (/^id:(?:wp:(?:candidate|employer):[0-9]+|legacy-account:[a-z0-9_-]+:[0-9]+)$/.test(next))
       url.searchParams.set("busca", next);
     else url.searchParams.delete("busca");
     window.history.replaceState(window.history.state, "", url);
