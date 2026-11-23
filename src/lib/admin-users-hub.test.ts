@@ -97,10 +97,19 @@ describe("Rodada 2: central única de usuários", () => {
     expect(hub).toContain('to="/admin/$secao"');
     expect(page).toContain('<AdminContactsDashboard adminId={user.id} />');
   });
+  it("oferece recuperação da lista de admins sem refazer a navegação ou alterar contas", () => {
+    const hub = read("src/components/admin-users-hub.tsx");
+    expect(hub).toContain("const [refreshRevision, setRefreshRevision] = useState(0)");
+    expect(hub).toContain("}, [page, refreshRevision]);");
+    expect(hub).toContain("onClick={() => setRefreshRevision((revision) => revision + 1)}");
+    expect(hub).toContain('{error ? "Tentar novamente" : "Atualizar lista"}');
+    expect(hub).toContain('disabled={loading}');
+    expect(hub).toContain("if (active) setLoading(false)");
+  });
   it("preserva registros WordPress sem legacy_accounts e pesquisa e-mail profissional", () => {
     const sql = read("docs/sql/eut-admin-users-unified-read-360-v12-20261122.sql");
     expect(sql).toContain("pg_catalog.concat_ws(' ', u.email, i.contact_email,");
-    expect(sql).toContain("AND ld.wp_post_id IS NOT NULL");
+    expect(sql).toContain("WHERE ld.wp_post_id IS NOT NULL");
     expect(sql).toContain("la.source_key = ld.source_key AND la.wp_user_id = ld.wp_user_id");
     expect(sql).not.toContain("AND ld.wp_post_id IS NULL");
     expect(sql).toContain("AND x.user_key = pg_catalog.substr(v_search, 4)");
@@ -122,6 +131,8 @@ describe("Rodada 2: central única de usuários", () => {
     const sql = read("docs/sql/eut-admin-users-unified-read-360-v12-20261122.sql");
     expect(hub).toContain("Consultar histórico por ID");
     expect(hub).toContain('href="/admin/legado"');
+    expect(hub).toContain('href={`/admin/legado?registro=${encodeURIComponent(item.record_key)}`}');
+    expect(hub).toContain("historicalProfiles.map((profile)");
     expect(hub).toContain('get("busca")');
     expect(hub).toContain('encodeURIComponent(`id:${item.user_key}`)');
     expect(hub).toContain('if (/^id:(?:wp:');
