@@ -29,8 +29,8 @@ describe("Rodada 2: central única de usuários", () => {
     const hub = read("src/components/admin-users-hub.tsx");
     const accounts = read("src/components/admin-accounts-manager.tsx");
     const directory = read("src/components/admin-technician-unified-directory.tsx");
-    expect(hub).toContain('<AdminAccountsManager key="todos" initialFilter="todos" lockFilter />');
-    expect(hub).toContain('<AdminAccountsManager key="clientes" initialFilter="clientes" lockFilter />');
+    expect(hub).toContain('<UnifiedUsersList key="todos" role="todos" openAccount={openManagedAccount} />');
+    expect(hub).toContain('<UnifiedUsersList key="clientes" role="cliente" openAccount={openManagedAccount} />');
     expect(hub).toContain('initialFilter="tecnicos" lockFilter');
     expect(hub).toContain("<AdminTechnicianUnifiedDirectory adminOwnerId={adminOwnerId} />");
     expect(hub).toContain('.from("user_roles")');
@@ -38,6 +38,16 @@ describe("Rodada 2: central única de usuários", () => {
     expect(accounts).toContain('db.rpc("eut_admin_accounts_snapshot"');
     expect(accounts).toContain('db.rpc("eut_admin_contact_action"');
     expect(accounts).toContain("setSelectedIds(new Set())");
+    expect(hub).toContain('adminDb.rpc("eut_admin_users_unified_360"');
+    expect(hub).toContain('queryError?.code === "PGRST202" || queryError?.code === "42883"');
+    expect(hub).toContain("setResponse(null)");
+    expect(hub).toContain("if (missingRpc) {");
+    expect(hub).toContain('initialFilter={role === "todos" ? "todos" : role === "tecnico" ? "tecnicos" : "clientes"}');
+    expect(hub).toContain('<AdminAccountsManager key={managedAccountId} initialFilter="todos" lockFilter />');
+    expect(hub).toContain('aria-expanded={showTechnicianUnified}');
+    expect(hub).toContain('showTechnicianUnified && <UnifiedUsersList key="tecnicos" role="tecnico" openAccount={openManagedAccount} />');
+    expect(hub).toContain('<AdminTechnicianUnifiedDirectory adminOwnerId={adminOwnerId} />');
+    expect(hub).not.toContain("initialLayout=");
     expect(directory).toContain('eut_admin_technician_registry_list');
     expect(hub).not.toContain('auth.admin');
     expect(hub).not.toContain('service_role');
