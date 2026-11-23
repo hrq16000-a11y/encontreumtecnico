@@ -22,8 +22,10 @@ vi.mock("@/integrations/supabase/client", () => ({
           (!search || String(row["id"]) === search || String(row["full_name"]).toLowerCase().includes(search.toLowerCase())) &&
           (filter !== "bloqueados" || row["blocked_account"] === true));
         if (search.includes("-")) mockDb.checks.push(search);
+        const page = Number(args["_page"] ?? 0);
         return { data: {
-          accounts: rows, total: rows.length, page: 0, page_size: 20,
+          accounts: rows.slice(page * 20, (page + 1) * 20),
+          total: rows.length, page, page_size: 20,
           audit: [], blocked_phones: [],
         }, error: null };
       }
@@ -65,6 +67,21 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe("moderação administrativa em lote", () => {
+  it("retorna à última página existente quando o total de contas diminui", async () => {
+    mockDb.accounts = Array.from({ length: 24 }, (_, i) =>
+      account(`bbbbbbbb-bbbb-4bbb-bbbb-${String(i).padStart(12, "0")}`, `Cliente ${i + 1}`));
+    render(<AdminAccountsManager initialLayout="table" />);
+    expect(await screen.findByText(/24 conta\(s\) · página 1 de 2/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Cadastros mais antigos" }));
+    expect(await screen.findByText(/24 conta\(s\) · página 2 de 2/)).toBeTruthy();
+
+    mockDb.accounts = mockDb.accounts.slice(0, 2);
+    fireEvent.click(screen.getByRole("button", { name: "Atualizar" }));
+    expect(await screen.findByText(/2 conta\(s\) · página 1 de 1/)).toBeTruthy();
+    expect(screen.getByText("Cliente 1")).toBeTruthy();
+    expect(mockDb.actions).toHaveLength(0);
+  });
+
   it("fecha a confirmação anterior durante a atualização de contas", async () => {
     let finishRead: () => void = () => {};
     render(<AdminAccountsManager />);
