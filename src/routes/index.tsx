@@ -14,7 +14,6 @@ import { ProblemAssistant } from "../components/problem-assistant";
 import { safeNeighborhood } from "@/lib/location-labels";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { readUiTextDraft, saveUiTextDraft } from "@/lib/unsent-ui-draft";
-import { Reveal } from "../components/motion";
 import {
   CategoryGrid,
   HowItWorksRich,
@@ -88,10 +87,10 @@ const TRUST = [
 ];
 
 const CHIPS = [
-  { i: Camera, t: "CFTV" },
-  { i: Laptop, t: "Informática" },
-  { i: Wifi, t: "Redes" },
-  { i: Printer, t: "Impressoras" },
+  { i: Camera, t: "CFTV", value: "cftv" },
+  { i: Laptop, t: "Informática", value: "computadores" },
+  { i: Wifi, t: "Redes", value: "redes" },
+  { i: Printer, t: "Impressoras", value: "impressoras" },
 ];
 
 
@@ -144,86 +143,105 @@ function HomePage() {
 
   return (
     <PageShell>
-      <section className="relative overflow-hidden bg-gradient-to-br from-brand-navy via-[#124b76] to-brand-navy px-4 pb-16 pt-10 md:pb-20 md:pt-16">
-        <div aria-hidden className="pointer-events-none absolute inset-0">
-          <div className="bg-glow absolute -top-24 -left-24 h-96 w-96 opacity-25 blur-2xl" />
-          <div className="bg-glow absolute -right-32 top-10 h-[28rem] w-[28rem] opacity-20 blur-2xl" />
-          <div className="bg-dot-grid absolute inset-0 text-primary/15 [mask-image:radial-gradient(60%_60%_at_50%_35%,black,transparent)]" />
-        </div>
-
-        <div className="relative mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[1.1fr_1fr]">
-          <div className="animate-rise rounded-3xl border border-white/15 bg-card p-5 shadow-[0_24px_70px_-24px_rgba(0,0,0,.45)] sm:p-8">
-            <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-card px-3 py-1 text-xs font-semibold text-primary">
-              <BadgeCheck className="h-4 w-4" aria-hidden /> Portal nacional · sem custo para o profissional
-            </span>
-            <h1 className="mt-4 text-4xl font-bold leading-tight text-foreground md:text-6xl">
-              Precisou? <span className="text-primary">Encontrou!</span>
+      <section className="relative overflow-hidden bg-gradient-to-br from-brand-navy via-[#124b76] to-brand-navy px-4 pb-10 pt-8 sm:py-14 lg:py-16">
+        <div className="relative mx-auto grid max-w-6xl items-center gap-8 lg:grid-cols-[1.16fr_0.84fr] lg:gap-12">
+          <div className="min-w-0">
+            <p className="flex items-center gap-3 text-xs font-semibold tracking-wide text-brand-glow">
+              <span aria-hidden="true" className="h-px w-6 shrink-0 bg-brand-glow" />
+              <BadgeCheck className="h-4 w-4 shrink-0" aria-hidden="true" /> Portal nacional · sem custo para o profissional
+            </p>
+            <h1 className="mt-4 text-[2.65rem] font-extrabold leading-[1.02] tracking-tight text-white sm:text-6xl">
+              Precisou? <span className="block text-brand-glow">Encontrou!</span>
             </h1>
-            <p className="mt-4 max-w-xl text-lg text-muted-foreground">
+            <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/85 sm:text-base">
               Encontre prestadores cadastrados de CFTV, informática, redes e impressoras na sua região. Negocie diretamente, sem leilão de menor preço.
             </p>
-            {!draftReady ? (
-              <div role="status" aria-live="polite" aria-busy="true"
-                className="mt-8 flex min-h-16 items-center rounded-xl bg-card px-4 py-3 text-sm text-muted-foreground shadow-soft">
-                Recuperando sua busca…
+            <div className="mt-6 rounded-3xl border border-white/15 bg-card p-4 shadow-soft sm:p-6">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Busca por especialidade e região</p>
+                  <p className="mt-1 text-xl font-extrabold tracking-tight text-card-foreground">Encontre o técnico certo.</p>
+                </div>
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Search className="h-5 w-5" aria-hidden="true" />
+                </span>
               </div>
-            ) : (
-            <form
-              className="mt-7 flex flex-col gap-3 rounded-2xl border border-primary/15 bg-accent/40 p-3 shadow-sm sm:flex-row"
-              onSubmit={(e) => {
-                e.preventDefault();
-                window.__lovableEvents?.track?.("project.technician_search", {
-                  has_specialty: specialty.trim() !== "",
-                  has_city: city.trim() !== "",
-                });
-                navigate({
-                  to: "/tecnicos",
-                  search: { especialidade: specialty.trim() || "Todas", cidade: city.trim(), regiao: "",
-                    uf: locationUf, bairro: locationNeighborhood, prioridade: locationUf ? "regiao" : "" },
-                });
-              }}
-            >
-              <label className="sr-only" htmlFor="busca-especialidade">Especialidade</label>
-              <input
-                id="busca-especialidade"
-                type="text"
-                value={specialty}
-                onChange={(e) => { saveUiTextDraft("home", { specialty:e.target.value, city, uf:locationUf, neighborhood:locationNeighborhood }); setSpecialty(e.target.value); }}
-                placeholder="Especialidade (ex.: Computador)"
-                className="h-11 min-h-11 w-full shrink-0 sm:w-auto sm:flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-              <label className="sr-only" htmlFor="busca-cidade">Município</label>
-              <input
-                id="busca-cidade"
-                type="text"
-                value={city}
-                onChange={(e) => { cityEditedByUser.current = true; saveUiTextDraft("home", { specialty, city:e.target.value, uf:"", neighborhood:"" }); setCity(e.target.value); setLocationUf(""); setLocationNeighborhood(""); }}
-                placeholder="Município (ex.: São José dos Pinhais)"
-                className="h-11 min-h-11 w-full shrink-0 sm:w-auto sm:flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-              <button
-                type="submit"
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-              >
-                <Search className="h-4 w-4" aria-hidden="true" /> Buscar
-              </button>
-            </form>
-            )}
-            <ul className="mt-5 flex flex-wrap gap-2 text-xs text-muted-foreground">
-              {CHIPS.map(({ i: I, t }) => (
-                <li key={t} className="inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-1.5 font-medium text-foreground shadow-sm">
-                  <I className="h-3.5 w-3.5 text-primary" aria-hidden /> {t}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="relative animate-rise [animation-delay:150ms] rounded-[30px] border-4 border-white/15 bg-white/10 p-2 shadow-[0_25px_80px_-20px_rgba(0,0,0,.5)]">
-            <img src={heroImg} alt="Técnico instalando câmera de segurança na fachada de uma casa" width={1280} height={1024} className="aspect-[5/4] w-full rounded-[22px] object-cover shadow-soft" />
-            <div className="absolute -bottom-5 left-4 flex animate-float items-center gap-3 rounded-2xl bg-card px-4 py-3 shadow-soft">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground"><MapPin className="h-5 w-5" aria-hidden /></span>
-              <div className="text-sm"><div className="font-semibold text-foreground">Técnicos perto de você</div><div className="text-muted-foreground">Busque por cidade ou região</div></div>
+              {!draftReady ? (
+                <div role="status" aria-live="polite" aria-busy="true"
+                  className="mt-4 grid min-h-28 content-center gap-2 rounded-xl border border-border bg-background/60 px-4 py-3 text-sm text-muted-foreground">
+                  Recuperando sua busca…
+                  <Link to="/tecnicos" search={{ especialidade: "Todas", cidade: "", regiao: "" }} className="w-fit font-semibold text-primary underline underline-offset-4">Abrir diretório de técnicos</Link>
+                </div>
+              ) : (
+                <form className="mt-4 grid gap-3"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    window.__lovableEvents?.track?.("project.technician_search", {
+                      has_specialty: specialty.trim() !== "",
+                      has_city: city.trim() !== "",
+                    });
+                    navigate({
+                      to: "/tecnicos",
+                      search: { especialidade: specialty.trim() || "Todas", cidade: city.trim(), regiao: "",
+                        uf: locationUf, bairro: locationNeighborhood, prioridade: locationUf ? "regiao" : "" },
+                    });
+                  }}
+                >
+                  <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+                    <div className="min-w-0">
+                      <label className="mb-1.5 block text-xs font-bold text-card-foreground" htmlFor="busca-especialidade"><span aria-hidden="true" className="mr-1.5 font-mono text-primary">01</span>Especialidade</label>
+                      <input
+                        id="busca-especialidade"
+                        type="text"
+                        value={specialty}
+                        onChange={(e) => { saveUiTextDraft("home", { specialty:e.target.value, city, uf:locationUf, neighborhood:locationNeighborhood }); setSpecialty(e.target.value); }}
+                        placeholder="Ex.: Computador"
+                        className="h-12 w-full min-w-0 rounded-xl border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <label className="mb-1.5 block text-xs font-bold text-card-foreground" htmlFor="busca-cidade"><span aria-hidden="true" className="mr-1.5 font-mono text-primary">02</span>Município</label>
+                      <input
+                        id="busca-cidade"
+                        type="text"
+                        value={city}
+                        onChange={(e) => { cityEditedByUser.current = true; saveUiTextDraft("home", { specialty, city:e.target.value, uf:"", neighborhood:"" }); setCity(e.target.value); setLocationUf(""); setLocationNeighborhood(""); }}
+                        placeholder="Município (ex.: São José dos Pinhais)"
+                        className="h-12 w-full min-w-0 rounded-xl border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    className="group flex min-h-12 w-full items-center justify-between gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground transition-colors duration-150 hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+                  >
+                    <span className="flex items-center gap-2"><Search className="h-4 w-4" aria-hidden="true" /> Buscar</span>
+                    <ArrowRight className="h-5 w-5 transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transform-none motion-reduce:transition-none" aria-hidden="true" />
+                  </button>
+                  <div role="group" aria-label="Sugestões de especialidades" className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                    <span className="text-xs text-muted-foreground">Sugestões:</span>
+                    {CHIPS.map(({ i: I, t, value }) => (
+                      <button key={t} type="button" aria-pressed={specialty === value}
+                        onClick={() => { saveUiTextDraft("home", { specialty:value, city, uf:locationUf, neighborhood:locationNeighborhood }); setSpecialty(value); }}
+                        className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border bg-background px-3 text-xs font-semibold text-foreground transition-colors duration-150 hover:border-primary/50 aria-pressed:border-primary aria-pressed:bg-primary/10 aria-pressed:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none">
+                        <I className="h-4 w-4 text-primary" aria-hidden="true" /> {t}
+                      </button>
+                    ))}
+                  </div>
+                </form>
+              )}
             </div>
+            <p className="mt-5 flex flex-wrap items-center gap-x-2 text-sm text-white/80">
+              É técnico? <Link to="/cadastro" className="inline-flex min-h-11 items-center gap-1.5 font-semibold text-brand-glow underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Cadastre-se gratuitamente <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
+            </p>
           </div>
+          <figure className="min-w-0 overflow-hidden rounded-3xl border border-white/15 bg-white/5 p-2 sm:p-3">
+            <img src={heroImg} alt="Técnico instalando câmera de segurança na fachada de uma casa" width={1280} height={1024} className="aspect-[5/4] w-full rounded-[18px] object-cover" />
+            <figcaption className="flex items-center gap-3 px-3 py-4 text-white">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-brand-glow"><MapPin className="h-5 w-5" aria-hidden="true" /></span>
+              <span className="min-w-0 text-sm"><span className="block font-semibold">Técnicos perto de você</span><span className="block text-white/75">Busque por cidade ou região</span></span>
+            </figcaption>
+          </figure>
         </div>
       </section>
 
@@ -252,7 +270,7 @@ function HomePage() {
         </div>
       </section>
 
-      <section aria-labelledby="home-visual-servicos" className="border-b border-border bg-gradient-to-r from-accent/80 via-background to-accent/80 px-4 py-12 sm:py-16">
+      <section aria-labelledby="home-visual-servicos" className="border-b border-border bg-background px-4 py-10 sm:py-14">
         <div className="mx-auto max-w-6xl">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -270,10 +288,10 @@ function HomePage() {
           {HOME_VISUALS.map((item) => (
             <li key={item.slug}>
               <Link to="/servicos/$categoria" params={{ categoria: item.slug }}
-                className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-colors hover:border-primary/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card transition-colors duration-150 hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none">
                 <div className="overflow-hidden bg-brand-navy/10">
                   <img src={item.src} alt={item.alt} width={1200} height={630} loading="lazy" decoding="async"
-                    className="aspect-[40/21] w-full object-cover transition-transform duration-300 group-hover:scale-[1.035] motion-reduce:transform-none" />
+                    className="aspect-[40/21] w-full object-cover transition-transform duration-150 group-hover:scale-[1.015] motion-reduce:transform-none motion-reduce:transition-none" />
                 </div>
                 <div className="flex flex-1 items-center justify-between gap-3 p-5">
                   <div>
@@ -304,7 +322,7 @@ function HomePage() {
 
       <SponsoredPublicSlot slotKey="home.content_1" routePath="/" />
 
-      <Reveal><CategoryGrid /></Reveal>
+      <CategoryGrid />
 
       <HomePublicProof />
 
@@ -312,10 +330,10 @@ function HomePage() {
 
 
       <section className="mx-auto max-w-3xl px-4 pb-16">
-        <Reveal><ProblemAssistant /></Reveal>
+        <ProblemAssistant />
       </section>
 
-      <Reveal><HowItWorksRich /></Reveal>
+      <HowItWorksRich />
 
 <p className="mx-auto my-5 w-full max-w-6xl px-4 text-sm leading-7 text-muted-foreground">Precisa de uma visita? Consulte a <a href="/cobertura" className="font-semibold text-primary underline underline-offset-2">cobertura por município</a> e use o <a href="/servicos" className="font-semibold text-primary underline underline-offset-2">catálogo de serviços</a> para identificar a especialidade antes de escolher um profissional.</p>
       <AdSensePublicUnit />
@@ -336,8 +354,8 @@ function HomePage() {
 
       <HomeCommunityInvite />
 
-      <Reveal><CoverageSection /></Reveal>
-      <Reveal><ApprovalProcessSection /></Reveal>
+      <CoverageSection />
+      <ApprovalProcessSection />
 
       <FindOneSection />
       <JoinNetworkSection />
@@ -345,8 +363,8 @@ function HomePage() {
       <ValuesSection />
       <StepsSection />
 
-      <Reveal><FaqPreview /></Reveal>
-      <Reveal><ContactBand /></Reveal>
+      <FaqPreview />
+      <ContactBand />
 
       <section aria-labelledby="home-journeys-title" className="px-4 py-16 sm:py-20">
         <div className="mx-auto max-w-6xl">
@@ -375,7 +393,7 @@ function HomePage() {
                 </p>
               </div>
               <Link to="/entrar"
-                className="relative mt-6 inline-flex min-h-12 w-fit items-center justify-center gap-3 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground shadow-sm transition-all hover:shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none">
+                className="relative mt-6 inline-flex min-h-12 w-fit items-center justify-center gap-3 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground shadow-sm transition-shadow duration-150 hover:shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none">
                 <Search className="h-5 w-5" aria-hidden="true" /> Criar conta de cliente
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1 motion-reduce:transform-none" aria-hidden="true" />
               </Link>
@@ -395,7 +413,7 @@ function HomePage() {
                 </p>
               </div>
               <Link to="/cadastro"
-                className="relative mt-6 inline-flex min-h-12 w-fit items-center justify-center gap-3 rounded-xl border border-white/30 bg-white px-5 py-3 text-sm font-bold text-brand-navy shadow-sm transition-all hover:shadow-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none">
+                className="relative mt-6 inline-flex min-h-12 w-fit items-center justify-center gap-3 rounded-xl border border-white/30 bg-white px-5 py-3 text-sm font-bold text-brand-navy shadow-sm transition-shadow duration-150 hover:shadow-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none">
                 <Wrench className="h-5 w-5" aria-hidden="true" /> Criar conta de técnico
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1 motion-reduce:transform-none" aria-hidden="true" />
               </Link>
