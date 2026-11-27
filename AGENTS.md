@@ -42,3 +42,8 @@
 
 ## Padrão anti-site genérico — R8/10
 - Para trabalho visual autorizado, ler `docs/skills/ANTI_GENERIC_EXPERIENCE.md` antes do código. A diretriz integra TasteSkill, Transitions.dev, React Bits e Emil Kowalski; não substitui as regras específicas deste repositório.
+
+## Design engineering premium — Emil Kowalski (27/11/2026)
+
+- Para qualquer trabalho visual autorizado, ler `docs/skills/EMIL_DESIGN_ENGINEERING.md` antes de editar runtime. Aplicar diagnóstico, direção de arte autoral, decisão de motion por frequência/propósito, performance, reduced motion e QA 390/768/1440; reaproveitar tokens e bibliotecas existentes.
+- Referência oficial: https://github.com/emilkowalski/skills. As regras específicas deste repositório permanecem prioritárias. Esta documentação não autoriza execução automática de scripts, instalações, mudanças de código ou deploy.
