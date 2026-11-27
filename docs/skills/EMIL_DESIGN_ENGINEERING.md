@@ -1,9 +1,9 @@
 # Design engineering premium — análise e adoção Emil Kowalski
 
-**Estado:** R0 — diagnóstico estático e diretriz documental; implementação NÃO iniciada.
+**Estado:** R0 + R1.1 — diagnóstico estático e baseline visual da Home; implementação NÃO iniciada.
 **Data:** 27/11/2026 • **Repositório:** hrq16000-a11y/encontreumtecnico • **Checkpoint analisado da main:** `d31024c1b731aee36e1ae14dbc94b8284e5cf8de`.
 
-Este documento é incremental. As regras locais de AGENTS.md, DESIGN.md, segurança, SEO, arquitetura, publicação, dados e funis prevalecem. Não autoriza alterações de runtime, instalações, custos, merge ou deploy. Não substitui a homologação visual da versão efetivamente publicada. O navegador ao vivo teve timeout nesta rodada; nenhuma inspeção de screenshots, teste visual, medição de performance ou aprovação de produção é reivindicada.
+Este documento é incremental. As regras locais de AGENTS.md, DESIGN.md, segurança, SEO, arquitetura, publicação, dados e funis prevalecem. Não autoriza alterações de runtime, instalações, custos, merge ou deploy. Não substitui a homologação visual da versão efetivamente publicada. R0 teve timeout do navegador; R1.1 registra abaixo a captura pública da Home. Nenhuma medição de performance, QA integral ou aprovação de produção é reivindicada.
 
 ## 1. Diagnóstico por projeto (evidência de leitura)
 
@@ -74,3 +74,17 @@ Se não existirem tokens equivalentes, avaliar curva de entrada/saída `cubic-be
 GO para implementação somente com baseline visual, brief próprio da marca, propósito de cada movimento, seleção dos módulos pertinentes e uma micro-superfície definida. GO para release somente com gates locais, comparação real nos viewports, interação funcional, reduced-motion, zero regressão crítica de performance/conversão, sem novos riscos de acessibilidade, SSR/SEO e privacidade. NO-GO se movimento interferir na ação, se houver conteúdo invisível, template copiado, alteração comercial incidental, bloqueio de dados, dependência sem justificativa ou validação inconclusiva.
 
 **Registro desta rodada:** leitura de referências e arquivos; documentação proposta/registrada em branch isolada. Nenhum código de aplicação, dependência, banco, DNS ou configuração de hospedagem foi alterado por esta diretriz.
+
+## 7. R1.1 — baseline visual real: Home Encontre um Técnico (27/11/2026)
+
+**Escopo:** https://www.encontreumtecnico.com.br/; visita pública sem enviar pesquisa/solicitação, criar conta, escolher consentimento ou acessar painel. Capturas após a busca estar renderizada, desktop 1440 CSS px (documento 1421 px) e mobile 390 CSS px (documento 371 px); nenhuma largura excedeu viewport nessa Home. Não equivale a QA de diretório, perfis ou Admin, acessibilidade completa, Core Web Vitals ou vínculo verificado com SHA de Production.
+
+| Passo e evidência | Observação | Prioridade |
+|---|---|---|
+| 01 — Home desktop | Headline e vocação de rede nacional claras; foto contextual e busca por especialidade/município com CTA e sugestões; preservar esses elementos. Header usa marca de leitura relativamente discreta; pode ganhar contraste/clareza sem redesenho da marca. | P1 |
+| 02 — Home mobile | Busca é o objetivo principal, mas o banner fixo de privacidade cobre parte do botão Buscar no primeiro viewport. Header prioriza cadastro de prestador, não a ação principal do visitante. Foto não antecede a busca, bom. | P0 — organizar espaço e hierarquia |
+| 03 — Hidratação observada | Primeiro estado apresentou “Recuperando sua busca...” com link para diretório; depois formulário apareceu. Investigar estabilidade e tempo para ação sem concluir falha de rede ou medir duração. | P1 |
+
+**Próxima intervenção cirúrgica proposta:** corrigir sobreposição e preservar integralmente a escolha de consentimento, reduzir ocupação do primeiro viewport e priorizar pesquisa contextual. Manter 100% dos filtros/rotas/privacidade e contratos de atendimento. Não animar entrada de campos, busca digitada, paginação ou UI administrativa; feedback de botão/seleção pontual com tokens existentes. Avaliar imagens por contexto e diversidade somente após resolver interação. Diretório público/perfil e painel em lote posterior com evidências, sem alterar identificação, catálogo, valores ou regras de negócio.
+
+**Evidência capturada nesta sessão** (arquivos locais exatos, não integram o Git): `03-eut-1440.png` SHA256 `6c3216e4004f1ccac2e59ae802dc17c4d6febaa52b15e5b2db0c966c75a08bdd`; `04-eut-390.png` SHA256 `55ac013baae1e65d70df356dbdf1f5de30c1b2143fdd8ced60601ffa22e98bfc`.
