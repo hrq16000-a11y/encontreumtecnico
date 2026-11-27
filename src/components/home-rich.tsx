@@ -80,14 +80,14 @@ export function CategoryGrid() {
                 onClick={() =>
                   window.__lovableEvents?.track?.("project.category_selected", { category: category.slug })
                 }
-                className="group flex h-full flex-col rounded-2xl border border-border bg-card p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-soft"
+                className="group flex h-full flex-col rounded-2xl border border-border bg-card p-5 transition-colors duration-150 hover:border-primary/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
               >
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors duration-300 group-hover:bg-primary group-hover:text-primary-foreground">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors duration-150 group-hover:bg-primary group-hover:text-primary-foreground motion-reduce:transition-none">
                   <I className="h-5 w-5" aria-hidden />
                 </span>
                 <h3 className="mt-4 font-semibold text-card-foreground">{category.label}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">{category.description || info.text}</p>
-                <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100">
+                <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary">
                   Ver técnicos <ArrowRight className="h-3.5 w-3.5" aria-hidden />
                 </span>
               </Link>
@@ -113,19 +113,15 @@ export function HowItWorksRich() {
           title="Do problema ao atendimento em três passos"
           text="Sem leilão de preço e sem taxa para o profissional: o cliente encontra, o técnico é valorizado."
         />
-        <ol className="relative mt-10 grid gap-6 md:grid-cols-3">
-          <span
-            aria-hidden
-            className="absolute left-0 right-0 top-6 hidden h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent md:block"
-          />
+        <ol className="mt-8 grid overflow-hidden rounded-2xl border border-border bg-card divide-y divide-border md:grid-cols-3 md:divide-x md:divide-y-0">
           {steps.map(({ icon: I, title, text }, i) => (
-            <li key={title} className="relative rounded-2xl border border-border bg-card p-6">
-              <span className="relative z-10 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-soft">
-                <I className="h-5 w-5" aria-hidden />
-              </span>
-              <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-                Passo {i + 1}
-              </p>
+            <li key={title} className="min-w-0 p-6">
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-mono text-xs font-semibold uppercase tracking-[0.18em] text-primary">Passo {i + 1}</p>
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <I className="h-5 w-5" aria-hidden />
+                </span>
+              </div>
               <h3 className="mt-1 font-semibold text-card-foreground">{title}</h3>
               <p className="mt-1 text-sm text-muted-foreground">{text}</p>
             </li>
@@ -150,7 +146,7 @@ export function CoverageSection() {
             <Link
               to="/tecnicos"
               search={{ especialidade: "Todas", cidade: "", regiao: name }}
-              className="group flex h-full flex-col rounded-2xl border border-border bg-card p-4 transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-soft"
+              className="group flex h-full flex-col rounded-xl border border-border bg-card p-4 transition-colors duration-150 hover:border-primary/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
             >
               <span className="flex items-center gap-2 font-semibold text-card-foreground">
                 <MapPinned className="h-4 w-4 text-primary" aria-hidden />
