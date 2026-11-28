@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { portalHelpContext } from "./free-search-help";
 import { clearAssistanceDraft, readAssistanceDraft, saveAssistanceDraft, type AssistanceDraft } from "./assistance-draft";
 
 beforeEach(() => window.sessionStorage.clear());
@@ -21,6 +22,21 @@ describe("unsent assistance wizard survives navigation and mobile reload", () =>
     expect(readAssistanceDraft(id, sessionStorage)?.mode).toBe("direct");
     clearAssistanceDraft(id, sessionStorage);
     expect(readAssistanceDraft(id, sessionStorage)).toBeNull();
+  });
+  it("isolates help intents without exposing customer text in the storage key", () => {
+    const generic = portalHelpContext("contato");
+    const privacy = portalHelpContext("contato", "privacidade");
+    const home = portalHelpContext("home");
+    saveAssistanceDraft(generic.draftScope, draft, sessionStorage);
+    expect(readAssistanceDraft(privacy.draftScope, sessionStorage)).toBeNull();
+    expect(readAssistanceDraft(home.draftScope, sessionStorage)).toBeNull();
+    expect(readAssistanceDraft(undefined, sessionStorage)).toBeNull();
+    saveAssistanceDraft(privacy.draftScope, { ...draft, problem: "Quero corrigir meus dados." }, sessionStorage);
+    expect(readAssistanceDraft(generic.draftScope, sessionStorage)?.problem).toBe(draft.problem);
+    expect(readAssistanceDraft(privacy.draftScope, sessionStorage)?.problem).toBe("Quero corrigir meus dados.");
+    clearAssistanceDraft(privacy.draftScope, sessionStorage);
+    expect(readAssistanceDraft(privacy.draftScope, sessionStorage)).toBeNull();
+    expect(readAssistanceDraft(generic.draftScope, sessionStorage)).toEqual(draft);
   });
   it("expires and never persists payment credentials or explicit consent", () => {
     saveAssistanceDraft(undefined, draft, sessionStorage, 100000);

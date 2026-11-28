@@ -8,6 +8,8 @@ export type FreeHelpContext = {
   mode?: "direct" | "managed";
   guideSlug?: string;
   initialProblem?: string;
+  /** Stable public CTA intent, never user-entered text or contact data. */
+  draftScope?: `portal-${"home" | "contato"}-${"geral" | "privacidade"}`;
 };
 
 const clean = (value: unknown) =>
@@ -42,6 +44,7 @@ export function portalHelpContext(
     : "Quero ajuda da equipe do portal.";
   return {
     mode: "managed",
+    draftScope: `portal-${source}-${reason}`,
     service: "Outro serviço",
     initialProblem: request + " Estou na " + page + " do Encontre um Técnico. ",
   };
