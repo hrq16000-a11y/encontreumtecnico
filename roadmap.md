@@ -1,8 +1,10 @@
 # Roadmap (uma micro-rodada por vez)
 
 ## Pilar 1 — rodada documental autorizada em 28/11/2026
-- [ ] Consolidar contrato, inventário com evidências, lacunas e escopo da Rodada 2; sem alterar runtime, dados ou publicação.
-- [ ] Confirmar sincronização do contrato com GitHub (não confundir gravação local com commit remoto).
+- [x] Consolidar contrato integral, inventário de 59 caminhos existentes, lacunas e escopo da Rodada 2; 929 testes aprovados, sem alterar runtime, dados ou publicação.
+- [x] Registrar governança complementar em docs/AGENTS.md e uso de skills em docs/skills/CHANGELOG.md.
+- [ ] Vincular contrato no AGENTS.md raiz: bloqueado pelo orçamento já excedido; requer espaço autorizado sem cortar regras do proprietário.
+- [ ] Confirmar sincronização do contrato com GitHub: depende da integração externa; HEAD oficial observado 872af048, diferente da referência local, sem push pelo agente.
 
 - [x] Salvar buscas consentidas no Supabase e mostrar gráficos administrativos (busca real salva; visualização autenticada aguarda primeiro acesso)
 - [x] Preparar publicação com metadados CFTV/informática e sitemap validado
