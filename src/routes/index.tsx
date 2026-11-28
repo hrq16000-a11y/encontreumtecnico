@@ -18,6 +18,7 @@ import { SearchableChoice } from "@/components/ui/searchable-choice";
 import { SearchMunicipalityChoice } from "@/components/search-municipality-choice";
 import { useActiveCategories } from "@/hooks/use-active-categories";
 import { BRAZIL_STATES, BRAZIL_STATE_NAMES } from "@/lib/service-taxonomy";
+import { analyticsAllowed } from "@/lib/search-analytics";
 import {
   CategoryGrid,
   HowItWorksRich,
@@ -181,7 +182,7 @@ function HomePage() {
                 <form className="mt-4 grid gap-3"
                   onSubmit={(e) => {
                     e.preventDefault();
-                    if (localStorage.getItem("eut-cookie-consent") && JSON.parse(localStorage.getItem("eut-cookie-consent") || "{}").analytics === true) window.__lovableEvents?.track?.("project.technician_search", {
+                    if (analyticsAllowed(localStorage.getItem("eut-cookie-consent"))) window.__lovableEvents?.track?.("project.technician_search", {
                       has_specialty: specialty.trim() !== "",
                       has_city: city.trim() !== "",
                     });

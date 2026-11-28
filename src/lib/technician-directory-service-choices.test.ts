@@ -45,14 +45,13 @@ describe("Busca rápida de serviços no diretório", () => {
       .toEqual([]);
   });
 
-  it("liga a busca local ao select sem realizar consultas ou rastrear o texto", () => {
+  it("liga a busca local à escolha confirmada sem rastrear texto digitado", () => {
     const route = readFileSync("src/routes/tecnicos.index.tsx", "utf8");
-    expect(route).toContain('id="filtro-servico-busca"');
-    expect(route).toContain('value={serviceQuery}');
-    expect(route).toContain('onChange={(event) => setServiceQuery(event.target.value)}');
+    expect(route).toContain('<SearchableChoice id="filtro-servico"');
+    expect(route).toContain('clearOnEdit={false}');
     expect(route).toContain('directoryServiceChoices(services, categories, specialty, serviceQuery, search.servico)');
-    expect(route).toContain("directoryServiceOptions.map((service)");
-    expect(route).toContain('onChange={(e) => { update({ servico: e.target.value }); trackFilter("servico", e.target.value); }}');
+    expect(route).toContain("directoryServiceOptions.map(service");
+    expect(route).toContain('onChange={(value) => { update({ servico: value }); trackFilter("servico", value); }}');
     expect(route).not.toContain('trackFilter("servico", serviceQuery)');
   });
 });
