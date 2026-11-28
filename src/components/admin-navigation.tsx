@@ -18,6 +18,7 @@ import {
   ChevronDown,
   Search,
   Star,
+  Settings2,
 } from "lucide-react";
 import { ADMIN_SECTIONS, type AdminSection } from "@/lib/admin-sections";
 import {
@@ -34,6 +35,7 @@ import { AdminGlobalSearch } from "@/components/admin-global-search";
 
 const ICONS = {
   inicio: LayoutDashboard,
+  configuracoes: Settings2,
   usuarios: UsersRound,
   tecnicos: Wrench,
   clientes: UsersRound,

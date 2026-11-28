@@ -9,6 +9,7 @@ import { LegacyReviewQueue } from "@/components/legacy-review-queue";
 import { LegacyClaimReview } from "@/components/legacy-claim-review";
 import { EutAdminManager } from "@/components/eut-admin-manager";
 import { AdminControlHub } from "@/components/admin-control-hub";
+import { AdminFeatureSettings } from "@/components/admin-feature-settings";
 import { AdminCommandOverview } from "@/components/admin-command-overview";
 import { AdminRequestQueue } from "@/components/admin-request-queue";
 import { AdminMessageQueue } from "@/components/admin-message-queue";
@@ -114,6 +115,7 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
               <AdminCommandOverview />
               <AdminControlHub />
             </section>)}
+            {section === "configuracoes" && <AdminFeatureSettings />}
             {section === "patrocinadores" && <section id="admin-patrocinadores" aria-label="Patrocinadores e banners"><AdminPublicExperience /><div id="admin-patrocinadores-formulario"><AdminAdvertisingManager /></div></section>}
             {section === "metricas" && <section aria-label="Buscas e indicadores"><div id="admin-metricas"><AdminVisitorActivity /><SearchMetrics /></div></section>}
             {section === "legado" && <section aria-label="Acervo WordPress"><div id="admin-legado"><LegacyReviewQueue /></div></section>}

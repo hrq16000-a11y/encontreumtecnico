@@ -7,7 +7,7 @@ export const ADMIN_NAV_COLLAPSED_KEY = "eut.admin.collapsed-groups.v1";
 
 /** Presentation groups only: they neither add routes nor grant permissions. */
 export const ADMIN_NAV_GROUPS = [
-  { id: "geral", title: "Visão geral", keys: ["inicio"] },
+  { id: "geral", title: "Visão geral", keys: ["inicio", "configuracoes"] },
   {
     id: "cadastros",
     title: "Cadastros e segurança",
