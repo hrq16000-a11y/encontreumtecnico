@@ -157,10 +157,15 @@ async function publicMobileNeighborhoods(page) {
   }
   await page.setViewportSize({ width: 375, height: 812 });
   await visit(page, "/tecnicos");
+  const locationToggle = page.getByRole("button", { name: /Alterar localização|Fechar localização/i });
+  await locationToggle.waitFor({ state: "visible" });
+  if (await locationToggle.getAttribute("aria-expanded") !== "true") await locationToggle.click();
   await expandAdvancedFilters(page);
-  const state = page.locator("#filtro-uf");
+  const state = page.getByRole("combobox", { name: "Estado (UF)" });
   const city = page.locator("#filtro-cidade");
   const neighborhood = page.locator("#filtro-bairro");
+  await state.waitFor({ state: "visible" });
+  await city.waitFor({ state: "visible" });
   for (const [field, name] of [
     [state, "UF"], [city, "Município"], [neighborhood, "Bairro"],
   ]) {
@@ -173,12 +178,25 @@ async function publicMobileNeighborhoods(page) {
       needsHeightFix: box.height < 44,
     }));
   }
-  // Changing UF replaces the city input after the router commits the new state.
+  // Confirm a real UF choice instead of assuming a native select is still rendered.
+  async function chooseState(label, uf) {
+    await state.fill(label);
+    await page.locator('#filtro-uf-choices [data-option-value="' + uf + '"]').click();
+    await page.waitForFunction(expected =>
+      document.querySelector("#filtro-uf")?.getAttribute("data-choice-value") === expected, uf);
+  }
+  // A regional hint may already have selected PR. Make the actual transition explicit.
+  if (await state.getAttribute("data-choice-value") === "PR") await chooseState("Santa Catarina", "SC");
   const previousCity = await city.elementHandle();
-  await state.selectOption("PR");
+  await chooseState("Paraná", "PR");
   await page.waitForFunction(previous => !previous.isConnected, previousCity);
   await previousCity.dispose();
-  await city.fill("São José dos Pinhais");
+  // Wait for the official catalogue rather than silently exercising the manual fallback.
+  const officialCity = page.getByRole("combobox", { name: "Cidade" });
+  await officialCity.waitFor({ state: "visible" });
+  await officialCity.fill("São José dos Pinhais");
+  await page.locator("#filtro-cidade-choices").getByRole("option", { name: "São José dos Pinhais/PR", exact: true }).click();
+  await page.waitForFunction(() => new URL(location.href).searchParams.get("cidade") === "São José dos Pinhais");
   await expandAdvancedFilters(page);
   const suggestions = page.locator("#eut-bairro-diretorio");
   await suggestions.waitFor({ state: "attached", timeout: 20000 });
