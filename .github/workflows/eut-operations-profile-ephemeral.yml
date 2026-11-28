@@ -4,6 +4,8 @@ on:
     paths:
       - 'docs/sql/eut-technician-operations-contract-proposal-20261120.sql'
       - 'docs/sql/tests/eut-technician-operations-ephemeral-*.sql'
+      - 'docs/sql/tests/eut-technician-suspended-policy-ephemeral-*.sql'
+      - 'docs/sql/eut-technician-suspension-resubmission-guard-proposal-20261120.sql'
       - '.github/workflows/eut-operations-profile-ephemeral.yml'
 permissions:
   contents: read
@@ -44,3 +46,5 @@ jobs:
         run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-technician-operations-ephemeral-assertions-20261120.sql
       - name: Verify server-backed roles and negative authenticated sessions
         run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-technician-operations-ephemeral-auth-session-20261120.sql
+      - name: Test suspension restoration guard and legitimate admin moderation
+        run: psql -X -v ON_ERROR_STOP=1 -f docs/sql/tests/eut-technician-suspended-policy-ephemeral-20261120.sql

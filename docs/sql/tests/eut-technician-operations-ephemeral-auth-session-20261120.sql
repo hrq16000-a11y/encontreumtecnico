@@ -93,6 +93,105 @@ BEGIN
 END $$;
 ROLLBACK;
 
+-- Rejeitado: OWNER não pode editar pela função SECURITY DEFINER, embora
+-- haja uma linha operacional existente. ADMIN com motivo pode editar e auditar.
+-- Todo o cenário é revertido: status, versão, perfil e log voltam ao fixture.
+BEGIN;
+UPDATE public.technicians SET status='rejeitado'
+ WHERE id='10000000-0000-4000-8000-000000000001'
+   AND status='aprovado';
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','20000000-0000-4000-8000-000000000001',true);
+DO $rejected_owner$
+DECLARE
+ t uuid:='10000000-0000-4000-8000-000000000001';
+ v jsonb; denied boolean:=false;
+BEGIN
+ v:=public.eut_technician_operations_get(t);
+ IF v->'profile' IS NULL THEN RAISE EXCEPTION 'fixture rejeitado sem perfil'; END IF;
+ BEGIN
+   PERFORM public.eut_technician_operations_save(
+     t,v->'profile',(v->>'updated_at')::timestamptz,NULL);
+ EXCEPTION WHEN insufficient_privilege THEN denied:=true;
+ END;
+ IF NOT denied THEN RAISE EXCEPTION 'titular rejeitado editou via SECURITY DEFINER'; END IF;
+ IF public.eut_technician_operations_get(t) IS DISTINCT FROM v THEN
+   RAISE EXCEPTION 'tentativa rejeitada alterou perfil ou versao'; END IF;
+END
+$rejected_owner$;
+SELECT set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000001',true);
+DO $rejected_admin$
+DECLARE
+ t uuid:='10000000-0000-4000-8000-000000000001';
+ v jsonb; saved jsonb; denied boolean:=false;
+BEGIN
+ IF (SELECT count(*) FROM public.eut_admin_management_log)<>2 THEN
+   RAISE EXCEPTION 'tentativa rejeitada criou auditoria indevida'; END IF;
+ v:=public.eut_technician_operations_get(t);
+ BEGIN
+   PERFORM public.eut_technician_operations_save(
+     t,v->'profile',(v->>'updated_at')::timestamptz,NULL);
+ EXCEPTION WHEN invalid_parameter_value THEN denied:=true;
+ END;
+ IF NOT denied THEN RAISE EXCEPTION 'admin editou rejeitado sem motivo'; END IF;
+ saved:=public.eut_technician_operations_save(
+   t,v->'profile',(v->>'updated_at')::timestamptz,
+   'Ajuste administrativo motivado para homologacao isolada');
+ IF saved->>'ok'<>'true' THEN RAISE EXCEPTION 'admin motivado recusado em rejeitado'; END IF;
+ IF (SELECT count(*) FROM public.eut_admin_management_log
+   WHERE action='technician_operations_admin_updated')<>2 THEN
+   RAISE EXCEPTION 'falta auditoria da edicao administrativa rejeitada'; END IF;
+
+END
+$rejected_admin$;
+-- A tabela canônica não tem SELECT direto para authenticated nesta fixture.
+-- A condição de moderação é verificada pelo usuário privilegiado do CI,
+-- nunca concedendo acesso adicional ao titular ou ao administrador via API.
+RESET ROLE;
+DO $check_status$
+BEGIN
+ IF (SELECT status FROM public.technicians
+     WHERE id='10000000-0000-4000-8000-000000000001')<>'rejeitado' THEN
+   RAISE EXCEPTION 'admin alterou moderacao ao editar condicoes'; END IF;
+END
+$check_status$;
+ROLLBACK;
+
+-- Conta admin bloqueada não pode contornar o bloqueio via SECURITY DEFINER.
+-- A mesma edição com conta admin operacional foi aprovada na fixture acima.
+-- Transação revertida: bloqueio, versão, perfil e auditoria preservados.
+BEGIN;
+INSERT INTO public.eut_fixture_blocked_accounts(user_id)
+  VALUES ('30000000-0000-4000-8000-000000000001');
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','30000000-0000-4000-8000-000000000001',true);
+DO $blocked_admin$
+DECLARE
+ t uuid:='10000000-0000-4000-8000-000000000001';
+ before_record jsonb; denied boolean:=false;
+BEGIN
+ IF NOT public.has_role(auth.uid(),'admin'::public.app_role) THEN
+   RAISE EXCEPTION 'fixture admin sem papel server-backed'; END IF;
+ IF public.eut_account_operational() THEN
+   RAISE EXCEPTION 'admin bloqueado foi considerado operacional'; END IF;
+ before_record:=public.eut_technician_operations_get(t);
+ IF before_record->'profile' IS NULL THEN
+   RAISE EXCEPTION 'fixture sem perfil operacional para teste'; END IF;
+ BEGIN
+   PERFORM public.eut_technician_operations_save(
+     t,before_record->'profile',(before_record->>'updated_at')::timestamptz,
+     'Tentativa administrativa da conta bloqueada');
+ EXCEPTION WHEN insufficient_privilege THEN denied:=true;
+ END;
+ IF NOT denied THEN RAISE EXCEPTION 'admin bloqueado editou operacoes'; END IF;
+ IF public.eut_technician_operations_get(t) IS DISTINCT FROM before_record THEN
+   RAISE EXCEPTION 'admin bloqueado alterou dados ou versao'; END IF;
+ IF (SELECT count(*) FROM public.eut_admin_management_log)<>2 THEN
+   RAISE EXCEPTION 'admin bloqueado gerou auditoria de escrita indevida'; END IF;
+END
+$blocked_admin$;
+ROLLBACK;
+
 -- Depois das recusas: um único registro; 2 suspensos; 2 logs válidos; papéis intactos.
 DO $$ BEGIN
  IF (SELECT count(*) FROM eut_profile_ops.technician_operations)<>1 OR
