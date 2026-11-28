@@ -39,6 +39,7 @@ describe("Município contextual confirmado", () => {
   });
   it.each(["error", "empty"] as const)("permite busca manual quando catálogo está %s", (state) => {
     catalog[state] = true;
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
     const change = vi.fn();
     render(<SearchMunicipalityChoice id="city" uf="PR" city="" onChange={change} />);
     const city = screen.getByLabelText("Cidade");

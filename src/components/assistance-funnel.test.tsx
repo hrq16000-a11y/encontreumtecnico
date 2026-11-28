@@ -51,7 +51,7 @@ describe("Localidade do atendimento guiado", () => {
     const uf = screen.getByRole("combobox", {name: "Estado (UF)"}) as HTMLInputElement;
     expect(uf.value).toBe("SC");
     await waitFor(() => expect((screen.getByRole("combobox", {name: "Município selecionado"}) as HTMLSelectElement).value).toBe("4205407"));
-    fireEvent.click(screen.getByRole("button", {name: "", exact: true}));
+    fireEvent.click(screen.getByRole("button", {name: ""}));
     expect((screen.getByRole("combobox", {name: "Tipo de serviço"}) as HTMLInputElement).value).toBe("Formatação de notebooks");
     expect((screen.getByRole("textbox", {name: /Qual problema/}) as HTMLTextAreaElement).value).toBe("Notebook reinicia durante o trabalho");
   });
