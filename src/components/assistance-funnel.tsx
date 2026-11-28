@@ -40,7 +40,7 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
   const catalogChoices = useMemo(() => {
     const serviceChoices: ChoiceOption[] = services.map(value => ({ value, label: value }));
     const addServiceChoice = (value: string, detail?: string) => {
-      if (!serviceChoices.some(option => option.value === value)) serviceChoices.push({ value, label: value, detail });
+      if (!serviceChoices.some(option => option.value === value)) serviceChoices.push({ value, label: value, ...(detail ? { detail } : {}) });
     };
     for (const category of categories) {
       if (assistanceDirectoryFilters(category.label, categories, activeServices).especialidade === category.slug) addServiceChoice(category.label);
