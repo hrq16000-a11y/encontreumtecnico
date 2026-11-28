@@ -49,7 +49,7 @@ describe("Busca rápida de serviços no diretório", () => {
     const route = readFileSync("src/routes/tecnicos.index.tsx", "utf8");
     expect(route).toContain('<SearchableChoice id="filtro-servico"');
     expect(route).toContain('clearOnEdit={false}');
-    expect(route).toContain('directoryServiceChoices(services, categories, specialty, serviceQuery, search.servico)');
+    expect(route).toContain('directoryServiceChoices(services, categories, specialty, "", search.servico)');
     expect(route).toContain("directoryServiceOptions.map(service");
     expect(route).toContain('onChange={(value) => { update({ servico: value }); trackFilter("servico", value); }}');
     expect(route).not.toContain('trackFilter("servico", serviceQuery)');
