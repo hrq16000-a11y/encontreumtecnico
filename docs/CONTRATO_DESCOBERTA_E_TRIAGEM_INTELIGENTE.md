@@ -1,7 +1,7 @@
 # Contrato de descoberta e triagem inteligente — Pilar 1
 
-**Data:** 28/11/2026. **Escopo autorizado:** exclusivamente Rodada 1, documental.
-**Estado:** contrato consolidado e inventário baseado em código local e testes; não constitui homologação do portal, confirmação do banco em produção, merge, sincronização GitHub ou publicação.
+**Data:** 28/11/2026. **Escopo:** Rodada 1 documental e Rodada 2 de seleção contextual, autorizada posteriormente pelo proprietário.
+**Estado:** contrato e seleção contextual verificados no ambiente local; não constitui homologação completa do portal, confirmação do banco em produção, merge, sincronização GitHub ou publicação.
 
 ## 1. Autoridade, preservação e leitura obrigatória
 
@@ -134,7 +134,7 @@ Não enviar problema livre, endereço, contato, identidade, tokens ou coordenada
 - Consolidar regras, lacunas e critérios; registrar testes e situação Git sem fabricar commit.
 - Não alterar aparência, rotas, schema, tarifas, dados, integrações ou publicar.
 
-### Rodada 2 — próximo escopo objetivo, não executado
+### Rodada 2 — seleção contextual implementada no ambiente local
 - Reutilizar os seletores existentes para busca de categoria/serviço e município/UF, sem novo catálogo ou dependência.
 - Preservar links profundos, aliases compatíveis, reset de página e par município/UF; confirmar atributos de cobertura/ranking existentes.
 - Cobrir com testes: acentos/caixa, seleção inequívoca, cidade homônima/UF, troca de UF, edição, vazio/falha de catálogo, cobertura fora da cidade-base e ordenação antes da paginação.
@@ -155,6 +155,19 @@ Rodada 3: triagem/modalidades/fallbacks. Rodada 4: funil universal/contexto. Rod
 - Não se verificaram login real, gráficos autenticados, chamadas IA, WhatsApp, produção HTTP ou estado ativo das RPCs. Não houve envio de pedido nem dados fictícios.
 - `bun.lock` e `src/routeTree.gen.ts` já apareciam alterados pelo ambiente antes da criação do contrato; não são mudanças documentais deliberadas e não foram editados pelo agente.
 - Skills: `0web-skill-router` classificou o trabalho como `docs`; design/motion/CRO e visual QA não se aplicam porque não houve alteração de UI. Sem instalação, execução ou adoção de skill externa.
+
+## 14. Evidências da Rodada 2 — 28/11/2026
+
+- Home e `/tecnicos`: reutilização de `SearchableChoice` para categoria/UF e serviço no diretório; `SearchMunicipalityChoice` consulta o catálogo existente por UF, confirma nome/UF e mantém busca manual se indisponível. Não cria cadastro, tabela, catálogo paralelo nem biblioteca.
+- O autocomplete limita sugestões por meio do ranking existente, ignora acentos/caixa e só troca valor após confirmação. A busca conserva parâmetros canônicos, validação existente, cobertura, paginação e prioridade regional. A UF pode ser localizada por nome ou sigla.
+- O funil existente recebe serviço legível, cidade/UF/bairro e captura pathname/posicionamento de abertura sem query/hash. Rascunho editado e etapa prevalecem ao reabrir. Atribuição durável no CRM, UTM e reconciliação contato/solicitação não foram implementadas nesta rodada.
+- Testes: `bun run test` → **184 arquivos e 936 testes aprovados**, duração **108,55s**. Cobertura específica inclui confirmação por teclado sem acentos com 110+ opções, troca de UF, Escape, inexistência, fallback manual e precedência do rascunho. A suíte preserva testes de cobertura e paginação.
+- Playwright em **390/768/1440**, reduced motion: home seleciona CFTV + São José dos Pinhais/PR; diretório carrega quatro links de perfis públicos na página, com grupos regionais preservados; serviço confirmado gera `servico=instalacao-cameras` na URL. Não interpretar quatro links como total nacional ou disponibilidade local.
+- Botão contextual real abre atendimento sobre a URL de resultados; rascunho recuperado ao reabrir, foco devolvido ao gatilho, sem overflow horizontal nem erros de página. **Zero POSTs para contact_messages/service_requests** no QA. Não foram testados pedidos autenticados nem envio final, fora desta micro-rodada.
+- Observabilidade: último sinal consultado `build OK` em 05:45:20 UTC; sem build/typecheck manual.
+- Home e diretório receberam títulos CFTV/informática. Todas as rotas de conteúdo possuem head explícito; revisão completa de imagens sociais permanece escopo SEO separado, com herança existente preservada.
+- HTTP: sitemap local e oficial `https://www.encontreumtecnico.com.br/sitemap.xml` respondem **200**, XML sitemapindex válido com quatro partes; robots oficial indica esse sitemap. Nenhuma substituição do sitemap nem submissão ao Google. Sem notícias jornalísticas elegíveis identificadas, não foi fabricado XML News.
+- Publicação **não executada**: HEAD local observado `f7759e86f745ff38342096fb5ac7f93705e61eac`, HEAD oficial `92380df35a7a42008369a4f7723275c116677cd2`; igualdade/sincronização, PR/CI, SHA de release, rollback e Vercel READY não comprovados. Não substituído o fluxo Vercel por Lovable Publish.
 
 ## Anexo A — especificação integral enviada pelo proprietário
 
