@@ -1,9 +1,24 @@
 import { Link } from "@tanstack/react-router";
-import { guideHelpContext, openFreeHelp } from "@/lib/free-search-help";
+import { guideDraftScope, openFreeHelp } from "@/lib/free-search-help";
 import type { PublicGuide } from "@/lib/public-guides";
 
 function requestHelpForGuide(guide: PublicGuide): void {
-  openFreeHelp(guideHelpContext(guide));
+  const scope = guideDraftScope(guide.categorySlug);
+  openFreeHelp({
+    ...(scope ? { draftScope: scope } : {}),
+    mode: "managed",
+    guideSlug: guide.slug,
+    service: ({
+      cftv: "CFTV e segurança",
+      computadores: "Computadores e notebooks",
+      redes: "Redes e Wi-Fi",
+      impressoras: "Impressoras",
+      software: "Sistemas e software",
+      climatizacao: "Climatização",
+      automacao: "Automação",
+      comunicacoes: "Comunicações e telefonia",
+    } as Record<string, string>)[guide.categorySlug] ?? guide.categoryName,
+  });
 }
 
 /** One compact additional conversion point; uses the very same persisted funnel. */
