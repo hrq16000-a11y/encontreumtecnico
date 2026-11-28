@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { hasAdvertisingConsent } from "@/components/adsense-loader";
 
 type AdPlacement =
   | { slotKey: "home.content_1"; routePath: "/" }
@@ -57,19 +58,48 @@ export function SponsoredPublicSlot({ slotKey, routePath }: AdPlacement) {
   const [card, setCard] = useState<PublicCard | null>(null);
   useEffect(() => {
     let active = true;
+    let generation = 0;
+    let pending: AbortController | null = null;
+    const invalidate = () => {
+      generation += 1;
+      pending?.abort();
+      pending = null;
+      setCard(null);
+    };
     const getAd = () => {
+      invalidate();
+      // Never request an optional campaign before explicit advertising opt-in.
+      if (!hasAdvertisingConsent() || document.visibilityState !== "visible") return;
+      const request = generation;
+      const controller = new AbortController();
+      pending = controller;
       void Promise.resolve(db.rpc("eut_ads_public_slot", {
         _slot_key: slotKey, _route_path: routePath,
-      })).then(({ data, error }) => {
-        if (active) setCard(error ? null : asApprovedSponsoredCard(data, slotKey));
-      }).catch(() => { if (active) setCard(null); });
+      }).abortSignal(controller.signal)).then(({ data, error }) => {
+        // An aborted response cannot restore a campaign after consent revocation.
+        if (!active || request !== generation || controller.signal.aborted || !hasAdvertisingConsent()) return;
+        setCard(error ? null : asApprovedSponsoredCard(data, slotKey));
+      }).catch(() => { if (active && request === generation) setCard(null); });
+    };
+    const consentStorage = (event: StorageEvent) => {
+      if (event.key === "eut-cookie-consent" || event.key === null) getAd();
+    };
+    const visibility = () => {
+      if (document.visibilityState === "visible") getAd();
+      else invalidate();
     };
     getAd();
-    // Refresh after returning to a tab; a paused/expired ad must disappear
-    // without requiring the visitor to keep an old cached card.
-    const visibility = () => { if (document.visibilityState === "visible") getAd(); };
+    window.addEventListener("eut-consent-changed", getAd);
+    window.addEventListener("storage", consentStorage);
     document.addEventListener("visibilitychange", visibility);
-    return () => { active = false; document.removeEventListener("visibilitychange", visibility); };
+    return () => {
+      active = false;
+      generation += 1;
+      pending?.abort();
+      window.removeEventListener("eut-consent-changed", getAd);
+      window.removeEventListener("storage", consentStorage);
+      document.removeEventListener("visibilitychange", visibility);
+    };
   }, [slotKey, routePath]);
 
   return (
