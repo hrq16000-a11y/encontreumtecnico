@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { AssistanceFunnel } from "./assistance-funnel";
+import { portalHelpContext } from "@/lib/free-search-help";
+import { readAssistanceDraft } from "@/lib/assistance-draft";
 
 const directoryMock = vi.hoisted(() => ({
   navigate: vi.fn(),
@@ -31,7 +33,7 @@ vi.mock("@/hooks/use-municipalities", () => ({
 }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: vi.fn() } }));
 vi.mock("@/lib/assistance-draft", () => ({
-  readAssistanceDraft: () => null,
+  readAssistanceDraft: vi.fn(() => null),
   saveAssistanceDraft: vi.fn(),
   clearAssistanceDraft: vi.fn(),
 }));
@@ -43,6 +45,27 @@ afterEach(() => {
 });
 
 describe("Localidade do atendimento guiado", () => {
+  it("retoma a etapa e as edições do mesmo assunto sem reutilizar outro rascunho", async () => {
+    const context = portalHelpContext("contato");
+    vi.mocked(readAssistanceDraft).mockReturnValueOnce({
+      mode: "managed", step: 2, name: "", email: "",
+      service: "Redes e Wi-Fi", when: "Amanhã", problem: "Meu problema foi descrito antes de fechar.",
+      city: "Curitiba", uf: "PR", neighborhood: "Centro",
+    });
+    render(<AssistanceFunnel context={context} onClose={vi.fn()} />);
+    expect(readAssistanceDraft).toHaveBeenCalledWith("portal-contato-geral");
+    expect(screen.getByRole("combobox", { name: "Estado (UF)" })).toBeTruthy();
+    await waitFor(() => expect((screen.getByRole("combobox", { name: "Município selecionado" }) as HTMLSelectElement).value).toBe("4106902"));
+    expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Voltar ao problema" }));
+    expect((screen.getByRole("combobox", { name: "Tipo de serviço" }) as HTMLInputElement).value).toBe("Redes e Wi-Fi");
+    expect((screen.getByRole("textbox", { name: /Qual problema/i }) as HTMLTextAreaElement).value).toBe("Meu problema foi descrito antes de fechar.");
+  });
+  it("abre privacidade com intenção própria em vez do rascunho geral", () => {
+    render(<AssistanceFunnel context={portalHelpContext("contato", "privacidade")} onClose={vi.fn()} />);
+    expect(readAssistanceDraft).toHaveBeenCalledWith("portal-contato-privacidade");
+    expect((screen.getByRole("textbox", { name: /Qual problema/i }) as HTMLTextAreaElement).value).toContain("privacidade ou meus dados pessoais");
+  });
   it("encontra serviço ativo sem acentos e confirma pelo teclado, mantendo prazo até nova escolha", () => {
     render(<AssistanceFunnel context={{ mode: "managed" }} onClose={vi.fn()} />);
     const service = screen.getByRole("combobox", { name: "Tipo de serviço" }) as HTMLInputElement;

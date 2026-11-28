@@ -28,12 +28,16 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
   const navigate = useNavigate();
   const fieldId = useId();
   const { area: suggested } = useRegionalSuggestion();
-  const [restored] = useState(() => readAssistanceDraft(context.technicianId));
-  const [mode, setMode] = useState<AssistanceMode | null>(context.mode ?? restored?.mode ?? null);
-  const [step, setStep] = useState(context.mode ? 1 : restored?.step ?? 0);
+  // A help CTA for privacy is not the same intent as general assistance.
+  // Scope only fixed portal intents; keep the public technician-ID contract.
+  const draftScope = context.draftScope ?? context.technicianId;
+  const [restored] = useState(() => readAssistanceDraft(draftScope));
+  const resumePortal = context.draftScope ? restored : null;
+  const [mode, setMode] = useState<AssistanceMode | null>(resumePortal ? resumePortal.mode : context.mode ?? restored?.mode ?? null);
+  const [step, setStep] = useState(resumePortal ? resumePortal.step : context.mode ? 1 : restored?.step ?? 0);
   const [name, setName] = useState(restored?.name ?? "");
   const [email, setEmail] = useState(restored?.email ?? "");
-  const [service, setService] = useState(context.service || restored?.service || "");
+  const [service, setService] = useState(resumePortal ? resumePortal.service : context.service || restored?.service || "");
   const [when, setWhen] = useState(restored?.when ?? "Nos próximos dias");
   // Keep the established label contract; only show active catalogue entries
   // whose label resolves unambiguously using the existing directory validator.
@@ -56,7 +60,7 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
     ? [{ value: service, label: service, detail: "Serviço selecionado anteriormente" }, ...catalogChoices]
     : catalogChoices;
   const changeService = (value: string) => { preserve({ service: value }); setService(value); };
-  const [problem, setProblem] = useState(restored?.problem || context.initialProblem || "");
+  const [problem, setProblem] = useState(resumePortal ? resumePortal.problem : restored?.problem || context.initialProblem || "");
   const [city, setCity] = useState(context.city || restored?.city || "");
   const [uf, setUf] = useState(context.uf || restored?.uf || "");
   const [cityIbgeId, setCityIbgeId] = useState<number | null>(null);
@@ -71,17 +75,18 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
   latestDraft.current = { mode, step, name, email, service, when, problem, city, uf, neighborhood };
   function preserve(patch: Partial<AssistanceDraft>) {
     latestDraft.current = { ...latestDraft.current, ...patch };
-    saveAssistanceDraft(context.technicianId, latestDraft.current);
+    if (context.draftScope) saveAssistanceDraft(context.draftScope, latestDraft.current);
+    else saveAssistanceDraft(context.technicianId, latestDraft.current);
   }
 
   useEffect(() => {
     if (sent) return;
     // Persist after each committed edit: delaying until an idle timer can
     // discard the last characters when a user navigates immediately.
-    saveAssistanceDraft(context.technicianId, {
-      mode, step, name, email, service, when, problem, city, uf, neighborhood,
-    });
-  }, [context.technicianId, mode, step, name, email, service, when, problem, city, uf, neighborhood, sent]);
+    const draft = { mode, step, name, email, service, when, problem, city, uf, neighborhood };
+    if (context.draftScope) saveAssistanceDraft(context.draftScope, draft);
+    else saveAssistanceDraft(context.technicianId, draft);
+  }, [context.draftScope, context.technicianId, mode, step, name, email, service, when, problem, city, uf, neighborhood, sent]);
 
   useEffect(() => {
     if (!suggested || cityEdited.current || city.trim()) return;
@@ -111,7 +116,8 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
       const { error: requestError } = await supabase.from("contact_messages").insert(lead);
       if (requestError) throw requestError;
       setSavedWhatsAppLead(lead);
-      clearAssistanceDraft(context.technicianId);
+      if (context.draftScope) clearAssistanceDraft(context.draftScope);
+      else clearAssistanceDraft(context.technicianId);
       setSent(true);
     } catch {
       setError("Não conseguimos registrar seu pedido. Nada foi cobrado. Tente novamente.");
@@ -218,7 +224,7 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
           </p>
           <p className="text-xs text-muted-foreground">Não compartilhe senhas, CPF, número completo de cartão ou dados sensíveis.</p>
           <div className="flex gap-3">
-            <button type="button" onClick={() => {preserve({step:0});setStep(0)}} className="min-h-12 rounded-xl border border-border px-4 text-sm font-semibold text-foreground"><ArrowLeft className="h-4 w-4" aria-hidden="true" /></button>
+            <button type="button" onClick={() => {preserve({step:0});setStep(0)}} aria-label="Voltar à modalidade" className="min-h-12 rounded-xl border border-border px-4 text-sm font-semibold text-foreground"><ArrowLeft className="h-4 w-4" aria-hidden="true" /></button>
             <button type="button" disabled={!service.trim() || problem.trim().length < 10}
               onClick={() => {preserve({step:2});setStep(2)}} className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-5 font-bold text-primary-foreground disabled:opacity-50">
               Continuar <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -278,7 +284,7 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
           </p>
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           <div className="flex gap-3">
-            <button type="button" onClick={() => {preserve({step:1});setStep(1)}} className="min-h-12 rounded-xl border border-border px-4 text-sm font-semibold text-foreground"><ArrowLeft className="h-4 w-4" aria-hidden="true" /></button>
+            <button type="button" onClick={() => {preserve({step:1});setStep(1)}} aria-label="Voltar ao problema" className="min-h-12 rounded-xl border border-border px-4 text-sm font-semibold text-foreground"><ArrowLeft className="h-4 w-4" aria-hidden="true" /></button>
             <button type="button" disabled={sending || !consent || name.trim().length < 2 || !email.includes("@")}
               onClick={() => void finish()} className="min-h-12 flex-1 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground disabled:opacity-50">
               {sending ? "Registrando pedido…" : mode === "managed" ? "Solicitar gestão sem antecipação" : "Registrar interesse e continuar"}

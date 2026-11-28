@@ -1,7 +1,7 @@
 import type { AssistanceMode } from "./assistance-intent";
 
 /** A reload-safe draft for the PUBLIC intake wizard only.
- * One tab, 45-minute TTL, scoped to the selected public technician ID.
+ * One tab, 45-minute TTL, scoped to the selected public technician ID or explicit portal-help intent.
  * Never stores passwords, GPS coordinates, payment data or the consent flag.
  */
 export type AssistanceDraft = {
@@ -22,8 +22,9 @@ const TTL = 45 * 60 * 1000;
 const MAX_LEN = 6000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-function key(technicianId?: string): string {
-  return PREFIX + (technicianId && UUID.test(technicianId) ? technicianId : "general");
+const PORTAL_SCOPE = /^portal-(home|contato)-(geral|privacidade)$/;
+function key(scope?: string): string {
+  return PREFIX + (scope && (UUID.test(scope) || PORTAL_SCOPE.test(scope)) ? scope : "general");
 }
 function getStorage(storage?: Storage): Storage | null {
   if (storage) return storage;
@@ -31,9 +32,9 @@ function getStorage(storage?: Storage): Storage | null {
 }
 const fields = ["name", "email", "service", "when", "problem", "city", "uf", "neighborhood"] as const;
 
-export function readAssistanceDraft(technicianId?: string, storage?: Storage, now = Date.now()): AssistanceDraft | null {
+export function readAssistanceDraft(scope?: string, storage?: Storage, now = Date.now()): AssistanceDraft | null {
   try {
-    const raw = getStorage(storage)?.getItem(key(technicianId));
+    const raw = getStorage(storage)?.getItem(key(scope));
     if (!raw || raw.length > MAX_LEN) return null;
     const obj = JSON.parse(raw) as AssistanceDraft & { savedAt: number };
     if (typeof obj.savedAt !== "number" || !Number.isFinite(obj.savedAt) ||
@@ -57,17 +58,17 @@ export function readAssistanceDraft(technicianId?: string, storage?: Storage, no
   } catch { return null; }
 }
 
-export function saveAssistanceDraft(technicianId: string | undefined, draft: AssistanceDraft, storage?: Storage, now = Date.now()): boolean {
+export function saveAssistanceDraft(scope: string | undefined, draft: AssistanceDraft, storage?: Storage, now = Date.now()): boolean {
   try {
     const target = getStorage(storage);
     if (!target) return false;
     const raw = JSON.stringify({ ...draft, savedAt: now });
     if (raw.length > MAX_LEN) return false;
-    target.setItem(key(technicianId), raw);
+    target.setItem(key(scope), raw);
     return true;
   } catch { return false; }
 }
 
-export function clearAssistanceDraft(technicianId?: string, storage?: Storage): void {
-  try { getStorage(storage)?.removeItem(key(technicianId)); } catch { /* storage unavailable */ }
+export function clearAssistanceDraft(scope?: string, storage?: Storage): void {
+  try { getStorage(storage)?.removeItem(key(scope)); } catch { /* storage unavailable */ }
 }
