@@ -1,9 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
+import { lazy, Suspense, useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
 import { ShieldCheck, UsersRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminAccountsManager } from "@/components/admin-accounts-manager";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
 const USER_TABS = [
   { key: "todos", label: "Todos" },
@@ -26,11 +27,21 @@ function validUserTab(value: string | null): UserTab {
   return USER_TABS.find((tab) => tab.key === value)?.key ?? "todos";
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+type ManagedTarget =
+  | { type: "account" | "portal"; id: string }
+  | { type: "legacy"; kind: "candidate" | "employer"; id: number };
+
+function historicalTarget(recordKey: string | undefined): ManagedTarget | null {
+  const match = /^wp:(candidate|employer):([1-9][0-9]{0,8})$/.exec(recordKey ?? "");
+  return match ? { type: "legacy", kind: match[1] as "candidate" | "employer", id: Number(match[2]) } : null;
+}
+
 type AdminUserRole = { user_id: string; created_at: string };
 type AdminUserProfile = { id: string; full_name: string | null };
 
 /** Uses the existing admin-authorized user_roles/profiles RLS policies; no role mutations. */
-function AdminUsersList({ openAccount }: { openAccount: (id: string) => void }) {
+function AdminUsersList({ openAccount, returnRevision }: { openAccount: (id: string) => void; returnRevision: number }) {
   const [page, setPage] = useState(0);
   const [refreshRevision, setRefreshRevision] = useState(0);
   const [rows, setRows] = useState<Array<AdminUserRole & { name: string }>>([]);
@@ -63,7 +74,7 @@ function AdminUsersList({ openAccount }: { openAccount: (id: string) => void }) 
       } finally { if (active) setLoading(false); }
     })();
     return () => { active = false; };
-  }, [page, refreshRevision]);
+  }, [page, refreshRevision, returnRevision]);
 
   return <section aria-label="Usuários administradores" className="space-y-4">
     <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
@@ -102,6 +113,12 @@ function AdminUsersList({ openAccount }: { openAccount: (id: string) => void }) 
 }
 
 const adminDb = supabase as unknown as SupabaseClient;
+const AdminRegistryRecordInlineEditor = lazy(() => import("@/components/admin-registry-record-inline-editor")
+  .then((module) => ({ default: module.AdminRegistryRecordInlineEditor })));
+const AdminTechnicianManager = lazy(() => import("@/components/admin-technician-manager")
+  .then((module) => ({ default: module.AdminTechnicianManager })));
+const LegacyReviewQueue = lazy(() => import("@/components/legacy-review-queue")
+  .then((module) => ({ default: module.LegacyReviewQueue })));
 type UnifiedRole = "todos" | "tecnico" | "cliente";
 type UnifiedCursor = { after_name: string; after_key: string };
 type LinkedIdentity = {
@@ -123,8 +140,8 @@ type UnifiedPage = {
 };
 const LIST_SIZE = 30;
 
-function UnifiedUsersList({ role, openAccount }: {
-  role: UnifiedRole; openAccount: (id: string) => void;
+function UnifiedUsersList({ role, openTarget, returnRevision }: {
+  role: UnifiedRole; openTarget: (target: ManagedTarget) => void; returnRevision: number;
 }) {
   const [draft, setDraft] = useState("");
   const [search, setSearch] = useState("");
@@ -134,6 +151,8 @@ function UnifiedUsersList({ role, openAccount }: {
   const [refresh, setRefresh] = useState(0);
   const [response, setResponse] = useState<UnifiedPage | null>(null);
   const [missingRpc, setMissingRpc] = useState(false);
+  const [editingRegistryKey, setEditingRegistryKey] = useState<string | null>(null);
+  const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -158,7 +177,8 @@ function UnifiedUsersList({ role, openAccount }: {
           !Array.isArray(pageData.items) || typeof pageData.total !== "number" ||
           typeof pageData.has_more !== "boolean" ||
           !pageData.items.every((item: UnifiedUser) =>
-            typeof item.user_key === "string" && typeof item.name === "string" &&
+            typeof item.user_key === "string" && typeof item.record_key === "string" &&
+            typeof item.name === "string" &&
             (item.status === "ATIVO" || item.status === "SUSPENSO") &&
             Array.isArray(item.roles))) {
         setError(true); // Authorization/network errors must not silently downgrade the query.
@@ -168,7 +188,7 @@ function UnifiedUsersList({ role, openAccount }: {
     }).catch(() => { if (active) setError(true); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [role, search, state, page, refresh, missingRpc]);
+  }, [role, search, state, page, refresh, missingRpc, returnRevision]);
 
   if (missingRpc) {
     return <section className="space-y-3" aria-label="Gestão de contas existente">
@@ -182,18 +202,24 @@ function UnifiedUsersList({ role, openAccount }: {
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setEditingRegistryKey(null);
+    setSavedMessage(null);
     setSearch(draft.trim().slice(0, 80));
     setCursors([null]);
     setPage(0);
     setRefresh((value) => value + 1);
   }
   function changeState(next: "todos" | "ativo" | "suspenso") {
+    setEditingRegistryKey(null);
+    setSavedMessage(null);
     setState(next);
     setCursors([null]);
     setPage(0);
   }
   function nextPage() {
     if (!response?.has_more || !response.next_cursor) return;
+    setEditingRegistryKey(null);
+    setSavedMessage(null);
     setCursors((current) => [...current.slice(0, page + 1), response.next_cursor!]);
     setPage((value) => value + 1);
   }
@@ -224,6 +250,7 @@ function UnifiedUsersList({ role, openAccount }: {
         </select>
       </label>
     </form>
+    {savedMessage && <p role="status" className="rounded-lg border border-border p-3 text-sm">{savedMessage}</p>}
     <p role="status" className="text-sm text-muted-foreground">
       {loading ? "Consultando usuários…" : error ? "Consulta unificada indisponível." :
         response ? `${response.total.toLocaleString("pt-BR")} usuário(s) · página ${page + 1} · até ${LIST_SIZE} por página` :
@@ -238,12 +265,18 @@ function UnifiedUsersList({ role, openAccount }: {
       <p className="rounded-lg border border-border p-4 text-sm">Nenhum usuário encontrado neste filtro.</p>}
     <ul className="grid min-w-0 gap-3">
       {response?.items.map((item) => {
-        const technician = item.record_key.startsWith("registry:") ||
-          item.record_key.startsWith("portal:");
-        const history = item.record_key.startsWith("wp:") ||
-          item.record_key.startsWith("legacy-account:");
+        const editableRegistryKey = item.auth_user_id === null && item.roles.includes("tecnico") &&
+          item.user_key === item.record_key && /^registry:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.record_key)
+            ? item.record_key : null;
+        const portalId = item.record_key.startsWith("portal:") ? item.record_key.slice(7) : "";
+        const portalTarget = UUID.test(portalId) && item.auth_user_id && UUID.test(item.auth_user_id) &&
+          item.user_key === "account:" + item.auth_user_id && item.roles.includes("tecnico")
+          ? { type: "portal" as const, id: portalId.toLowerCase() } : null;
+        const legacyTarget = item.user_key === item.record_key ? historicalTarget(item.record_key) : null;
+        const canManageAccount = item.auth_user_id && UUID.test(item.auth_user_id) &&
+          item.user_key === "account:" + item.auth_user_id;
         const linked = [...(item.linked_imports ?? []), ...(item.linked_legacy_accounts ?? []), ...(item.profiles ?? [])];
-        const managementSection = technician ? "tecnicos" : history ? "legado" : null;
+
         return <li key={item.user_key} className="min-w-0 rounded-xl border border-border bg-card p-4">
           <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
@@ -271,23 +304,50 @@ function UnifiedUsersList({ role, openAccount }: {
               <p className="break-all">{entry.role || entry.status || "Cadastro vinculado"}</p>
               {entry.email && <p className="break-all">E-mail: {entry.email}</p>}
               {entry.phone && <p className="break-all">Telefone: {entry.phone}</p>}
-              {entry.profiles?.map((profile, profileIndex) => <p key={profile.record_key || String(profileIndex)}
-                className="mt-1 break-all">{profile.record_key || "Perfil"} · {profile.name || "Sem nome"}
-                {profile.phone ? ` · ${profile.phone}` : ""}{profile.email ? ` · ${profile.email}` : ""}</p>)}
+              {historicalTarget(entry.record_key) && <button type="button"
+                onClick={() => { const target = historicalTarget(entry.record_key); if (target) openTarget(target); }}
+                className="mt-2 min-h-10 rounded-lg border border-input px-2 font-semibold">Abrir ficha histórica vinculada</button>}
+              {entry.profiles?.map((profile, profileIndex) => {
+                const target = historicalTarget(profile.record_key);
+                return <div key={profile.record_key || String(profileIndex)} className="mt-1 break-all">
+                  {profile.record_key || "Perfil"} · {profile.name || "Sem nome"}
+                  {profile.phone ? ` · ${profile.phone}` : ""}{profile.email ? ` · ${profile.email}` : ""}
+                  {target && <button type="button" onClick={() => openTarget(target)}
+                    className="ml-2 min-h-10 rounded-lg border border-input px-2 font-semibold">Abrir ficha histórica vinculada</button>}
+                </div>;
+              })}
             </div>)}
           </details>}
           <div className="mt-3 flex flex-wrap gap-2">
-            {item.auth_user_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.auth_user_id) &&
-              <button type="button" onClick={() => openAccount(item.auth_user_id!)}
+            {canManageAccount &&
+              <button type="button" onClick={() => openTarget({ type: "account", id: item.auth_user_id! })}
                 className="min-h-11 rounded-lg border border-primary/40 bg-primary/10 px-3 text-sm font-semibold text-primary">
                 Gerenciar conta
               </button>}
-            {managementSection &&
-              <a href={`/admin/${managementSection}?busca=${encodeURIComponent(item.name)}`}
-                className="inline-flex min-h-11 items-center rounded-lg border border-input px-3 text-sm font-semibold hover:bg-accent">
-                {technician ? "Abrir gestão de técnicos" : "Abrir acervo histórico"}
-              </a>}
+            {editableRegistryKey && <button type="button"
+              aria-expanded={editingRegistryKey === editableRegistryKey}
+              onClick={() => setEditingRegistryKey((current) =>
+                current === editableRegistryKey ? null : editableRegistryKey)}
+              className="min-h-11 rounded-lg border border-primary/40 px-3 text-sm font-semibold text-primary">
+              {editingRegistryKey === editableRegistryKey ? "Fechar edição" : "Editar ficha"}
+            </button>}
+            {portalTarget && <button type="button" onClick={() => openTarget(portalTarget)}
+              className="min-h-11 rounded-lg border border-input px-3 text-sm font-semibold hover:bg-accent">Gerenciar ficha técnica</button>}
+            {legacyTarget && <button type="button" onClick={() => openTarget(legacyTarget)}
+              className="min-h-11 rounded-lg border border-input px-3 text-sm font-semibold hover:bg-accent">Gerenciar ficha histórica</button>}
           </div>
+          {editableRegistryKey && editingRegistryKey === editableRegistryKey &&
+            <Suspense fallback={<p role="status" className="mt-2 text-sm">Abrindo editor auditado…</p>}>
+              <AdminRegistryRecordInlineEditor key={editableRegistryKey}
+                recordKey={editableRegistryKey} name={item.name}
+                onCancel={() => setEditingRegistryKey(null)}
+                onSaved={(message) => {
+                  setEditingRegistryKey(null);
+                  setSavedMessage(message);
+                  setResponse(null);
+                  setRefresh((value) => value + 1);
+                }} />
+            </Suspense>}
           {item.record_key.startsWith("imported:") && !item.auth_user_id &&
             <p className="mt-2 text-xs text-muted-foreground">
               Este cadastro importado ainda não possui vínculo com um editor específico. A consulta é somente leitura.
@@ -297,7 +357,11 @@ function UnifiedUsersList({ role, openAccount }: {
     </ul>
     <div className="flex flex-wrap justify-between gap-2">
       <button type="button" disabled={loading || page === 0}
-        onClick={() => setPage((value) => Math.max(0, value - 1))}
+        onClick={() => {
+          setEditingRegistryKey(null);
+          setSavedMessage(null);
+          setPage((value) => Math.max(0, value - 1));
+        }}
         className="min-h-11 rounded-lg border border-input px-4 text-sm font-semibold disabled:opacity-40">
         Anterior
       </button>
@@ -309,28 +373,34 @@ function UnifiedUsersList({ role, openAccount }: {
   </section>;
 }
 
-export function AdminUsersHub(_props: { adminOwnerId: string }) {
+export function AdminUsersHub({ adminOwnerId }: { adminOwnerId: string }) {
   const [tab, setTab] = useState<UserTab>("todos");
-  const [managedAccountId, setManagedAccountId] = useState<string | null>(null);
+  const [managedTarget, setManagedTarget] = useState<ManagedTarget | null>(null);
+  const [returnRevision, setReturnRevision] = useState(0);
+  function closeManagement() {
+    setManagedTarget(null);
+    setReturnRevision((value) => value + 1);
+  }
   useEffect(() => {
-    const syncTabFromUrl = () => setTab(validUserTab(new URLSearchParams(window.location.search).get("perfil")));
+    const syncTabFromUrl = () => {
+      setManagedTarget(null);
+      setTab(validUserTab(new URLSearchParams(window.location.search).get("perfil")));
+    };
     syncTabFromUrl();
     window.addEventListener("popstate", syncTabFromUrl);
     return () => window.removeEventListener("popstate", syncTabFromUrl);
   }, []);
-  function selectTab(next: UserTab, accountId?: string) {
-    setManagedAccountId(null);
+  function selectTab(next: UserTab) {
+    setManagedTarget(null);
     setTab(next);
     const url = new URL(window.location.href);
     if (next === "todos") url.searchParams.delete("perfil");
     else url.searchParams.set("perfil", next);
-    if (accountId) url.searchParams.set("registro", accountId);
-    else url.searchParams.delete("registro");
+    url.searchParams.delete("registro");
     window.history.replaceState(window.history.state, "", url);
   }
   function openManagedAccount(id: string) {
-    selectTab("todos", id);
-    setManagedAccountId(id);
+    if (UUID.test(id)) setManagedTarget({ type: "account", id: id.toLowerCase() });
   }
   function onTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, current: UserTab) {
     const index = USER_TABS.findIndex((item) => item.key === current);
@@ -370,19 +440,28 @@ export function AdminUsersHub(_props: { adminOwnerId: string }) {
         {item.label}</button>)}
     </div>
     <div id="eut-users-panel" role="tabpanel" aria-labelledby={`eut-user-tab-${tab}`} className="min-w-0">
-      {tab === "todos" && (managedAccountId
-        ? <section className="space-y-3" aria-label="Gerenciar conta selecionada">
-          <button type="button" onClick={() => selectTab("todos")}
-            className="min-h-11 rounded-lg border border-input px-4 text-sm font-semibold">
-            Voltar ao diretório de usuários
-          </button>
-          <AdminAccountsManager key={managedAccountId} initialFilter="todos" lockFilter initialLayout="table" />
-        </section>
-        : <UnifiedUsersList key="todos" role="todos" openAccount={openManagedAccount} />)}
-      {tab === "admins" && <AdminUsersList openAccount={openManagedAccount} />}
-      {tab === "clientes" && <UnifiedUsersList key="clientes" role="cliente" openAccount={openManagedAccount} />}
-      {tab === "tecnicos" && <UnifiedUsersList key="tecnicos" role="tecnico" openAccount={openManagedAccount} />}
+      {tab === "todos" && <UnifiedUsersList key="todos" role="todos" openTarget={setManagedTarget} returnRevision={returnRevision} />}
+      {tab === "admins" && <AdminUsersList openAccount={openManagedAccount} returnRevision={returnRevision} />}
+      {tab === "clientes" && <UnifiedUsersList key="clientes" role="cliente" openTarget={setManagedTarget} returnRevision={returnRevision} />}
+      {tab === "tecnicos" && <UnifiedUsersList key="tecnicos" role="tecnico" openTarget={setManagedTarget} returnRevision={returnRevision} />}
     </div>
+    <Dialog open={managedTarget !== null} onOpenChange={(open) => { if (!open) closeManagement(); }}>
+      <DialogContent className="max-h-[90dvh] w-[calc(100%_-_2rem)] max-w-4xl overflow-y-auto p-4 sm:p-6"
+        onCloseAutoFocus={(event) => { event.preventDefault(); document.getElementById(`eut-user-tab-${tab}`)?.focus(); }}>
+        <DialogTitle>Gerenciar cadastro selecionado</DialogTitle>
+        <DialogDescription>Consulta individual por identificador; ao fechar você retorna à mesma aba e aos filtros atuais.</DialogDescription>
+        <Suspense fallback={<p role="status">Abrindo módulo administrativo…</p>}>
+          {managedTarget?.type === "account" &&
+            <AdminAccountsManager key={managedTarget.id} exactAccountId={managedTarget.id} onUpdated={() => setReturnRevision((value) => value + 1)} initialFilter="todos" lockFilter initialLayout="table" />}
+          {managedTarget?.type === "portal" &&
+            <AdminTechnicianManager key={managedTarget.id} adminOwnerId={adminOwnerId} selectedTechnicianId={managedTarget.id} onUpdated={() => setReturnRevision((value) => value + 1)} />}
+          {managedTarget?.type === "legacy" &&
+            <LegacyReviewQueue key={managedTarget.kind + managedTarget.id} exactRecord={managedTarget} onUpdated={() => setReturnRevision((value) => value + 1)}
+              onlyTechnicians={managedTarget.kind === "candidate"} onlyClients={managedTarget.kind === "employer"} />}
+        </Suspense>
+        <button type="button" onClick={closeManagement} className="min-h-11 rounded-lg border border-input px-4 text-sm font-semibold">Voltar ao diretório de usuários</button>
+      </DialogContent>
+    </Dialog>
     <details className="rounded-xl border border-border bg-card p-4">
       <summary className="cursor-pointer text-sm font-bold">Ferramentas administrativas complementares</summary>
       <p className="mt-3 text-sm leading-6 text-muted-foreground">

@@ -7,6 +7,7 @@ const mockDb = vi.hoisted(() => ({
   actions: [] as Array<Record<string, unknown>>,
   checks: [] as string[],
   delayNextSnapshot: null as Promise<void> | null,
+  persistAction: true,
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({
@@ -33,7 +34,7 @@ vi.mock("@/integrations/supabase/client", () => ({
         mockDb.actions.push(args);
         const target = mockDb.accounts.find((row) => row["id"] === args["_user_id"]);
         if (!target) return { data: null, error: { message: "not_found" } };
-        target["blocked_account"] = args["_action"] === "block_account";
+        if (mockDb.persistAction) target["blocked_account"] = args["_action"] === "block_account";
         return { data: { ok: true, action: args["_action"] }, error: null };
       }
       throw new Error(`Unexpected RPC: ${name}`);
@@ -60,6 +61,7 @@ beforeEach(() => {
   mockDb.actions = [];
   mockDb.checks = [];
   mockDb.delayNextSnapshot = null;
+  mockDb.persistAction = true;
   vi.spyOn(window, "confirm").mockReturnValue(true);
   window.history.replaceState({}, "", "/admin/clientes");
 });
@@ -197,4 +199,46 @@ describe("moderação administrativa em lote", () => {
     expect(mockDb.actions).toHaveLength(0);
   });
 
+});
+
+describe("gestão individual por UUID", () => {
+  const id = "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb";
+  it("ignora o homônimo retornado por busca parcial e só escreve a conta exata", async () => {
+    mockDb.accounts = [account("cccccccc-cccc-4ccc-cccc-cccccccccccc", "Outra conta " + id), account(id, "Conta exata")];
+    render(<AdminAccountsManager exactAccountId={id} initialLayout="table" />);
+    expect(await screen.findByText("Conta exata")).toBeInTheDocument();
+    expect(screen.queryByText("Outra conta " + id)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Restringir número" })).toBeNull();
+    expect(screen.queryByLabelText("Pesquisar contas")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Banir conta" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Motivo administrativo obrigatório" }), { target: { value: "Teste sintético da conta exata" } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar e registrar" }));
+    await waitFor(() => expect(mockDb.actions).toHaveLength(1));
+    expect(mockDb.actions[0]).toMatchObject({ _user_id: id, _action: "block_account" });
+    expect(await screen.findByText("Conta banida")).toBeInTheDocument();
+  });
+  it("não declara moderação bem-sucedida quando a releitura contradiz a resposta de escrita", async () => {
+    mockDb.persistAction = false;
+    render(<AdminAccountsManager exactAccountId={id} initialLayout="table" />);
+    await screen.findByText("Cliente Um");
+    fireEvent.click(screen.getByRole("button", { name: "Banir conta" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Motivo administrativo obrigatório" }), { target: { value: "Teste sintético sem persistência" } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar e registrar" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("não foi confirmada pela releitura");
+    expect(screen.queryByText(/operação confirmada e auditada/)).toBeNull();
+    expect(mockDb.actions).toHaveLength(1);
+  });
+  it("não libera controles se a conta exata não existir no resultado", async () => {
+    mockDb.accounts = [account("cccccccc-cccc-4ccc-cccc-cccccccccccc", "Outra conta " + id)];
+    render(<AdminAccountsManager exactAccountId={id} initialLayout="table" />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Conta exata não localizada");
+    expect(screen.queryByRole("button", { name: "Banir conta" })).toBeNull();
+    expect(mockDb.actions).toHaveLength(0);
+  });
+  it("mantém um administrador protegido mesmo quando seu UUID está confirmado", async () => {
+    render(<AdminAccountsManager exactAccountId="aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa" initialLayout="table" />);
+    expect(await screen.findByText("Administrador protegido")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Editar nome" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Banir conta" })).toBeNull();
+  });
 });
