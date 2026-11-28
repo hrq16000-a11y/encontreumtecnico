@@ -21,6 +21,7 @@ import { AdminMemberInvites } from "@/components/admin-member-invites";
 import { AdminAccountsManager } from "@/components/admin-accounts-manager";
 import { AdminContactsDashboard } from "@/components/admin-contacts-dashboard";
 import { AdminClientInsights } from "@/components/admin-client-insights";
+import { AdminImportedClients } from "@/components/admin-imported-clients";
 import { AdminUsersHub } from "@/components/admin-users-hub";
 import { adminModuleTitle, type AdminSection } from "@/lib/admin-sections";
 import { ArrowRight, ClipboardList, ChartNoAxesCombined, Tags, UsersRound } from "lucide-react";
@@ -137,8 +138,10 @@ export function AdminWorkspace({ section }: { section: AdminSection }) {
               <nav aria-label="Navegação entre cadastros de clientes" className="mt-4 flex flex-wrap gap-2">
                 <a href="#admin-clientes-contas" className="inline-flex min-h-11 items-center rounded-lg border border-input px-4 text-sm font-semibold">Contas e ações em massa</a>
                 <a href="#admin-clientes-historicos" className="inline-flex min-h-11 items-center rounded-lg border border-input px-4 text-sm font-semibold">Fichas de clientes</a>
+                <a href="#admin-clientes-unificados" className="inline-flex min-h-11 items-center rounded-lg border border-input px-4 text-sm font-semibold">Clientes da base unificada</a>
               </nav>
               <AdminClientInsights />
+              <AdminImportedClients />
               <div id="admin-clientes-historicos" className="mt-6 scroll-mt-24" aria-label="Gestão de fichas de clientes">
                 <LegacyReviewQueue onlyClients />
               </div>
