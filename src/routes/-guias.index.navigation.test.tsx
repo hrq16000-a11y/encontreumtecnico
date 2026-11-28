@@ -56,7 +56,7 @@ describe("Guias: caminhos contextuais para técnicos e atendimento", () => {
         .toHaveProperty("type", "button");
       expect(events).toHaveLength(0);
       fireEvent.click(screen.getByRole("button", { name: "Pedir orientação da equipe" }));
-      expect(events).toEqual([{ mode: "managed", service: "Outro serviço" }]);
+      expect(events).toEqual([{ mode: "managed", service: "Outro serviço", sourcePath: window.location.pathname, placement: "contextual-cta" }]);
       expect(screen.getByText(/Nenhum pedido é enviado sem sua confirmação/)).toBeTruthy();
     } finally {
       window.removeEventListener("eut-open-free-help", listener);

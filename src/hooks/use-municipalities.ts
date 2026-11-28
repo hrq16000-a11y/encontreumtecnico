@@ -45,7 +45,9 @@ export function useMunicipalities(uf: string) {
         throw error;
       }));
     }
-    void cache.get(uf)!.then((cities) => {
+    const pending = cache.get(uf);
+    if (!pending) return () => { alive = false; };
+    void pending.then((cities) => {
       if (alive) setState({ uf, cities, loading: false, error: false });
     }).catch(() => {
       if (alive) setState({ uf, cities: [], loading: false, error: true });

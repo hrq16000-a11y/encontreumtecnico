@@ -27,12 +27,12 @@ describe("Busca compacta: filtros e perfis com privacidade", () => {
   });
 
   it("mantém os debounced filters montados, e não perde as regras de URL e região", () => {
-    expect(page).toContain('technicianSearchAfterUfChange(e.target.value, search.prioridade)');
+    expect(page).toContain('technicianSearchAfterUfChange(value, search.prioridade)');
     expect(page).toContain('key={`filtro-cidade-${search.uf}-${filterResetRevision}`}');
     expect(page).toContain('key={`filtro-bairro-${search.uf}-${filterResetRevision}`}');
     expect(page).toContain('key={`filtro-regiao-${search.uf}-${filterResetRevision}`}');
-    expect(page).toContain('trackFilter("especialidade", e.target.value)');
-    expect(page).toContain('trackFilter("uf", e.target.value)');
+    expect(page).toContain('trackFilter("especialidade", value)');
+    expect(page).toContain('trackFilter("uf", value)');
     expect(page).toContain('prioridade: event.target.checked ? "regiao" : ""');
     expect(page).toContain('localMatchLabel(t,');
     expect(page).toContain('listApprovedTechnicians({ data: deps })');
@@ -41,7 +41,7 @@ describe("Busca compacta: filtros e perfis com privacidade", () => {
     const clearStart = page.indexOf('const clearAllFilters =');
     const clearAction = page.slice(clearStart, page.indexOf('return (', clearStart));
     expect(clearAction).toContain('clearDirectoryPendingFilters();');
-    expect(clearAction).toContain('setServiceQuery("");');
+    expect(clearAction).toContain('update({ especialidade: "Todas", servico: "", uf: "", cidade: "", bairro: "", regiao: "", prioridade: "" });');
     expect(clearAction).toContain('setFilterResetRevision(value => value + 1)');
     expect(page).toContain('setShowAdvanced(true)');
   });
