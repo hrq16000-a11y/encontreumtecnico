@@ -20,6 +20,9 @@ const { chromium } = require("playwright");
         const base = process.env.EUT_BASE_URL || "http://127.0.0.1:4173";
         const response = await page.goto(base + "/contato", { waitUntil: "domcontentloaded", timeout: 60000 });
         assert(response && response.ok(), "contact candidate not available");
+        await page.waitForLoadState("networkidle", { timeout: 60000 });
+        // Vite dev SSR sends HTML before the client route is hydrated.
+        await page.waitForTimeout(1200);
         const trigger = page.getByRole("button", { name: "Pedir ajuda ao portal", exact: true });
         await trigger.waitFor({ state: "visible", timeout: 30000 });
         await trigger.scrollIntoViewIfNeeded();
@@ -64,6 +67,10 @@ const { chromium } = require("playwright");
         assert(await trigger.evaluate(el => document.activeElement === el), "focus not returned");
         assert(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 4), "horizontal overflow");
         console.log("R18 candidate PASS", width, "context, keyboard, UF, Escape, focus, scroll, reduced motion; no submission");
+      } catch (error) {
+        console.error("R18 candidate failed at width", width, "URL", page.url());
+        await page.screenshot({ path: "artifacts/eut-r18/" + width + "-failure.png" }).catch(() => {});
+        throw error;
       } finally { await context.close(); }
     }
   } finally { await browser.close(); }
