@@ -16,7 +16,7 @@ const normalized = (text: string) =>
   text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 const SIGNALS: Record<(typeof CATALOG_CATEGORIES)[number], string[]> = {
-  computadores: ["computador", "notebook", "laptop", "pc", "hardware", "placa mae", "memoria ram", "nao liga", "tela azul"],
+  computadores: ["computador", "notebook", "laptop", "pc", "hardware", "placa mae", "memoria ram", "tela azul"],
   software: ["windows", "formatar", "formatacao", "sistema operacional", "virus", "malware", "instalar programa", "software", "aplicativo", "backup"],
   redes: ["internet", "wi-fi", "wifi", "roteador", "rede sem fio", "fibra optica", "conectividade", "cabeamento", "switch"],
   impressoras: ["impressora", "impressao", "toner", "cartucho", "scanner", "multifuncional", "xerox"],
@@ -65,7 +65,7 @@ export function triageLocally(description: string): LocalTriage {
     ),
   })).sort((a, b) => b.matches.length - a.matches.length || a.order - b.order);
   const best = ranked[0] ?? { category: "Todas", matches: [] as string[] };
-  const hasMatch = best.matches.length > 0;
+  const hasMatch = best.matches.length > 0 && best.matches.length > (ranked[1]?.matches.length ?? 0);
   const location = extractDeclaredLocation(description);
   return {
     ok: true,
