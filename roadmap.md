@@ -1,5 +1,9 @@
 # Roadmap (uma micro-rodada por vez)
 
+## Pilar 1 — rodada documental autorizada em 28/11/2026
+- [ ] Consolidar contrato, inventário com evidências, lacunas e escopo da Rodada 2; sem alterar runtime, dados ou publicação.
+- [ ] Confirmar sincronização do contrato com GitHub (não confundir gravação local com commit remoto).
+
 - [x] Salvar buscas consentidas no Supabase e mostrar gráficos administrativos (busca real salva; visualização autenticada aguarda primeiro acesso)
 - [x] Preparar publicação com metadados CFTV/informática e sitemap validado
 - [x] Entregar planilha revisada com emails originais e cidades ausentes sinalizadas
