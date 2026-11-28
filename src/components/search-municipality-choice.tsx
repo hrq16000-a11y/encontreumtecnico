@@ -31,7 +31,7 @@ export function SearchMunicipalityChoice({ id, uf, city, onChange }: {
       {city && <Button variant="ghost" type="button" className="mt-1 min-h-11" onClick={() => onChange("", uf)}>Todas as cidades</Button>}
     </> : <DebouncedTextFilter id={id} label="Cidade" value={city}
       placeholder={uf ? "Digite a cidade" : "Ex.: São Paulo"}
-      onCommit={value => onChange(value, uf)} />}
+      onCommit={value => onChange(value, uf)} onBlurTrack={() => {}} />}
     {loading && <p role="status" className="mt-1 text-xs text-muted-foreground">Carregando municípios…</p>}
     {!uf && <p className="mt-1 text-xs text-muted-foreground">Selecione a UF para confirmar cidades de mesmo nome.</p>}
     {error && <div role="alert" className="mt-1 text-sm text-destructive">Lista indisponível; a busca manual continua disponível. <Button variant="link" type="button" className="min-h-11" onClick={retry}>Tentar novamente</Button></div>}

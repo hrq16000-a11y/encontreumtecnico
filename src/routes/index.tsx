@@ -14,6 +14,10 @@ import { ProblemAssistant } from "../components/problem-assistant";
 import { safeNeighborhood } from "@/lib/location-labels";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { readUiTextDraft, saveUiTextDraft } from "@/lib/unsent-ui-draft";
+import { SearchableChoice } from "@/components/ui/searchable-choice";
+import { SearchMunicipalityChoice } from "@/components/search-municipality-choice";
+import { useActiveCategories } from "@/hooks/use-active-categories";
+import { BRAZIL_STATES, BRAZIL_STATE_NAMES } from "@/lib/service-taxonomy";
 import {
   CategoryGrid,
   HowItWorksRich,
@@ -25,7 +29,7 @@ import {
 import { CanaisDeAtendimento, FindOneSection, JoinNetworkSection, CtaBand, ValuesSection, StepsSection } from "../components/home-sections";
 
 const SITE = "https://www.encontreumtecnico.com.br";
-const TITLE = "Encontre um Técnico — Portal nacional de técnicos de CFTV e informática, sem custo para o profissional";
+const TITLE = "Encontre um Técnico — CFTV e informática em todo o Brasil";
 const DESC = "Portal brasileiro que conecta clientes a técnicos de CFTV, informática, redes e impressoras com transparência: cadastro livre, sem cobrança ao profissional e sem leilão de preço.";
 
 export const Route = createFileRoute("/")({
@@ -108,6 +112,7 @@ const HOME_VISUALS = [
 
 function HomePage() {
   const navigate = useNavigate();
+  const { categories, loading: categoriesLoading, error: categoriesError } = useActiveCategories();
   // Initial SSR and client render agree; the saved search is loaded only
   // after hydration, while the empty form stays hidden from the visitor.
   const [specialty, setSpecialty] = useState("");
@@ -176,7 +181,7 @@ function HomePage() {
                 <form className="mt-4 grid gap-3"
                   onSubmit={(e) => {
                     e.preventDefault();
-                    window.__lovableEvents?.track?.("project.technician_search", {
+                    if (localStorage.getItem("eut-cookie-consent") && JSON.parse(localStorage.getItem("eut-cookie-consent") || "{}").analytics === true) window.__lovableEvents?.track?.("project.technician_search", {
                       has_specialty: specialty.trim() !== "",
                       has_city: city.trim() !== "",
                     });
@@ -190,25 +195,30 @@ function HomePage() {
                   <div className="grid min-w-0 gap-3 sm:grid-cols-2">
                     <div className="min-w-0">
                       <label className="mb-1.5 block text-xs font-bold text-card-foreground" htmlFor="busca-especialidade"><span aria-hidden="true" className="mr-1.5 font-mono text-primary">01</span>Especialidade</label>
-                      <input
+                      <SearchableChoice
                         id="busca-especialidade"
-                        type="text"
                         value={specialty}
-                        onChange={(e) => { saveUiTextDraft("home", { specialty:e.target.value, city, uf:locationUf, neighborhood:locationNeighborhood }); setSpecialty(e.target.value); }}
-                        placeholder="Ex.: Computador"
-                        className="h-12 w-full min-w-0 rounded-xl border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                        options={[{ value: "", label: "Todas as especialidades" }, ...categories.map(item => ({value: item.slug, label: item.label, keywords: item.description}))]}
+                        clearOnEdit={false}
+                        onChange={(value) => { saveUiTextDraft("home", { specialty:value, city, uf:locationUf, neighborhood:locationNeighborhood }); setSpecialty(value); }}
+                        placeholder="Digite a especialidade"
+                        className="h-12 w-full min-w-0 rounded-xl border border-input bg-background px-3 text-base text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                       />
+                      {categoriesLoading && <p role="status" className="mt-1 text-xs text-muted-foreground">Carregando especialidades…</p>}
+                      {categoriesError && <p role="alert" className="mt-1 text-sm text-destructive">Especialidades indisponíveis; busque por cidade.</p>}
                     </div>
                     <div className="min-w-0">
-                      <label className="mb-1.5 block text-xs font-bold text-card-foreground" htmlFor="busca-cidade"><span aria-hidden="true" className="mr-1.5 font-mono text-primary">02</span>Município</label>
-                      <input
+                      <label className="mb-1.5 block text-xs font-bold text-card-foreground" htmlFor="busca-uf">Estado (UF)</label>
+                      <SearchableChoice id="busca-uf" value={locationUf} clearOnEdit={false}
+                        options={[{value: "", label: "Todos os estados"}, ...BRAZIL_STATES.map(uf => ({value: uf, label: `${BRAZIL_STATE_NAMES[uf]} (${uf})`, displayLabel: uf}))]}
+                        onChange={uf => { if (uf === locationUf) return; cityEditedByUser.current = true; setLocationUf(uf); setCity(""); setLocationNeighborhood(""); saveUiTextDraft("home", {specialty, city:"", uf, neighborhood:""}); }}
+                        className="h-12 w-full rounded-xl border border-input bg-background px-3 text-base text-foreground focus-visible:ring-2 focus-visible:ring-ring" />
+                    </div>
+                    <div className="min-w-0 sm:col-span-2">
+                      <SearchMunicipalityChoice
                         id="busca-cidade"
-                        type="text"
-                        value={city}
-                        onChange={(e) => { cityEditedByUser.current = true; saveUiTextDraft("home", { specialty, city:e.target.value, uf:"", neighborhood:"" }); setCity(e.target.value); setLocationUf(""); setLocationNeighborhood(""); }}
-                        placeholder="Município (ex.: São José dos Pinhais)"
-                        className="h-12 w-full min-w-0 rounded-xl border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                      />
+                        uf={locationUf} city={city}
+                        onChange={(cidade, uf) => { cityEditedByUser.current = true; setCity(cidade); setLocationUf(uf); setLocationNeighborhood(""); saveUiTextDraft("home", {specialty, city:cidade, uf, neighborhood:""}); }} />
                     </div>
                   </div>
                   <button
