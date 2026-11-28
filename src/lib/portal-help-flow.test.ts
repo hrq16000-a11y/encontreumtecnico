@@ -43,7 +43,8 @@ describe("Contato do portal apenas pelo funil guiado", () => {
   });
 
   it("preserva rascunho do atendimento e só oferece WhatsApp após registrar pedido", () => {
-    expect(funnel).toContain('restored?.problem || context.initialProblem || ""');
+    expect(funnel).toContain('restored ? restored.problem : context.initialProblem || ""');
+    expect(funnel).toContain('readAssistanceDraft(draftScope)');
     expect(funnel.indexOf('await supabase.from("contact_messages").insert(lead)')).toBeGreaterThan(0);
     expect(funnel.indexOf('setSavedWhatsAppLead(lead)')).toBeGreaterThan(
       funnel.indexOf('await supabase.from("contact_messages").insert(lead)'),
