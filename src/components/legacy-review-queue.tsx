@@ -28,9 +28,12 @@ const FIELDS = "source_key,wp_post_id,wp_user_id,kind,slug,title,specialty_title
 const db = supabase as unknown as SupabaseClient;
 
 /** WordPress source remains immutable; only an audited, admin-owned review overlay is edited. */
-export function LegacyReviewQueue({ onlyTechnicians = false, onlyClients = false }:
-  { onlyTechnicians?: boolean; onlyClients?: boolean } = {}) {
-  const [kind, setKind] = useState<LegacyKind>(onlyClients ? "employer" : "candidate");
+export function LegacyReviewQueue({ onlyTechnicians = false, onlyClients = false, exactRecord, onUpdated }:
+  { onlyTechnicians?: boolean; onlyClients?: boolean; exactRecord?: { kind: LegacyKind; id: number }; onUpdated?: () => void } = {}) {
+  const exactMode = exactRecord !== undefined;
+  const exactId = exactRecord && Number.isSafeInteger(exactRecord.id) && exactRecord.id > 0 &&
+    (exactRecord.kind === "candidate" || exactRecord.kind === "employer") ? exactRecord.id : null;
+  const [kind, setKind] = useState<LegacyKind>(exactRecord?.kind ?? (onlyClients ? "employer" : "candidate"));
   const [draft, setDraft] = useState(() => typeof window === "undefined" ? "" :
     new URLSearchParams(window.location.search).get("busca")?.slice(0, 100) ?? "");
   const [term, setTerm] = useState(() => normalizeLegacyReviewSearch(draft));
@@ -55,13 +58,19 @@ export function LegacyReviewQueue({ onlyTechnicians = false, onlyClients = false
     async function load() {
       setLoading(true);
       setError(null);
+      if (exactMode) { setRows([]); setManaged({}); setAction(null); setSelected([]); }
+      if (exactMode && !exactId) {
+        setTotal(0); setError("Identificador histórico inválido. Nenhuma edição foi liberada.");
+        setLoading(false); return;
+      }
       let query = db.from("legacy_review_profiles")
         .select(FIELDS, { count: "exact" }).eq("source_key", "wordpress_20261108").eq("kind", kind);
-      if (term) query = query.ilike("title", `%${term}%`);
+      if (exactMode) query = query.eq("wp_post_id", exactId!);
+      else if (term) query = query.ilike("title", `%${term}%`);
       const { data, error: readError, count } = await query
         .order(order === "name" ? "title" : "imported_at", { ascending: order === "name" || order === "oldest" })
         .order("wp_post_id", { ascending: order === "oldest" })
-        .range(page * LEGACY_REVIEW_PAGE_SIZE, (page + 1) * LEGACY_REVIEW_PAGE_SIZE - 1);
+        .range(exactMode ? 0 : page * LEGACY_REVIEW_PAGE_SIZE, exactMode ? 0 : (page + 1) * LEGACY_REVIEW_PAGE_SIZE - 1);
       if (!current) return;
       if (readError) {
         setRows([]); setManaged({}); setTotal(0);
@@ -69,7 +78,13 @@ export function LegacyReviewQueue({ onlyTechnicians = false, onlyClients = false
         setLoading(false);
         return;
       }
-      const list = (data ?? []) as LegacyProfile[];
+      const candidates = (data ?? []) as LegacyProfile[];
+      const list = exactMode ? candidates.filter((row) => row.wp_post_id === exactId &&
+        row.kind === kind && row.source_key === "wordpress_20261108") : candidates;
+      if (exactMode && list.length !== 1) {
+        setTotal(0); setError("Ficha histórica exata não localizada. Nenhuma edição foi liberada.");
+        setLoading(false); return;
+      }
       const ids = list.map((item) => item.wp_post_id);
       const overlay = ids.length
         ? await db.from(kind === "candidate" ? "eut_legacy_profile_management" : "eut_legacy_employer_management")
@@ -81,15 +96,15 @@ export function LegacyReviewQueue({ onlyTechnicians = false, onlyClients = false
         setError("Não foi possível consultar os estados de gestão destas fichas.");
         setRows([]); setManaged({}); setTotal(0);
       } else {
-        setRows(list); setTotal(count ?? 0);
+        setRows(list); setTotal(exactMode ? 1 : count ?? 0);
         setManaged(Object.fromEntries(((overlay.data ?? []) as Managed[])
           .map((item) => [item.wp_post_id, item])));
       }
       setLoading(false);
     }
-    void load();
+    void load().catch(() => { if (current) { setRows([]); setManaged({}); setTotal(0); setError("Falha na consulta histórica."); setLoading(false); } });
     return () => { current = false; };
-  }, [kind, page, term, order, version]);
+  }, [kind, page, term, order, version, exactMode, exactId]);
 
   function submitSearch(event: FormEvent) {
     event.preventDefault();
@@ -98,6 +113,7 @@ export function LegacyReviewQueue({ onlyTechnicians = false, onlyClients = false
   }
 
   function chooseAction(ids: number[], type: Action) {
+    if (loading || (exactMode && (ids.length !== 1 || ids[0] !== exactId || !rows.some((row) => row.wp_post_id === exactId)))) return;
     if (!ids.length || ids.length > 20) {
       setFeedback("Escolha de 1 a 20 fichas para esta ação.");
       return;
@@ -123,7 +139,7 @@ export function LegacyReviewQueue({ onlyTechnicians = false, onlyClients = false
 
   async function runAction(event: FormEvent) {
     event.preventDefault();
-    if (!action || busy) return;
+    if (!action || busy || loading || (exactMode && (action.ids.length !== 1 || action.ids[0] !== exactId || !rows.some((row) => row.wp_post_id === exactId)))) return;
     if (reason.trim().length < 8 || reason.length > 400) {
       setFeedback("Informe um motivo com 8 a 400 caracteres.");
       return;
@@ -144,7 +160,7 @@ export function LegacyReviewQueue({ onlyTechnicians = false, onlyClients = false
       setVersion((n) => n + 1);
     } catch (e) {
       setFeedback("Operação não concluída. " + (e instanceof Error ? e.message.slice(0, 230) : "Tente novamente."));
-    } finally { setBusy(false); }
+    } finally { setBusy(false); if (exactMode) onUpdated?.(); }
   }
 
   const stateOf = (id: number) => managed[id]?.record_state ?? "pendente";
@@ -174,27 +190,27 @@ export function LegacyReviewQueue({ onlyTechnicians = false, onlyClients = false
       </div>
       <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary">Até 20 por lote</span>
     </div>
-    {!onlyTechnicians && !onlyClients && <div role="group" aria-label="Tipo de cadastro histórico" className="mt-5 flex flex-wrap gap-2">
+    {!exactMode && !onlyTechnicians && !onlyClients && <div role="group" aria-label="Tipo de cadastro histórico" className="mt-5 flex flex-wrap gap-2">
       {([{value:"candidate",label:"Técnicos"},{value:"employer",label:"Contratantes"}] as const).map((item) =>
         <button key={item.value} type="button" aria-pressed={kind===item.value}
           onClick={() => { setKind(item.value); setPage(0); setSelected([]); setExpanded([]); setAction(null); }}
           className={"min-h-11 rounded-xl border px-4 text-sm font-semibold " +
             (kind===item.value?"bg-primary text-primary-foreground":"border-input text-foreground hover:bg-accent")}>{item.label}</button>)}
     </div>}
-    <form onSubmit={submitSearch} className="mt-4 flex flex-col gap-2 sm:flex-row">
+    {!exactMode && <form onSubmit={submitSearch} className="mt-4 flex flex-col gap-2 sm:flex-row">
       <label className="sr-only" htmlFor="legacy-review-search">Buscar nome histórico</label>
       <input id="legacy-review-search" value={draft} maxLength={100} onChange={(e)=>setDraft(e.target.value)}
         placeholder="Buscar pelo nome" className="min-h-12 flex-1 rounded-xl border border-input bg-background px-4 text-foreground" />
       <button type="submit" className="min-h-12 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground">Buscar</button>
-    </form>
-    <label className="mt-3 flex max-w-xs flex-col gap-1 text-sm font-semibold">Ordenar entradas históricas
+    </form>}
+    {!exactMode && <label className="mt-3 flex max-w-xs flex-col gap-1 text-sm font-semibold">Ordenar entradas históricas
       <select value={order} onChange={(event) => { setOrder(event.target.value as typeof order); setPage(0); setSelected([]); }}
         className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm">
         <option value="recent">Importações recentes primeiro</option>
         <option value="oldest">Importações antigas primeiro</option>
         <option value="name">Nome A–Z</option>
       </select>
-    </label>
+    </label>}
     <p className="mt-1 text-xs text-muted-foreground">A data de importação não representa a data de cadastro original.</p>
     {error && <p role="alert" className="mt-4 rounded-xl border border-destructive/30 p-4 text-sm text-destructive">{error}</p>}
     {feedback && <p role="status" className="mt-4 rounded-xl border border-border bg-muted p-4 text-sm text-foreground">{feedback}</p>}
@@ -202,7 +218,7 @@ export function LegacyReviewQueue({ onlyTechnicians = false, onlyClients = false
       {loading ? "Consultando registros…" : `${total} ficha(s) encontrada(s) · página ${page+1}`}
     </p>
     {!loading && rows.length > 0 && <>
-      <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/30 p-3">
+      {!exactMode && <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/30 p-3">
         <button type="button" disabled={!selectable.length} onClick={() => setSelected(allSelected ? [] : selectable)}
           aria-pressed={allSelected} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-input bg-background px-3 text-sm font-semibold text-foreground disabled:opacity-50">
           <SquareCheckBig className="h-4 w-4" /> {allSelected ? "Desmarcar página" : "Selecionar página"}
@@ -214,7 +230,7 @@ export function LegacyReviewQueue({ onlyTechnicians = false, onlyClients = false
           className="min-h-11 rounded-lg border border-input px-3 text-sm font-medium text-foreground disabled:opacity-50">Arquivar lote</button>
         <button type="button" disabled={!canRestoreSelection} onClick={() => chooseAction(selected,"restaurar")}
           className="min-h-11 rounded-lg border border-input px-3 text-sm font-medium text-foreground disabled:opacity-50">Restaurar lote</button>
-      </div>
+      </div>}
       {selected.length > 0 && <p className="mt-2 text-xs text-muted-foreground" role="status">
         Ações em lote só ficam disponíveis quando todas as fichas selecionadas permitem a operação.
         Registros de demonstração não podem ser revisados ou restaurados; arquivados não são apagados.
@@ -252,11 +268,11 @@ export function LegacyReviewQueue({ onlyTechnicians = false, onlyClients = false
           return <li key={row.wp_post_id} className={"rounded-xl border p-4 " +
             (archived?"border-amber-500/35 bg-amber-500/5":"border-border bg-background")}>
             <div className="flex items-start gap-3">
-              <input type="checkbox" checked={selected.includes(row.wp_post_id)} disabled={protectedArchive}
+              {!exactMode && <input type="checkbox" checked={selected.includes(row.wp_post_id)} disabled={protectedArchive}
                 aria-label={"Selecionar cadastro WordPress " + row.wp_post_id}
                 onChange={(e)=>setSelected((prev)=>e.target.checked
                   ? [...prev,row.wp_post_id].slice(0,20) : prev.filter((id)=>id!==row.wp_post_id))}
-                className="mt-1 h-5 w-5 shrink-0 accent-primary disabled:opacity-40" />
+                className="mt-1 h-5 w-5 shrink-0 accent-primary disabled:opacity-40" />}
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <strong className="break-words text-foreground">{managed[row.wp_post_id]?.corrected_name || row.title}</strong>
@@ -316,14 +332,14 @@ export function LegacyReviewQueue({ onlyTechnicians = false, onlyClients = false
       </ul>
     </>}
     {!loading && !error && rows.length===0 && <p className="mt-5 text-sm text-muted-foreground">Nenhuma ficha corresponde à busca.</p>}
-    <div className="mt-5 flex items-center justify-between gap-3">
+    {!exactMode && <div className="mt-5 flex items-center justify-between gap-3">
       <button disabled={busy||loading||page===0} type="button" onClick={()=>{setPage((x)=>Math.max(0,x-1));setSelected([]);setExpanded([]);setAction(null);}}
         className="min-h-11 rounded-lg border border-input px-4 text-sm text-foreground disabled:opacity-40">Anterior</button>
       <span className="text-xs text-muted-foreground">Página {page+1} de {Math.max(1,Math.ceil(total/LEGACY_REVIEW_PAGE_SIZE))}</span>
       <button disabled={busy||loading||(page+1)*LEGACY_REVIEW_PAGE_SIZE>=total} type="button"
         onClick={()=>{setPage((x)=>x+1);setSelected([]);setExpanded([]);setAction(null);}}
         className="min-h-11 rounded-lg border border-input px-4 text-sm text-foreground disabled:opacity-40">Próxima</button>
-    </div>
+    </div>}
     <p className="mt-5 border-t border-border pt-4 text-xs leading-5 text-muted-foreground">
       "Arquivar" significa excluir da revisão ativa, não apagar dados do acervo. Para tornar um técnico
       do WordPress um profissional publicado, o titular ainda precisa confirmar a identidade e os serviços.

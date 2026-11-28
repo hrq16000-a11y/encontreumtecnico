@@ -32,9 +32,12 @@ const ACTION_NAMES: Record<Action, string> = {
 };
 
 /** Read and write only through explicitly admin-guarded RPCs. Never use auth.admin in the browser. */
-export function AdminAccountsManager({ initialFilter = "todos", lockFilter = false, initialLayout = "cards" }: {
-  initialFilter?: Filter; lockFilter?: boolean; initialLayout?: "cards" | "table";
+export function AdminAccountsManager({ initialFilter = "todos", lockFilter = false, initialLayout = "cards", exactAccountId, onUpdated }: {
+  initialFilter?: Filter; lockFilter?: boolean; initialLayout?: "cards" | "table"; exactAccountId?: string; onUpdated?: () => void;
 }) {
+  const exactMode = exactAccountId !== undefined;
+  const exactId = exactAccountId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(exactAccountId)
+    ? exactAccountId.toLowerCase() : null;
   const [filter, setFilter] = useState<Filter>(initialFilter);
   const [layout, setLayout] = useState<"cards" | "table">(initialLayout);
   const [draftSearch, setDraftSearch] = useState(() => typeof window === "undefined" ? "" :
@@ -63,6 +66,7 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
   }, [detailId]);
 
   useEffect(() => {
+    if (exactMode) return;
     const params = new URLSearchParams(window.location.search);
     const recordId = params.get("registro");
     const deepLinkedSearch = recordId && /^[a-f0-9-]{36}$/i.test(recordId) ? recordId : params.get("busca");
@@ -71,7 +75,7 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
     setDraftSearch(cleaned);
     setSearch(cleaned);
     setPage(0);
-  }, []);
+  }, [exactMode]);
 
   useEffect(() => {
     let active = true;
@@ -84,8 +88,12 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
     setBulkAction(null);
     void (async () => {
       try {
+        if (exactMode && !exactId) {
+          setError("Identificador de conta inválido. Nenhuma operação disponível.");
+          return;
+        }
         const { data, error: queryError } = await db.rpc("eut_admin_accounts_snapshot", {
-          _search: search, _filter: filter, _page: page,
+          _search: exactMode ? exactId! : search, _filter: exactMode ? "todos" : filter, _page: exactMode ? 0 : page,
         });
         if (!active) return;
         if (queryError || !data || !Array.isArray(data.accounts)) {
@@ -93,6 +101,19 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
           setError("Não foi possível carregar a gestão de contas. Confirme a sessão administrativa e as permissões.");
         } else {
           const nextSnapshot = data as Snapshot;
+          if (exactMode) {
+            const matches = nextSnapshot.accounts.filter((account) => account.id === exactId);
+            if (matches.length !== 1) {
+              setSnapshot(null);
+              setError("Conta exata não localizada. Nenhuma edição foi liberada.");
+              return;
+            }
+            setSnapshot({ ...nextSnapshot, total: 1, page: 0, page_size: 1,
+              accounts: matches, blocked_phones: [],
+              audit: (nextSnapshot.audit ?? []).filter((event) => event.subject_user_id === exactId) });
+            setError(null);
+            return;
+          }
           // If the result set shrinks, recover the last valid server-side page.
           // Never show stale records or apply bulk actions while reloading it.
           const pageSize = Number.isFinite(nextSnapshot.page_size) && nextSnapshot.page_size > 0
@@ -112,7 +133,7 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
       }
     })();
     return () => { active = false; };
-  }, [filter, page, search, version]);
+  }, [filter, page, search, version, exactMode, exactId]);
 
   useEffect(() => {
     setSelectedIds(new Set());
@@ -121,7 +142,7 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
   }, [filter, page, search]);
 
   function choose(action: Action, user: Account | null = null, block: PhoneBlock | null = null) {
-    if (bulkBusy) return;
+    if (bulkBusy || loading || (exactMode && (!exactId || user?.id !== exactId || !snapshot?.accounts.some((account) => account.id === exactId)))) return;
     if (user?.is_admin) {
       setError("Contas administrativas não podem ser alteradas por este módulo.");
       return;
@@ -198,7 +219,7 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
 
   async function apply(event: FormEvent) {
     event.preventDefault();
-    if (busy || bulkBusy || !selection) return;
+    if (busy || bulkBusy || !selection || (exactMode && (!exactId || selection.user?.id !== exactId || loading || !snapshot?.accounts.some((account) => account.id === exactId && !account.is_admin)))) return;
     const justification = reason.trim();
     if (justification.length < 8 || justification.length > 400) {
       setError("Informe um motivo de 8 a 400 caracteres.");
@@ -257,6 +278,17 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
         const { data, error: actionError } = await db.rpc("eut_admin_contact_action", args);
         if (actionError) throw actionError;
         if (!data?.ok || data?.action !== selection.action) throw new Error("O banco não confirmou a alteração.");
+        if (exactMode && (selection.action === "block_account" || selection.action === "unblock_account")) {
+          const { data: verifiedData, error: verifyError } = await db.rpc("eut_admin_accounts_snapshot", {
+            _search: exactId!, _filter: "todos", _page: 0,
+          });
+          const confirmed = (verifiedData as Snapshot | null)?.accounts?.find((row) => row.id === exactId);
+          if (verifyError || !confirmed || confirmed.blocked_account !== (selection.action === "block_account")) {
+            setSelection(null);
+            setError("A operação pode ter sido gravada, mas não foi confirmada pela releitura. Atualize antes de tentar novamente.");
+            return;
+          }
+        }
       }
       const completed = ACTION_NAMES[selection.action];
       setSelection(null);
@@ -265,7 +297,7 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
       setVersion((v) => v + 1);
     } catch (e) {
       setError("Não foi possível concluir a ação. " + (e instanceof Error ? e.message.slice(0, 240) : "Consulte o suporte."));
-    } finally { setBusy(false); }
+    } finally { setBusy(false); if (exactMode) onUpdated?.(); }
   }
 
   const detailAccount = snapshot?.accounts.find((account) => account.id === detailId) ?? null;
@@ -295,7 +327,7 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
     </div>}
     {initialLayout === "table" && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/20 p-3">
       <div>
-        <h3 className="text-base font-bold text-foreground">Contas cadastradas</h3>
+        <h3 className="text-base font-bold text-foreground">{exactMode ? "Conta selecionada" : "Contas cadastradas"}</h3>
         <p className="text-xs text-muted-foreground">Visualização de identidades autorizadas; contatos permanecem mascarados.</p>
       </div>
       <div role="group" aria-label="Modo de visualização" className="inline-flex rounded-lg border border-input bg-background p-1">
@@ -305,7 +337,7 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
           className={"min-h-10 rounded-md px-3 text-sm font-semibold " + (layout === "cards" ? "bg-primary text-primary-foreground" : "hover:bg-accent")}>Cartões</button>
       </div>
     </div>}
-    <form className="flex flex-col gap-2 sm:flex-row" onSubmit={submitSearch}>
+    {!exactMode && <form className="flex flex-col gap-2 sm:flex-row" onSubmit={submitSearch}>
       <label className="sr-only" htmlFor="eut-admin-account-search">Pesquisar contas</label>
       <input id="eut-admin-account-search" value={draftSearch} onChange={(e) => setDraftSearch(e.target.value)}
         placeholder="Buscar por nome, e-mail ou identificador" maxLength={80}
@@ -313,8 +345,8 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
       <button type="submit" className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground">
         <Search className="h-4 w-4" aria-hidden="true" /> Buscar
       </button>
-    </form>
-    {!lockFilter && <div className="flex gap-2 overflow-x-auto pb-2" aria-label="Filtro de contas">
+    </form>}
+    {!exactMode && !lockFilter && <div className="flex gap-2 overflow-x-auto pb-2" aria-label="Filtro de contas">
       {FILTERS.map((item) => <button key={item.value} type="button"
         aria-pressed={filter === item.value} onClick={() => { setFilter(item.value); setPage(0); setSelection(null); setSelectedIds(new Set()); setBulkAction(null); }}
         className={"min-h-11 shrink-0 rounded-full border px-4 text-sm font-semibold " +
@@ -357,10 +389,10 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
       <p role="status" className="text-sm text-muted-foreground">
         {loading ? "Consultando contas…" : !snapshot ? "Consulta indisponível" : `${snapshot.total} conta(s) · página ${page + 1} de ${maxPage}`}
       </p>
-      <button type="button" onClick={() => setVersion((v) => v + 1)}
+      <button type="button" onClick={() => setVersion((v) => v + 1)} disabled={busy || loading}
         className="min-h-10 rounded-lg border border-input px-4 text-sm text-foreground hover:bg-accent">Atualizar</button>
     </div>
-    {snapshot && <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/20 p-3" aria-label="Organização dos cadastros">
+    {!exactMode && snapshot && <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/20 p-3" aria-label="Organização dos cadastros">
       <span className="text-xs font-semibold text-muted-foreground">Por data de cadastro:</span>
       <button type="button" disabled={loading || bulkBusy} onClick={() => { setPage(0); setSelectedIds(new Set()); setBulkAction(null); }}
         className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm font-semibold">Mais recentes</button>
@@ -368,7 +400,7 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
         className="min-h-11 rounded-lg border border-input bg-background px-3 text-sm font-semibold">Cadastros mais antigos</button>
       <span className="text-xs text-muted-foreground">20 por página · ordem cronológica do banco</span>
     </div>}
-    {snapshot && <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-3 sm:p-4" aria-label="Ações em massa de contas">
+    {!exactMode && snapshot && <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-3 sm:p-4" aria-label="Ações em massa de contas">
       <label className="flex min-h-11 items-center gap-3 text-sm font-semibold">
         <input type="checkbox" checked={allSelected} disabled={busy || bulkBusy || !eligibleAccounts.length}
           onChange={() => setSelectedIds(allSelected ? new Set() : new Set(eligibleAccounts.map((account) => account.id)))} />
@@ -415,7 +447,7 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
         <tbody className="divide-y divide-border">
           {snapshot?.accounts.map((account) => <tr key={account.id} className="block px-3 py-3 md:table-row md:px-0 md:py-0">
             <td className="float-left mr-2 py-1 md:float-none md:px-3 md:py-3">
-              {!account.is_admin && <input type="checkbox" disabled={busy || bulkBusy}
+              {!exactMode && !account.is_admin && <input type="checkbox" disabled={busy || bulkBusy}
                 checked={selectedIds.has(account.id)} onChange={() => toggleAccountSelection(account.id)}
                 aria-label={`Selecionar ${account.full_name}`} />}
             </td>
@@ -458,7 +490,7 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
         className="rounded-2xl border border-border bg-card p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            {!account.is_admin && <label className="mb-2 flex min-h-11 items-center gap-2 text-xs font-semibold text-muted-foreground">
+            {!exactMode && !account.is_admin && <label className="mb-2 flex min-h-11 items-center gap-2 text-xs font-semibold text-muted-foreground">
               <input type="checkbox" disabled={busy || bulkBusy} checked={selectedIds.has(account.id)}
                 onChange={() => toggleAccountSelection(account.id)} aria-label={`Selecionar ${account.full_name}`} /> Selecionar para lote
             </label>}
@@ -518,14 +550,14 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
         <div><dt className="text-xs text-muted-foreground">Identificador interno</dt><dd className="mt-1 break-all font-mono text-xs">{detailAccount.id}</dd></div>
       </dl>
     </section>}
-    <div className="flex justify-between gap-2">
+    {!exactMode && <div className="flex justify-between gap-2">
       <button type="button" disabled={loading || page===0} onClick={() => setPage((x) => Math.max(0,x-1))}
         className="min-h-11 rounded-lg border border-input px-4 text-sm text-foreground disabled:opacity-40">Anterior</button>
       <button type="button" disabled={loading || !snapshot || (page+1)*snapshot.page_size>=snapshot.total}
         onClick={() => setPage((x) => x + 1)}
         className="min-h-11 rounded-lg border border-input px-4 text-sm text-foreground disabled:opacity-40">Próximo</button>
-    </div>
-    <section className="rounded-2xl border border-border bg-card p-5" aria-label="Telefones restritos">
+    </div>}
+    {!exactMode && <section className="rounded-2xl border border-border bg-card p-5" aria-label="Telefones restritos">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="flex items-center gap-2 font-bold text-foreground"><Smartphone className="h-5 w-5" aria-hidden="true" /> Telefones restritos</h3>
         <div className="flex gap-2">
@@ -545,7 +577,7 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
             className="min-h-10 rounded-lg border border-input px-3 text-sm text-foreground hover:bg-accent">Desbloquear telefone</button>
         </li>)}
       </ul>}
-    </section>
+    </section>}
     <section className="rounded-2xl border border-border bg-card p-5" aria-label="Auditoria de bloqueios">
       <button type="button" onClick={() => setShowAudit((x) => !x)} aria-expanded={showAudit}
         className="flex min-h-11 w-full items-center justify-between text-left text-sm font-bold text-foreground">

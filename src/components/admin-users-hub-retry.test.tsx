@@ -15,7 +15,15 @@ vi.mock("@tanstack/react-router", () => ({
   ),
 }));
 vi.mock("@/components/admin-accounts-manager", () => ({
-  AdminAccountsManager: () => <div data-testid="account-manager-stub" />,
+  AdminAccountsManager: ({ exactAccountId }: { exactAccountId?: string }) => <div data-testid="account-manager-stub">{exactAccountId}</div>,
+}));
+vi.mock("@/components/admin-technician-manager", () => ({
+  AdminTechnicianManager: ({ selectedTechnicianId }: { selectedTechnicianId?: string }) =>
+    <div data-testid="portal-editor-stub">{selectedTechnicianId}</div>,
+}));
+vi.mock("@/components/legacy-review-queue", () => ({
+  LegacyReviewQueue: ({ exactRecord }: { exactRecord: { kind: string; id: number } }) =>
+    <div data-testid="legacy-editor-stub">{exactRecord.kind}:{exactRecord.id}</div>,
 }));
 vi.mock("@/components/admin-technician-record-editor", () => ({
   AdminTechnicianRecordEditor: ({ existing, onSaved, onCancel }: {
@@ -72,8 +80,8 @@ describe("Painel 360° — recuperação funcional de Administradores", () => {
       .mockReturnValueOnce(pendingRetry.promise);
     profilesMock.mockResolvedValue({
       data: [
-        { id: roles[0].user_id, full_name: "Administradora Sintética A", phone: "SENTINELA_PRIVADA" },
-        { id: roles[1].user_id, full_name: "Administrador Sintético B", phone: "SENTINELA_PRIVADA" },
+        { id: roles[0]!.user_id, full_name: "Administradora Sintética A", phone: "SENTINELA_PRIVADA" },
+        { id: roles[1]!.user_id, full_name: "Administrador Sintético B", phone: "SENTINELA_PRIVADA" },
       ],
       error: null,
     });
@@ -145,7 +153,7 @@ describe("Painel 360° — edição direta de registros administrativos", () => 
     render(<AdminUsersHub adminOwnerId="admin-sintetico" />);
     const buttons = await screen.findAllByRole("button", { name: "Editar ficha" });
     expect(buttons).toHaveLength(2);
-    fireEvent.click(buttons[0]);
+    fireEvent.click(buttons[0]!);
     const editor = await screen.findByTestId("editor-exato");
     expect(editor).toHaveTextContent(a);
     expect(editor).not.toHaveTextContent(b);
@@ -180,5 +188,58 @@ describe("Painel 360° — edição direta de registros administrativos", () => 
     fireEvent.change(screen.getByRole("combobox", { name: "Situação" }), { target: { value: "ativo" } });
     expect(await screen.findByRole("button", { name: "Editar ficha" })).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByTestId("editor-exato")).not.toBeInTheDocument();
+  });
+});
+
+describe("Painel 360° — gestão de identidade selecionada", () => {
+  const accountId = "66666666-6666-4666-8666-666666666666";
+  const portalId = "77777777-7777-4777-8777-777777777777";
+  const customer = { user_key: "account:" + accountId, record_key: "account:" + accountId,
+    auth_user_id: accountId, name: "Cliente sintético", roles: ["cliente"], status: "ATIVO" };
+  const portal = { ...customer, record_key: "portal:" + portalId, name: "Técnico sintético", roles: ["tecnico"] };
+  const legacy = { user_key: "wp:employer:321", record_key: "wp:employer:321", auth_user_id: null,
+    name: "Contratante sintético", roles: ["cliente"], status: "ATIVO" };
+  const page = (items: unknown[]) => ({ data: { total: items.length, items, next_cursor: null, has_more: false }, error: null });
+
+  it("abre conta por UUID sem trocar a aba nem perder busca e situação; relê ao fechar", async () => {
+    rpcMock.mockResolvedValue(page([customer]));
+    render(<AdminUsersHub adminOwnerId="admin-sintetico" />);
+    fireEvent.click(screen.getByRole("tab", { name: "Clientes" }));
+    fireEvent.change(screen.getByRole("textbox", { name: /Buscar usuário/ }), { target: { value: "Cliente" } });
+    fireEvent.click(screen.getByRole("button", { name: "Buscar" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "Situação" }), { target: { value: "ativo" } });
+    fireEvent.click(await screen.findByRole("button", { name: "Gerenciar conta" }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByTestId("account-manager-stub")).toHaveTextContent(accountId);
+    expect(window.location.search).toBe("?perfil=clientes");
+    const before = rpcMock.mock.calls.length;
+    fireEvent.click(screen.getByRole("button", { name: "Voltar ao diretório de usuários" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.getByRole("tab", { name: "Clientes" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("textbox", { name: /Buscar usuário/ })).toHaveValue("Cliente");
+    expect(screen.getByRole("combobox", { name: "Situação" })).toHaveValue("ativo");
+    await waitFor(() => expect(rpcMock.mock.calls.length).toBeGreaterThan(before));
+    expect(rpcMock).toHaveBeenLastCalledWith("eut_admin_users_unified_360",
+      expect.objectContaining({ _role: "cliente", _search: "Cliente", _state: "ativo" }));
+  });
+
+  it("abre perfil operacional e contratante WordPress com IDs distintos, sem encaminhar pelo nome", async () => {
+    rpcMock.mockResolvedValue(page([portal, legacy]));
+    render(<AdminUsersHub adminOwnerId="admin-sintetico" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Gerenciar ficha técnica" }));
+    expect(await screen.findByTestId("portal-editor-stub")).toHaveTextContent(portalId);
+    fireEvent.click(await screen.findByRole("button", { name: "Voltar ao diretório de usuários" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Gerenciar ficha histórica" }));
+    expect(await screen.findByTestId("legacy-editor-stub")).toHaveTextContent("employer:321");
+    expect(window.location.pathname).toBe("/admin/usuarios");
+  });
+
+  it("não libera gestão com identificador de conta divergente ou perfil histórico inválido", async () => {
+    rpcMock.mockResolvedValue(page([{...customer, user_key: "account:" + portalId},
+      {...legacy, user_key: "wp:employer:invalid", record_key: "wp:employer:invalid"}]));
+    render(<AdminUsersHub adminOwnerId="admin-sintetico" />);
+    await screen.findByText("Cliente sintético");
+    expect(screen.queryByRole("button", { name: "Gerenciar conta" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Gerenciar ficha histórica" })).toBeNull();
   });
 });

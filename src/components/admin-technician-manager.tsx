@@ -122,8 +122,10 @@ export function AdminTechnicianManager({
         setRows(null);
         setReadError("Não foi possível carregar esta página de técnicos. Verifique a sessão administrativa.");
       } else {
-        setRows((data ?? []) as Technician[]);
-        setTotal(count ?? 0);
+        const records = (data ?? []) as Technician[];
+        const exact = selectedTechnicianId ? records.filter((record) => record.id === selectedTechnicianId) : records;
+        setRows(selectedTechnicianId && exact.length !== 1 ? [] : exact);
+        setTotal(selectedTechnicianId ? (exact.length === 1 ? 1 : 0) : count ?? 0);
       }
       setLoadingRows(false);
     })().catch(() => {
@@ -178,6 +180,7 @@ export function AdminTechnicianManager({
   }
 
   function choose(technician: Technician, action: Action) {
+    if (loadingRows || (selectedTechnicianId && technician.id !== selectedTechnicianId)) return;
     setAdvanced(null);
     setOperating(null);
     const baseline = publicBaseline(technician);
@@ -202,7 +205,7 @@ export function AdminTechnicianManager({
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!target || busy) return;
+    if (!target || busy || loadingRows || (selectedTechnicianId && target.technician.id !== selectedTechnicianId)) return;
     if (reason.trim().length < 8 || reason.length > 400) {
       setFeedback("Informe o motivo da alteração (8 a 400 caracteres).");
       return;

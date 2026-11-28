@@ -56,7 +56,7 @@ describe("busca administrativa unificada", () => {
     const page = readFileSync("src/routes/admin.tsx", "utf8");
     const queue = readFileSync("src/components/legacy-review-queue.tsx", "utf8");
     expect(page).toContain("<LegacyReviewQueue onlyClients />");
-    expect(queue).toContain('useState<LegacyKind>(onlyClients ? "employer" : "candidate")');
+    expect(queue).toContain('useState<LegacyKind>(exactRecord?.kind ?? (onlyClients ? "employer" : "candidate"))');
     expect(queue).toContain('Ordenar entradas históricas');
   });
 });

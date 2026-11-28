@@ -93,3 +93,36 @@ describe("gestão visual do acervo histórico", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 });
+
+describe("acervo histórico por identidade exata", () => {
+  it("filtra pelo tipo e post ID mesmo quando a resposta inclui outra ficha", async () => {
+    const calls: unknown[][] = [];
+    from.mockImplementation((table: string) => {
+      const q: Record<string, (...args: unknown[]) => unknown> = {};
+      for (const method of ["select", "order"]) q[method] = () => q;
+      q["eq"] = (...args) => { calls.push(args); return q; };
+      q["range"] = async () => ({ data: [
+        {...profiles[1], kind: "employer", wp_post_id: 450, title: "Cliente exato"},
+        {...profiles[1], kind: "candidate", wp_post_id: 450, title: "Outra identidade"},
+        {...profiles[1], kind: "employer", wp_post_id: 451, title: "Homônimo"},
+      ], count: 3, error: null });
+      q["in"] = async () => ({ data: [], error: null });
+      if (!["legacy_review_profiles", "eut_legacy_employer_management"].includes(table)) throw new Error(table);
+      return q;
+    });
+    render(<LegacyReviewQueue onlyClients exactRecord={{ kind: "employer", id: 450 }} />);
+    expect(await screen.findByRole("button", {name: "Ver ficha · Cliente exato"})).toBeTruthy();
+    expect(screen.queryByText("Outra identidade")).toBeNull();
+    expect(screen.queryByText("Homônimo")).toBeNull();
+    expect(screen.queryByRole("button", {name: "Selecionar página"})).toBeNull();
+    expect(calls).toContainEqual(["kind","employer"]);
+    expect(calls).toContainEqual(["wp_post_id",450]);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+  it("não libera edição quando o ID exato não é devolvido", async () => {
+    render(<LegacyReviewQueue onlyTechnicians exactRecord={{kind:"candidate", id:999}} />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Ficha histórica exata não localizada");
+    expect(screen.queryByRole("button", {name: "Editar nome"})).toBeNull();
+    expect(rpc).not.toHaveBeenCalled();
+  });
+});
