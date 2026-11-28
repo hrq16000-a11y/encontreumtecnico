@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { persistMyLegalAcceptance } from "@/lib/visitor-legal-acceptance";
 
 type Invitation = {
   pending: boolean;
@@ -40,6 +41,10 @@ export function MemberInviteAcceptance({
     setBusy(true);
     setError(null);
     try {
+      if (!(await persistMyLegalAcceptance(termsAccepted))) {
+        setError("O aceite versionado não foi confirmado no servidor. Tente novamente.");
+        return;
+      }
       const { data, error: actionError } = await db.rpc("eut_accept_member_invitation");
       if (actionError || data?.ok !== true || data?.state !== "accepted" ||
           data?.target_role !== invitation.target_role) {

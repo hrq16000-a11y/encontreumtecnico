@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { EUT_COOKIE_KEY, visitorConsentAllowed, makeCookieChoice } from "@/lib/visitor-consent";
+import { writeVisitorOptInEvent, forgetVisitorToken } from "@/lib/visitor-analytics";
 
-const KEY = "eut-cookie-consent";
-type Consent = { necessary: true; functional: boolean; analytics: boolean; advertising: boolean; presence: boolean };
+const KEY = EUT_COOKIE_KEY;
+type Consent = { necessary: true; functional: boolean; analytics: boolean; advertising: boolean; presence: boolean; visitorAnalytics: boolean };
 
 export function CookieNotice() {
   const [open, setOpen] = useState(false);
@@ -11,6 +13,7 @@ export function CookieNotice() {
   const [analytics, setAnalytics] = useState(false);
   const [advertising, setAdvertising] = useState(false);
   const [presence, setPresence] = useState(false);
+  const [visitorAnalytics, setVisitorAnalytics] = useState(false);
 
   useEffect(() => {
     if (!localStorage.getItem(KEY)) setOpen(true);
@@ -21,11 +24,13 @@ export function CookieNotice() {
         setAnalytics(saved.analytics === true);
         setAdvertising(saved.advertising === true);
         setPresence(saved.presence === true);
+        setVisitorAnalytics(visitorConsentAllowed(localStorage.getItem(KEY)));
       } catch {
         setFunctional(false);
         setAnalytics(false);
         setAdvertising(false);
         setPresence(false);
+        setVisitorAnalytics(false);
       }
       setCustom(true);
       setOpen(true);
@@ -35,7 +40,13 @@ export function CookieNotice() {
   }, []);
 
   function save(c: Consent) {
-    localStorage.setItem(KEY, JSON.stringify(c));
+    const before = visitorConsentAllowed(localStorage.getItem(KEY));
+    localStorage.setItem(KEY, JSON.stringify(makeCookieChoice(c)));
+    if (!before && c.visitorAnalytics) void writeVisitorOptInEvent("consent_granted");
+    if (before && !c.visitorAnalytics) {
+      void writeVisitorOptInEvent("consent_revoked");
+      forgetVisitorToken();
+    }
     window.dispatchEvent(new Event("eut-consent-changed"));
     setOpen(false);
   }
@@ -47,7 +58,7 @@ export function CookieNotice() {
       <div className="mx-auto max-w-6xl">
         <p className="text-sm font-semibold text-foreground">Valorizamos sua privacidade</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Cookies necessários mantêm as funções essenciais. Opções separadas permitem recursos funcionais, análises,
+          Cookies necessários mantêm as funções essenciais. Opções separadas permitem recursos funcionais, análises, registro anônimo de páginas,
           presença anônima (pausada até autorização de acesso) e publicidade aprovada (incluindo Google AdSense);
           você pode escolher as categorias e mudar de preferência a qualquer momento.{" "}
           <Link to="/cookies" className="text-primary underline">Política de cookies</Link>
@@ -67,6 +78,10 @@ export function CookieNotice() {
               <input type="checkbox" checked={analytics} onChange={(e) => setAnalytics(e.target.checked)} /> Análise
             </label>
             <label className="flex items-start gap-2 text-foreground">
+              <input type="checkbox" checked={visitorAnalytics} onChange={(e) => setVisitorAnalytics(e.target.checked)} />
+              <span>Registro de visita opcional (separado de Análise): classes gerais de páginas e chave aleatória rotativa por até 24 horas. Eventos por até 30 dias, sem IP, telefone ou vinculação à conta. Vínculo futuro só se autorizado expressamente.</span>
+            </label>
+            <label className="flex items-start gap-2 text-foreground">
               <input type="checkbox" checked={presence} onChange={(e) => setPresence(e.target.checked)} />
               <span>Presença online (pausada): sua preferência fica salva, mas nenhuma aba é contabilizada enquanto o acesso administrativo ao canal não estiver protegido. Você pode desativar a opção a qualquer momento.</span>
             </label>
@@ -78,7 +93,7 @@ export function CookieNotice() {
 
         <div className="mt-3 flex flex-wrap gap-2">
           {custom ? (
-            <button type="button" onClick={() => save({ necessary: true, functional, analytics, advertising, presence })}
+            <button type="button" onClick={() => save({ necessary: true, functional, analytics, advertising, presence, visitorAnalytics })}
               className="h-9 rounded-md border border-primary px-4 text-sm font-medium text-primary">
               Salvar minhas preferências
             </button>
@@ -88,11 +103,11 @@ export function CookieNotice() {
               Personalizar
             </button>
           )}
-          <button type="button" onClick={() => save({ necessary: true, functional: false, analytics: false, advertising: false, presence: false })}
+          <button type="button" onClick={() => save({ necessary: true, functional: false, analytics: false, advertising: false, presence: false, visitorAnalytics: false })}
             className="h-9 rounded-md border border-primary px-4 text-sm font-medium text-primary">
             Rejeitar
           </button>
-          <button type="button" onClick={() => save({ necessary: true, functional: true, analytics: true, advertising: true, presence: true })}
+          <button type="button" onClick={() => save({ necessary: true, functional: true, analytics: true, advertising: true, presence: true, visitorAnalytics: true })}
             className="h-9 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">
             Aceitar todos
           </button>

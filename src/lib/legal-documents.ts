@@ -5,7 +5,7 @@ export type LegalDocumentData = {
   intro: string;
   sections: Array<{ title: string; paragraphs: string[] }>;
 };
-export const LEGAL_UPDATED_AT = "11 de novembro de 2026";
+export const LEGAL_UPDATED_AT = "22 de novembro de 2026";
 export const legalDocuments: Record<LegalDocumentKey, LegalDocumentData> = {
   "termos": {
     "title": "Termos e condições de uso",
@@ -58,7 +58,8 @@ export const legalDocuments: Record<LegalDocumentKey, LegalDocumentData> = {
         "title": "7. Pagamentos, cancelamento e direitos",
         "paragraphs": [
           "Os valores, limites, comprovantes, hipóteses de falha de entrega, cancelamento e reembolso são detalhados na Política de pagamentos e reembolsos. Nenhuma disposição destes termos exclui direitos previstos no Código de Defesa do Consumidor ou outras normas aplicáveis.",
-          "A plataforma poderá atualizar as condições, com indicação da versão publicada e comunicação adequada quando as mudanças afetarem direitos ou contratos em andamento."
+          "A plataforma poderá atualizar as condições, com indicação da versão publicada e comunicação adequada quando as mudanças afetarem direitos ou contratos em andamento.",
+          "O aceite dos Termos e o conhecimento da Política de Privacidade para abertura de conta ou ativação de papel podem ter versão e horário registrados no servidor, de modo separado das preferências opcionais de cookies e da autorização de atribuição de visitas."
         ]
       }
     ]
@@ -118,7 +119,9 @@ export const legalDocuments: Record<LegalDocumentKey, LegalDocumentData> = {
         "title": "7. Segurança, armazenamento e retenção",
         "paragraphs": [
           "Empregamos controles de acesso e medidas proporcionais de segurança. Nenhum sistema é completamente imune a incidentes; ocorrências serão avaliadas e comunicadas quando exigido pela legislação.",
-          "Os dados são mantidos pelo tempo necessário às finalidades informadas e às obrigações legais, incluindo registros que precisem ser conservados por motivos de segurança, prova de transação ou atendimento de direitos. Encerramento de conta não exige eliminação imediata de dados sujeitos a guarda legal."
+          "Os dados são mantidos pelo tempo necessário às finalidades informadas e às obrigações legais, incluindo registros que precisem ser conservados por motivos de segurança, prova de transação ou atendimento de direitos. Encerramento de conta não exige eliminação imediata de dados sujeitos a guarda legal.",
+          "Quando legalmente aplicável, os registros técnicos mínimos de acesso à aplicação (IP e data/hora, sem histórico de todas as páginas visitadas) podem ser conservados sob sigilo por seis meses. Alertas técnicos de segurança têm prazo próprio de até 90 dias; indicadores opcionais de navegação e vínculo voluntário de conversão, até 30 dias, salvo preservação legal específica aplicável aos registros técnicos. A expiração exige rotina administrativa de descarte. Não há coleta opcional nova enquanto a infraestrutura correspondente não estiver habilitada e revisada.",
+          "A pessoa autenticada pode autorizar expressamente uma associação de sua visita consentida ao próprio cadastro. A associação não ocorre automaticamente por IP, navegador, operadora, login ou localização aproximada."
         ]
       },
       {
@@ -160,7 +163,8 @@ export const legalDocuments: Record<LegalDocumentKey, LegalDocumentData> = {
           "Necessários: essenciais para segurança, sessão, funcionamento de áreas autenticadas e registro das escolhas de privacidade. Não dependem de consentimento quando estritamente necessários.",
           "Funcionais: lembram configurações opcionais e podem melhorar o uso do portal. Analíticos: podem medir o uso agregado e a eficácia das páginas; somente devem ser ativados quando houver base legal válida e, quando necessário, consentimento.",
           "Publicidade (AdSense e campanhas aprovadas): categoria separada, desativada até escolha expressa. O código do Google AdSense somente será carregado quando houver consentimento de Publicidade e ativação técnica da veiculação; pop-ups patrocinados usam apenas campanhas previamente aprovadas no portal. A metatag de verificação e o arquivo ads.txt não significam aceitação de cookies opcionais.",
-          "Presença online: escolha independente de Análise, desligada por padrão. Quando ativada, transmite ao Supabase Realtime apenas um marcador temporário de aba visível para contagem agregada, sem identificação, endereço IP no conteúdo ou navegação. Sua revogação encerra a publicação dessa presença. O prestador técnico não é declarado disponível por esse indicador."
+          "Presença online: escolha independente de Análise, desligada por padrão. Quando ativada, transmite ao Supabase Realtime apenas um marcador temporário de aba visível para contagem agregada, sem identificação, endereço IP no conteúdo ou navegação. Sua revogação encerra a publicação dessa presença. O prestador técnico não é declarado disponível por esse indicador.",
+          "Registro anônimo de visitas: opção adicional e independente de Análise e Publicidade, que poderá medir apenas categorias gerais das páginas visitadas, usando uma chave aleatória de sessão com rotação em até 24 horas e exclusão dos eventos após até 30 dias. Nunca deduz identidade por IP e só vincula visita à conta mediante ação opcional e expressa depois do login. Essa categoria começa desativada."
         ]
       },
       {

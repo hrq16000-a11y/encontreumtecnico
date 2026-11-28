@@ -18,6 +18,7 @@ import { PageShell } from "../components/page-placeholder";
 import { AdSenseLoader } from "../components/adsense-loader";
 import { isGuideDetailHeadMatch } from "../lib/guide-font-loading";
 import { isStandaloneVisualRoute } from "../lib/shared-shell-routing";
+import { VisitorLedgerObserver } from "@/components/visitor-ledger-observer";
 
 // One stable, public, WordPress-independent image for every route's social preview.
 const SOCIAL_IMAGE = "https://www.encontreumtecnico.com.br/social-preview.jpg";
@@ -133,6 +134,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <VisitorLedgerObserver pathname={pathname} />
       {isStandaloneVisualRoute(pathname) || hasRouteError ? (
         // LP2 and Home2 intentionally own their themes and navigation.
         <Outlet />

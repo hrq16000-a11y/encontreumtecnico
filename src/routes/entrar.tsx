@@ -11,6 +11,9 @@ import { safeLoginDestination } from "@/lib/navigation-safety";
 import { ConnectedGoogleIdentity } from "@/components/connected-google-identity";
 import { MemberInviteAcceptance } from "@/components/member-invite-acceptance";
 import { clearSignupIntent, readSignupIntent, type SignupIntent } from "@/lib/signup-intent";
+import { persistMyLegalAcceptance, rememberEmailSignupAcceptance, flushPendingLegalAcceptance } from "@/lib/visitor-legal-acceptance";
+import { linkThisVisitToMyAccount } from "@/lib/visitor-analytics";
+import { EUT_COOKIE_KEY, visitorConsentAllowed } from "@/lib/visitor-consent";
 import { ArrowRight, LockKeyhole, Sparkles, UserRoundCheck, Wrench } from "lucide-react";
 
 export const Route = createFileRoute("/entrar")({
@@ -68,6 +71,13 @@ function EmailPasswordForm({ onError }: { onError: (m: string | null) => void })
           onError(error.message.includes("registered") ? "Este e-mail já tem conta. Use Entrar." : "Não foi possível criar a conta.");
           return;
         }
+        rememberEmailSignupAcceptance(data.user?.id ?? null, termsAccepted);
+        if (data.session && data.user?.id) {
+          if (await flushPendingLegalAcceptance(data.user.id) === "failed") {
+            onError("Conta criada, mas o aceite versionado não foi confirmado. Confira antes de continuar.");
+            return;
+          }
+        }
         if (!data.session) setInfo("Se o cadastro puder ser realizado, verifique seu e-mail para confirmar o acesso.");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
@@ -123,6 +133,8 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
   const [ownerCheckError, setOwnerCheckError] = useState(false);
   const [ownerLookupRetry, setOwnerLookupRetry] = useState(0);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [linkVisitor, setLinkVisitor] = useState(false);
+  const [visitorConsent, setVisitorConsent] = useState(false);
   const [signupIntent, setSignupIntent] = useState<SignupIntent | null>(null);
   const [legacyRole, setLegacyRole] = useState<"tecnico" | "cliente" | null>(null);
   const [legacyChecked, setLegacyChecked] = useState(false);
@@ -133,6 +145,12 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
   const roleKey = roles.join(",");
   const canAttemptRole = canAttemptNewAccountRole({ legacyChecked, legacyLookupError, legacyRole });
   useEffect(() => { setSignupIntent(readSignupIntent()); }, []);
+  useEffect(() => {
+    const refresh = () => setVisitorConsent(visitorConsentAllowed(localStorage.getItem(EUT_COOKIE_KEY)));
+    refresh();
+    window.addEventListener("eut-consent-changed", refresh);
+    return () => window.removeEventListener("eut-consent-changed", refresh);
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -226,6 +244,7 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
 
   useEffect(() => {
     if (loading || !user || roles.length === 0) return;
+    const verifiedOwnerId = user.id;
     let active = true;
     async function continueLogin() {
       // Reentrar com conta antiga já ativada também reconcilia o vínculo.
@@ -241,6 +260,12 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
         } catch {
           if (active) setError("A reconciliação da conta antiga está indisponível; tente novamente no painel.");
         }
+      }
+      if (!active) return;
+      const receipt = await flushPendingLegalAcceptance(verifiedOwnerId);
+      if (receipt === "failed") {
+        if (active) setError("Não foi possível confirmar o aceite do cadastro. Tente entrar novamente.");
+        return;
       }
       if (!active) return;
       const stored = sessionStorage.getItem("eut-after-login");
@@ -261,11 +286,19 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
     if (error) setError("Não foi possível iniciar o login com Google. Tente novamente.");
   }
 
+  async function ensureAccountTermsReceipt(): Promise<boolean> {
+    if (!termsAccepted) return false;
+    if (await persistMyLegalAcceptance(true)) return true;
+    setError("O servidor não confirmou a versão dos Termos e da Política de Privacidade. Tente novamente.");
+    return false;
+  }
+
   async function recoverAdmin() {
     if (!termsAccepted) return setError("Leia e aceite os Termos de Uso antes de recuperar a administração.");
     setBusy(true);
     setError(null);
     try {
+      if (!(await ensureAccountTermsReceipt())) return;
       const client = supabase as unknown as SupabaseClient;
       const { data, error } = await client.rpc("eut_bootstrap_legacy_admin");
       if (error || data !== "admin_ativado") setError("Não foi possível recuperar este acesso administrativo. Solicite revisão de titularidade.");
@@ -282,6 +315,7 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
     setBusy(true);
     setError(null);
     try {
+      if (!(await ensureAccountTermsReceipt())) return;
       const client = supabase as unknown as SupabaseClient;
       const { data, error } = await client.rpc("eut_bootstrap_project_owner");
       if (error || data !== "admin_ativado") {
@@ -305,6 +339,7 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
     setBusy(true);
     setError(null);
     try {
+      if (!(await ensureAccountTermsReceipt())) return;
       const client = supabase as unknown as SupabaseClient;
       const { data, error } = await client.rpc("eut_confirm_my_legacy_account");
       if (error || !data || data.state !== "vinculada" || data.intended_type !== legacyRole) {
@@ -325,6 +360,7 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
     setBusy(true);
     setError(null);
     try {
+      if (!(await ensureAccountTermsReceipt())) return;
       const { error } = await supabase.rpc("choose_account_type", { _role: role });
       if (error) {
         setError(role === "tecnico" && error.code === "42501"
@@ -332,6 +368,7 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
           : "O servidor recusou a escolha. Confirme sua identidade ou procure a recuperação manual se houver uma conta antiga vinculada a outra pessoa.");
       } else {
         clearSignupIntent();
+        if (linkVisitor && visitorConsent) void linkThisVisitToMyAccount(true);
         await refreshRoles();
       }
     } catch {
@@ -449,6 +486,10 @@ export function SignInPage({ lp2 = false }: { lp2?: boolean } = {}) {
               <input type="checkbox" required checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0" />
               <span>Li e aceito os <Link to="/termos" className="font-medium text-primary underline">Termos e condições</Link> e tomei conhecimento da <Link to="/privacidade" className="font-medium text-primary underline">Política de privacidade</Link>.</span>
             </label>
+            {visitorConsent && <label className="mt-3 flex items-start gap-2 text-left text-xs text-muted-foreground">
+              <input type="checkbox" checked={linkVisitor} onChange={e => setLinkVisitor(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>Opcional: vincular somente esta visita consentida ao meu cadastro. Nunca associar visitas anteriores por IP, navegador ou operadora.</span>
+            </label>}
             {!rolesError && <MemberInviteAcceptance userId={user.id} termsAccepted={termsAccepted} refreshRoles={refreshRoles} />}
             <div className="mt-5 grid w-full gap-3">
               {canBootstrapOwner ? (
