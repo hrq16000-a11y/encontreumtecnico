@@ -92,9 +92,10 @@ export function AdminAccountsManager({ initialFilter = "todos", lockFilter = fal
           setError("Identificador de conta inválido. Nenhuma operação disponível.");
           return;
         }
-        const { data, error: queryError } = await db.rpc("eut_admin_accounts_snapshot", {
-          _search: exactMode ? exactId! : search, _filter: exactMode ? "todos" : filter, _page: exactMode ? 0 : page,
-        });
+        const args = exactMode
+          ? { _search: exactId!, _filter: "todos", _page: 0 }
+          : { _search: search, _filter: filter, _page: page };
+        const { data, error: queryError } = await db.rpc("eut_admin_accounts_snapshot", args);
         if (!active) return;
         if (queryError || !data || !Array.isArray(data.accounts)) {
           setSnapshot(null);
