@@ -102,6 +102,6 @@ describe("GPS informa município, mas nunca inventa bairro", () => {
     // GPS remains an opt-in feature elsewhere, never a prerequisite for search.
     expect(directory).not.toContain("CustomerLocationButton");
     expect(directory).not.toContain('bairro: area.neighborhood');
-    expect(directory).toContain('label="Cidade"');
+    expect(directory).toContain('<SearchMunicipalityChoice');
   });
 });

@@ -1,5 +1,12 @@
 # Roadmap (uma micro-rodada por vez)
 
+## Pilar 1 — busca contextual autorizada em 28/11/2026
+- [x] Integrar seleção pesquisável de categoria/serviço e município/UF, preservando catálogo, cobertura e links profundos.
+- [x] Aperfeiçoar contexto e preservação do funil existente em modal; sem modalidades novas, SQL ou envios reais em QA.
+- [x] Validar testes, busca real e modal em 390/768/1440; 184 arquivos/936 testes, rascunho e foco preservados, zero envios de pedidos.
+- [x] Conferir títulos CFTV/informática e sitemap: XML índice oficial/local 200 com quatro partes; orientar Sitemaps no Search Console. XML News não aplicável sem notícias elegíveis.
+- [ ] Publicar pelo fluxo oficial: bloqueado por sincronização/SHA, PR/CI, rollback e Vercel READY não comprovados; não substituir Vercel por Lovable.
+
 ## Pilar 1 — rodada documental autorizada em 28/11/2026
 - [x] Consolidar contrato integral, inventário de 59 caminhos existentes, lacunas e escopo da Rodada 2; 929 testes aprovados, sem alterar runtime, dados ou publicação.
 - [x] Registrar governança complementar em docs/AGENTS.md e uso de skills em docs/skills/CHANGELOG.md.

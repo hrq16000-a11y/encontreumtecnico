@@ -254,7 +254,7 @@ export const listApprovedTechnicians = createServerFn({ method: "GET" })
     const region = clean(data.regiao);
     let rankingArea: { uf: string; cidade: string; bairro: string } | null = regionalPriority
       ? { uf, cidade: data.cidade, bairro: data.bairro } : null;
-    if (!regionalPriority) {
+    if (!regionalPriority && data.prioridade !== "nacional") {
       const approximateArea = automaticRegionalRankingArea(data, parseVercelRegion({
         country: getRequestHeader("x-vercel-ip-country") ?? null,
         state: getRequestHeader("x-vercel-ip-country-region") ?? null,

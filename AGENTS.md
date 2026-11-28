@@ -64,3 +64,8 @@
 ## Contrato de SEO, descoberta por IA e inteligência comercial — Rodadas 21–30 (28/11/2026)
 
 - Norma permanente: [docs/CONTRATO_SEO_CONHECIMENTO_IA.md](docs/CONTRATO_SEO_CONHECIMENTO_IA.md). Executar em micro-rodadas, começando por imagens sociais/metadata; depois Schema.org com auditoria, SEO técnico, conhecimento, preços reais, recomendações, simulador, analytics, autoridade temática e consolidação. Respeitar a aderência local, privacidade, dados reais, gates atuais e autorização específica de custos. Documentação não equivale a alteração funcional, merge, deploy, indexação ou recomendação por IA.
+
+## Controle exclusivo de edição e busca local (28/11/2026)
+- Nunca editar main simultaneamente no Lovable e no GitHub. Em divergência, proteger ambos os SHAs, reconciliar a branch de sincronização por merge normal, preservar rascunhos escopados, testar e só então sincronizar a prévia. Sem reset/force push.
+- Busca primária: serviço/especialidade + Encontrar agora e localidade compacta, visível e corrigível. Preferência explícita > contexto/sessão > IP aproximado > correção manual; GPS apenas sob clique e aviso de privacidade. Não presumir endereço, bairro ou cidade por operadora/DDD. Não apresentar perfis distantes como locais; alternativas abertas por escolha.
+- Ver contrato e registro: docs/RECONCILIACAO_LOVABLE_BUSCA_LOCAL_2026-11-28.md.
