@@ -75,17 +75,18 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
   latestDraft.current = { mode, step, name, email, service, when, problem, city, uf, neighborhood };
   function preserve(patch: Partial<AssistanceDraft>) {
     latestDraft.current = { ...latestDraft.current, ...patch };
-    saveAssistanceDraft(draftScope, latestDraft.current);
+    if (context.draftScope) saveAssistanceDraft(context.draftScope, latestDraft.current);
+    else saveAssistanceDraft(context.technicianId, latestDraft.current);
   }
 
   useEffect(() => {
     if (sent) return;
     // Persist after each committed edit: delaying until an idle timer can
     // discard the last characters when a user navigates immediately.
-    saveAssistanceDraft(draftScope, {
-      mode, step, name, email, service, when, problem, city, uf, neighborhood,
-    });
-  }, [draftScope, mode, step, name, email, service, when, problem, city, uf, neighborhood, sent]);
+    const draft = { mode, step, name, email, service, when, problem, city, uf, neighborhood };
+    if (context.draftScope) saveAssistanceDraft(context.draftScope, draft);
+    else saveAssistanceDraft(context.technicianId, draft);
+  }, [context.draftScope, context.technicianId, mode, step, name, email, service, when, problem, city, uf, neighborhood, sent]);
 
   useEffect(() => {
     if (!suggested || cityEdited.current || city.trim()) return;
@@ -115,7 +116,8 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
       const { error: requestError } = await supabase.from("contact_messages").insert(lead);
       if (requestError) throw requestError;
       setSavedWhatsAppLead(lead);
-      clearAssistanceDraft(draftScope);
+      if (context.draftScope) clearAssistanceDraft(context.draftScope);
+      else clearAssistanceDraft(context.technicianId);
       setSent(true);
     } catch {
       setError("Não conseguimos registrar seu pedido. Nada foi cobrado. Tente novamente.");
