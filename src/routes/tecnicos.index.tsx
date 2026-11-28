@@ -229,7 +229,7 @@ function TechniciansPage() {
             label="Cidade"
             value={search.cidade}
             placeholder="Ex.: São Paulo"
-            onCommit={(value) => update({ cidade: value })}
+            onCommit={(value) => update(value === search.cidade ? { cidade: value } : { cidade: value, bairro: "", regiao: "" })}
             onBlurTrack={(value) => trackFilter("cidade", value)}
           />
           </div>
@@ -282,7 +282,7 @@ function TechniciansPage() {
             )}
           </div>
           <DebouncedTextFilter
-            key={`filtro-bairro-${search.uf}-${filterResetRevision}`}
+            key={`filtro-bairro-${search.uf}-${search.cidade}-${filterResetRevision}`}
             id="filtro-bairro"
             label="Bairro"
             list={bairroCatalog ? "eut-bairro-diretorio" : undefined}
@@ -299,7 +299,7 @@ function TechniciansPage() {
               target="_blank" rel="noopener noreferrer">prefeitura</a>; você pode digitar outra denominação.
           </div>}
           <DebouncedTextFilter
-            key={`filtro-regiao-${search.uf}-${filterResetRevision}`}
+            key={`filtro-regiao-${search.uf}-${search.cidade}-${filterResetRevision}`}
             id="filtro-regiao"
             label="Região"
             value={search.regiao}
