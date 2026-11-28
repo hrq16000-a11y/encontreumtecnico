@@ -8,6 +8,8 @@ export type FreeHelpContext = {
   mode?: "direct" | "managed";
   guideSlug?: string;
   initialProblem?: string;
+  sourcePath?: string;
+  placement?: string;
 };
 
 const clean = (value: unknown) =>
@@ -50,5 +52,9 @@ export function portalHelpContext(
 /** Opens the existing private admin contact form, not a technician contact. */
 export function openFreeHelp(context: FreeHelpContext = {}) {
   if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent<FreeHelpContext>("eut-open-free-help", { detail: context }));
+  // Capture only the origin path: queries, fragments and descriptions never
+  // become attribution or analytics. Keep this snapshot during the dialog.
+  const detail = { ...context, sourcePath: window.location.pathname,
+    placement: clean(context.placement) || "contextual-cta" };
+  window.dispatchEvent(new CustomEvent<FreeHelpContext>("eut-open-free-help", { detail }));
 }

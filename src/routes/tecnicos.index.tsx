@@ -8,6 +8,8 @@ import { SponsoredPublicSlot } from "@/components/sponsored-public-slot";
 import { useActiveCategories, categoryLabel } from "@/hooks/use-active-categories";
 import { useActiveServices, serviceLabel } from "@/hooks/use-active-services";
 import { DebouncedTextFilter } from "@/components/debounced-text-filter";
+import { SearchableChoice } from "@/components/ui/searchable-choice";
+import { SearchMunicipalityChoice } from "@/components/search-municipality-choice";
 import { clearDirectoryPendingFilters } from "@/lib/pending-search-filter";
 import { BRAZIL_STATES } from "@/lib/service-taxonomy";
 import { technicianSearchAfterUfChange } from "@/lib/technician-search-uf-transition";
@@ -76,9 +78,9 @@ export const Route = createFileRoute("/tecnicos/")({
   loader: ({ deps }) => listApprovedTechnicians({ data: deps }),
   head: () => ({
     meta: [
-      { title: "Encontre técnico perto de você — Encontre um Técnico" },
+      { title: "Técnicos de CFTV e informática por cidade — Encontre um Técnico" },
       { name: "description", content: "Procurando técnico perto de mim? Consulte profissionais de informática, CFTV e redes com prioridade à região aproximada, quando disponível. Filtre por cidade, UF ou serviço." },
-      { property: "og:title", content: "Encontre técnico perto de você — Encontre um Técnico" },
+      { property: "og:title", content: "Técnicos de CFTV e informática por cidade — Encontre um Técnico" },
       { property: "og:description", content: "Encontre técnicos por especialidade e cidade. Resultados regionais são priorizados quando há uma referência aproximada disponível." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -100,8 +102,8 @@ function trackFilter(filter: "especialidade" | "cidade" | "regiao" | "servico" |
 
 function TechniciansPage() {
   const search = Route.useSearch();
-  const { categories, loading: catalogLoading } = useActiveCategories();
-  const { services, loading: servicesLoading } = useActiveServices();
+  const { categories, loading: catalogLoading, error: catalogError } = useActiveCategories();
+  const { services, loading: servicesLoading, error: servicesError } = useActiveServices();
   const technicians = Route.useLoaderData();
   const navigate = useNavigate({ from: "/tecnicos/" });
   const lastRecorded = useRef("");
@@ -142,7 +144,7 @@ function TechniciansPage() {
   const searchArea = [search.bairro, search.cidade, search.uf].filter(Boolean).join(" · ");
   const bairroCatalog = neighborhoodCatalogFor({ city: search.cidade, uf: search.uf });
   const helpContext = { city: search.cidade, uf: search.uf, neighborhood: search.bairro,
-    service: services.find((s) => s.slug === search.servico)?.label || search.servico || (search.especialidade !== "Todas" ? search.especialidade : "") };
+    service: services.find((s) => s.slug === search.servico)?.label || search.servico || (search.especialidade !== "Todas" ? categoryLabel(search.especialidade, categories) : ""), placement: "directory-results" };
 
   useEffect(() => {
     if (technicians.length > 0 || !searchArea || search.pagina > 1) return;
@@ -152,7 +154,7 @@ function TechniciansPage() {
         if (sessionStorage.getItem("eut-free-help-invite") === "seen") return;
         sessionStorage.setItem("eut-free-help-invite", "seen");
       } catch { /* Session storage unavailable: the button remains available. */ }
-      openFreeHelp({ city: search.cidade, uf: search.uf, neighborhood: search.bairro, service: search.servico });
+      openFreeHelp({ ...helpContext, placement: "directory-empty" });
     }, 850);
     return () => window.clearTimeout(popup);
   }, [technicians.length, searchArea, search.cidade, search.uf, search.bairro, search.servico, search.pagina]);
@@ -189,7 +191,7 @@ function TechniciansPage() {
           </div>
         </div>
 
-        <section aria-label="Filtros da busca" className="mt-5 overflow-hidden rounded-2xl border border-primary/20 bg-card p-4 shadow-sm sm:p-5">
+        <section aria-label="Filtros da busca" className="relative z-10 mt-5 rounded-2xl border border-primary/20 bg-card p-4 shadow-soft sm:p-5">
           <div className="flex items-center gap-2 text-sm font-extrabold text-card-foreground">
             <Search className="h-5 w-5 text-primary" aria-hidden="true" /> Encontre um profissional
           </div>
@@ -198,39 +200,34 @@ function TechniciansPage() {
             <label htmlFor="filtro-especialidade" className="text-xs font-medium text-muted-foreground">
               Especialidade
             </label>
-            <select
+            <SearchableChoice
               id="filtro-especialidade"
               value={specialty}
-              onChange={(e) => {
-                update({ especialidade: e.target.value, servico: "" });
+              options={[{value: "Todas", label: "Todas as categorias"}, ...categories.map(c => ({value: c.slug, label: c.label, keywords: c.description}))]}
+              clearOnEdit={false}
+              placeholder="Digite a especialidade"
+              onChange={(value) => {
+                update({ especialidade: value, servico: "" });
                 setServiceQuery("");
-                trackFilter("especialidade", e.target.value);
+                trackFilter("especialidade", value);
               }}
-              className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
-              disabled={catalogLoading}
-            >
-              <option value="Todas">Todas as categorias</option>
-              {categories.map((c) => (
-                <option key={c.slug} value={c.slug}>{c.label}</option>
-              ))}
-            </select>
+              className="mt-1 min-h-12 w-full rounded-md border border-input bg-background px-3 text-base text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            {catalogLoading && <p role="status" className="mt-1 text-xs text-muted-foreground">Carregando especialidades…</p>}
+            {catalogError && <p role="alert" className="mt-1 text-sm text-destructive">Não foi possível carregar as especialidades. Você pode buscar por cidade.</p>}
           </div>
           <div>
             <label htmlFor="filtro-uf" className="text-xs font-medium text-muted-foreground">Estado (UF)</label>
-            <select id="filtro-uf" value={search.uf} onChange={(e) => { update(technicianSearchAfterUfChange(e.target.value, search.prioridade)); trackFilter("uf", e.target.value); }}
-              className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
-              <option value="">Todos os estados</option>
-              {BRAZIL_STATES.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
-            </select>
+            <SearchableChoice id="filtro-uf" value={search.uf} clearOnEdit={false}
+              options={[{value: "", label: "Todos os estados"}, ...BRAZIL_STATES.map(uf => ({value: uf, label: uf}))]}
+              onChange={(value) => { if (value !== search.uf) update(technicianSearchAfterUfChange(value, search.prioridade)); trackFilter("uf", value); }}
+              className="mt-1 min-h-12 w-full rounded-md border border-input bg-background px-3 text-base text-foreground focus-visible:ring-2 focus-visible:ring-ring" />
           </div>
-          <DebouncedTextFilter
+          <SearchMunicipalityChoice
             key={`filtro-cidade-${search.uf}-${filterResetRevision}`}
             id="filtro-cidade"
-            label="Cidade"
-            value={search.cidade}
-            placeholder="Ex.: São Paulo"
-            onCommit={(value) => update({ cidade: value })}
-            onBlurTrack={(value) => trackFilter("cidade", value)}
+            uf={search.uf} city={search.cidade}
+            onChange={(cidade, uf) => { update({ cidade, uf, bairro: "", regiao: "" }); trackFilter("cidade", cidade); }}
           />
           </div>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
@@ -254,32 +251,14 @@ function TechniciansPage() {
           </div>
           <div id="filtros-avancados" role="region" aria-label="Filtros avançados" className={showAdvanced ? "mt-3 grid gap-3 border-t border-border pt-4 sm:grid-cols-3" : "hidden"}>
           <div>
-            <label htmlFor="filtro-servico-busca" className="text-xs font-medium text-muted-foreground">Pesquisar serviço na lista</label>
-            <input id="filtro-servico-busca" type="search" value={serviceQuery}
-              onChange={(event) => setServiceQuery(event.target.value)}
+            <label htmlFor="filtro-servico" className="block text-xs font-medium text-muted-foreground">Serviço específico</label>
+            <SearchableChoice id="filtro-servico" value={search.servico} clearOnEdit={false}
+              options={[{value: "", label: "Todos os serviços"}, ...directoryServiceOptions.map(service => ({value: service.slug, label: service.label, detail: categoryLabel(service.category_slug, categories)}))]}
               placeholder="Ex.: instalação, Wi-Fi, computadores"
-              disabled={servicesLoading}
-              className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground" />
-            <label htmlFor="filtro-servico" className="mt-3 block text-xs font-medium text-muted-foreground">Serviço específico</label>
-            <select id="filtro-servico" value={services.some((service) => service.slug === search.servico) ? search.servico : ""}
-              onChange={(e) => { update({ servico: e.target.value }); trackFilter("servico", e.target.value); }}
-              disabled={servicesLoading} className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground">
-              <option value="">Todos os serviços</option>
-              {directoryServiceOptions.map((service) => (
-                <option key={service.slug} value={service.slug}>{service.label}</option>
-              ))}
-            </select>
-            {serviceQuery.trim() && (
-              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                <p role="status" className="text-xs text-muted-foreground">
-                  {directoryServiceOptions.length} opções na lista. O serviço selecionado permanece disponível.
-                </p>
-                <button type="button" onClick={() => setServiceQuery("")}
-                  className="min-h-11 rounded-md px-2 text-xs font-semibold text-primary underline-offset-2 hover:underline">
-                  Limpar pesquisa de serviços
-                </button>
-              </div>
-            )}
+              onChange={(value) => { update({ servico: value }); trackFilter("servico", value); }}
+              className="mt-1 min-h-12 w-full rounded-md border border-input bg-background px-3 text-base text-foreground focus-visible:ring-2 focus-visible:ring-ring" />
+            {servicesLoading && <p role="status" className="mt-1 text-xs text-muted-foreground">Carregando serviços…</p>}
+            {servicesError && <p role="alert" className="mt-1 text-sm text-destructive">Lista de serviços indisponível. A busca por especialidade continua disponível.</p>}
           </div>
           <DebouncedTextFilter
             key={`filtro-bairro-${search.uf}-${filterResetRevision}`}

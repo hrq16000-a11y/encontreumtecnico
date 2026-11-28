@@ -29,11 +29,11 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
   const fieldId = useId();
   const { area: suggested } = useRegionalSuggestion();
   const [restored] = useState(() => readAssistanceDraft(context.technicianId));
-  const [mode, setMode] = useState<AssistanceMode | null>(context.mode ?? restored?.mode ?? null);
-  const [step, setStep] = useState(context.mode ? 1 : restored?.step ?? 0);
+  const [mode, setMode] = useState<AssistanceMode | null>(restored?.mode ?? context.mode ?? null);
+  const [step, setStep] = useState(restored?.step ?? (context.mode ? 1 : 0));
   const [name, setName] = useState(restored?.name ?? "");
   const [email, setEmail] = useState(restored?.email ?? "");
-  const [service, setService] = useState(context.service || restored?.service || "");
+  const [service, setService] = useState(restored ? restored.service : context.service || "");
   const [when, setWhen] = useState(restored?.when ?? "Nos próximos dias");
   // Keep the established label contract; only show active catalogue entries
   // whose label resolves unambiguously using the existing directory validator.
@@ -57,10 +57,10 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
     : catalogChoices;
   const changeService = (value: string) => { preserve({ service: value }); setService(value); };
   const [problem, setProblem] = useState(restored?.problem || context.initialProblem || "");
-  const [city, setCity] = useState(context.city || restored?.city || "");
-  const [uf, setUf] = useState(context.uf || restored?.uf || "");
+  const [city, setCity] = useState(restored ? restored.city : context.city || "");
+  const [uf, setUf] = useState(restored ? restored.uf : context.uf || "");
   const [cityIbgeId, setCityIbgeId] = useState<number | null>(null);
-  const [neighborhood, setNeighborhood] = useState(context.neighborhood || restored?.neighborhood || "");
+  const [neighborhood, setNeighborhood] = useState(restored ? restored.neighborhood : context.neighborhood || "");
   const [consent, setConsent] = useState(false);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Check } from "lucide-react";
 import { normalizeChoice, rankChoices, type ChoiceOption } from "@/lib/searchable-options";
+import { Button } from "@/components/ui/button";
 
 interface SearchableChoiceProps {
   id: string;
@@ -72,21 +73,21 @@ export function SearchableChoice({ id, value, options, onChange, placeholder = "
             e.preventDefault();
             const exact = results.filter(option => normalizeChoice(option.label) === normalizeChoice(query) || normalizeChoice(option.displayLabel ?? option.label) === normalizeChoice(query));
             if (active >= 0 && active < count) commit(active);
-            else if (exact.length === 1) commit(results.indexOf(exact[0]!));
+            else if (exact.length === 1 && exact[0]) commit(results.indexOf(exact[0]));
             else if (count === 1) commit(0);
           } else if (e.key === "Escape" && open) {
             e.preventDefault(); e.stopPropagation(); setOpen(false); setActive(-1); if (!clearOnEdit) setEditing(false);
           }
         }}
       />
-      <button type="button" aria-label={open ? "Ocultar sugestões" : "Mostrar sugestões"} tabIndex={-1}
-        className="absolute inset-y-1 right-0 flex w-12 items-center justify-center text-muted-foreground"
+      <Button variant="ghost" type="button" aria-label={open ? "Ocultar sugestões" : "Mostrar sugestões"} tabIndex={-1}
+        className="absolute inset-y-1 right-0 h-auto min-h-11 w-12 text-muted-foreground"
         onMouseDown={e => e.preventDefault()}
         onClick={() => { if (open) { setOpen(false); setActive(-1); } else { input.current?.focus({ preventScroll: true }); setOpen(true); } }}>
         <ChevronDown aria-hidden="true" className="size-4" />
-      </button>
+      </Button>
     </div>
-    {open && <div className="absolute inset-x-0 top-full z-20 mt-1 rounded-xl border bg-background shadow-lg" data-choice-suggestions>
+    {open && <div className="absolute inset-x-0 top-full z-50 mt-1 rounded-lg border border-border bg-popover text-popover-foreground shadow-soft" data-choice-suggestions>
       <p className="px-3 pt-2 text-xs text-muted-foreground">{editing ? "Selecione uma sugestão" : "Digite para filtrar as opções"}</p>
       <div ref={list} id={listId} role="listbox" aria-label="Sugestões" className="max-h-56 overflow-y-auto overscroll-contain p-1">
         {results.map((option, i) => <div key={option.value} id={listId + "-" + i} data-choice-index={i} data-option-value={option.value}
