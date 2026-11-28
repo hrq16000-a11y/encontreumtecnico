@@ -59,3 +59,24 @@ Não somar as quatro tabelas WordPress; não alegar 900 técnicos únicos, nem 7
 - Testes de RLS, permissões, concorrência, contato privado, importações de 5.000+ e rollback em **PostgreSQL descartável**; somente depois SQL/RLS auditado e autorizado no projeto hospedado, merge, release e verificação no painel conectado.
 
 **Bloqueio concreto:** esta rodada de código/front-end não dá autorização para executar SQL/RLS no banco hospedado. A publicação do CRUD backend precisa cumprir os gates e a aprovação já solicitada para staging; não converter nomes históricos em perfis comerciais sem contato e identidade reconciliados.
+
+## Atualização normativa — 28/11/2026: gestão de usuários e CRUD 360° inspirado no fluxo WordPress
+
+A referência WordPress é de **funcionalidade e ergonomia**, não de cópia de aparência nem de uma segunda instalação. Esta atualização prevalece sobre as regras históricas de 14/11 que indicavam criação/importação inativa: conforme decisão do proprietário, toda ficha nova administrativa ou importada nasce habilitada (exceto demonstrações), preservando suspensões/arquivamentos existentes e critérios reais de elegibilidade pública. Habilitação administrativa não concede acesso Auth nem publica contato privado.
+
+### Um painel, um fluxo de trabalho
+
+- Uma central `/admin/usuarios` com Todos, Técnicos, Clientes e Administradores; origem WordPress/Guiafix/manual é metadado, não papel. Manter os módulos existentes como editores especializados; não criar outro cadastro ou banco.
+- Listagem operacional compacta como referência de navegação: busca global, filtros por papel/situação, paginação no servidor, contador real, ações por linha (visualizar/editar), seleção da página e operações em lote auditadas quando suportadas. Alternativas responsivas de tabela e cartões; 390/768/1440, sem overflow nem alvos inacessíveis.
+- Incluir técnico diretamente pelo CRUD existente, sem convite ou conta de login obrigatória. Para conta de cliente/técnico autenticado, distinguir conta Auth, ficha profissional e contato: convite/acesso são etapas próprias. Gestão de administradores protegida; nenhum papel privilegiado por edição comum.
+- Abrir editor pela identidade canônica comprovada: `registry:UUID` → editor administrativo e revisão otimista; `account:UUID` → gestão de conta por UUID; `portal:UUID` → editor operacional exato; `wp:kind:ID` → acervo por identidade exata. Uma busca por nome/DDD/telefone NÃO identifica pessoa. `imported:UUID` órfão ou vínculos incoerentes permanecem somente leitura até reconciliação comprovada e operação segura.
+- Ações de criar, consultar, atualizar, habilitar/suspender, arquivar/restaurar devem preservar a trilha, idempotência e histórico. Exclusão definitiva somente quando permitida por política e autorização específica; não confundir suspensão, arquivamento e exclusão. Confirmar escrita pela releitura do servidor; mostrar erros recuperáveis, nunca sucesso presumido.
+- Contatos completos somente para administrador autorizado, nunca em HTML público, busca pública, analytics, logs ou URLs. Estado da ficha, da conta e da restrição de contato são independentes. Não enfraquecer RLS.
+
+### Micro-rodadas e evidências
+
+1. **Identidade e edição direta:** reaproveitar a PR #479 e o editor auditado existente; registro `registry:UUID` de técnico sem Auth com chave própria confirmada deve oferecer Editar ficha mesmo sem vínculo de importação. O nome só limita a leitura da RPC; a gravação permanece bloqueada até correspondência exata de UUID, origem e revisão. Fechar editor ao mudar filtros/página; após gravação confirmada, reconsultar a lista. Orfãos permanecem somente leitura.
+2. **Contas e histórico:** reconciliar a abertura exata de conta/portal/WordPress e retorno à lista, sem correspondência por nome. Reaproveitar #484, #465, #476 e módulos existentes; não presumir que estão publicados.
+3. **Operações e escala:** validar criação/edição de clientes e técnicos, contatos, moderação, ações em lote, duplicidades, paginação, ordenação geográfica e escala; instrumentar auditoria e QA autenticado, depois uma release por escopo aprovado.
+
+O documento e os testes de UI com respostas sintéticas não provam CRUD de ponta a ponta no Auth/Supabase oficial. QA deve usar ambiente isolado, casos positivos/negativos, homônimos, UUID incorreto, permissões, concorrência, releitura, rollback e 390/768/1440. Não realizar escrita de teste em produção, aplicar SQL nem liberar privilégios por esta norma. Verificar CI e HEAD; transportar apenas correções aprovadas sobre Production READY atualizado, com rollback e sem merge indiscriminado da main.

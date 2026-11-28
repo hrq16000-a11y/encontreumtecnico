@@ -148,10 +148,10 @@ function UnifiedUsersList({ role, openAccount }: {
     setResponse(null); // Never expose actions for a stale filtered page.
     setError(false);
     const cursor = cursors[page] ?? null;
-    void adminDb.rpc("eut_admin_users_unified_360", {
+    void Promise.resolve(adminDb.rpc("eut_admin_users_unified_360", {
       _search: search, _state: state, _role: role, _limit: LIST_SIZE,
       _after_name: cursor?.after_name ?? null, _after_key: cursor?.after_key ?? null,
-    }).then(({ data, error: queryError }) => {
+    })).then(({ data, error: queryError }) => {
       if (!active) return;
       if (queryError?.code === "PGRST202" || queryError?.code === "42883") {
         setMissingRpc(true); // Fallback only when the function is not installed.
@@ -162,7 +162,8 @@ function UnifiedUsersList({ role, openAccount }: {
           !Array.isArray(pageData.items) || typeof pageData.total !== "number" ||
           typeof pageData.has_more !== "boolean" ||
           !pageData.items.every((item: UnifiedUser) =>
-            typeof item.user_key === "string" && typeof item.name === "string" &&
+            typeof item.user_key === "string" && typeof item.record_key === "string" &&
+            typeof item.name === "string" &&
             (item.status === "ATIVO" || item.status === "SUSPENSO") &&
             Array.isArray(item.roles))) {
         setError(true); // Authorization/network errors must not silently downgrade the query.
@@ -186,18 +187,24 @@ function UnifiedUsersList({ role, openAccount }: {
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setEditingRegistryKey(null);
+    setSavedMessage(null);
     setSearch(draft.trim().slice(0, 80));
     setCursors([null]);
     setPage(0);
     setRefresh((value) => value + 1);
   }
   function changeState(next: "todos" | "ativo" | "suspenso") {
+    setEditingRegistryKey(null);
+    setSavedMessage(null);
     setState(next);
     setCursors([null]);
     setPage(0);
   }
   function nextPage() {
     if (!response?.has_more || !response.next_cursor) return;
+    setEditingRegistryKey(null);
+    setSavedMessage(null);
     setCursors((current) => [...current.slice(0, page + 1), response.next_cursor!]);
     setPage((value) => value + 1);
   }
@@ -243,8 +250,8 @@ function UnifiedUsersList({ role, openAccount }: {
       <p className="rounded-lg border border-border p-4 text-sm">Nenhum usuário encontrado neste filtro.</p>}
     <ul className="grid min-w-0 gap-3">
       {response?.items.map((item) => {
-        const importedRegistryKey = item.auth_user_id === null && item.linked_imports?.length &&
-          /^registry:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.record_key)
+        const editableRegistryKey = item.auth_user_id === null && item.roles.includes("tecnico") &&
+          item.user_key === item.record_key && /^registry:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.record_key)
             ? item.record_key : null;
         const technician = item.record_key.startsWith("registry:") ||
           item.record_key.startsWith("portal:");
@@ -290,23 +297,23 @@ function UnifiedUsersList({ role, openAccount }: {
                 className="min-h-11 rounded-lg border border-primary/40 bg-primary/10 px-3 text-sm font-semibold text-primary">
                 Gerenciar conta
               </button>}
-            {importedRegistryKey && <button type="button"
-              aria-expanded={editingRegistryKey === importedRegistryKey}
+            {editableRegistryKey && <button type="button"
+              aria-expanded={editingRegistryKey === editableRegistryKey}
               onClick={() => setEditingRegistryKey((current) =>
-                current === importedRegistryKey ? null : importedRegistryKey)}
+                current === editableRegistryKey ? null : editableRegistryKey)}
               className="min-h-11 rounded-lg border border-primary/40 px-3 text-sm font-semibold text-primary">
-              {editingRegistryKey === importedRegistryKey ? "Fechar edição" : "Editar ficha vinculada"}
+              {editingRegistryKey === editableRegistryKey ? "Fechar edição" : "Editar ficha"}
             </button>}
             {managementSection &&
               <a href={`/admin/${managementSection}?busca=${encodeURIComponent(item.name)}`}
                 className="inline-flex min-h-11 items-center rounded-lg border border-input px-3 text-sm font-semibold hover:bg-accent">
-                {technician ? "Abrir gestão de técnicos" : "Abrir acervo histórico"}
+                {technician ? "Buscar na gestão de técnicos" : "Buscar no acervo histórico"}
               </a>}
           </div>
-          {importedRegistryKey && editingRegistryKey === importedRegistryKey &&
+          {editableRegistryKey && editingRegistryKey === editableRegistryKey &&
             <Suspense fallback={<p role="status" className="mt-2 text-sm">Abrindo editor auditado…</p>}>
-              <AdminRegistryRecordInlineEditor key={importedRegistryKey}
-                recordKey={importedRegistryKey} name={item.name}
+              <AdminRegistryRecordInlineEditor key={editableRegistryKey}
+                recordKey={editableRegistryKey} name={item.name}
                 onCancel={() => setEditingRegistryKey(null)}
                 onSaved={(message) => {
                   setEditingRegistryKey(null);
@@ -324,7 +331,11 @@ function UnifiedUsersList({ role, openAccount }: {
     </ul>
     <div className="flex flex-wrap justify-between gap-2">
       <button type="button" disabled={loading || page === 0}
-        onClick={() => setPage((value) => Math.max(0, value - 1))}
+        onClick={() => {
+          setEditingRegistryKey(null);
+          setSavedMessage(null);
+          setPage((value) => Math.max(0, value - 1));
+        }}
         className="min-h-11 rounded-lg border border-input px-4 text-sm font-semibold disabled:opacity-40">
         Anterior
       </button>

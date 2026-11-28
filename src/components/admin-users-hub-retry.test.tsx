@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import type { ReactNode } from "react";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { rangeMock, profilesMock, rpcMock } = vi.hoisted(() => ({
@@ -16,6 +16,15 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 vi.mock("@/components/admin-accounts-manager", () => ({
   AdminAccountsManager: () => <div data-testid="account-manager-stub" />,
+}));
+vi.mock("@/components/admin-technician-record-editor", () => ({
+  AdminTechnicianRecordEditor: ({ existing, onSaved, onCancel }: {
+    existing: { technician_id: string }; onSaved: (message: string) => void; onCancel: () => void;
+  }) => <div data-testid="editor-exato">
+    <span>{existing.technician_id}</span>
+    <button onClick={() => onSaved("Ficha salva e conferida")}>Salvar ficha sintética</button>
+    <button onClick={onCancel}>Cancelar ficha sintética</button>
+  </div>,
 }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
@@ -100,5 +109,76 @@ describe("Painel 360° — recuperação funcional de Administradores", () => {
       expect.objectContaining({ _role: "cliente", _limit: 30 }),
     ));
     expect(screen.getByRole("tab", { name: "Clientes" })).toHaveAttribute("aria-selected", "true");
+  });
+});
+
+describe("Painel 360° — edição direta de registros administrativos", () => {
+  const a = "33333333-3333-4333-8333-333333333333";
+  const b = "44444444-4444-4444-8444-444444444444";
+  const c = "55555555-5555-4555-8555-555555555555";
+  const sameName = "Técnico Sintético Homônimo";
+  const row = (id: string, extra = {}) => ({
+    user_key: "registry:" + id, record_key: "registry:" + id,
+    auth_user_id: null, name: sameName, roles: ["tecnico"], status: "ATIVO",
+    linked_imports: [], ...extra,
+  });
+  const result = (items: unknown[]) => ({
+    data: { total: items.length, items, has_more: false, next_cursor: null }, error: null,
+  });
+  const exactRow = (id: string) => ({
+    technician_id: id, display_name: sameName, origin: "manual",
+    source_id: "sintetico:" + id, updated_at: "2026-11-28T01:00:00Z", total_count: 2,
+  });
+
+  it("abre a ficha manual sem Auth nem vínculo importado, confirma UUID e atualiza a mesma consulta após salvar", async () => {
+    const items = [
+      row(a), row(b, { linked_imports: [{ record_key: "imported:" + c }] }),
+      row(c, { record_key: "imported:" + c, user_key: "imported:" + c }),
+    ];
+    rpcMock.mockImplementation((name: string) => {
+      if (name === "eut_admin_users_unified_360") return Promise.resolve(result(items));
+      if (name === "eut_admin_technician_registry_list") return Promise.resolve({
+        data: [exactRow(b), exactRow(a)], error: null,
+      });
+      throw new Error("RPC inesperada: " + name);
+    });
+    render(<AdminUsersHub adminOwnerId="admin-sintetico" />);
+    const buttons = await screen.findAllByRole("button", { name: "Editar ficha" });
+    expect(buttons).toHaveLength(2);
+    fireEvent.click(buttons[0]);
+    const editor = await screen.findByTestId("editor-exato");
+    expect(editor).toHaveTextContent(a);
+    expect(editor).not.toHaveTextContent(b);
+    fireEvent.click(within(editor).getByRole("button", { name: "Salvar ficha sintética" }));
+    expect(await screen.findByText("Ficha salva e conferida")).toBeInTheDocument();
+    await waitFor(() => expect(rpcMock.mock.calls.filter(([name]) =>
+      name === "eut_admin_users_unified_360")).toHaveLength(2));
+    expect(screen.queryByTestId("editor-exato")).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Todos" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("não oferece edição direta de importado órfão, identidade divergente, cliente ou chave inválida", async () => {
+    rpcMock.mockResolvedValue(result([
+      row(a, { record_key: "imported:" + a, user_key: "imported:" + a }),
+      row(b, { user_key: "account:" + b }),
+      row(c, { roles: ["cliente"] }),
+      row("invalido"),
+    ]));
+    render(<AdminUsersHub adminOwnerId="admin-sintetico" />);
+    expect(await screen.findByText(/4 usuário\(s\)/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Editar ficha" })).not.toBeInTheDocument();
+    expect(screen.getByText(/consulta é somente leitura/)).toBeInTheDocument();
+    expect(rpcMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancela a edição ao mudar o filtro e não reabre automaticamente a ficha", async () => {
+    rpcMock.mockImplementation((name: string) => Promise.resolve(name === "eut_admin_users_unified_360"
+      ? result([row(a)]) : { data: [exactRow(a)], error: null }));
+    render(<AdminUsersHub adminOwnerId="admin-sintetico" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Editar ficha" }));
+    await screen.findByTestId("editor-exato");
+    fireEvent.change(screen.getByRole("combobox", { name: "Situação" }), { target: { value: "ativo" } });
+    expect(await screen.findByRole("button", { name: "Editar ficha" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByTestId("editor-exato")).not.toBeInTheDocument();
   });
 });

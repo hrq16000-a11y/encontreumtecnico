@@ -68,11 +68,11 @@ export function AdminRegistryRecordInlineEditor({
     return () => { current = false; };
   }, [recordKey, name]);
 
-  return <section aria-label="Edição administrativa da ficha vinculada"
+  return <section aria-label="Edição administrativa da ficha"
     className="mt-3 min-w-0 rounded-lg border border-border p-3">
     {loading && <p role="status" className="text-sm text-muted-foreground">Conferindo a identidade exata…</p>}
     {!loading && error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-    {!loading && record && <AdminTechnicianRecordEditor
+    {!loading && record && record.technician_id.toLowerCase() === exactRegistryKey.exec(recordKey)?.[1]?.toLowerCase() && <AdminTechnicianRecordEditor
       key={record.technician_id + record.updated_at}
       sourceId={record.source_id}
       existing={record}
