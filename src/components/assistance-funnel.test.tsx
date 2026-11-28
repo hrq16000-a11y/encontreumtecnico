@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { AssistanceFunnel } from "./assistance-funnel";
-import { guideHelpContext, portalHelpContext } from "@/lib/free-search-help";
+import { guideDraftScope, portalHelpContext } from "@/lib/free-search-help";
 import { readAssistanceDraft } from "@/lib/assistance-draft";
 
 const directoryMock = vi.hoisted(() => ({
@@ -62,7 +62,9 @@ describe("Localidade do atendimento guiado", () => {
     expect((screen.getByRole("textbox", { name: /Qual problema/i }) as HTMLTextAreaElement).value).toBe("Meu problema foi descrito antes de fechar.");
   });
   it("preserva as edições do pedido contextual de uma especialidade", () => {
-    const context = guideHelpContext({ slug: "instalacao-cameras", categorySlug: "cftv", categoryName: "Câmeras" });
+    const scope = guideDraftScope("cftv");
+    if (!scope) throw new Error("Missing canonical service scope");
+    const context = { mode: "managed" as const, service: "CFTV e segurança", guideSlug: "instalacao-cameras", draftScope: scope };
     vi.mocked(readAssistanceDraft).mockReturnValueOnce({
       mode: "managed", step: 2, name: "", email: "", service: "Acesso remoto a câmeras",
       when: "Amanhã", problem: "Grava normalmente mas não funciona no celular.",
