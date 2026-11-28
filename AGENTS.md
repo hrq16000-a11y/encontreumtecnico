@@ -60,3 +60,7 @@
 ## Contrato de evolução do motor de atendimento e CRM (28/11/2026)
 
 - Norma permanente e plano pós-ciclo visual: [docs/CONTRATO_MOTOR_ATENDIMENTO_E_CRM.md](docs/CONTRATO_MOTOR_ATENDIMENTO_E_CRM.md). Regras de cidade/bairro/UF contextual, classificação de modalidade, evidência necessária, persistência privada antes do WhatsApp, Google Sheets/CRM e CTA acessível. Respeitar o perfil local e os contratos vigentes. Registro documental; execução somente após concluir o ciclo visual atual.
+
+## Contrato de SEO, descoberta por IA e inteligência comercial — Rodadas 21–30 (28/11/2026)
+
+- Norma permanente: [docs/CONTRATO_SEO_CONHECIMENTO_IA.md](docs/CONTRATO_SEO_CONHECIMENTO_IA.md). Executar em micro-rodadas, começando por imagens sociais/metadata; depois Schema.org com auditoria, SEO técnico, conhecimento, preços reais, recomendações, simulador, analytics, autoridade temática e consolidação. Respeitar a aderência local, privacidade, dados reais, gates atuais e autorização específica de custos. Documentação não equivale a alteração funcional, merge, deploy, indexação ou recomendação por IA.
