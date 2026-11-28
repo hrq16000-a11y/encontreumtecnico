@@ -95,7 +95,20 @@ async function preserveAssistance(page) {
   // The approved contact CTA already opens managed assistance at step 1.
   const problem = page.getByLabel("Qual problema está acontecendo?");
   await problem.waitFor({ state: "visible", timeout: 12000 });
-  await page.getByLabel("Tipo de serviço").selectOption({ label: "Redes e Wi-Fi" });
+  const service = page.getByLabel("Tipo de serviço");
+  // This smoke also runs against the existing production release while a
+  // new candidate is being reviewed. Exercise the enhanced field when present.
+  if (await service.evaluate(element => element.tagName === "SELECT")) {
+    await service.selectOption({ label: "Redes e Wi-Fi" });
+  } else {
+    const source = page.url();
+    await service.fill("redes");
+    await page.getByRole("option", { name: "Redes e Wi-Fi", exact: true }).waitFor();
+    await service.press("ArrowDown");
+    await service.press("Enter");
+    assert.equal(await service.getAttribute("data-choice-value"), "Redes e Wi-Fi");
+    assert.equal(page.url(), source, "Assistance selector navigated away");
+  }
   await problem.fill("O notebook não conecta à rede Wi-Fi há dois dias");
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: /Pedir ajuda ao portal/i }).click();
