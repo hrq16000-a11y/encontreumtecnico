@@ -1,3 +1,5 @@
+import type { ServiceCategory } from "./service-catalog";
+
 export type FreeHelpContext = {
   city?: string;
   uf?: string;
@@ -9,7 +11,7 @@ export type FreeHelpContext = {
   guideSlug?: string;
   initialProblem?: string;
   /** Stable public CTA intent, never user-entered text or contact data. */
-  draftScope?: `portal-${"home" | "contato"}-${"geral" | "privacidade"}`;
+  draftScope?: `portal-${"home" | "contato"}-${"geral" | "privacidade"}` | `service-${ServiceCategory["slug"]}`;
 };
 
 const clean = (value: unknown) =>
@@ -48,6 +50,13 @@ export function portalHelpContext(
     service: "Outro serviço",
     initialProblem: request + " Estou na " + page + " do Encontre um Técnico. ",
   };
+}
+
+/** Only canonical categories may become draft keys for guide/service CTAs. */
+export function guideDraftScope(category: string): FreeHelpContext["draftScope"] {
+  const categories = ["climatizacao", "automacao", "cftv", "computadores", "comunicacoes", "eletrica", "design-grafico", "impressoras", "redes", "software"] as const satisfies readonly ServiceCategory["slug"][];
+  const slug = categories.find(item => item === category);
+  return slug ? `service-${slug}` : undefined;
 }
 
 /** Opens the existing private admin contact form, not a technician contact. */

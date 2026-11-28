@@ -1,9 +1,11 @@
 import { Link } from "@tanstack/react-router";
-import { openFreeHelp } from "@/lib/free-search-help";
+import { guideDraftScope, openFreeHelp } from "@/lib/free-search-help";
 import type { PublicGuide } from "@/lib/public-guides";
 
 function requestHelpForGuide(guide: PublicGuide): void {
+  const scope = guideDraftScope(guide.categorySlug);
   openFreeHelp({
+    ...(scope ? { draftScope: scope } : {}),
     mode: "managed",
     guideSlug: guide.slug,
     service: ({

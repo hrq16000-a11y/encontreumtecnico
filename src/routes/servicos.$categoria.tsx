@@ -4,7 +4,7 @@ import { PublicServiceLogistics } from "@/components/public-service-logistics";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { PageShell } from "@/components/page-placeholder";
 import { GuideSectionVisual } from "@/components/guide-section-visual";
-import { GuideLeadCallout } from "@/components/guide-lead-callout";
+import { GuideInlineHelpButton, GuideLeadCallout } from "@/components/guide-lead-callout";
 import { GuideReadingNavigation, GuideFrequentlyAskedQuestions } from "@/components/guide-reading-tools";
 import { getGuideArtwork } from "@/lib/guide-artwork";
 import { getRelatedServiceCategories } from "@/lib/service-catalog";
@@ -103,24 +103,34 @@ function ServiceCategoryPage() {
             Consulte perfis publicados, confirme a cidade e a especialidade declarada e descreva a sua necessidade.
             O portal não certifica profissionais, não garante disponibilidade e mantém contatos privados protegidos.
           </p>
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Link to="/tecnicos" search={directorySearch}
-              className="inline-flex min-h-11 items-center rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground hover:bg-primary/90">
-              Buscar todos os profissionais desta categoria →
-            </Link>
+          <div className="mt-6 border-l-2 border-primary/40 pl-4 sm:pl-5">
+            <h2 className="text-base font-bold text-foreground">Como você quer continuar?</h2>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              Explique a necessidade à equipe com a especialidade já selecionada ou compare os perfis diretamente.
+              Nenhum pedido é enviado apenas por abrir o formulário.
+            </p>
+            <div className="mt-4 flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+              <GuideInlineHelpButton guide={guide} />
+              <Link to="/tecnicos" search={directorySearch}
+                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-primary/40 px-4 py-2 text-center text-sm font-semibold text-primary hover:bg-primary/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                Buscar todos os profissionais desta categoria →
+              </Link>
+            </div>
+          </div>
+          <nav aria-label="Outras opções desta especialidade" className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
             <Link to="/area-cliente" search={{ modo: "regional", categoria: category.slug }}
-              className="inline-flex min-h-11 items-center rounded-xl border border-primary/30 px-4 text-sm font-semibold text-primary hover:bg-primary/5">
+              className="inline-flex min-h-11 items-center text-sm font-semibold text-primary underline-offset-4 hover:underline">
               Guardar pedido da minha região
             </Link>
             <Link to="/cadastro"
-              className="inline-flex min-h-11 items-center rounded-xl border border-border px-4 text-sm font-semibold text-primary hover:bg-muted/50">
+              className="inline-flex min-h-11 items-center text-sm font-semibold text-primary underline-offset-4 hover:underline">
               Sou profissional — cadastrar gratuitamente
             </Link>
             <a href="#orientacoes-da-especialidade"
-              className="inline-flex min-h-11 items-center rounded-xl border border-border px-4 text-sm font-semibold text-primary hover:bg-muted/50">
+              className="inline-flex min-h-11 items-center text-sm font-semibold text-primary underline-offset-4 hover:underline">
               Informações para contratar
             </a>
-          </div>
+          </nav>
         </header>
 
         <section aria-labelledby="profissionais-da-categoria" className="mt-9 rounded-2xl border border-border bg-card p-5 sm:p-7">

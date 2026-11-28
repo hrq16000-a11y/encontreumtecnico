@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { portalHelpContext } from "./free-search-help";
+import { guideDraftScope, portalHelpContext } from "./free-search-help";
 import { clearAssistanceDraft, readAssistanceDraft, saveAssistanceDraft, type AssistanceDraft } from "./assistance-draft";
 
 beforeEach(() => window.sessionStorage.clear());
@@ -37,6 +37,20 @@ describe("unsent assistance wizard survives navigation and mobile reload", () =>
     clearAssistanceDraft(privacy.draftScope, sessionStorage);
     expect(readAssistanceDraft(privacy.draftScope, sessionStorage)).toBeNull();
     expect(readAssistanceDraft(generic.draftScope, sessionStorage)).toEqual(draft);
+  });
+  it("keeps service-category drafts apart and shares the same category across guides", () => {
+    const cftv = guideDraftScope("cftv");
+    const redes = guideDraftScope("redes");
+    expect(cftv).toBe("service-cftv");
+    expect(redes).toBe("service-redes");
+    expect(guideDraftScope("unknown")).toBeUndefined();
+    expect(guideDraftScope("cftv@example.com")).toBeUndefined();
+    saveAssistanceDraft(cftv, draft, sessionStorage);
+    expect(readAssistanceDraft(redes, sessionStorage)).toBeNull();
+    expect(readAssistanceDraft(undefined, sessionStorage)).toBeNull();
+    expect(readAssistanceDraft(guideDraftScope("cftv"), sessionStorage)).toEqual(draft);
+    clearAssistanceDraft(guideDraftScope("cftv"), sessionStorage);
+    expect(readAssistanceDraft(cftv, sessionStorage)).toBeNull();
   });
   it("expires and never persists payment credentials or explicit consent", () => {
     saveAssistanceDraft(undefined, draft, sessionStorage, 100000);

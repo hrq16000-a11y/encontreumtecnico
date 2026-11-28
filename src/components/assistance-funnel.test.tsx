@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { AssistanceFunnel } from "./assistance-funnel";
-import { portalHelpContext } from "@/lib/free-search-help";
+import { guideDraftScope, portalHelpContext } from "@/lib/free-search-help";
 import { readAssistanceDraft } from "@/lib/assistance-draft";
 
 const directoryMock = vi.hoisted(() => ({
@@ -60,6 +60,22 @@ describe("Localidade do atendimento guiado", () => {
     fireEvent.click(screen.getByRole("button", { name: "Voltar ao problema" }));
     expect((screen.getByRole("combobox", { name: "Tipo de serviço" }) as HTMLInputElement).value).toBe("Redes e Wi-Fi");
     expect((screen.getByRole("textbox", { name: /Qual problema/i }) as HTMLTextAreaElement).value).toBe("Meu problema foi descrito antes de fechar.");
+  });
+  it("preserva as edições do pedido contextual de uma especialidade", () => {
+    const scope = guideDraftScope("cftv");
+    if (!scope) throw new Error("Missing canonical service scope");
+    const context = { mode: "managed" as const, service: "CFTV e segurança", guideSlug: "instalacao-cameras", draftScope: scope };
+    vi.mocked(readAssistanceDraft).mockReturnValueOnce({
+      mode: "managed", step: 2, name: "", email: "", service: "Acesso remoto a câmeras",
+      when: "Amanhã", problem: "Grava normalmente mas não funciona no celular.",
+      city: "", uf: "", neighborhood: "",
+    });
+    render(<AssistanceFunnel context={context} onClose={vi.fn()} />);
+    expect(readAssistanceDraft).toHaveBeenCalledWith("service-cftv");
+    expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Voltar ao problema" }));
+    expect((screen.getByRole("combobox", { name: "Tipo de serviço" }) as HTMLInputElement).value).toBe("Acesso remoto a câmeras");
+    expect((screen.getByRole("textbox", { name: /Qual problema/i }) as HTMLTextAreaElement).value).toBe("Grava normalmente mas não funciona no celular.");
   });
   it("abre privacidade com intenção própria em vez do rascunho geral", () => {
     render(<AssistanceFunnel context={portalHelpContext("contato", "privacidade")} onClose={vi.fn()} />);
