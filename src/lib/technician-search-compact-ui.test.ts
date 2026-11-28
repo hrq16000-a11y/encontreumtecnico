@@ -41,7 +41,7 @@ describe("Busca compacta: filtros e perfis com privacidade", () => {
     const clearStart = page.indexOf('const clearAllFilters =');
     const clearAction = page.slice(clearStart, page.indexOf('return (', clearStart));
     expect(clearAction).toContain('clearDirectoryPendingFilters();');
-    expect(clearAction).toContain('setServiceQuery("");');
+    expect(clearAction).toContain('update({ especialidade: "Todas", servico: "", uf: "", cidade: "", bairro: "", regiao: "", prioridade: "" });');
     expect(clearAction).toContain('setFilterResetRevision(value => value + 1)');
     expect(page).toContain('setShowAdvanced(true)');
   });
