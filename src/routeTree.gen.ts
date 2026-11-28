@@ -11,19 +11,65 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AjudaAcessoRouteImport } from './routes/ajuda-acesso'
 import { Route as AreaClienteRouteImport } from './routes/area-cliente'
 import { Route as AreaTecnicoRouteImport } from './routes/area-tecnico'
+import { Route as CadastroRouteImport } from './routes/cadastro'
+import { Route as CoberturaRouteImport } from './routes/cobertura'
 import { Route as ComoFuncionaRouteImport } from './routes/como-funciona'
+import { Route as CondicoesDoPrestadorRouteImport } from './routes/condicoes-do-prestador'
 import { Route as ContatoRouteImport } from './routes/contato'
+import { Route as CookiesRouteImport } from './routes/cookies'
+import { Route as DireitosDosTitularesRouteImport } from './routes/direitos-dos-titulares'
+import { Route as EcossistemaRouteImport } from './routes/ecossistema'
 import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as FaqRouteImport } from './routes/faq'
+import { Route as GaleriaRouteImport } from './routes/galeria'
+import { Route as Home2RouteImport } from './routes/home2'
+import { Route as ListaDeClientesRouteImport } from './routes/lista-de-clientes'
 import { Route as ListaDeTecnicosRouteImport } from './routes/lista-de-tecnicos'
+import { Route as Lp2RouteRouteImport } from './routes/lp2/route'
+import { Route as PagamentosEReembolsosRouteImport } from './routes/pagamentos-e-reembolsos'
+import { Route as PoliticaDeCookiesRouteImport } from './routes/politica-de-cookies'
+import { Route as PoliticaDePrivacidadeRouteImport } from './routes/politica-de-privacidade'
+import { Route as PoliticasRouteImport } from './routes/politicas'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
+import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
+import { Route as ReivindicarCadastroRouteImport } from './routes/reivindicar-cadastro'
+import { Route as ResponsabilidadesRouteImport } from './routes/responsabilidades'
+import { Route as SegurancaRouteImport } from './routes/seguranca'
 import { Route as ServicosRouteImport } from './routes/servicos'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as TermosRouteImport } from './routes/termos'
+import { Route as TermosDeUsoRouteImport } from './routes/termos-de-uso'
+import { Route as AcessoContatoTecnicoIdRouteImport } from './routes/acesso-contato.$tecnicoId'
+import { Route as AdminSecaoRouteImport } from './routes/admin_.$secao'
+import { Route as CategoriasCategoriaRouteImport } from './routes/categorias.$categoria'
+import { Route as ClienteSlugRouteImport } from './routes/cliente.$slug'
+import { Route as ConviteCodigoRouteImport } from './routes/convite.$codigo'
+import { Route as GuiasIndexRouteImport } from './routes/guias.index'
+import { Route as GuiasSlugRouteImport } from './routes/guias.$slug'
+import { Route as Lp2IndexRouteImport } from './routes/lp2/index'
+import { Route as Lp2AcompanharRouteImport } from './routes/lp2/acompanhar'
+import { Route as Lp2AdminRouteImport } from './routes/lp2/admin'
+import { Route as Lp2AdminPortalRouteImport } from './routes/lp2/admin-portal'
+import { Route as Lp2AtividadesRouteImport } from './routes/lp2/atividades'
+import { Route as Lp2CadastroRouteImport } from './routes/lp2/cadastro'
+import { Route as Lp2ClienteRouteImport } from './routes/lp2/cliente'
+import { Route as Lp2ClientesRouteImport } from './routes/lp2/clientes'
+import { Route as Lp2EntrarRouteImport } from './routes/lp2/entrar'
+import { Route as Lp2GaleriaRouteImport } from './routes/lp2/galeria'
+import { Route as Lp2MeuPerfilRouteImport } from './routes/lp2/meu-perfil'
+import { Route as ServicosCategoriaRouteImport } from './routes/servicos.$categoria'
+import { Route as SitemapsBaseDotxmlRouteImport } from './routes/sitemaps.base[.]xml'
+import { Route as SitemapsCategoriasDotxmlRouteImport } from './routes/sitemaps.categorias[.]xml'
+import { Route as SitemapsCidadesDotxmlRouteImport } from './routes/sitemaps.cidades[.]xml'
+import { Route as TecnicoSlugRouteImport } from './routes/tecnico.$slug'
 import { Route as TecnicosIndexRouteImport } from './routes/tecnicos.index'
 import { Route as TecnicosTecnicoIdRouteImport } from './routes/tecnicos.$tecnicoId'
+import { Route as CidadesUfCidadeRouteImport } from './routes/cidades.$uf.$cidade'
+import { Route as Lp2TecnicoSlugRouteImport } from './routes/lp2/tecnico.$slug'
+import { Route as SitemapsTecnicosChar123paginaChar125DotxmlRouteImport } from './routes/sitemaps.tecnicos.{$pagina}[.]xml'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -33,6 +79,11 @@ const IndexRoute = IndexRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AjudaAcessoRoute = AjudaAcessoRouteImport.update({
+  id: '/ajuda-acesso',
+  path: '/ajuda-acesso',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AreaClienteRoute = AreaClienteRouteImport.update({
@@ -45,14 +96,44 @@ const AreaTecnicoRoute = AreaTecnicoRouteImport.update({
   path: '/area-tecnico',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CadastroRoute = CadastroRouteImport.update({
+  id: '/cadastro',
+  path: '/cadastro',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CoberturaRoute = CoberturaRouteImport.update({
+  id: '/cobertura',
+  path: '/cobertura',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ComoFuncionaRoute = ComoFuncionaRouteImport.update({
   id: '/como-funciona',
   path: '/como-funciona',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CondicoesDoPrestadorRoute = CondicoesDoPrestadorRouteImport.update({
+  id: '/condicoes-do-prestador',
+  path: '/condicoes-do-prestador',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ContatoRoute = ContatoRouteImport.update({
   id: '/contato',
   path: '/contato',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CookiesRoute = CookiesRouteImport.update({
+  id: '/cookies',
+  path: '/cookies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DireitosDosTitularesRoute = DireitosDosTitularesRouteImport.update({
+  id: '/direitos-dos-titulares',
+  path: '/direitos-dos-titulares',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EcossistemaRoute = EcossistemaRouteImport.update({
+  id: '/ecossistema',
+  path: '/ecossistema',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EntrarRoute = EntrarRouteImport.update({
@@ -65,14 +146,74 @@ const FaqRoute = FaqRouteImport.update({
   path: '/faq',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GaleriaRoute = GaleriaRouteImport.update({
+  id: '/galeria',
+  path: '/galeria',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Home2Route = Home2RouteImport.update({
+  id: '/home2',
+  path: '/home2',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ListaDeClientesRoute = ListaDeClientesRouteImport.update({
+  id: '/lista-de-clientes',
+  path: '/lista-de-clientes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ListaDeTecnicosRoute = ListaDeTecnicosRouteImport.update({
   id: '/lista-de-tecnicos',
   path: '/lista-de-tecnicos',
   getParentRoute: () => rootRouteImport,
 } as any)
+const Lp2RouteRoute = Lp2RouteRouteImport.update({
+  id: '/lp2',
+  path: '/lp2',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PagamentosEReembolsosRoute = PagamentosEReembolsosRouteImport.update({
+  id: '/pagamentos-e-reembolsos',
+  path: '/pagamentos-e-reembolsos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PoliticaDeCookiesRoute = PoliticaDeCookiesRouteImport.update({
+  id: '/politica-de-cookies',
+  path: '/politica-de-cookies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PoliticaDePrivacidadeRoute = PoliticaDePrivacidadeRouteImport.update({
+  id: '/politica-de-privacidade',
+  path: '/politica-de-privacidade',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PoliticasRoute = PoliticasRouteImport.update({
+  id: '/politicas',
+  path: '/politicas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrivacidadeRoute = PrivacidadeRouteImport.update({
   id: '/privacidade',
   path: '/privacidade',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RedefinirSenhaRoute = RedefinirSenhaRouteImport.update({
+  id: '/redefinir-senha',
+  path: '/redefinir-senha',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReivindicarCadastroRoute = ReivindicarCadastroRouteImport.update({
+  id: '/reivindicar-cadastro',
+  path: '/reivindicar-cadastro',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResponsabilidadesRoute = ResponsabilidadesRouteImport.update({
+  id: '/responsabilidades',
+  path: '/responsabilidades',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SegurancaRoute = SegurancaRouteImport.update({
+  id: '/seguranca',
+  path: '/seguranca',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ServicosRoute = ServicosRouteImport.update({
@@ -90,6 +231,127 @@ const TermosRoute = TermosRouteImport.update({
   path: '/termos',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TermosDeUsoRoute = TermosDeUsoRouteImport.update({
+  id: '/termos-de-uso',
+  path: '/termos-de-uso',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AcessoContatoTecnicoIdRoute = AcessoContatoTecnicoIdRouteImport.update({
+  id: '/acesso-contato/$tecnicoId',
+  path: '/acesso-contato/$tecnicoId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSecaoRoute = AdminSecaoRouteImport.update({
+  id: '/admin_/$secao',
+  path: '/admin/$secao',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CategoriasCategoriaRoute = CategoriasCategoriaRouteImport.update({
+  id: '/categorias/$categoria',
+  path: '/categorias/$categoria',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClienteSlugRoute = ClienteSlugRouteImport.update({
+  id: '/cliente/$slug',
+  path: '/cliente/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConviteCodigoRoute = ConviteCodigoRouteImport.update({
+  id: '/convite/$codigo',
+  path: '/convite/$codigo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuiasIndexRoute = GuiasIndexRouteImport.update({
+  id: '/guias/',
+  path: '/guias/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuiasSlugRoute = GuiasSlugRouteImport.update({
+  id: '/guias/$slug',
+  path: '/guias/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Lp2IndexRoute = Lp2IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => Lp2RouteRoute,
+} as any)
+const Lp2AcompanharRoute = Lp2AcompanharRouteImport.update({
+  id: '/acompanhar',
+  path: '/acompanhar',
+  getParentRoute: () => Lp2RouteRoute,
+} as any)
+const Lp2AdminRoute = Lp2AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => Lp2RouteRoute,
+} as any)
+const Lp2AdminPortalRoute = Lp2AdminPortalRouteImport.update({
+  id: '/admin-portal',
+  path: '/admin-portal',
+  getParentRoute: () => Lp2RouteRoute,
+} as any)
+const Lp2AtividadesRoute = Lp2AtividadesRouteImport.update({
+  id: '/atividades',
+  path: '/atividades',
+  getParentRoute: () => Lp2RouteRoute,
+} as any)
+const Lp2CadastroRoute = Lp2CadastroRouteImport.update({
+  id: '/cadastro',
+  path: '/cadastro',
+  getParentRoute: () => Lp2RouteRoute,
+} as any)
+const Lp2ClienteRoute = Lp2ClienteRouteImport.update({
+  id: '/cliente',
+  path: '/cliente',
+  getParentRoute: () => Lp2RouteRoute,
+} as any)
+const Lp2ClientesRoute = Lp2ClientesRouteImport.update({
+  id: '/clientes',
+  path: '/clientes',
+  getParentRoute: () => Lp2RouteRoute,
+} as any)
+const Lp2EntrarRoute = Lp2EntrarRouteImport.update({
+  id: '/entrar',
+  path: '/entrar',
+  getParentRoute: () => Lp2RouteRoute,
+} as any)
+const Lp2GaleriaRoute = Lp2GaleriaRouteImport.update({
+  id: '/galeria',
+  path: '/galeria',
+  getParentRoute: () => Lp2RouteRoute,
+} as any)
+const Lp2MeuPerfilRoute = Lp2MeuPerfilRouteImport.update({
+  id: '/meu-perfil',
+  path: '/meu-perfil',
+  getParentRoute: () => Lp2RouteRoute,
+} as any)
+const ServicosCategoriaRoute = ServicosCategoriaRouteImport.update({
+  id: '/$categoria',
+  path: '/$categoria',
+  getParentRoute: () => ServicosRoute,
+} as any)
+const SitemapsBaseDotxmlRoute = SitemapsBaseDotxmlRouteImport.update({
+  id: '/sitemaps/base.xml',
+  path: '/sitemaps/base.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapsCategoriasDotxmlRoute =
+  SitemapsCategoriasDotxmlRouteImport.update({
+    id: '/sitemaps/categorias.xml',
+    path: '/sitemaps/categorias.xml',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const SitemapsCidadesDotxmlRoute = SitemapsCidadesDotxmlRouteImport.update({
+  id: '/sitemaps/cidades.xml',
+  path: '/sitemaps/cidades.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TecnicoSlugRoute = TecnicoSlugRouteImport.update({
+  id: '/tecnico/$slug',
+  path: '/tecnico/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TecnicosIndexRoute = TecnicosIndexRouteImport.update({
   id: '/tecnicos/',
   path: '/tecnicos/',
@@ -100,129 +362,452 @@ const TecnicosTecnicoIdRoute = TecnicosTecnicoIdRouteImport.update({
   path: '/tecnicos/$tecnicoId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CidadesUfCidadeRoute = CidadesUfCidadeRouteImport.update({
+  id: '/cidades/$uf/$cidade',
+  path: '/cidades/$uf/$cidade',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Lp2TecnicoSlugRoute = Lp2TecnicoSlugRouteImport.update({
+  id: '/tecnico/$slug',
+  path: '/tecnico/$slug',
+  getParentRoute: () => Lp2RouteRoute,
+} as any)
+const SitemapsTecnicosChar123paginaChar125DotxmlRoute =
+  SitemapsTecnicosChar123paginaChar125DotxmlRouteImport.update({
+    id: '/sitemaps/tecnicos/{$pagina}.xml',
+    path: '/sitemaps/tecnicos/{$pagina}.xml',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/lp2': typeof Lp2RouteRouteWithChildren
   '/admin': typeof AdminRoute
+  '/ajuda-acesso': typeof AjudaAcessoRoute
   '/area-cliente': typeof AreaClienteRoute
   '/area-tecnico': typeof AreaTecnicoRoute
+  '/cadastro': typeof CadastroRoute
+  '/cobertura': typeof CoberturaRoute
   '/como-funciona': typeof ComoFuncionaRoute
+  '/condicoes-do-prestador': typeof CondicoesDoPrestadorRoute
   '/contato': typeof ContatoRoute
+  '/cookies': typeof CookiesRoute
+  '/direitos-dos-titulares': typeof DireitosDosTitularesRoute
+  '/ecossistema': typeof EcossistemaRoute
   '/entrar': typeof EntrarRoute
   '/faq': typeof FaqRoute
+  '/galeria': typeof GaleriaRoute
+  '/home2': typeof Home2Route
+  '/lista-de-clientes': typeof ListaDeClientesRoute
   '/lista-de-tecnicos': typeof ListaDeTecnicosRoute
+  '/pagamentos-e-reembolsos': typeof PagamentosEReembolsosRoute
+  '/politica-de-cookies': typeof PoliticaDeCookiesRoute
+  '/politica-de-privacidade': typeof PoliticaDePrivacidadeRoute
+  '/politicas': typeof PoliticasRoute
   '/privacidade': typeof PrivacidadeRoute
-  '/servicos': typeof ServicosRoute
+  '/redefinir-senha': typeof RedefinirSenhaRoute
+  '/reivindicar-cadastro': typeof ReivindicarCadastroRoute
+  '/responsabilidades': typeof ResponsabilidadesRoute
+  '/seguranca': typeof SegurancaRoute
+  '/servicos': typeof ServicosRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/termos': typeof TermosRoute
+  '/termos-de-uso': typeof TermosDeUsoRoute
+  '/acesso-contato/$tecnicoId': typeof AcessoContatoTecnicoIdRoute
+  '/admin/$secao': typeof AdminSecaoRoute
+  '/categorias/$categoria': typeof CategoriasCategoriaRoute
+  '/cliente/$slug': typeof ClienteSlugRoute
+  '/convite/$codigo': typeof ConviteCodigoRoute
+  '/guias/$slug': typeof GuiasSlugRoute
+  '/lp2/acompanhar': typeof Lp2AcompanharRoute
+  '/lp2/admin': typeof Lp2AdminRoute
+  '/lp2/admin-portal': typeof Lp2AdminPortalRoute
+  '/lp2/atividades': typeof Lp2AtividadesRoute
+  '/lp2/cadastro': typeof Lp2CadastroRoute
+  '/lp2/cliente': typeof Lp2ClienteRoute
+  '/lp2/clientes': typeof Lp2ClientesRoute
+  '/lp2/entrar': typeof Lp2EntrarRoute
+  '/lp2/galeria': typeof Lp2GaleriaRoute
+  '/lp2/meu-perfil': typeof Lp2MeuPerfilRoute
+  '/servicos/$categoria': typeof ServicosCategoriaRoute
+  '/sitemaps/base.xml': typeof SitemapsBaseDotxmlRoute
+  '/sitemaps/categorias.xml': typeof SitemapsCategoriasDotxmlRoute
+  '/sitemaps/cidades.xml': typeof SitemapsCidadesDotxmlRoute
+  '/tecnico/$slug': typeof TecnicoSlugRoute
   '/tecnicos/$tecnicoId': typeof TecnicosTecnicoIdRoute
+  '/guias/': typeof GuiasIndexRoute
+  '/lp2/': typeof Lp2IndexRoute
   '/tecnicos/': typeof TecnicosIndexRoute
+  '/cidades/$uf/$cidade': typeof CidadesUfCidadeRoute
+  '/lp2/tecnico/$slug': typeof Lp2TecnicoSlugRoute
+  '/sitemaps/tecnicos/{$pagina}.xml': typeof SitemapsTecnicosChar123paginaChar125DotxmlRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/ajuda-acesso': typeof AjudaAcessoRoute
   '/area-cliente': typeof AreaClienteRoute
   '/area-tecnico': typeof AreaTecnicoRoute
+  '/cadastro': typeof CadastroRoute
+  '/cobertura': typeof CoberturaRoute
   '/como-funciona': typeof ComoFuncionaRoute
+  '/condicoes-do-prestador': typeof CondicoesDoPrestadorRoute
   '/contato': typeof ContatoRoute
+  '/cookies': typeof CookiesRoute
+  '/direitos-dos-titulares': typeof DireitosDosTitularesRoute
+  '/ecossistema': typeof EcossistemaRoute
   '/entrar': typeof EntrarRoute
   '/faq': typeof FaqRoute
+  '/galeria': typeof GaleriaRoute
+  '/home2': typeof Home2Route
+  '/lista-de-clientes': typeof ListaDeClientesRoute
   '/lista-de-tecnicos': typeof ListaDeTecnicosRoute
+  '/pagamentos-e-reembolsos': typeof PagamentosEReembolsosRoute
+  '/politica-de-cookies': typeof PoliticaDeCookiesRoute
+  '/politica-de-privacidade': typeof PoliticaDePrivacidadeRoute
+  '/politicas': typeof PoliticasRoute
   '/privacidade': typeof PrivacidadeRoute
-  '/servicos': typeof ServicosRoute
+  '/redefinir-senha': typeof RedefinirSenhaRoute
+  '/reivindicar-cadastro': typeof ReivindicarCadastroRoute
+  '/responsabilidades': typeof ResponsabilidadesRoute
+  '/seguranca': typeof SegurancaRoute
+  '/servicos': typeof ServicosRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/termos': typeof TermosRoute
+  '/termos-de-uso': typeof TermosDeUsoRoute
+  '/acesso-contato/$tecnicoId': typeof AcessoContatoTecnicoIdRoute
+  '/admin/$secao': typeof AdminSecaoRoute
+  '/categorias/$categoria': typeof CategoriasCategoriaRoute
+  '/cliente/$slug': typeof ClienteSlugRoute
+  '/convite/$codigo': typeof ConviteCodigoRoute
+  '/guias/$slug': typeof GuiasSlugRoute
+  '/lp2/acompanhar': typeof Lp2AcompanharRoute
+  '/lp2/admin': typeof Lp2AdminRoute
+  '/lp2/admin-portal': typeof Lp2AdminPortalRoute
+  '/lp2/atividades': typeof Lp2AtividadesRoute
+  '/lp2/cadastro': typeof Lp2CadastroRoute
+  '/lp2/cliente': typeof Lp2ClienteRoute
+  '/lp2/clientes': typeof Lp2ClientesRoute
+  '/lp2/entrar': typeof Lp2EntrarRoute
+  '/lp2/galeria': typeof Lp2GaleriaRoute
+  '/lp2/meu-perfil': typeof Lp2MeuPerfilRoute
+  '/servicos/$categoria': typeof ServicosCategoriaRoute
+  '/sitemaps/base.xml': typeof SitemapsBaseDotxmlRoute
+  '/sitemaps/categorias.xml': typeof SitemapsCategoriasDotxmlRoute
+  '/sitemaps/cidades.xml': typeof SitemapsCidadesDotxmlRoute
+  '/tecnico/$slug': typeof TecnicoSlugRoute
   '/tecnicos/$tecnicoId': typeof TecnicosTecnicoIdRoute
+  '/guias': typeof GuiasIndexRoute
+  '/lp2': typeof Lp2IndexRoute
   '/tecnicos': typeof TecnicosIndexRoute
+  '/cidades/$uf/$cidade': typeof CidadesUfCidadeRoute
+  '/lp2/tecnico/$slug': typeof Lp2TecnicoSlugRoute
+  '/sitemaps/tecnicos/{$pagina}.xml': typeof SitemapsTecnicosChar123paginaChar125DotxmlRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/lp2': typeof Lp2RouteRouteWithChildren
   '/admin': typeof AdminRoute
+  '/ajuda-acesso': typeof AjudaAcessoRoute
   '/area-cliente': typeof AreaClienteRoute
   '/area-tecnico': typeof AreaTecnicoRoute
+  '/cadastro': typeof CadastroRoute
+  '/cobertura': typeof CoberturaRoute
   '/como-funciona': typeof ComoFuncionaRoute
+  '/condicoes-do-prestador': typeof CondicoesDoPrestadorRoute
   '/contato': typeof ContatoRoute
+  '/cookies': typeof CookiesRoute
+  '/direitos-dos-titulares': typeof DireitosDosTitularesRoute
+  '/ecossistema': typeof EcossistemaRoute
   '/entrar': typeof EntrarRoute
   '/faq': typeof FaqRoute
+  '/galeria': typeof GaleriaRoute
+  '/home2': typeof Home2Route
+  '/lista-de-clientes': typeof ListaDeClientesRoute
   '/lista-de-tecnicos': typeof ListaDeTecnicosRoute
+  '/pagamentos-e-reembolsos': typeof PagamentosEReembolsosRoute
+  '/politica-de-cookies': typeof PoliticaDeCookiesRoute
+  '/politica-de-privacidade': typeof PoliticaDePrivacidadeRoute
+  '/politicas': typeof PoliticasRoute
   '/privacidade': typeof PrivacidadeRoute
-  '/servicos': typeof ServicosRoute
+  '/redefinir-senha': typeof RedefinirSenhaRoute
+  '/reivindicar-cadastro': typeof ReivindicarCadastroRoute
+  '/responsabilidades': typeof ResponsabilidadesRoute
+  '/seguranca': typeof SegurancaRoute
+  '/servicos': typeof ServicosRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/termos': typeof TermosRoute
+  '/termos-de-uso': typeof TermosDeUsoRoute
+  '/acesso-contato/$tecnicoId': typeof AcessoContatoTecnicoIdRoute
+  '/admin_/$secao': typeof AdminSecaoRoute
+  '/categorias/$categoria': typeof CategoriasCategoriaRoute
+  '/cliente/$slug': typeof ClienteSlugRoute
+  '/convite/$codigo': typeof ConviteCodigoRoute
+  '/guias/$slug': typeof GuiasSlugRoute
+  '/lp2/acompanhar': typeof Lp2AcompanharRoute
+  '/lp2/admin': typeof Lp2AdminRoute
+  '/lp2/admin-portal': typeof Lp2AdminPortalRoute
+  '/lp2/atividades': typeof Lp2AtividadesRoute
+  '/lp2/cadastro': typeof Lp2CadastroRoute
+  '/lp2/cliente': typeof Lp2ClienteRoute
+  '/lp2/clientes': typeof Lp2ClientesRoute
+  '/lp2/entrar': typeof Lp2EntrarRoute
+  '/lp2/galeria': typeof Lp2GaleriaRoute
+  '/lp2/meu-perfil': typeof Lp2MeuPerfilRoute
+  '/servicos/$categoria': typeof ServicosCategoriaRoute
+  '/sitemaps/base.xml': typeof SitemapsBaseDotxmlRoute
+  '/sitemaps/categorias.xml': typeof SitemapsCategoriasDotxmlRoute
+  '/sitemaps/cidades.xml': typeof SitemapsCidadesDotxmlRoute
+  '/tecnico/$slug': typeof TecnicoSlugRoute
   '/tecnicos/$tecnicoId': typeof TecnicosTecnicoIdRoute
+  '/guias/': typeof GuiasIndexRoute
+  '/lp2/': typeof Lp2IndexRoute
   '/tecnicos/': typeof TecnicosIndexRoute
+  '/cidades/$uf/$cidade': typeof CidadesUfCidadeRoute
+  '/lp2/tecnico/$slug': typeof Lp2TecnicoSlugRoute
+  '/sitemaps/tecnicos/{$pagina}.xml': typeof SitemapsTecnicosChar123paginaChar125DotxmlRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/lp2'
     | '/admin'
+    | '/ajuda-acesso'
     | '/area-cliente'
     | '/area-tecnico'
+    | '/cadastro'
+    | '/cobertura'
     | '/como-funciona'
+    | '/condicoes-do-prestador'
     | '/contato'
+    | '/cookies'
+    | '/direitos-dos-titulares'
+    | '/ecossistema'
     | '/entrar'
     | '/faq'
+    | '/galeria'
+    | '/home2'
+    | '/lista-de-clientes'
     | '/lista-de-tecnicos'
+    | '/pagamentos-e-reembolsos'
+    | '/politica-de-cookies'
+    | '/politica-de-privacidade'
+    | '/politicas'
     | '/privacidade'
+    | '/redefinir-senha'
+    | '/reivindicar-cadastro'
+    | '/responsabilidades'
+    | '/seguranca'
     | '/servicos'
     | '/sitemap.xml'
     | '/termos'
+    | '/termos-de-uso'
+    | '/acesso-contato/$tecnicoId'
+    | '/admin/$secao'
+    | '/categorias/$categoria'
+    | '/cliente/$slug'
+    | '/convite/$codigo'
+    | '/guias/$slug'
+    | '/lp2/acompanhar'
+    | '/lp2/admin'
+    | '/lp2/admin-portal'
+    | '/lp2/atividades'
+    | '/lp2/cadastro'
+    | '/lp2/cliente'
+    | '/lp2/clientes'
+    | '/lp2/entrar'
+    | '/lp2/galeria'
+    | '/lp2/meu-perfil'
+    | '/servicos/$categoria'
+    | '/sitemaps/base.xml'
+    | '/sitemaps/categorias.xml'
+    | '/sitemaps/cidades.xml'
+    | '/tecnico/$slug'
     | '/tecnicos/$tecnicoId'
+    | '/guias/'
+    | '/lp2/'
     | '/tecnicos/'
+    | '/cidades/$uf/$cidade'
+    | '/lp2/tecnico/$slug'
+    | '/sitemaps/tecnicos/{$pagina}.xml'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/admin'
+    | '/ajuda-acesso'
     | '/area-cliente'
     | '/area-tecnico'
+    | '/cadastro'
+    | '/cobertura'
     | '/como-funciona'
+    | '/condicoes-do-prestador'
     | '/contato'
+    | '/cookies'
+    | '/direitos-dos-titulares'
+    | '/ecossistema'
     | '/entrar'
     | '/faq'
+    | '/galeria'
+    | '/home2'
+    | '/lista-de-clientes'
     | '/lista-de-tecnicos'
+    | '/pagamentos-e-reembolsos'
+    | '/politica-de-cookies'
+    | '/politica-de-privacidade'
+    | '/politicas'
     | '/privacidade'
+    | '/redefinir-senha'
+    | '/reivindicar-cadastro'
+    | '/responsabilidades'
+    | '/seguranca'
     | '/servicos'
     | '/sitemap.xml'
     | '/termos'
+    | '/termos-de-uso'
+    | '/acesso-contato/$tecnicoId'
+    | '/admin/$secao'
+    | '/categorias/$categoria'
+    | '/cliente/$slug'
+    | '/convite/$codigo'
+    | '/guias/$slug'
+    | '/lp2/acompanhar'
+    | '/lp2/admin'
+    | '/lp2/admin-portal'
+    | '/lp2/atividades'
+    | '/lp2/cadastro'
+    | '/lp2/cliente'
+    | '/lp2/clientes'
+    | '/lp2/entrar'
+    | '/lp2/galeria'
+    | '/lp2/meu-perfil'
+    | '/servicos/$categoria'
+    | '/sitemaps/base.xml'
+    | '/sitemaps/categorias.xml'
+    | '/sitemaps/cidades.xml'
+    | '/tecnico/$slug'
     | '/tecnicos/$tecnicoId'
+    | '/guias'
+    | '/lp2'
     | '/tecnicos'
+    | '/cidades/$uf/$cidade'
+    | '/lp2/tecnico/$slug'
+    | '/sitemaps/tecnicos/{$pagina}.xml'
   id:
     | '__root__'
     | '/'
+    | '/lp2'
     | '/admin'
+    | '/ajuda-acesso'
     | '/area-cliente'
     | '/area-tecnico'
+    | '/cadastro'
+    | '/cobertura'
     | '/como-funciona'
+    | '/condicoes-do-prestador'
     | '/contato'
+    | '/cookies'
+    | '/direitos-dos-titulares'
+    | '/ecossistema'
     | '/entrar'
     | '/faq'
+    | '/galeria'
+    | '/home2'
+    | '/lista-de-clientes'
     | '/lista-de-tecnicos'
+    | '/pagamentos-e-reembolsos'
+    | '/politica-de-cookies'
+    | '/politica-de-privacidade'
+    | '/politicas'
     | '/privacidade'
+    | '/redefinir-senha'
+    | '/reivindicar-cadastro'
+    | '/responsabilidades'
+    | '/seguranca'
     | '/servicos'
     | '/sitemap.xml'
     | '/termos'
+    | '/termos-de-uso'
+    | '/acesso-contato/$tecnicoId'
+    | '/admin_/$secao'
+    | '/categorias/$categoria'
+    | '/cliente/$slug'
+    | '/convite/$codigo'
+    | '/guias/$slug'
+    | '/lp2/acompanhar'
+    | '/lp2/admin'
+    | '/lp2/admin-portal'
+    | '/lp2/atividades'
+    | '/lp2/cadastro'
+    | '/lp2/cliente'
+    | '/lp2/clientes'
+    | '/lp2/entrar'
+    | '/lp2/galeria'
+    | '/lp2/meu-perfil'
+    | '/servicos/$categoria'
+    | '/sitemaps/base.xml'
+    | '/sitemaps/categorias.xml'
+    | '/sitemaps/cidades.xml'
+    | '/tecnico/$slug'
     | '/tecnicos/$tecnicoId'
+    | '/guias/'
+    | '/lp2/'
     | '/tecnicos/'
+    | '/cidades/$uf/$cidade'
+    | '/lp2/tecnico/$slug'
+    | '/sitemaps/tecnicos/{$pagina}.xml'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  Lp2RouteRoute: typeof Lp2RouteRouteWithChildren
   AdminRoute: typeof AdminRoute
+  AjudaAcessoRoute: typeof AjudaAcessoRoute
   AreaClienteRoute: typeof AreaClienteRoute
   AreaTecnicoRoute: typeof AreaTecnicoRoute
+  CadastroRoute: typeof CadastroRoute
+  CoberturaRoute: typeof CoberturaRoute
   ComoFuncionaRoute: typeof ComoFuncionaRoute
+  CondicoesDoPrestadorRoute: typeof CondicoesDoPrestadorRoute
   ContatoRoute: typeof ContatoRoute
+  CookiesRoute: typeof CookiesRoute
+  DireitosDosTitularesRoute: typeof DireitosDosTitularesRoute
+  EcossistemaRoute: typeof EcossistemaRoute
   EntrarRoute: typeof EntrarRoute
   FaqRoute: typeof FaqRoute
+  GaleriaRoute: typeof GaleriaRoute
+  Home2Route: typeof Home2Route
+  ListaDeClientesRoute: typeof ListaDeClientesRoute
   ListaDeTecnicosRoute: typeof ListaDeTecnicosRoute
+  PagamentosEReembolsosRoute: typeof PagamentosEReembolsosRoute
+  PoliticaDeCookiesRoute: typeof PoliticaDeCookiesRoute
+  PoliticaDePrivacidadeRoute: typeof PoliticaDePrivacidadeRoute
+  PoliticasRoute: typeof PoliticasRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
-  ServicosRoute: typeof ServicosRoute
+  RedefinirSenhaRoute: typeof RedefinirSenhaRoute
+  ReivindicarCadastroRoute: typeof ReivindicarCadastroRoute
+  ResponsabilidadesRoute: typeof ResponsabilidadesRoute
+  SegurancaRoute: typeof SegurancaRoute
+  ServicosRoute: typeof ServicosRouteWithChildren
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermosRoute: typeof TermosRoute
+  TermosDeUsoRoute: typeof TermosDeUsoRoute
+  AcessoContatoTecnicoIdRoute: typeof AcessoContatoTecnicoIdRoute
+  AdminSecaoRoute: typeof AdminSecaoRoute
+  CategoriasCategoriaRoute: typeof CategoriasCategoriaRoute
+  ClienteSlugRoute: typeof ClienteSlugRoute
+  ConviteCodigoRoute: typeof ConviteCodigoRoute
+  GuiasSlugRoute: typeof GuiasSlugRoute
+  SitemapsBaseDotxmlRoute: typeof SitemapsBaseDotxmlRoute
+  SitemapsCategoriasDotxmlRoute: typeof SitemapsCategoriasDotxmlRoute
+  SitemapsCidadesDotxmlRoute: typeof SitemapsCidadesDotxmlRoute
+  TecnicoSlugRoute: typeof TecnicoSlugRoute
   TecnicosTecnicoIdRoute: typeof TecnicosTecnicoIdRoute
+  GuiasIndexRoute: typeof GuiasIndexRoute
   TecnicosIndexRoute: typeof TecnicosIndexRoute
+  CidadesUfCidadeRoute: typeof CidadesUfCidadeRoute
+  SitemapsTecnicosChar123paginaChar125DotxmlRoute: typeof SitemapsTecnicosChar123paginaChar125DotxmlRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -241,6 +826,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/ajuda-acesso': {
+      id: '/ajuda-acesso'
+      path: '/ajuda-acesso'
+      fullPath: '/ajuda-acesso'
+      preLoaderRoute: typeof AjudaAcessoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/area-cliente': {
       id: '/area-cliente'
       path: '/area-cliente'
@@ -255,6 +847,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AreaTecnicoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cadastro': {
+      id: '/cadastro'
+      path: '/cadastro'
+      fullPath: '/cadastro'
+      preLoaderRoute: typeof CadastroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cobertura': {
+      id: '/cobertura'
+      path: '/cobertura'
+      fullPath: '/cobertura'
+      preLoaderRoute: typeof CoberturaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/como-funciona': {
       id: '/como-funciona'
       path: '/como-funciona'
@@ -262,11 +868,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ComoFuncionaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/condicoes-do-prestador': {
+      id: '/condicoes-do-prestador'
+      path: '/condicoes-do-prestador'
+      fullPath: '/condicoes-do-prestador'
+      preLoaderRoute: typeof CondicoesDoPrestadorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/contato': {
       id: '/contato'
       path: '/contato'
       fullPath: '/contato'
       preLoaderRoute: typeof ContatoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cookies': {
+      id: '/cookies'
+      path: '/cookies'
+      fullPath: '/cookies'
+      preLoaderRoute: typeof CookiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/direitos-dos-titulares': {
+      id: '/direitos-dos-titulares'
+      path: '/direitos-dos-titulares'
+      fullPath: '/direitos-dos-titulares'
+      preLoaderRoute: typeof DireitosDosTitularesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ecossistema': {
+      id: '/ecossistema'
+      path: '/ecossistema'
+      fullPath: '/ecossistema'
+      preLoaderRoute: typeof EcossistemaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/entrar': {
@@ -283,6 +917,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FaqRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/galeria': {
+      id: '/galeria'
+      path: '/galeria'
+      fullPath: '/galeria'
+      preLoaderRoute: typeof GaleriaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/home2': {
+      id: '/home2'
+      path: '/home2'
+      fullPath: '/home2'
+      preLoaderRoute: typeof Home2RouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lista-de-clientes': {
+      id: '/lista-de-clientes'
+      path: '/lista-de-clientes'
+      fullPath: '/lista-de-clientes'
+      preLoaderRoute: typeof ListaDeClientesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/lista-de-tecnicos': {
       id: '/lista-de-tecnicos'
       path: '/lista-de-tecnicos'
@@ -290,11 +945,74 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ListaDeTecnicosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lp2': {
+      id: '/lp2'
+      path: '/lp2'
+      fullPath: '/lp2'
+      preLoaderRoute: typeof Lp2RouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pagamentos-e-reembolsos': {
+      id: '/pagamentos-e-reembolsos'
+      path: '/pagamentos-e-reembolsos'
+      fullPath: '/pagamentos-e-reembolsos'
+      preLoaderRoute: typeof PagamentosEReembolsosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/politica-de-cookies': {
+      id: '/politica-de-cookies'
+      path: '/politica-de-cookies'
+      fullPath: '/politica-de-cookies'
+      preLoaderRoute: typeof PoliticaDeCookiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/politica-de-privacidade': {
+      id: '/politica-de-privacidade'
+      path: '/politica-de-privacidade'
+      fullPath: '/politica-de-privacidade'
+      preLoaderRoute: typeof PoliticaDePrivacidadeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/politicas': {
+      id: '/politicas'
+      path: '/politicas'
+      fullPath: '/politicas'
+      preLoaderRoute: typeof PoliticasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/privacidade': {
       id: '/privacidade'
       path: '/privacidade'
       fullPath: '/privacidade'
       preLoaderRoute: typeof PrivacidadeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/redefinir-senha': {
+      id: '/redefinir-senha'
+      path: '/redefinir-senha'
+      fullPath: '/redefinir-senha'
+      preLoaderRoute: typeof RedefinirSenhaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reivindicar-cadastro': {
+      id: '/reivindicar-cadastro'
+      path: '/reivindicar-cadastro'
+      fullPath: '/reivindicar-cadastro'
+      preLoaderRoute: typeof ReivindicarCadastroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/responsabilidades': {
+      id: '/responsabilidades'
+      path: '/responsabilidades'
+      fullPath: '/responsabilidades'
+      preLoaderRoute: typeof ResponsabilidadesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/seguranca': {
+      id: '/seguranca'
+      path: '/seguranca'
+      fullPath: '/seguranca'
+      preLoaderRoute: typeof SegurancaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/servicos': {
@@ -318,6 +1036,174 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TermosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/termos-de-uso': {
+      id: '/termos-de-uso'
+      path: '/termos-de-uso'
+      fullPath: '/termos-de-uso'
+      preLoaderRoute: typeof TermosDeUsoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/acesso-contato/$tecnicoId': {
+      id: '/acesso-contato/$tecnicoId'
+      path: '/acesso-contato/$tecnicoId'
+      fullPath: '/acesso-contato/$tecnicoId'
+      preLoaderRoute: typeof AcessoContatoTecnicoIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin_/$secao': {
+      id: '/admin_/$secao'
+      path: '/admin/$secao'
+      fullPath: '/admin/$secao'
+      preLoaderRoute: typeof AdminSecaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/categorias/$categoria': {
+      id: '/categorias/$categoria'
+      path: '/categorias/$categoria'
+      fullPath: '/categorias/$categoria'
+      preLoaderRoute: typeof CategoriasCategoriaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cliente/$slug': {
+      id: '/cliente/$slug'
+      path: '/cliente/$slug'
+      fullPath: '/cliente/$slug'
+      preLoaderRoute: typeof ClienteSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/convite/$codigo': {
+      id: '/convite/$codigo'
+      path: '/convite/$codigo'
+      fullPath: '/convite/$codigo'
+      preLoaderRoute: typeof ConviteCodigoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guias/': {
+      id: '/guias/'
+      path: '/guias'
+      fullPath: '/guias/'
+      preLoaderRoute: typeof GuiasIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guias/$slug': {
+      id: '/guias/$slug'
+      path: '/guias/$slug'
+      fullPath: '/guias/$slug'
+      preLoaderRoute: typeof GuiasSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lp2/': {
+      id: '/lp2/'
+      path: '/'
+      fullPath: '/lp2/'
+      preLoaderRoute: typeof Lp2IndexRouteImport
+      parentRoute: typeof Lp2RouteRoute
+    }
+    '/lp2/acompanhar': {
+      id: '/lp2/acompanhar'
+      path: '/acompanhar'
+      fullPath: '/lp2/acompanhar'
+      preLoaderRoute: typeof Lp2AcompanharRouteImport
+      parentRoute: typeof Lp2RouteRoute
+    }
+    '/lp2/admin': {
+      id: '/lp2/admin'
+      path: '/admin'
+      fullPath: '/lp2/admin'
+      preLoaderRoute: typeof Lp2AdminRouteImport
+      parentRoute: typeof Lp2RouteRoute
+    }
+    '/lp2/admin-portal': {
+      id: '/lp2/admin-portal'
+      path: '/admin-portal'
+      fullPath: '/lp2/admin-portal'
+      preLoaderRoute: typeof Lp2AdminPortalRouteImport
+      parentRoute: typeof Lp2RouteRoute
+    }
+    '/lp2/atividades': {
+      id: '/lp2/atividades'
+      path: '/atividades'
+      fullPath: '/lp2/atividades'
+      preLoaderRoute: typeof Lp2AtividadesRouteImport
+      parentRoute: typeof Lp2RouteRoute
+    }
+    '/lp2/cadastro': {
+      id: '/lp2/cadastro'
+      path: '/cadastro'
+      fullPath: '/lp2/cadastro'
+      preLoaderRoute: typeof Lp2CadastroRouteImport
+      parentRoute: typeof Lp2RouteRoute
+    }
+    '/lp2/cliente': {
+      id: '/lp2/cliente'
+      path: '/cliente'
+      fullPath: '/lp2/cliente'
+      preLoaderRoute: typeof Lp2ClienteRouteImport
+      parentRoute: typeof Lp2RouteRoute
+    }
+    '/lp2/clientes': {
+      id: '/lp2/clientes'
+      path: '/clientes'
+      fullPath: '/lp2/clientes'
+      preLoaderRoute: typeof Lp2ClientesRouteImport
+      parentRoute: typeof Lp2RouteRoute
+    }
+    '/lp2/entrar': {
+      id: '/lp2/entrar'
+      path: '/entrar'
+      fullPath: '/lp2/entrar'
+      preLoaderRoute: typeof Lp2EntrarRouteImport
+      parentRoute: typeof Lp2RouteRoute
+    }
+    '/lp2/galeria': {
+      id: '/lp2/galeria'
+      path: '/galeria'
+      fullPath: '/lp2/galeria'
+      preLoaderRoute: typeof Lp2GaleriaRouteImport
+      parentRoute: typeof Lp2RouteRoute
+    }
+    '/lp2/meu-perfil': {
+      id: '/lp2/meu-perfil'
+      path: '/meu-perfil'
+      fullPath: '/lp2/meu-perfil'
+      preLoaderRoute: typeof Lp2MeuPerfilRouteImport
+      parentRoute: typeof Lp2RouteRoute
+    }
+    '/servicos/$categoria': {
+      id: '/servicos/$categoria'
+      path: '/$categoria'
+      fullPath: '/servicos/$categoria'
+      preLoaderRoute: typeof ServicosCategoriaRouteImport
+      parentRoute: typeof ServicosRoute
+    }
+    '/sitemaps/base.xml': {
+      id: '/sitemaps/base.xml'
+      path: '/sitemaps/base.xml'
+      fullPath: '/sitemaps/base.xml'
+      preLoaderRoute: typeof SitemapsBaseDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemaps/categorias.xml': {
+      id: '/sitemaps/categorias.xml'
+      path: '/sitemaps/categorias.xml'
+      fullPath: '/sitemaps/categorias.xml'
+      preLoaderRoute: typeof SitemapsCategoriasDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemaps/cidades.xml': {
+      id: '/sitemaps/cidades.xml'
+      path: '/sitemaps/cidades.xml'
+      fullPath: '/sitemaps/cidades.xml'
+      preLoaderRoute: typeof SitemapsCidadesDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tecnico/$slug': {
+      id: '/tecnico/$slug'
+      path: '/tecnico/$slug'
+      fullPath: '/tecnico/$slug'
+      preLoaderRoute: typeof TecnicoSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tecnicos/': {
       id: '/tecnicos/'
       path: '/tecnicos'
@@ -332,25 +1218,126 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TecnicosTecnicoIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cidades/$uf/$cidade': {
+      id: '/cidades/$uf/$cidade'
+      path: '/cidades/$uf/$cidade'
+      fullPath: '/cidades/$uf/$cidade'
+      preLoaderRoute: typeof CidadesUfCidadeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lp2/tecnico/$slug': {
+      id: '/lp2/tecnico/$slug'
+      path: '/tecnico/$slug'
+      fullPath: '/lp2/tecnico/$slug'
+      preLoaderRoute: typeof Lp2TecnicoSlugRouteImport
+      parentRoute: typeof Lp2RouteRoute
+    }
+    '/sitemaps/tecnicos/{$pagina}.xml': {
+      id: '/sitemaps/tecnicos/{$pagina}.xml'
+      path: '/sitemaps/tecnicos/{$pagina}.xml'
+      fullPath: '/sitemaps/tecnicos/{$pagina}.xml'
+      preLoaderRoute: typeof SitemapsTecnicosChar123paginaChar125DotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
+interface Lp2RouteRouteChildren {
+  Lp2AcompanharRoute: typeof Lp2AcompanharRoute
+  Lp2AdminRoute: typeof Lp2AdminRoute
+  Lp2AdminPortalRoute: typeof Lp2AdminPortalRoute
+  Lp2AtividadesRoute: typeof Lp2AtividadesRoute
+  Lp2CadastroRoute: typeof Lp2CadastroRoute
+  Lp2ClienteRoute: typeof Lp2ClienteRoute
+  Lp2ClientesRoute: typeof Lp2ClientesRoute
+  Lp2EntrarRoute: typeof Lp2EntrarRoute
+  Lp2GaleriaRoute: typeof Lp2GaleriaRoute
+  Lp2MeuPerfilRoute: typeof Lp2MeuPerfilRoute
+  Lp2IndexRoute: typeof Lp2IndexRoute
+  Lp2TecnicoSlugRoute: typeof Lp2TecnicoSlugRoute
+}
+
+const Lp2RouteRouteChildren: Lp2RouteRouteChildren = {
+  Lp2AcompanharRoute: Lp2AcompanharRoute,
+  Lp2AdminRoute: Lp2AdminRoute,
+  Lp2AdminPortalRoute: Lp2AdminPortalRoute,
+  Lp2AtividadesRoute: Lp2AtividadesRoute,
+  Lp2CadastroRoute: Lp2CadastroRoute,
+  Lp2ClienteRoute: Lp2ClienteRoute,
+  Lp2ClientesRoute: Lp2ClientesRoute,
+  Lp2EntrarRoute: Lp2EntrarRoute,
+  Lp2GaleriaRoute: Lp2GaleriaRoute,
+  Lp2MeuPerfilRoute: Lp2MeuPerfilRoute,
+  Lp2IndexRoute: Lp2IndexRoute,
+  Lp2TecnicoSlugRoute: Lp2TecnicoSlugRoute,
+}
+
+const Lp2RouteRouteWithChildren = Lp2RouteRoute._addFileChildren(
+  Lp2RouteRouteChildren,
+)
+
+interface ServicosRouteChildren {
+  ServicosCategoriaRoute: typeof ServicosCategoriaRoute
+}
+
+const ServicosRouteChildren: ServicosRouteChildren = {
+  ServicosCategoriaRoute: ServicosCategoriaRoute,
+}
+
+const ServicosRouteWithChildren = ServicosRoute._addFileChildren(
+  ServicosRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  Lp2RouteRoute: Lp2RouteRouteWithChildren,
   AdminRoute: AdminRoute,
+  AjudaAcessoRoute: AjudaAcessoRoute,
   AreaClienteRoute: AreaClienteRoute,
   AreaTecnicoRoute: AreaTecnicoRoute,
+  CadastroRoute: CadastroRoute,
+  CoberturaRoute: CoberturaRoute,
   ComoFuncionaRoute: ComoFuncionaRoute,
+  CondicoesDoPrestadorRoute: CondicoesDoPrestadorRoute,
   ContatoRoute: ContatoRoute,
+  CookiesRoute: CookiesRoute,
+  DireitosDosTitularesRoute: DireitosDosTitularesRoute,
+  EcossistemaRoute: EcossistemaRoute,
   EntrarRoute: EntrarRoute,
   FaqRoute: FaqRoute,
+  GaleriaRoute: GaleriaRoute,
+  Home2Route: Home2Route,
+  ListaDeClientesRoute: ListaDeClientesRoute,
   ListaDeTecnicosRoute: ListaDeTecnicosRoute,
+  PagamentosEReembolsosRoute: PagamentosEReembolsosRoute,
+  PoliticaDeCookiesRoute: PoliticaDeCookiesRoute,
+  PoliticaDePrivacidadeRoute: PoliticaDePrivacidadeRoute,
+  PoliticasRoute: PoliticasRoute,
   PrivacidadeRoute: PrivacidadeRoute,
-  ServicosRoute: ServicosRoute,
+  RedefinirSenhaRoute: RedefinirSenhaRoute,
+  ReivindicarCadastroRoute: ReivindicarCadastroRoute,
+  ResponsabilidadesRoute: ResponsabilidadesRoute,
+  SegurancaRoute: SegurancaRoute,
+  ServicosRoute: ServicosRouteWithChildren,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermosRoute: TermosRoute,
+  TermosDeUsoRoute: TermosDeUsoRoute,
+  AcessoContatoTecnicoIdRoute: AcessoContatoTecnicoIdRoute,
+  AdminSecaoRoute: AdminSecaoRoute,
+  CategoriasCategoriaRoute: CategoriasCategoriaRoute,
+  ClienteSlugRoute: ClienteSlugRoute,
+  ConviteCodigoRoute: ConviteCodigoRoute,
+  GuiasSlugRoute: GuiasSlugRoute,
+  SitemapsBaseDotxmlRoute: SitemapsBaseDotxmlRoute,
+  SitemapsCategoriasDotxmlRoute: SitemapsCategoriasDotxmlRoute,
+  SitemapsCidadesDotxmlRoute: SitemapsCidadesDotxmlRoute,
+  TecnicoSlugRoute: TecnicoSlugRoute,
   TecnicosTecnicoIdRoute: TecnicosTecnicoIdRoute,
+  GuiasIndexRoute: GuiasIndexRoute,
   TecnicosIndexRoute: TecnicosIndexRoute,
+  CidadesUfCidadeRoute: CidadesUfCidadeRoute,
+  SitemapsTecnicosChar123paginaChar125DotxmlRoute:
+    SitemapsTecnicosChar123paginaChar125DotxmlRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

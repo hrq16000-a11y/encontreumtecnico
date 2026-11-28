@@ -14,6 +14,14 @@ import { ProblemAssistant } from "../components/problem-assistant";
 import { safeNeighborhood } from "@/lib/location-labels";
 import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
 import { readUiTextDraft, saveUiTextDraft } from "@/lib/unsent-ui-draft";
+import { SearchableChoice } from "@/components/ui/searchable-choice";
+import { SearchMunicipalityChoice } from "@/components/search-municipality-choice";
+import { useActiveCategories } from "@/hooks/use-active-categories";
+import { useActiveServices } from "@/hooks/use-active-services";
+import { discoveryChoices, resolveDiscoveryChoice } from "@/lib/nearby-discovery";
+import { ManualSearchGps } from "@/components/manual-search-gps";
+import { BRAZIL_STATES, BRAZIL_STATE_NAMES } from "@/lib/service-taxonomy";
+import { analyticsAllowed } from "@/lib/search-analytics";
 import {
   CategoryGrid,
   HowItWorksRich,
@@ -25,7 +33,7 @@ import {
 import { CanaisDeAtendimento, FindOneSection, JoinNetworkSection, CtaBand, ValuesSection, StepsSection } from "../components/home-sections";
 
 const SITE = "https://www.encontreumtecnico.com.br";
-const TITLE = "Encontre um Técnico — Portal nacional de técnicos de CFTV e informática, sem custo para o profissional";
+const TITLE = "Encontre um Técnico — CFTV e informática em todo o Brasil";
 const DESC = "Portal brasileiro que conecta clientes a técnicos de CFTV, informática, redes e impressoras com transparência: cadastro livre, sem cobrança ao profissional e sem leilão de preço.";
 
 export const Route = createFileRoute("/")({
@@ -108,14 +116,20 @@ const HOME_VISUALS = [
 
 function HomePage() {
   const navigate = useNavigate();
+  const { categories, loading: categoriesLoading, error: categoriesError } = useActiveCategories();
   // Initial SSR and client render agree; the saved search is loaded only
   // after hydration, while the empty form stays hidden from the visitor.
+  const { services, loading: servicesLoading } = useActiveServices();
+  const choices = discoveryChoices(categories, services);
   const [specialty, setSpecialty] = useState("");
+  const [locationOpen, setLocationOpen] = useState(false);
+  const [searchError, setSearchError] = useState("");
   const [city, setCity] = useState("");
   const [locationUf, setLocationUf] = useState("");
   const [locationNeighborhood, setLocationNeighborhood] = useState("");
   const [draftReady, setDraftReady] = useState(false);
   const cityEditedByUser = useRef(false);
+  const [locationSource, setLocationSource] = useState<"manual" | "ip" | "gps" | "">("");
   useEffect(() => {
     const saved = readUiTextDraft("home");
     if (saved) {
@@ -123,18 +137,21 @@ function HomePage() {
       setCity(saved["city"] ?? "");
       setLocationUf(saved["uf"] ?? "");
       setLocationNeighborhood(safeNeighborhood(saved["neighborhood"] ?? "", saved["city"] ?? ""));
-      cityEditedByUser.current = Boolean(saved["city"]);
+      const source = saved["source"];
+      setLocationSource(source === "ip" || source === "gps" ? source : saved["city"] || saved["uf"] ? "manual" : "");
+      cityEditedByUser.current = Boolean(saved["city"] || saved["uf"]);
     }
     setDraftReady(true);
   }, []);
   useEffect(() => {
     if (!draftReady) return;
-    saveUiTextDraft("home", { specialty, city, uf: locationUf, neighborhood: locationNeighborhood });
-  }, [draftReady, specialty, city, locationUf, locationNeighborhood]);
+    saveUiTextDraft("home", { specialty, city, uf: locationUf, neighborhood: locationNeighborhood, source: locationSource });
+  }, [draftReady, specialty, city, locationUf, locationNeighborhood, locationSource]);
   const { area: suggestedRegion } = useRegionalSuggestion();
   useEffect(() => {
     // The user may edit while the lookup is pending; never override typed city.
     if (!draftReady || !suggestedRegion || city.trim() || cityEditedByUser.current) return;
+    setLocationSource(suggestedRegion.source);
     setCity(suggestedRegion.city);
     setLocationUf(suggestedRegion.uf);
     setLocationNeighborhood(""); // IP cannot establish a neighborhood.
@@ -156,75 +173,71 @@ function HomePage() {
             <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/85 sm:text-base">
               Encontre prestadores cadastrados de CFTV, informática, redes e impressoras na sua região. Negocie diretamente, sem leilão de menor preço.
             </p>
-            <div className="mt-6 rounded-3xl border border-white/15 bg-card p-4 shadow-soft sm:p-6">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Busca por especialidade e região</p>
-                  <p className="mt-1 text-xl font-extrabold tracking-tight text-card-foreground">Encontre o técnico certo.</p>
-                </div>
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <Search className="h-5 w-5" aria-hidden="true" />
-                </span>
-              </div>
+            <div className="mt-6">
               {!draftReady ? (
                 <div role="status" aria-live="polite" aria-busy="true"
-                  className="mt-4 grid min-h-28 content-center gap-2 rounded-xl border border-border bg-background/60 px-4 py-3 text-sm text-muted-foreground">
+                  className="rounded-xl bg-card px-4 py-3 text-sm text-muted-foreground">
                   Recuperando sua busca…
-                  <Link to="/tecnicos" search={{ especialidade: "Todas", cidade: "", regiao: "" }} className="w-fit font-semibold text-primary underline underline-offset-4">Abrir diretório de técnicos</Link>
+                  <Link to="/tecnicos" search={{ especialidade: "Todas", cidade: "", regiao: "" }} className="ml-2 font-semibold text-primary underline underline-offset-4">Abrir diretório de técnicos</Link>
                 </div>
               ) : (
-                <form className="mt-4 grid gap-3"
-                  onSubmit={(e) => {
+                <form className="grid gap-3" onSubmit={(e) => {
                     e.preventDefault();
-                    window.__lovableEvents?.track?.("project.technician_search", {
-                      has_specialty: specialty.trim() !== "",
-                      has_city: city.trim() !== "",
+                    const typed = (e.currentTarget.elements.namedItem("busca-especialidade") as HTMLInputElement | null)?.value ?? "";
+                    const selection = resolveDiscoveryChoice(choices, typed, specialty, categories, services);
+                    if (!selection) { setSearchError("Selecione um serviço ou especialidade da lista."); return; }
+                    if (!city.trim() || !locationUf) { setLocationOpen(true); setSearchError("Informe sua cidade e estado para encontrar técnicos próximos."); return; }
+                    setSearchError("");
+                    if (analyticsAllowed(localStorage.getItem("eut-cookie-consent"))) window.__lovableEvents?.track?.("project.technician_search", {
+                      has_specialty: selection.especialidade !== "Todas",
+                      has_city: Boolean(city.trim()),
                     });
-                    navigate({
-                      to: "/tecnicos",
-                      search: { especialidade: specialty.trim() || "Todas", cidade: city.trim(), regiao: "",
-                        uf: locationUf, bairro: locationNeighborhood, prioridade: locationUf ? "regiao" : "" },
-                    });
-                  }}
-                >
-                  <div className="grid min-w-0 gap-3 sm:grid-cols-2">
-                    <div className="min-w-0">
-                      <label className="mb-1.5 block text-xs font-bold text-card-foreground" htmlFor="busca-especialidade"><span aria-hidden="true" className="mr-1.5 font-mono text-primary">01</span>Especialidade</label>
-                      <input
-                        id="busca-especialidade"
-                        type="text"
-                        value={specialty}
-                        onChange={(e) => { saveUiTextDraft("home", { specialty:e.target.value, city, uf:locationUf, neighborhood:locationNeighborhood }); setSpecialty(e.target.value); }}
-                        placeholder="Ex.: Computador"
-                        className="h-12 w-full min-w-0 rounded-xl border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                      />
+                    void navigate({ to: "/tecnicos", search: { ...selection, cidade: city.trim(), regiao: "",
+                      uf: locationUf, bairro: locationNeighborhood, prioridade: locationUf ? "regiao" : "" } });
+                  }}>
+                  <label className="text-sm font-bold text-white" htmlFor="busca-especialidade">Qual técnico você precisa?</label>
+                  <div className="flex flex-col gap-2 rounded-2xl bg-card p-2 shadow-soft sm:flex-row sm:items-start">
+                    <div className="min-w-0 flex-1">
+                      <SearchableChoice id="busca-especialidade" value={specialty} options={choices}
+                        onChange={(value) => { setSearchError(""); saveUiTextDraft("home", { specialty:value, city, uf:locationUf, neighborhood:locationNeighborhood, source:locationSource }); setSpecialty(value); }}
+                        placeholder="Ex.: câmeras, notebook, Wi-Fi"
+                        className="h-12 w-full min-w-0 rounded-xl border border-input bg-background px-3 text-base text-foreground focus-visible:ring-2 focus-visible:ring-ring" />
                     </div>
-                    <div className="min-w-0">
-                      <label className="mb-1.5 block text-xs font-bold text-card-foreground" htmlFor="busca-cidade"><span aria-hidden="true" className="mr-1.5 font-mono text-primary">02</span>Município</label>
-                      <input
-                        id="busca-cidade"
-                        type="text"
-                        value={city}
-                        onChange={(e) => { cityEditedByUser.current = true; saveUiTextDraft("home", { specialty, city:e.target.value, uf:"", neighborhood:"" }); setCity(e.target.value); setLocationUf(""); setLocationNeighborhood(""); }}
-                        placeholder="Município (ex.: São José dos Pinhais)"
-                        className="h-12 w-full min-w-0 rounded-xl border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                      />
-                    </div>
+                    <button type="submit" className="group flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground transition-colors duration-150 hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none">
+                      <Search className="h-4 w-4" aria-hidden="true" /> Encontrar agora
+                    </button>
                   </div>
-                  <button
-                    type="submit"
-                    className="group flex min-h-12 w-full items-center justify-between gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground transition-colors duration-150 hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
-                  >
-                    <span className="flex items-center gap-2"><Search className="h-4 w-4" aria-hidden="true" /> Buscar</span>
-                    <ArrowRight className="h-5 w-5 transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transform-none motion-reduce:transition-none" aria-hidden="true" />
-                  </button>
-                  <div role="group" aria-label="Sugestões de especialidades" className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
-                    <span className="text-xs text-muted-foreground">Sugestões:</span>
+                  {(categoriesLoading || servicesLoading) && <p role="status" className="text-xs text-white/80">Carregando serviços…</p>}
+                  {categoriesError && <p role="alert" className="text-xs text-white/90">Especialidades indisponíveis; você ainda pode buscar por cidade.</p>}
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-white/90">
+                    <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4 text-brand-glow" aria-hidden="true" />
+                      {city && locationUf ? <>Perto de <strong>{city}/{locationUf}</strong>{locationSource === "ip" ? " · região aproximada" : locationSource === "gps" ? " · região sugerida" : ""}</> : "Escolha sua cidade"}
+                    </span>
+                    <button type="button" aria-expanded={locationOpen} aria-controls="localidade-busca-home"
+                      onClick={() => setLocationOpen(value => !value)} className="min-h-11 rounded px-2 font-semibold text-brand-glow underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-white">
+                      {locationOpen ? "Fechar localização" : city ? "Alterar localização" : "Informar localização"}
+                    </button>
+                  </div>
+                  {locationOpen && <div id="localidade-busca-home" className="grid gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground">
+                    <div className="min-w-0">
+                      <label className="mb-1.5 block text-xs font-bold text-card-foreground" htmlFor="busca-uf">Estado (UF)</label>
+                      <SearchableChoice id="busca-uf" value={locationUf} clearOnEdit={false}
+                        options={BRAZIL_STATES.map(uf => ({value: uf, label: `${BRAZIL_STATE_NAMES[uf]} (${uf})`, displayLabel: uf}))}
+                        onChange={uf => { if (uf === locationUf) return; cityEditedByUser.current = true; setLocationSource("manual"); setLocationUf(uf); setCity(""); setLocationNeighborhood(""); saveUiTextDraft("home", {specialty, city:"", uf, neighborhood:"", source:"manual"}); }}
+                        className="h-12 w-full rounded-xl border border-input bg-background px-3 text-base text-foreground focus-visible:ring-2 focus-visible:ring-ring" />
+                    </div>
+                    <SearchMunicipalityChoice id="busca-cidade" uf={locationUf} city={city}
+                      onChange={(cidade, uf) => { cityEditedByUser.current = true; setLocationSource("manual"); setCity(cidade); setLocationUf(uf); setLocationNeighborhood(""); saveUiTextDraft("home", {specialty, city:cidade, uf, neighborhood:"", source:"manual"}); }} />
+                    <ManualSearchGps onLocated={area => { cityEditedByUser.current = true; setLocationSource("gps"); setCity(area.city); setLocationUf(area.uf); setLocationNeighborhood(""); }} />
+                    <Link to="/tecnicos" search={{ especialidade: "Todas", cidade: "", regiao: "", prioridade: "nacional" }} className="text-sm font-semibold text-primary underline">Consultar o diretório nacional</Link>
+                  </div>}
+                  {searchError && <p role="alert" className="rounded-lg bg-card px-3 py-2 text-sm font-medium text-foreground">{searchError}</p>}
+                  <div role="group" aria-label="Sugestões de especialidades" className="flex flex-wrap items-center gap-2">
                     {CHIPS.map(({ i: I, t, value }) => (
                       <button key={t} type="button" aria-pressed={specialty === value}
-                        onClick={() => { saveUiTextDraft("home", { specialty:value, city, uf:locationUf, neighborhood:locationNeighborhood }); setSpecialty(value); }}
-                        className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border bg-background px-3 text-xs font-semibold text-foreground transition-colors duration-150 hover:border-primary/50 aria-pressed:border-primary aria-pressed:bg-primary/10 aria-pressed:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none">
-                        <I className="h-4 w-4 text-primary" aria-hidden="true" /> {t}
+                        onClick={() => { saveUiTextDraft("home", { specialty:value, city, uf:locationUf, neighborhood:locationNeighborhood, source:locationSource }); setSpecialty(value); }}
+                        className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3 text-xs font-semibold text-white transition-colors duration-150 hover:border-white aria-pressed:bg-white/25 focus-visible:outline-2 focus-visible:outline-white motion-reduce:transition-none">
+                        <I className="h-4 w-4 text-brand-glow" aria-hidden="true" /> {t}
                       </button>
                     ))}
                   </div>

@@ -44,7 +44,8 @@ jobs:
           }
           if(!cache.includes('sessionStorage')||!cache.includes('6 * 60 * 60 * 1000')||
              !page.includes('useRegionalSuggestion()')||!page.includes('cityEditedByUser.current')||
-             !page.includes('placeholder="Município')||page.includes('CustomerLocationButton'))
+             !page.includes('<SearchMunicipalityChoice')||page.includes('CustomerLocationButton')||
+             !readFileSync('src/components/manual-search-gps.tsx','utf8').includes('autoIfGranted={false}'))
             throw Error('Private six-hour coarse hint, silent suggestion or manual city correction missing');
           NODE
       - name: No WordPress live dependency

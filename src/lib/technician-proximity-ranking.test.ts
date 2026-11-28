@@ -38,6 +38,7 @@ vi.mock("@supabase/supabase-js", () => ({
           return Promise.resolve({ data: [], error: null });
         },
         contains: () => query,
+        overlaps: () => query,
         range: (from: number, to: number) => {
           start = from;
           end = to;
@@ -110,10 +111,12 @@ describe("ordenação regional automática do diretório", () => {
 
   it("respeita escolha manual de cidade/UF e nunca usa a dica de IP nesse caso", async () => {
     await listApprovedTechnicians({ data: query({ cidade: "Tubarão", uf: "SC" }) });
-    expect(state.catalogLookups).toBe(0);
+    // A manual city now resolves declared municipal coverage in IBGE,
+    // but must not consult or override the IP-derived location.
+    expect(state.catalogLookups).toBe(1);
     const ranked = await listApprovedTechnicians({ data: query({ cidade: "Tubarão", uf: "SC", prioridade: "regiao" }) });
     expect(ranked[0]?.city).toBe("Tubarão");
-    expect(state.catalogLookups).toBe(0);
+    expect(state.catalogLookups).toBe(1);
   });
 
   it("prioriza os técnicos de páginas posteriores antes de paginar os resultados globais", async () => {

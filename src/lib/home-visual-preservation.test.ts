@@ -37,7 +37,9 @@ describe("Identidade visual: adição sem remoção das imagens existentes", () 
 
   it("destaca visualmente a primeira tela e aproxima as artes dos serviços do topo", () => {
     expect(home).toContain('bg-gradient-to-br from-brand-navy');
-    expect(home).toContain('rounded-3xl border border-white/15 bg-card');
+    expect(home).toContain('rounded-2xl bg-card p-2 shadow-soft');
+    expect(home).toContain('Encontrar agora');
+    expect(home).toContain('aria-controls="localidade-busca-home"');
     expect(home).toContain('sm:grid-cols-2 lg:grid-cols-4');
     const hero = home.indexOf('bg-gradient-to-br from-brand-navy');
     const illustrations = home.indexOf('aria-labelledby="home-visual-servicos"');

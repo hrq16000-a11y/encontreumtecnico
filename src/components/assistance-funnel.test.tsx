@@ -5,6 +5,7 @@ import { guideDraftScope, portalHelpContext } from "@/lib/free-search-help";
 import { readAssistanceDraft } from "@/lib/assistance-draft";
 
 const directoryMock = vi.hoisted(() => ({
+  draft: null as import("@/lib/assistance-draft").AssistanceDraft | null,
   navigate: vi.fn(),
   categories: [
     { slug: "computadores", label: "Computadores e notebooks" },
@@ -33,13 +34,14 @@ vi.mock("@/hooks/use-municipalities", () => ({
 }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: vi.fn() } }));
 vi.mock("@/lib/assistance-draft", () => ({
-  readAssistanceDraft: vi.fn(() => null),
+  readAssistanceDraft: vi.fn(() => directoryMock.draft),
   saveAssistanceDraft: vi.fn(),
   clearAssistanceDraft: vi.fn(),
 }));
 
 afterEach(() => {
   cleanup();
+  directoryMock.draft = null;
   directoryMock.navigate.mockReset();
   vi.clearAllMocks();
 });
@@ -81,6 +83,17 @@ describe("Localidade do atendimento guiado", () => {
     render(<AssistanceFunnel context={portalHelpContext("contato", "privacidade")} onClose={vi.fn()} />);
     expect(readAssistanceDraft).toHaveBeenCalledWith("portal-contato-privacidade");
     expect((screen.getByRole("textbox", { name: /Qual problema/i }) as HTMLTextAreaElement).value).toContain("privacidade ou meus dados pessoais");
+  });
+  it("preserva edição e etapa ao reabrir na mesma origem, acima do contexto inicial", async () => {
+    directoryMock.draft = {mode: "managed", step: 2, name: "", email: "", service: "Formatação de notebooks", when: "Amanhã", problem: "Notebook reinicia durante o trabalho", city: "Florianópolis", uf: "SC", neighborhood: "Centro"};
+    render(<AssistanceFunnel context={{mode: "direct", service: "Redes e Wi-Fi", city: "Curitiba", uf: "PR"}} onClose={vi.fn()} />);
+    const uf = screen.getByRole("combobox", {name: "Estado (UF)"}) as HTMLInputElement;
+    expect(uf.value).toBe("SC");
+    await waitFor(() => expect((screen.getByRole("combobox", {name: "Município selecionado"}) as HTMLSelectElement).value).toBe("4205407"));
+    fireEvent.click(screen.getByRole("button", {name: "Voltar ao problema"}));
+    expect((screen.getByRole("combobox", {name: "Tipo de serviço"}) as HTMLInputElement).value).toBe("Formatação de notebooks");
+    expect((screen.getByRole("textbox", {name: /Qual problema/}) as HTMLTextAreaElement).value).toBe("Notebook reinicia durante o trabalho");
+
   });
   it("encontra serviço ativo sem acentos e confirma pelo teclado, mantendo prazo até nova escolha", () => {
     render(<AssistanceFunnel context={{ mode: "managed" }} onClose={vi.fn()} />);
