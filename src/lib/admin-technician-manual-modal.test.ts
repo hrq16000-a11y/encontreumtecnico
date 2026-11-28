@@ -44,7 +44,9 @@ describe("cadastro manual: modal e persistencia protegida", () => {
     expect(editor).toContain('db.rpc("eut_admin_technician_record_save"');
     expect(editor).toMatch(/db\.rpc\(\s*"eut_admin_technician_registry_list"/);
     expect(editor).toContain('db.rpc("eut_admin_technician_record_archive"');
-    expect(editor).toContain("existing?.admin_active ?? (createOrigin ===");
+    // A origem não define a habilitação de uma nova ficha legítima; estados existentes continuam intactos.
+    expect(editor).toContain("existing?.admin_active ?? !importedDemo");
+    expect(editor).toContain("admin_active: active && !existing?.is_demo && !importedDemo");
     expect(editor).toContain("citySearch.trim() && cityId === null");
     expect(editor).toContain('allowInternalQaDate: !existing && createOrigin === "manual"');
     expect(editor).not.toContain("auth.admin.createUser");

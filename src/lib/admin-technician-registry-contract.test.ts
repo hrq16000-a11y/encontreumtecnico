@@ -20,6 +20,14 @@ describe("cadastro administrativo sem conta artificial", () => {
     expect(editor).not.toMatch(/auth\.admin|service_role|createUser\(/);
   });
 
+  it("habilita novos registros manuais e importados, preservando estado existente e demonstrações", () => {
+    const editor = read("src/components/admin-technician-record-editor.tsx");
+    expect(editor).toContain('useState(existing?.admin_active ?? !importedDemo)');
+    expect(editor).toContain('admin_active: active && !existing?.is_demo && !importedDemo');
+    expect(editor).toContain('payload["contact_suspended"] = contactSuspended');
+    expect(editor).not.toContain('existing?.admin_active ?? (createOrigin === "manual"');
+  });
+
   it("não permite supor que fichas migradas são contas de login", () => {
     const sql = read("docs/sql/eut-admin-technician-crud-staging-proposal-20261111.sql");
     expect(sql).toContain("CREATE TABLE IF NOT EXISTS eut_moderation.admin_technician_records");
