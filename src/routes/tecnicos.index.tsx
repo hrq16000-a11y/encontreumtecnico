@@ -233,10 +233,9 @@ function TechniciansPage() {
             <div id="localidade-busca-diretorio" className={locationOpen ? "grid gap-3 sm:grid-cols-2" : "hidden"}>
           <div>
             <label htmlFor="filtro-uf" className="text-xs font-medium text-muted-foreground">Estado (UF)</label>
-            <SearchableChoice id="filtro-uf" value={search.uf} clearOnEdit={false}
+            <SearchableChoice id="filtro-uf" className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-base text-foreground focus-visible:ring-2 focus-visible:ring-ring" value={search.uf} clearOnEdit={false}
               options={[{value: "", label: "Todos os estados"}, ...BRAZIL_STATES.map(uf => ({value: uf, label: `${BRAZIL_STATE_NAMES[uf]} (${uf})`, displayLabel: uf}))]}
-              onChange={(value) => { if (value !== search.uf) update(technicianSearchAfterUfChange(value, search.prioridade)); trackFilter("uf", value); }}
-              className="mt-1 min-h-12 w-full rounded-md border border-input bg-background px-3 text-base text-foreground focus-visible:ring-2 focus-visible:ring-ring" />
+              onChange={(value) => { if (value !== search.uf) update(technicianSearchAfterUfChange(value, search.prioridade)); trackFilter("uf", value); }} />
           </div>
           <SearchMunicipalityChoice
             key={`filtro-cidade-${search.uf}-${filterResetRevision}`}
