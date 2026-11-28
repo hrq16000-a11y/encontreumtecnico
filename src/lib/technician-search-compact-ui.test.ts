@@ -21,22 +21,31 @@ describe("Busca compacta: filtros e perfis com privacidade", () => {
     }
     expect(page).toContain('aria-expanded={showAdvanced}');
     expect(page).toContain('aria-controls="filtros-avancados"');
+    expect(page).toContain('aria-controls="localidade-busca-diretorio"');
+    expect(page).toContain('className={locationOpen ? "grid gap-3 sm:grid-cols-2" : "hidden"}');
+    expect(page).toContain('<details aria-label="Sugestões nacionais de outras localidades"');
     expect(page).toContain('onClick={() => setShowAdvanced(value => !value)}');
     expect(page).toContain('className={showAdvanced ? "mt-3 grid');
     expect(page).toContain('motion-reduce:transition-none');
   });
 
   it("mantém os debounced filters montados, e não perde as regras de URL e região", () => {
-    expect(page).toContain('technicianSearchAfterUfChange(e.target.value, search.prioridade)');
-    expect(page).toContain('key={`filtro-cidade-${search.uf}`}');
-    expect(page).toContain('key={`filtro-bairro-${search.uf}`}');
-    expect(page).toContain('key={`filtro-regiao-${search.uf}`}');
-    expect(page).toContain('trackFilter("especialidade", e.target.value)');
-    expect(page).toContain('trackFilter("uf", e.target.value)');
+    expect(page).toContain('technicianSearchAfterUfChange(value, search.prioridade)');
+    expect(page).toContain('key={`filtro-cidade-${search.uf}-${filterResetRevision}`}');
+    expect(page).toContain('key={`filtro-bairro-${search.uf}-${filterResetRevision}`}');
+    expect(page).toContain('key={`filtro-regiao-${search.uf}-${filterResetRevision}`}');
+    expect(page).toContain('trackFilter("especialidade", selection.especialidade)');
+    expect(page).toContain('trackFilter("uf", value)');
     expect(page).toContain('prioridade: event.target.checked ? "regiao" : ""');
     expect(page).toContain('localMatchLabel(t,');
     expect(page).toContain('listApprovedTechnicians({ data: deps })');
     expect(page).toContain('Limpar filtros');
+    expect(page).toContain('onClick={clearAllFilters}');
+    const clearStart = page.indexOf('const clearAllFilters =');
+    const clearAction = page.slice(clearStart, page.indexOf('return (', clearStart));
+    expect(clearAction).toContain('clearDirectoryPendingFilters();');
+    expect(clearAction).toContain('update({ especialidade: "Todas", servico: "", uf: "", cidade: "", bairro: "", regiao: "", prioridade: "" });');
+    expect(clearAction).toContain('setFilterResetRevision(value => value + 1)');
     expect(page).toContain('setShowAdvanced(true)');
   });
 
@@ -54,6 +63,16 @@ describe("Busca compacta: filtros e perfis com privacidade", () => {
     expect(page).toContain('<LegacyPublicArchive show={canShowLegacyArchive(search)} />');
     expect(page).toContain("Em todo o Brasil");
     expect(page).toContain("Perfis públicos declarados");
+  });
+
+  it("recupera paginação vazia sem confundir com ausência de técnicos ou abrir convite automático", () => {
+    expect(page).toContain("search.pagina > 1 ? (");
+    expect(page).toContain("Esta página da busca não tem resultados");
+    expect(page).toContain('onClick={() => void update({ pagina: 1 })}');
+    expect(page).toContain("Voltar à primeira página");
+    expect(page).toContain("if (technicians.length > 0 || !searchArea || search.pagina > 1) return;");
+    expect(page).toContain("search.servico, search.pagina]);");
+    expect(page).toContain('title="Nenhum técnico encontrado com estes filtros"');
   });
 
   it("preserva foto real e apenas sinais factuais, sem telefone ou avaliações inventadas", () => {

@@ -7,7 +7,7 @@ const rich = readFileSync("src/components/home-rich.tsx", "utf8");
 describe("R4 — busca editorial e conteúdo da home", () => {
   it("mantém a recuperação do rascunho, rótulos permanentes e alternativa ao diretório", () => {
     expect(home).toContain('htmlFor="busca-especialidade"');
-    expect(home).toContain('htmlFor="busca-cidade"');
+    expect(home).toContain('<SearchMunicipalityChoice');
     expect(home).not.toMatch(/className="sr-only" htmlFor="busca-/);
     expect(home).toContain('id="busca-especialidade"');
     expect(home).toContain('id="busca-cidade"');
@@ -26,7 +26,7 @@ describe("R4 — busca editorial e conteúdo da home", () => {
     }
     expect(home).toContain('role="group" aria-label="Sugestões de especialidades"');
     expect(home).toContain('type="button" aria-pressed={specialty === value}');
-    expect(home).toContain('saveUiTextDraft("home", { specialty:value, city, uf:locationUf, neighborhood:locationNeighborhood })');
+    expect(home).toContain('saveUiTextDraft("home", { specialty:value, city, uf:locationUf, neighborhood:locationNeighborhood, source:locationSource })');
   });
 
   it("não oculta seções importantes antes de scroll nem anima o hero continuamente", () => {

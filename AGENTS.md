@@ -39,3 +39,8 @@
 - RiseClub (https://riseclub.tech/): referência conceitual para comunidade e aprendizagem. Não copiar cursos, artigos, dados de usuários, imagens ou elementos protegidos.
 - Prioridades locais: Home, `/tecnicos`, cards/perfis e painel administrativo 390/1440; preservar SSR, LCP, SEO, funis, dados reais e contatos privados.
 - Mudanças funcionais: micro-PR isolada com comparação visual e gates existentes. Esta diretriz não autoriza deploy, alteração de DNS, pagamentos, dados, Supabase ou RLS.
+
+## Controle exclusivo de edição e busca local (28/11/2026)
+- Nunca editar main simultaneamente no Lovable e no GitHub. Em divergência, proteger ambos os SHAs, reconciliar a branch de sincronização por merge normal, preservar rascunhos escopados, testar e só então sincronizar a prévia. Sem reset/force push.
+- Busca primária: serviço/especialidade + Encontrar agora e localidade compacta, visível e corrigível. Preferência explícita > contexto/sessão > IP aproximado > correção manual; GPS apenas sob clique e aviso de privacidade. Não presumir endereço, bairro ou cidade por operadora/DDD. Não apresentar perfis distantes como locais; alternativas abertas por escolha.
+- Ver contrato e registro: docs/RECONCILIACAO_LOVABLE_BUSCA_LOCAL_2026-11-28.md.

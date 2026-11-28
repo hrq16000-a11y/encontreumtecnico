@@ -72,7 +72,7 @@ describe("Bairros sugeridos apenas com fonte municipal identificada", () => {
     expect(directory).toContain('list={bairroCatalog ? "eut-bairro-diretorio" : undefined}');
     expect(input).toContain("list?: string");
     expect(input).toContain("savePendingFilter");
-    expect(home).toContain('placeholder="Município (ex.: São José dos Pinhais)"');
+    expect(home).toContain('<SearchMunicipalityChoice');
     expect(home).toContain('setLocationNeighborhood(""); // IP cannot establish a neighborhood.');
     expect(lp2).toContain("Município (opcional)");
     expect(gallery).toContain("Município (ex.: Curitiba)");
