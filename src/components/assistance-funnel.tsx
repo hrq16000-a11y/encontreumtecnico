@@ -28,16 +28,16 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
   const navigate = useNavigate();
   const fieldId = useId();
   const { area: suggested } = useRegionalSuggestion();
-  // A help CTA for privacy is not the same intent as general assistance.
-  // Scope only fixed portal intents; keep the public technician-ID contract.
+  // Portal intents and public service categories have separate drafts.
+  // Keep the existing public technician-ID and unscoped contracts.
   const draftScope = context.draftScope ?? context.technicianId;
   const [restored] = useState(() => readAssistanceDraft(draftScope));
-  const resumePortal = context.draftScope ? restored : null;
-  const [mode, setMode] = useState<AssistanceMode | null>(resumePortal ? resumePortal.mode : context.mode ?? restored?.mode ?? null);
-  const [step, setStep] = useState(resumePortal ? resumePortal.step : context.mode ? 1 : restored?.step ?? 0);
+  const resumeScoped = context.draftScope ? restored : null;
+  const [mode, setMode] = useState<AssistanceMode | null>(resumeScoped ? resumeScoped.mode : context.mode ?? restored?.mode ?? null);
+  const [step, setStep] = useState(resumeScoped ? resumeScoped.step : context.mode ? 1 : restored?.step ?? 0);
   const [name, setName] = useState(restored?.name ?? "");
   const [email, setEmail] = useState(restored?.email ?? "");
-  const [service, setService] = useState(resumePortal ? resumePortal.service : context.service || restored?.service || "");
+  const [service, setService] = useState(resumeScoped ? resumeScoped.service : context.service || restored?.service || "");
   const [when, setWhen] = useState(restored?.when ?? "Nos próximos dias");
   // Keep the established label contract; only show active catalogue entries
   // whose label resolves unambiguously using the existing directory validator.
@@ -60,7 +60,7 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
     ? [{ value: service, label: service, detail: "Serviço selecionado anteriormente" }, ...catalogChoices]
     : catalogChoices;
   const changeService = (value: string) => { preserve({ service: value }); setService(value); };
-  const [problem, setProblem] = useState(resumePortal ? resumePortal.problem : restored?.problem || context.initialProblem || "");
+  const [problem, setProblem] = useState(resumeScoped ? resumeScoped.problem : restored?.problem || context.initialProblem || "");
   const [city, setCity] = useState(context.city || restored?.city || "");
   const [uf, setUf] = useState(context.uf || restored?.uf || "");
   const [cityIbgeId, setCityIbgeId] = useState<number | null>(null);

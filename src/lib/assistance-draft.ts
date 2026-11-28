@@ -1,7 +1,7 @@
 import type { AssistanceMode } from "./assistance-intent";
 
 /** A reload-safe draft for the PUBLIC intake wizard only.
- * One tab, 45-minute TTL, scoped to the selected public technician ID or explicit portal-help intent.
+ * One tab, 45-minute TTL, scoped to a public technician ID, portal-help intent or service category.
  * Never stores passwords, GPS coordinates, payment data or the consent flag.
  */
 export type AssistanceDraft = {
@@ -23,8 +23,9 @@ const MAX_LEN = 6000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const PORTAL_SCOPE = /^portal-(home|contato)-(geral|privacidade)$/;
+const SERVICE_SCOPE = /^service-(climatizacao|automacao|cftv|computadores|comunicacoes|eletrica|design-grafico|impressoras|redes|software)$/;
 function key(scope?: string): string {
-  return PREFIX + (scope && (UUID.test(scope) || PORTAL_SCOPE.test(scope)) ? scope : "general");
+  return PREFIX + (scope && (UUID.test(scope) || PORTAL_SCOPE.test(scope) || SERVICE_SCOPE.test(scope)) ? scope : "general");
 }
 function getStorage(storage?: Storage): Storage | null {
   if (storage) return storage;

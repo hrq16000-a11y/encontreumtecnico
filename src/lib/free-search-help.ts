@@ -1,3 +1,19 @@
+import type { PublicGuide } from "./public-guides";
+import type { ServiceCategory } from "./service-catalog";
+
+const GUIDE_SERVICE_LABELS: Record<ServiceCategory["slug"], string> = {
+  cftv: "CFTV e segurança",
+  computadores: "Computadores e notebooks",
+  redes: "Redes e Wi-Fi",
+  impressoras: "Impressoras",
+  software: "Sistemas e software",
+  climatizacao: "Climatização",
+  automacao: "Automação",
+  comunicacoes: "Comunicações e telefonia",
+  eletrica: "Elétrica",
+  "design-grafico": "Serviços gráficos",
+};
+
 export type FreeHelpContext = {
   city?: string;
   uf?: string;
@@ -9,7 +25,7 @@ export type FreeHelpContext = {
   guideSlug?: string;
   initialProblem?: string;
   /** Stable public CTA intent, never user-entered text or contact data. */
-  draftScope?: `portal-${"home" | "contato"}-${"geral" | "privacidade"}`;
+  draftScope?: `portal-${"home" | "contato"}-${"geral" | "privacidade"}` | `service-${ServiceCategory["slug"]}`;
 };
 
 const clean = (value: unknown) =>
@@ -47,6 +63,21 @@ export function portalHelpContext(
     draftScope: `portal-${source}-${reason}`,
     service: "Outro serviço",
     initialProblem: request + " Estou na " + page + " do Encontre um Técnico. ",
+  };
+}
+
+/** Use the same category-scoped draft from the service page, guide and FAQ.
+ * Only known taxonomy keys may become storage scopes; unknown guides retain their existing fallback.
+ */
+export function guideHelpContext(guide: Pick<PublicGuide, "slug" | "categorySlug" | "categoryName">): FreeHelpContext {
+  const category = guide.categorySlug;
+  const known = Object.prototype.hasOwnProperty.call(GUIDE_SERVICE_LABELS, category);
+  const slug = category as ServiceCategory["slug"];
+  return {
+    mode: "managed",
+    guideSlug: guide.slug,
+    service: known ? GUIDE_SERVICE_LABELS[slug] : guide.categoryName,
+    ...(known ? { draftScope: `service-${slug}` as const } : {}),
   };
 }
 
