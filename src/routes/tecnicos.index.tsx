@@ -109,7 +109,6 @@ function TechniciansPage() {
   const lastRecorded = useRef("");
   const [consentRevision, setConsentRevision] = useState(0);
   const [filterResetRevision, setFilterResetRevision] = useState(0);
-  const [serviceQuery, setServiceQuery] = useState("");
   // Keep advanced controls mounted to preserve debounced drafts while collapsed.
   const [showAdvanced, setShowAdvanced] = useState(
     () => Boolean(search.servico || search.bairro || search.regiao || search.prioridade === "regiao"),
@@ -162,7 +161,7 @@ function TechniciansPage() {
   const specialty = categories.some((c) => c.slug === search.especialidade)
     ? search.especialidade
     : "Todas";
-  const directoryServiceOptions = directoryServiceChoices(services, categories, specialty, serviceQuery, search.servico);
+  const directoryServiceOptions = directoryServiceChoices(services, categories, specialty, "", search.servico);
 
   const update = (patch: Partial<typeof search>) =>
     navigate({ search: (prev) => ({ ...prev, ...patch, pagina: patch.pagina ?? 1 }), replace: true });
@@ -171,7 +170,6 @@ function TechniciansPage() {
     // Cancel pending same-tab drafts before remounting the debounced fields.
     // Otherwise a stale keystroke may repopulate a cleared search.
     clearDirectoryPendingFilters();
-    setServiceQuery("");
     setFilterResetRevision(value => value + 1);
     update({ especialidade: "Todas", servico: "", uf: "", cidade: "", bairro: "", regiao: "", prioridade: "" });
   };
@@ -208,7 +206,6 @@ function TechniciansPage() {
               placeholder="Digite a especialidade"
               onChange={(value) => {
                 update({ especialidade: value, servico: "" });
-                setServiceQuery("");
                 trackFilter("especialidade", value);
               }}
               className="mt-1 min-h-12 w-full rounded-md border border-input bg-background px-3 text-base text-foreground focus-visible:ring-2 focus-visible:ring-ring"
@@ -241,7 +238,7 @@ function TechniciansPage() {
                 </span>}
               <ChevronDown className={"h-4 w-4 transition-transform motion-reduce:transition-none " + (showAdvanced ? "rotate-180" : "")} aria-hidden="true" />
             </button>
-            {Boolean(search.especialidade !== "Todas" || search.servico || serviceQuery || search.uf || search.cidade || search.bairro || search.regiao || search.prioridade) && (
+            {Boolean(search.especialidade !== "Todas" || search.servico || search.uf || search.cidade || search.bairro || search.regiao || search.prioridade) && (
               <button type="button"
                 onClick={clearAllFilters}
                 className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
