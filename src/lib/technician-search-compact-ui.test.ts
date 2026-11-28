@@ -29,11 +29,11 @@ describe("Busca compacta: filtros e perfis com privacidade", () => {
     expect(page).toContain('motion-reduce:transition-none');
   });
 
-  it("mantém os debounced filters montados, e não perde as regras de URL e região", () => {
+  it("mantém filtros montados e reinicia apenas rascunhos dependentes quando a cidade muda", () => {
     expect(page).toContain('technicianSearchAfterUfChange(value, search.prioridade)');
     expect(page).toContain('key={`filtro-cidade-${search.uf}-${filterResetRevision}`}');
-    expect(page).toContain('key={`filtro-bairro-${search.uf}-${filterResetRevision}`}');
-    expect(page).toContain('key={`filtro-regiao-${search.uf}-${filterResetRevision}`}');
+    expect(page).toContain('key={`filtro-bairro-${search.uf}-${search.cidade}-${filterResetRevision}`}');
+    expect(page).toContain('key={`filtro-regiao-${search.uf}-${search.cidade}-${filterResetRevision}`}');
     expect(page).toContain('trackFilter("especialidade", selection.especialidade)');
     expect(page).toContain('trackFilter("uf", value)');
     expect(page).toContain('prioridade: event.target.checked ? "regiao" : ""');
