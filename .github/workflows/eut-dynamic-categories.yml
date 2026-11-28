@@ -30,6 +30,8 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Build app
         run: bun run build
+      - name: Verify active service/category choices with fixture-only tests
+        run: bunx vitest run src/lib/nearby-discovery.test.ts
       - name: Validate static catalog contracts
         run: |
           node --input-type=module <<'NODE'
@@ -38,13 +40,15 @@ jobs:
           const catalog=read('src/hooks/use-active-categories.ts');
           const tech=read('src/routes/area-tecnico.tsx');
           const results=read('src/routes/tecnicos.index.tsx');
+          const discovery=read('src/lib/nearby-discovery.ts');
           const home1=read('src/components/home-rich.tsx');
           const home2=read('src/routes/home2.tsx');
           const server=read('src/lib/technicians.functions.ts');
           for (const [file, body, terms] of [
             ['catalog hook',catalog,['eut_service_categories','.eq("active", true)','display_order']],
             ['tech profile',tech,['useActiveCategories()','c.slug','_state_uf: form.state_uf','eut_publish_my_technician']],
-            ['search',results,['useActiveCategories()','value={c.slug}','{c.label}']],
+            ['search',results,['useActiveCategories()','discoveryChoices(categories, services)','resolveDiscoveryChoice(choices, label, value, categories, services)']],
+            ['search choices',discovery,['categories.map(category => ({ value: category.slug, label: category.label','services.filter(service => labels.has(service.category_slug))']],
             ['home1 categories',home1,['useActiveCategories()','category.slug','category.label']],
             ['home2 categories',home2,['useActiveCategories()','search={{ especialidade: cat.slug','value={c.slug}']],
             ['search server',server,['LEGACY_CATEGORY_ALIASES','slug', '.eq("active", true)']],

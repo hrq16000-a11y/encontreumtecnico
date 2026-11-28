@@ -61,7 +61,7 @@ jobs:
             'Priorizar minha região',
             'prioridade: fallback',
             'localMatchLabel',
-            'label="Cidade"'
+            '<SearchMunicipalityChoice'
           ]) {
             if (!view.includes(term)) throw Error('Transparent ranking UI missing: '+term);
           }
