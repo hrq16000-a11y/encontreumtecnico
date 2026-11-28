@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveCategories } from "@/hooks/use-active-categories";
+import { LocationField, type LocationFieldValue } from "@/components/location-field";
 import { normalizeBrazilPhoneE164 } from "@/lib/admin-technician-crud-intent";
 import { confirmedTechnicianArchiveResult } from "@/lib/admin-technician-archive-confirmation";
 import { publicTextProblem } from "@/lib/public-profile-text";
@@ -32,7 +33,6 @@ export type AdminTechnicianRegistryRecord = {
 };
 
 type CatalogService = { slug: string; label: string; category_slug: string };
-type City = { id: number; name: string; uf: string };
 type IdentityField = keyof TechnicianIdentityDraft;
 const emptyIdentity: TechnicianIdentityDraft = {
   email: "", postal_code: "", street: "", number: "", complement: "",
@@ -71,8 +71,9 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
   const [ddd, setDdd] = useState(existing?.ddd ?? "");
   const [region, setRegion] = useState(existing?.region_approx ?? importedRegion);
   const [cityId, setCityId] = useState<number | null>(existing?.city_ibge_id ?? importedCityIbgeId);
-  const [citySearch, setCitySearch] = useState("");
-  const [cities, setCities] = useState<City[]>([]);
+  const [cityName, setCityName] = useState("");
+  const [cityUf, setCityUf] = useState("");
+  const [identityCityId, setIdentityCityId] = useState<number | null>(null);
   const [categories, setCategories] = useState<string[]>(existing?.category_slugs ?? []);
   const [services, setServices] = useState<string[]>(existing?.service_slugs ?? []);
   const [availableServices, setAvailableServices] = useState<CatalogService[]>([]);
@@ -101,7 +102,7 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
     let current = true;
     void Promise.resolve(db.from("eut_ibge_municipalities").select("id,name,uf")
       .eq("id", initialCityId).maybeSingle())
-      .then(({ data }) => { if (current && data) setCitySearch(`${data.name}/${data.uf}`); })
+      .then(({ data }) => { if (current && data) { setCityName(data.name); setCityUf(data.uf); } })
       .catch(() => {});
     return () => { current = false; };
   }, [existing?.city_ibge_id, importedCityIbgeId]);
@@ -169,19 +170,6 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
       }).catch(() => { if (current) setCatalogError(true); });
     return () => { current = false; };
   }, []);
-
-  useEffect(() => {
-    if (citySearch.trim().length < 3) { setCities([]); return; }
-    let current = true;
-    const timer = window.setTimeout(() => {
-      void Promise.resolve(db.from("eut_ibge_municipalities").select("id,name,uf")
-        .ilike("name", `%${citySearch.trim().replace(/[%_*,()\\]/g, " ")}%`)
-        .order("name").limit(12))
-        .then(({ data, error }) => { if (current) setCities(error ? [] : (data ?? []) as City[]); })
-        .catch(() => { if (current) setCities([]); });
-    }, 250);
-    return () => { current = false; window.clearTimeout(timer); };
-  }, [citySearch]);
 
   function toggleCategory(slug: string, checked: boolean) {
     setCategories((current) => checked
@@ -393,23 +381,13 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
           onChange={(event) => setRegion(event.target.value)} placeholder="Não inventar município pelo DDD" />
       </label>
     </div>
-    <div className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">
-      <label htmlFor="admin-record-city-search">Município IBGE verificado (opcional)</label>
-      <input id="admin-record-city-search" className={field} value={citySearch}
-        onChange={(event) => { setCitySearch(event.target.value); setCityId(null); }}
-        placeholder="Buscar município pelo nome" />
-      {cityId !== null && <button type="button" onClick={() => { setCityId(null); setCitySearch(""); }}
-        className="min-h-10 rounded-lg border border-input px-3 text-left text-xs font-medium text-foreground">
-        Município IBGE selecionado: {cityId} · Remover seleção
-      </button>}
-      {cities.length > 0 && <div className="grid max-h-44 gap-1 overflow-y-auto rounded-lg border border-border p-1">
-        {cities.map((city) => <button type="button" key={city.id}
-          onClick={() => { setCityId(city.id); setCitySearch(`${city.name}/${city.uf}`); setCities([]); }}
-          className="min-h-10 rounded-md p-2 text-left text-xs text-foreground hover:bg-accent">
-          {city.name}/{city.uf} · IBGE {city.id}
-        </button>)}
-      </div>}
-    </div>
+    <LocationField label="Município principal IBGE" required={false} showCep={false} hintEnabled={false}
+      value={{uf:cityUf,city:cityName,municipalityIbgeId:cityId,neighborhood:"",postalCode:""}}
+      onChange={(next: LocationFieldValue) => {
+        setCityId(next.municipalityIbgeId);
+        setCityName(next.city);
+        setCityUf(next.uf);
+      }} />
     {categoryLoading && <p className="text-xs text-muted-foreground">Carregando categorias…</p>}
     {(categoryError || catalogError) && <p role="alert" className="text-xs text-destructive">Catálogo indisponível; verifique a conexão antes de escolher serviços.</p>}
     <fieldset className="min-w-0">
@@ -466,11 +444,6 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
       </label>
       <p className="text-xs text-muted-foreground">E-mail administrativo de contato; não altera o e-mail de login.</p>
       <div className="grid min-w-0 gap-3 sm:grid-cols-[9rem_minmax(0,1fr)]">
-        <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">CEP
-          <input className={field} inputMode="numeric" maxLength={9}
-            value={identity.postal_code} placeholder="00000-000"
-            onChange={(event) => changeIdentity("postal_code", event.target.value.replace(/[^\d-]/g, ""))} />
-        </label>
         <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">Logradouro
           <input className={field} maxLength={200} value={identity.street}
             onChange={(event) => changeIdentity("street", event.target.value)} />
@@ -486,20 +459,16 @@ export function AdminTechnicianRecordEditor({ sourceId, existing, createOrigin =
             onChange={(event) => changeIdentity("complement", event.target.value)} />
         </label>
       </div>
-      <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">Bairro
-        <input className={field} maxLength={120} value={identity.neighborhood}
-          onChange={(event) => changeIdentity("neighborhood", event.target.value)} />
-      </label>
-      <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_5.5rem]">
-        <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">Cidade do endereço
-          <input className={field} maxLength={120} value={identity.city}
-            onChange={(event) => changeIdentity("city", event.target.value)} />
-        </label>
-        <label className="grid min-w-0 gap-1 text-sm font-semibold text-foreground">UF
-          <input className={field} maxLength={2} value={identity.uf}
-            onChange={(event) => changeIdentity("uf", event.target.value.toUpperCase().replace(/[^A-Z]/g, ""))} />
-        </label>
-      </div>
+      <LocationField label="Localização cadastral privada" required={false} hintEnabled={false}
+        value={{uf:identity.uf,city:identity.city,municipalityIbgeId:identityCityId,
+          neighborhood:identity.neighborhood,postalCode:identity.postal_code}}
+        onChange={(next: LocationFieldValue) => {
+          setIdentityCityId(next.municipalityIbgeId);
+          setIdentity(previous => ({
+            ...previous, uf:next.uf, city:next.city,
+            neighborhood:next.neighborhood, postal_code:next.postalCode,
+          }));
+        }} />
       <p className="text-xs text-muted-foreground">Dados completos para a administração; não alteram cobertura pública nem autorizam divulgação.</p>
     </fieldset>
     {identityLoadError && <p role="alert" className="text-xs text-destructive">

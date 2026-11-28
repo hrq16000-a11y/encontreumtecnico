@@ -36,7 +36,8 @@ describe("Separação rigorosa entre município e bairro", () => {
     const gps = readFileSync("src/lib/customer-location.ts", "utf8");
     expect(registration).toContain("safeNeighborhood(form.neighborhood, form.city)");
     expect(registration).toContain("_neighborhood: safeNeighborhood(form.neighborhood, form.city) || null");
-    expect(registration).toContain("Ex.: Jardim Itália");
+    expect(registration).toContain('<LocationField label="Localidade base do técnico"');
+    expect(readFileSync("src/components/location-field.tsx", "utf8")).toContain("Bairro (opcional)");
     expect(registration).toContain("saveTechnicianDraftImmediately");
     expect(registration).toContain("eut_publish_my_technician");
     expect(card).toContain("formatPublicLocation(t)");

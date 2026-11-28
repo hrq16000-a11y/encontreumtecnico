@@ -62,9 +62,12 @@ describe("Bairros sugeridos apenas com fonte municipal identificada", () => {
     const gallery = read("src/routes/lp2/galeria.tsx");
     const card = read("src/components/technician-search-card.tsx");
     const detail = read("src/components/public-technician-profile.tsx");
-    expect(profile).toContain('list={bairroCatalog ? "eut-bairro-profissional" : undefined}');
-    expect(profile).toContain("placeholder=\"Ex.: Jardim Itália\"");
-    expect(profile).toContain("onChange={(e) => updateRegistration({ ...form, neighborhood: e.target.value })}");
+    const sharedField = read("src/components/location-field.tsx");
+    expect(profile).toContain('<LocationField label="Localidade base do técnico"');
+    expect(profile).toContain("neighborhood: next.neighborhood");
+    expect(sharedField).toContain("neighborhoodOptions(catalog)");
+    expect(sharedField).toContain("disabled={value.municipalityIbgeId === null}");
+    expect(sharedField).toContain("Bairro não disponível no catálogo municipal.");
     expect(profile).toContain("saveTechnicianDraftImmediately");
     expect(profile).toContain("eut_publish_my_technician");
     expect(profile).toContain("base_city_ibge_id");

@@ -2,15 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, CheckCircle2, CreditCard, Headset, MapPin, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useRegionalSuggestion } from "@/hooks/use-regional-suggestion";
+import { LocationField, type LocationFieldValue } from "@/components/location-field";
 import { buildAssistanceLead, type AssistanceMode } from "@/lib/assistance-intent";
 import { buildSavedLeadWhatsAppUrl, type SavedAssistanceLead } from "@/lib/assistance-whatsapp";
-import { BRAZIL_STATES } from "@/lib/service-taxonomy";
 import { useActiveCategories } from "@/hooks/use-active-categories";
 import { useActiveServices } from "@/hooks/use-active-services";
 import { assistanceDirectoryFilters } from "@/lib/assistance-directory-filters";
-import { MunicipalityPicker } from "@/components/municipality-picker";
-import { placeKey } from "@/lib/location-labels";
 import type { FreeHelpContext } from "@/lib/free-search-help";
 import { clearAssistanceDraft, readAssistanceDraft, saveAssistanceDraft, type AssistanceDraft } from "@/lib/assistance-draft";
 
@@ -21,7 +18,6 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
   const { categories } = useActiveCategories();
   const { services: activeServices } = useActiveServices();
   const navigate = useNavigate();
-  const { area: suggested } = useRegionalSuggestion();
   const [restored] = useState(() => readAssistanceDraft(context.technicianId));
   const [mode, setMode] = useState<AssistanceMode | null>(context.mode ?? restored?.mode ?? null);
   const [step, setStep] = useState(context.mode ? 1 : restored?.step ?? 0);
@@ -39,7 +35,7 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
   const [sent, setSent] = useState(false);
   const [savedWhatsAppLead, setSavedWhatsAppLead] = useState<SavedAssistanceLead | null>(null);
   const [error, setError] = useState("");
-  const cityEdited = useRef(Boolean(context.city || restored?.city));
+  const [postalCode, setPostalCode] = useState("");
   const latestDraft = useRef<AssistanceDraft>({ mode, step, name, email, service, when, problem, city, uf, neighborhood });
   latestDraft.current = { mode, step, name, email, service, when, problem, city, uf, neighborhood };
   function preserve(patch: Partial<AssistanceDraft>) {
@@ -55,13 +51,6 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
       mode, step, name, email, service, when, problem, city, uf, neighborhood,
     });
   }, [context.technicianId, mode, step, name, email, service, when, problem, city, uf, neighborhood, sent]);
-
-  useEffect(() => {
-    if (!suggested || cityEdited.current || city.trim()) return;
-    setCity(suggested.city);
-    setUf(suggested.uf);
-    setNeighborhood(previous => previous || suggested.neighborhood);
-  }, [suggested?.city, suggested?.uf, suggested?.neighborhood, city]);
 
   async function finish() {
     if (!mode || sending) return;
@@ -207,30 +196,13 @@ export function AssistanceFunnel({ context, onClose }: { context: FreeHelpContex
         <div className="mt-5 space-y-4">
           <h3 className="text-xl font-extrabold text-foreground">Onde podemos ajudar e como responder?</h3>
           <p className="text-xs leading-5 text-muted-foreground">UF e município são sugeridos pela região aproximada. Confirme a cidade na lista oficial ou continue sem informar localidade; GPS não é necessário.</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block text-sm font-semibold text-foreground">Estado (UF)
-              <select className={input} value={uf} onChange={e => { cityEdited.current = true; preserve({city:"",uf:e.target.value,neighborhood:""}); setCity(""); setCityIbgeId(null); setNeighborhood(""); setUf(e.target.value); }} autoComplete="address-level1">
-                <option value="">Não informado</option>
-                {BRAZIL_STATES.map(value => <option key={value} value={value}>{value}</option>)}
-              </select>
-            </label>
-            <div className="min-w-0 sm:col-span-2">
-              <MunicipalityPicker uf={uf} selectedId={cityIbgeId} currentCityName={city}
-                required={false} onSelect={municipality => {
-                  cityEdited.current = true;
-                  setCityIbgeId(municipality.id);
-                  const moved = Boolean(city.trim()) && placeKey(city) !== placeKey(municipality.name);
-                  preserve({city:municipality.name,uf:municipality.uf,
-                    ...(moved ? { neighborhood: "" } : {})});
-                  setCity(municipality.name);
-                  setUf(municipality.uf);
-                  if (moved) setNeighborhood("");
-                }} />
-            </div>
-            <label className="block text-sm font-semibold text-foreground sm:col-span-2">Bairro (opcional)
-              <input className={input} value={neighborhood} maxLength={80} onChange={e => {preserve({neighborhood:e.target.value});setNeighborhood(e.target.value)}} placeholder="Só se souber" autoComplete="address-level3" />
-            </label>
-          </div>
+          <LocationField label="Local do atendimento" required={false}
+            value={{uf, city, municipalityIbgeId:cityIbgeId, neighborhood, postalCode}}
+            onChange={(next: LocationFieldValue) => {
+              setCity(next.city); setUf(next.uf); setCityIbgeId(next.municipalityIbgeId);
+              setNeighborhood(next.neighborhood); setPostalCode(next.postalCode);
+              preserve({city:next.city,uf:next.uf,neighborhood:next.neighborhood});
+            }} />
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block text-sm font-semibold text-foreground">Seu nome
               <input className={input} required minLength={2} maxLength={100} value={name} onChange={e => {preserve({name:e.target.value});setName(e.target.value)}} autoComplete="name" />
