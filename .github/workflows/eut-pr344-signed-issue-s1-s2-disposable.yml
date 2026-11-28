@@ -1,0 +1,127 @@
+name: EUT PR344 — signed issue S1/S2 disposable only
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/eut-pr344-signed-issue-s1-s2-disposable.yml'
+      - 'qa/pr344-signed-issue-only.mjs'
+      - 'qa/pr344-signed-issue-s1-s2.test.mjs'
+      - 'qa/pr344-signed-issue-s2-disposable.sql'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eut-pr344-signed-issue-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  signed-issue-s1-s2:
+    if: github.event.pull_request.number == 344
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      PR344_LOCAL_ONLY: 'yes'
+      PR344_ISSUE_TEST_ONLY: 'enabled'
+      SUPABASE_ACCESS_TOKEN: ''
+      VITE_EUT_HTTP_PRESENCE_INGEST: 'disabled'
+      VITE_EUT_HTTP_PRESENCE_ADMIN_READ: 'disabled'
+      VITE_EUT_PRIVATE_REALTIME_PRESENCE: 'disabled'
+      PGHOST: '127.0.0.1'
+      PGPORT: '54322'
+      PGUSER: 'postgres'
+      PGPASSWORD: 'postgres'
+      PGDATABASE: 'postgres'
+      SUPABASE_YES: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: supabase/setup-cli@v1
+        with:
+          version: '3.2.0'
+
+      - name: S1/S2 preflight — restrict to disposable QA modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$PR344_LOCAL_ONLY" = yes
+          test "$PR344_ISSUE_TEST_ONLY" = enabled
+          test -z "$SUPABASE_ACCESS_TOKEN"
+          test "$VITE_EUT_HTTP_PRESENCE_INGEST" = disabled
+          test "$VITE_EUT_HTTP_PRESENCE_ADMIN_READ" = disabled
+          test "$VITE_EUT_PRIVATE_REALTIME_PRESENCE" = disabled
+          test "$PGHOST" = 127.0.0.1
+          test "$PGPORT" = 54322
+          node --check qa/pr344-signed-issue-only.mjs
+          node --check qa/pr344-signed-issue-s1-s2.test.mjs
+          if rg -n 'encontreumtecnico\.com\.br|pqtzhctvjbfcunmrvxne|SUPABASE_DB_PASSWORD|https://[^ ]*supabase\.co' \
+            qa/pr344-signed-issue-only.mjs qa/pr344-signed-issue-s1-s2.test.mjs qa/pr344-signed-issue-s2-disposable.sql; then
+            echo "Official project reference is forbidden in isolated test modules" >&2
+            exit 1
+          fi
+          supabase --version
+
+      - name: Install existing lockfile dependencies
+        run: bun install --frozen-lockfile
+
+      - name: S1 — signed issue only, no database, no legacy tests
+        run: timeout --signal=TERM --kill-after=5s 45s node --test --test-name-pattern='^S1:' qa/pr344-signed-issue-s1-s2.test.mjs
+
+      - name: Start new disposable, unlinked Supabase localhost for S2
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir="$(mktemp -d "$RUNNER_TEMP/eut-pr344-signed-XXXXXX")"
+          echo "PR344_SIGNED_TEMP_STACK=$dir" >> "$GITHUB_ENV"
+          cd "$dir"
+          supabase init
+          test -f supabase/config.toml
+          supabase start > "$RUNNER_TEMP/pr344-signed-supabase.log" 2>&1
+          echo "ISOLATED: local Supabase started without official project linkage"
+
+      - name: Apply S2-only synthetic table to loopback, not official SQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = 127.0.0.1
+          test "$PGPORT" = 54322
+          command -v psql >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+          psql -X -v ON_ERROR_STOP=1 -f "$GITHUB_WORKSPACE/qa/pr344-signed-issue-s2-disposable.sql" >/dev/null
+          gate="$(psql -XAt -v ON_ERROR_STOP=1 -c "SELECT CASE WHEN c.relrowsecurity AND NOT has_table_privilege('anon','public.pr344_signed_issue_s2_fixture','SELECT') AND NOT has_table_privilege('authenticated','public.pr344_signed_issue_s2_fixture','SELECT') AND has_table_privilege('service_role','public.pr344_signed_issue_s2_fixture','DELETE') THEN 'ok' ELSE 'bad' END FROM pg_class c WHERE c.oid='public.pr344_signed_issue_s2_fixture'::regclass")"
+          test "$gate" = ok
+          sleep 3
+          echo "ISOLATED: S2 synthetic tombstone table is private"
+
+      - name: Export only local ephemeral credentials for S2
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$PR344_SIGNED_TEMP_STACK"
+          set -a
+          source <(supabase status -o env)
+          set +a
+          [[ "${API_URL:-}" =~ ^http://127\.0\.0\.1:[0-9]+$ ]] || exit 1
+          test -n "${ANON_KEY:-}"
+          test -n "${SERVICE_ROLE_KEY:-}"
+          test "$ANON_KEY" != "$SERVICE_ROLE_KEY"
+          echo "::add-mask::$ANON_KEY"
+          echo "::add-mask::$SERVICE_ROLE_KEY"
+          {
+            echo "PR344_API_URL=$API_URL"
+            echo "PR344_ANON_KEY=$ANON_KEY"
+            echo "PR344_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+          } >> "$GITHUB_ENV"
+          echo "ISOLATED: only disposable local keys exported"
+
+      - name: S2 — clock boundary and physical purge/replay only
+        run: timeout --signal=TERM --kill-after=5s 90s node --test --test-name-pattern='^S2:' qa/pr344-signed-issue-s1-s2.test.mjs
+
+      - name: Destroy disposable stack even when checks fail
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "${PR344_SIGNED_TEMP_STACK:-}" ] && [ -f "$PR344_SIGNED_TEMP_STACK/supabase/config.toml" ]; then
+            cd "$PR344_SIGNED_TEMP_STACK"
+            supabase stop --no-backup >/dev/null 2>&1 || true
+          fi
+          echo "ISOLATED: test Supabase stopped without backup"
