@@ -277,7 +277,7 @@ function TechniciansPage() {
             {servicesError && <p role="alert" className="mt-1 text-sm text-destructive">Lista de serviços indisponível. A busca por especialidade continua disponível.</p>}
           </div>
           <DebouncedTextFilter
-            key={`filtro-bairro-${search.uf}-${filterResetRevision}`}
+            key={`filtro-bairro-${search.uf}-${search.cidade}-${filterResetRevision}`}
             id="filtro-bairro"
             label="Bairro"
             list={bairroCatalog ? "eut-bairro-diretorio" : undefined}
@@ -294,7 +294,7 @@ function TechniciansPage() {
               target="_blank" rel="noopener noreferrer">prefeitura</a>; você pode digitar outra denominação.
           </div>}
           <DebouncedTextFilter
-            key={`filtro-regiao-${search.uf}-${filterResetRevision}`}
+            key={`filtro-regiao-${search.uf}-${search.cidade}-${filterResetRevision}`}
             id="filtro-regiao"
             label="Região"
             value={search.regiao}
