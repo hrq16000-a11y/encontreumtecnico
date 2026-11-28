@@ -20,6 +20,12 @@ describe("triagem local sem gateway pago", () => {
     expect(result.keywords).toEqual([]);
   });
 
+  it.each(["Meu aparelho não liga", "Minha impressora não liga", "Preciso de impressora e roteador"])(
+    "evita inferência indevida: %s", (phrase) => {
+      expect(triageLocally(phrase).category).toBe(phrase.includes("Minha impressora") ? "impressoras" : "Todas");
+    },
+  );
+
   it("extrai apenas localização explicitamente declarada", () => {
     expect(extractDeclaredLocation("Moro em Curitiba, no bairro Boqueirão, meu notebook não liga"))
       .toEqual({ city: "Curitiba", region: "Boqueirão" });
