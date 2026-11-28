@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { portalHelpContext } from "./free-search-help";
+import { guideHelpContext, portalHelpContext } from "./free-search-help";
 import { clearAssistanceDraft, readAssistanceDraft, saveAssistanceDraft, type AssistanceDraft } from "./assistance-draft";
 
 beforeEach(() => window.sessionStorage.clear());
@@ -37,6 +37,20 @@ describe("unsent assistance wizard survives navigation and mobile reload", () =>
     clearAssistanceDraft(privacy.draftScope, sessionStorage);
     expect(readAssistanceDraft(privacy.draftScope, sessionStorage)).toBeNull();
     expect(readAssistanceDraft(generic.draftScope, sessionStorage)).toEqual(draft);
+  });
+  it("keeps service-category drafts apart and shares the same category across guides", () => {
+    const cftv = guideHelpContext({ slug: "instalacao-cameras", categorySlug: "cftv", categoryName: "Câmeras" });
+    const redes = guideHelpContext({ slug: "wifi", categorySlug: "redes", categoryName: "Redes" });
+    const same = guideHelpContext({ slug: "manutencao-cameras", categorySlug: "cftv", categoryName: "Câmeras" });
+    expect(cftv).toEqual({ mode: "managed", service: "CFTV e segurança", guideSlug: "instalacao-cameras", draftScope: "service-cftv" });
+    expect(same.draftScope).toBe(cftv.draftScope);
+    saveAssistanceDraft(cftv.draftScope, draft, sessionStorage);
+    expect(readAssistanceDraft(redes.draftScope, sessionStorage)).toBeNull();
+    expect(readAssistanceDraft(undefined, sessionStorage)).toBeNull();
+    expect(readAssistanceDraft(same.draftScope, sessionStorage)).toEqual(draft);
+    expect(guideHelpContext({ slug: "test", categorySlug: "unknown", categoryName: "Outro" }).draftScope).toBeUndefined();
+    clearAssistanceDraft(same.draftScope, sessionStorage);
+    expect(readAssistanceDraft(cftv.draftScope, sessionStorage)).toBeNull();
   });
   it("expires and never persists payment credentials or explicit consent", () => {
     saveAssistanceDraft(undefined, draft, sessionStorage, 100000);
